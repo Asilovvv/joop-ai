@@ -17,7 +17,7 @@ owner instantly, and hands difficult conversations to a human.
 - Owner commands: `/leads`, `/export` (CSV for Excel), `/stats`
 - Prompt-injection guard in the system prompt
 - Scripted evaluation set (`eval/`) with pass/fail metrics and latency for the thesis
-- 22 unit tests with a fake LLM (no network needed)
+- 26 unit tests with a fake LLM (no network needed); 24 scripted evaluation cases in Kyrgyz, Russian and mixed language
 
 ## Architecture
 
@@ -42,11 +42,11 @@ Business profile (business.yaml) ──► system prompt
    ```
 2. Create a bot with [@BotFather](https://t.me/BotFather) and copy its token.
 3. Get an Anthropic API key at https://console.anthropic.com.
-4. Configure:
+4. Configure (interactive, secrets are typed hidden and saved to `.env`):
    ```bash
-   cp .env.example .env              # fill TELEGRAM_BOT_TOKEN and ANTHROPIC_API_KEY
-   cp business.example.yaml business.yaml   # replace with the real business data
+   python -m joop.setup
    ```
+   It also creates `business.yaml` from the demo profile; replace it with the real business data.
 5. Run:
    ```bash
    python -m joop
