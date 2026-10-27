@@ -1,0 +1,5 @@
+aiogram>=3.31,<4
+anthropic>=2.3
+PyYAML>=6.0
+pytest>=9.0
+pytest-asyncio>=1.0
