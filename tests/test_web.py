@@ -241,3 +241,17 @@ def test_whatsapp_and_instagram_webhooks(client, rt, business):
         conv = s.exec(select(Conversation).where(Conversation.channel == "instagram")).one()
         assert conv.ai_paused_until is not None
         assert s.exec(select(Lead).where(Lead.kind == "media")).one()
+
+
+def test_customer_text_is_escaped_in_panel(client, business):
+    login(client)
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        llm = FakeLLM([AgentReply("Ок")])
+        handle_incoming(s, b, IncomingMessage("telegram", "666", "text", "<script>alert(1)</script>", "<b>x</b>", "xss"), lambda: llm, NOW_UTC)
+        s.commit()
+        conv_id = s.exec(select(Conversation).where(Conversation.chat_id == "666")).one().id
+    listing = client.get("/panel/conversations").text
+    assert "<b>x</b>" not in listing and "&lt;b&gt;x&lt;/b&gt;" in listing
+    detail = client.get(f"/panel/conversations/{conv_id}").text
+    assert "<script>alert(1)</script>" not in detail and "&lt;script&gt;" in detail
