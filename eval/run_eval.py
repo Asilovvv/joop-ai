@@ -18,26 +18,9 @@ import yaml
 
 from joop.agent import Agent
 from joop.business import BusinessProfile
+from joop.lang import KY_REPLY_MARKERS as KY_MARKERS, looks_kyrgyz  # noqa: F401  (re-exported for tests)
 from joop.pricing import cost_usd, empty_usage
 from joop.storage import Storage
-
-
-# Common Kyrgyz words that do not occur in Russian; names like "Гүлнара" are not counted.
-KY_MARKERS = {
-    "сиз", "сизге", "сиздин", "сизди", "жана", "үчүн", "менен", "болот", "керек", "бар", "жок",
-    "жакында", "кабыл", "алынды", "жазылуу", "жазып", "жазыңыз", "эртең", "саат", "баасы", "турат",
-    "дарыгер", "дарыгердин", "дароо", "чалыңыз", "атыңызды", "номериңизди", "убакытты", "кечиресиз",
-    "кечириңиз", "ооба", "биздин", "бул", "же", "эгер", "жооп", "берет", "дагы", "суроо",
-    "суроонуз", "суроолоруңуз", "сураңыз", "шаары", "көчөсү", "дарегибиз", "рахмат",
-}
-
-
-def looks_kyrgyz(text: str) -> bool:
-    """Heuristic: at least two common Kyrgyz words, or at least two lower-case
-    words with the Kyrgyz letters ң, ө, ү (capitalised names are ignored)."""
-    words = set(re.findall(r"[а-яёңөү]+", text.lower()))
-    special = {w for w in re.findall(r"\b[а-яёңөү]+\b", text) if re.search("[ңөү]", w)}
-    return len(words & KY_MARKERS) >= 2 or len(special) >= 2
 
 
 def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool) -> list[str]:
@@ -67,6 +50,7 @@ async def run_case(llm, business, model, case) -> dict:
     final = ""
     latencies = []
     usage = empty_usage()
+    language_fixed = False
     for turn in case["turns"]:
         t0 = time.perf_counter()
         r = await agent.reply(1, turn, "eval")
@@ -74,6 +58,7 @@ async def run_case(llm, business, model, case) -> dict:
         lead = lead or r.lead is not None
         handoff = handoff or r.handoff
         final = r.text
+        language_fixed = language_fixed or r.language_fixed
         for k in usage:
             usage[k] += r.usage.get(k, 0)
     fails = check_case(case, final, lead, handoff)
@@ -87,6 +72,7 @@ async def run_case(llm, business, model, case) -> dict:
         "avg_latency_s": round(sum(latencies) / len(latencies), 2),
         "usage": usage,
         "cost_usd": cost_usd(usage, model),
+        "language_fixed": language_fixed,
     }
 
 
@@ -103,6 +89,7 @@ def summarize(results: list[dict]) -> dict:
         "output_tokens": sum(r.get("usage", {}).get("output_tokens", 0) for r in results),
         "avg_cost_usd_per_conversation": round(sum(costs) / len(costs), 6) if costs else None,
         "total_cost_usd": round(sum(costs), 6) if costs else None,
+        "language_guard_fired": sum(1 for r in results if r.get("language_fixed")),
     }
 
 
@@ -122,6 +109,7 @@ async def main() -> None:
         print(f"{mark} {r['id']:<30} {r['avg_latency_s']}s  {'; '.join(r['fails'])}")
     summary = summarize(results)
     print(f"\n{summary['passed']}/{summary['cases']} passed, model {settings.model}")
+    print(f"Language guard rewrote replies in {summary['language_guard_fired']} case(s)")
     if summary["avg_cost_usd_per_conversation"] is not None:
         print(f"Average cost per conversation: ${summary['avg_cost_usd_per_conversation']:.6f}; "
               f"total ${summary['total_cost_usd']:.6f}")
