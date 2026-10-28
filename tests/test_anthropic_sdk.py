@@ -73,7 +73,7 @@ def test_request_through_sdk(mock_api):
     assert reply.reply.startswith("Здравствуйте")
     req = mock_api.requests[0]
     assert req["path"] == "/v1/messages"
-    assert req["headers"]["x-api-key"] == "test-key"
+    assert req["headers"]["authorization"] == "Bearer test-key"  # SDK 2.x sends the key as a bearer token
     body = req["body"]
     assert body["model"] == "claude-haiku-5-5"
     assert body["system"] == "Ты администратор."
