@@ -51,6 +51,10 @@ class FakeSender:
         self.templates.append((to, name, lang, list(params)))
         return self.ok
 
+    def refresh_token(self):
+        self.refreshes = getattr(self, "refreshes", 0) + 1
+        return "refreshed-token" if self.ok else None
+
 
 class FakeRuntime(Runtime):
     def __init__(self, settings, llm=None):

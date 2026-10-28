@@ -19,6 +19,7 @@ log = logging.getLogger(__name__)
 
 JOB_WINDOW_HOURS = 3  # a job may run late (server restart), but not at night
 SERVICE_WINDOW = timedelta(hours=23)  # Meta allows free-form messages within 24h of the customer's last message
+TOKEN_REFRESH_EVERY = timedelta(days=7)  # Instagram user tokens expire after 60 days unless refreshed
 
 
 def _due(hour_now: int, target: int) -> bool:
@@ -113,6 +114,26 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
     return "\n".join(lines)
 
 
+def refresh_instagram_token(rt: Runtime, business: Business, now_utc: datetime) -> bool | None:
+    """Swap the Instagram token for a fresh one weekly. None = nothing to do, False = failed (retry tomorrow)."""
+    if not business.ig_access_token:
+        return None
+    last = business.ig_token_refreshed_at
+    if last is not None and now_utc - last < TOKEN_REFRESH_EVERY:
+        return None
+    client = rt.instagram(business)
+    if client is None:
+        return None
+    token = client.refresh_token()
+    if token:
+        business.ig_access_token = token
+        business.ig_token_refreshed_at = now_utc
+        return True
+    business.ig_token_refreshed_at = now_utc - TOKEN_REFRESH_EVERY + timedelta(days=1)
+    log.warning("Instagram token for %s was not refreshed; will retry tomorrow", business.slug)
+    return False
+
+
 def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: datetime) -> dict:
     now_local = utc_to_local(now_utc, business.timezone)
     today = now_local.date().isoformat()
@@ -124,6 +145,9 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
         business.last_digest_date = today
         text = digest_text(session, business, now_utc)
         report["digest"] = bool(text) and notify_admins(rt, business, [text]) > 0
+    refreshed = refresh_instagram_token(rt, business, now_utc)
+    if refreshed is not None:
+        report["instagram_token"] = refreshed
     session.add(business)
     return report
 

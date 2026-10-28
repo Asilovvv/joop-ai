@@ -78,7 +78,7 @@ def settings_from_env() -> Settings:
         meta_verify_token=env.get("META_VERIFY_TOKEN", "").strip(),
         meta_app_secret=env.get("META_APP_SECRET", "").strip(),
         instagram_app_secret=env.get("INSTAGRAM_APP_SECRET", "").strip(),
-        graph_api_version=env.get("GRAPH_API_VERSION", "v24.0").strip() or "v24.0",
+        graph_api_version=env.get("GRAPH_API_VERSION", "v26.0").strip() or "v26.0",
         whatsapp_api_base=env.get("WHATSAPP_API_BASE", "https://graph.facebook.com").rstrip("/"),
         instagram_api_base=env.get("INSTAGRAM_API_BASE", "https://graph.instagram.com").rstrip("/"),
         telegram_api_base=env.get("TELEGRAM_API_BASE", "https://api.telegram.org").rstrip("/"),
