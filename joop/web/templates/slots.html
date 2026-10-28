@@ -44,19 +44,24 @@
 
 <section class="card">
   <h2>Ближайшие три недели</h2>
-  {% for label, items in days %}
+  {% for label, per_staff in days %}
     <div class="day">{{ label }}</div>
-    <div class="slots">
-      {% for slot, name, booking in items %}
-      <span class="slot {{ 'taken' if booking else ('busy' if slot.status != 'free' else '') }}" title="{{ name }}{% if booking %}: {{ booking.customer_name }}{% endif %}">
-        {{ slot.start.strftime('%H:%M') }} · {{ name.split(' ')[0] }}{% if booking %} · {{ booking.customer_name }}{% elif slot.status != 'free' %} · занято{% endif %}
-        {% if not booking %}
-        <form method="post" action="/panel/slots/{{ slot.id }}/toggle" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" title="{{ 'Отметить занятым' if slot.status == 'free' else 'Освободить' }}">{{ 'занять' if slot.status == 'free' else 'освободить' }}</button></form>
-        <form method="post" action="/panel/slots/{{ slot.id }}/delete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" title="Удалить окно" aria-label="Удалить окно">×</button></form>
-        {% endif %}
-      </span>
-      {% endfor %}
+    {% for name, items in per_staff %}
+    <div class="staff-line">
+      <div class="muted small">{{ name }}</div>
+      <div class="slots">
+        {% for slot, booking in items %}
+        <span class="slot {{ 'taken' if booking else ('busy' if slot.status != 'free' else '') }}">
+          {{ slot.start.strftime('%H:%M') }}{% if booking %} · {{ booking.customer_name }}{% elif slot.status != 'free' %} · занято{% endif %}
+          {% if not booking %}
+          <form method="post" action="/panel/slots/{{ slot.id }}/toggle" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" title="{{ 'Отметить занятым' if slot.status == 'free' else 'Освободить' }}">{{ 'занять' if slot.status == 'free' else 'освободить' }}</button></form>
+          <form method="post" action="/panel/slots/{{ slot.id }}/delete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" title="Удалить окно" aria-label="Удалить окно">×</button></form>
+          {% endif %}
+        </span>
+        {% endfor %}
+      </div>
     </div>
+    {% endfor %}
   {% else %}
   <p class="muted">Окон нет. Создайте их по графику выше.</p>
   {% endfor %}
