@@ -393,14 +393,14 @@ def slots_page(request: Request):
                 select(Booking).where(Booking.business_id == b.id, Booking.status == "booked", Booking.slot_id.in_([r.id for r in rows] or [0]))
             ).all()
         }
-        days: list[tuple[str, list]] = []
+        # day label -> staff name -> [(slot, booking)]; dicts keep insertion order (sorted by time)
+        grouped: dict[str, dict[str, list]] = {}
         for slot in rows:
             if slot.staff_id not in names:
                 continue
-            label = fmt_date_long(slot.start)
-            if not days or days[-1][0] != label:
-                days.append((label, []))
-            days[-1][1].append((slot, names[slot.staff_id], booked.get(slot.id)))
+            per_day = grouped.setdefault(fmt_date_long(slot.start), {})
+            per_day.setdefault(names[slot.staff_id], []).append((slot, booked.get(slot.id)))
+        days = [(label, sorted(per_staff.items())) for label, per_staff in grouped.items()]
         today = now_local.date()
         return _render(
             request,

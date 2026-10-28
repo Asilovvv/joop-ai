@@ -1,0 +1,29 @@
+# Production setup: the app plus Caddy, which gets a free HTTPS certificate for DOMAIN.
+# Usage on a server with Docker:  cp .env.example .env  (fill it in, set DOMAIN)  then  docker compose up -d
+services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: sqlite:////data/joop.db
+    volumes:
+      - joop-data:/data
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  joop-data:
+  caddy-data:

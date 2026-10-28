@@ -10,4 +10,3 @@ httpx==0.28.1
 anthropic==2.3.0
 itsdangerous==2.2.0
 tzdata==2026.6
-pytest==9.1.1
