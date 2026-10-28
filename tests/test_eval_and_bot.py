@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 import yaml
 
 from eval.run_eval import check_case, run_case
@@ -10,8 +11,9 @@ from .fakes import FakeLLM, response, text, tool
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def test_eval_cases_file_is_valid():
-    cases = yaml.safe_load((ROOT / "eval" / "cases.yaml").read_text("utf-8"))
+@pytest.mark.parametrize("name", ["cases.yaml", "cases_dental.yaml"])
+def test_eval_cases_file_is_valid(name):
+    cases = yaml.safe_load((ROOT / "eval" / name).read_text("utf-8"))
     ids = [c["id"] for c in cases]
     assert len(ids) == len(set(ids))
     assert all(c["turns"] for c in cases)

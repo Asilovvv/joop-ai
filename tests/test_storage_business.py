@@ -54,3 +54,16 @@ def test_example_profile_loads_and_renders():
 def test_profile_requires_name():
     with pytest.raises(ValueError):
         BusinessProfile.from_dict({"description": "x"})
+
+
+def test_dental_profile_renders_safety_rules():
+    p = BusinessProfile.from_yaml(ROOT / "business.dental.example.yaml")
+    rendered = p.render()
+    assert "Business-specific rules" in rendered
+    assert "103" in rendered  # emergency number in the urgent-symptoms rule
+    assert len(p.services) >= 5
+
+
+def test_rules_are_optional():
+    p = BusinessProfile.from_dict({"name": "X", "description": "Y"})
+    assert "Business-specific rules" not in p.render()
