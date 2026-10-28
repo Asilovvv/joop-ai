@@ -21,6 +21,10 @@ log = logging.getLogger(__name__)
 Notifier = Callable[[str], Awaitable[None]]
 
 MAX_TOOL_ROUNDS = 4
+# Output-token ceiling per model call. The model may think before answering and
+# thinking counts towards this limit; at 600 tokens long Kyrgyz medical replies were
+# cut off before any text (eval, 29 Oct 2026). Only generated tokens are billed.
+DEFAULT_MAX_TOKENS = 2048
 
 SYSTEM_TEMPLATE = """You are the customer-service operator of the business described below.
 You chat with customers in a messenger.
@@ -156,7 +160,7 @@ class Agent:
         model: str,
         notifier: Optional[Notifier] = None,
         history_limit: int = 20,
-        max_tokens: int = 600,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
     ) -> None:
         self.llm = llm
         self.business = business
@@ -248,6 +252,8 @@ class Agent:
             tool_uses = [b for b in response.content if b.type == "tool_use"]
 
             if response.stop_reason != "tool_use" or not tool_uses:
+                if response.stop_reason == "max_tokens":
+                    log.warning("Reply hit max_tokens=%s for chat %s", self.max_tokens, chat_id)
                 result.text = "\n".join(t for t in text_parts if t).strip()
                 break
 
@@ -264,6 +270,12 @@ class Agent:
             result.text = (
                 "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\n"
                 "Извините, сейчас не могу ответить. Администратор скоро ответит."
+            )
+            # The fallback promises an administrator, so tell the owner.
+            await self._notify(
+                f"Бот не смог ответить в чате {chat_id} ({display_name}).\n"
+                f"Сообщение клиента: {user_text[:500]}\n"
+                f"Ответить: /reply {chat_id} текст"
             )
 
         # Language guard: the model sometimes answers a Kyrgyz message in Russian
