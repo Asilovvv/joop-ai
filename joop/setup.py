@@ -1,6 +1,8 @@
-"""Interactive first-time setup: writes .env and business.yaml.
+"""Interactive setup: writes .env and business.yaml.
 
-Usage: python -m joop.setup
+Usage:
+    python -m joop.setup          ask for settings (Enter keeps a valid existing value)
+    python -m joop.setup --check  exit 1 if .env is missing or invalid (used by start.command)
 Secrets are typed without echo and never printed.
 """
 
@@ -9,9 +11,13 @@ from __future__ import annotations
 import getpass
 import re
 import shutil
+import sys
 from pathlib import Path
 
 TOKEN_RE = re.compile(r"^\d{5,}:[A-Za-z0-9_-]{20,}$")
+# Anthropic API keys look like sk-ant-api03-...; other sk-ant-* tokens
+# (console sessions, OAuth tokens) are rejected by the API with 401.
+KEY_PREFIX = "sk-ant-api"
 
 
 def valid_telegram_token(token: str) -> bool:
@@ -20,7 +26,11 @@ def valid_telegram_token(token: str) -> bool:
 
 def valid_anthropic_key(key: str) -> bool:
     key = key.strip()
-    return key.startswith("sk-") and len(key) > 20
+    return key.startswith(KEY_PREFIX) and len(key) > 40 and not re.search(r"\s", key)
+
+
+def valid_chat_id(value: str) -> bool:
+    return value == "" or value.lstrip("-").isdigit()
 
 
 def render_env(token: str, api_key: str, owner_chat_id: str = "", model: str = "claude-haiku-5-5") -> str:
@@ -35,10 +45,31 @@ def render_env(token: str, api_key: str, owner_chat_id: str = "", model: str = "
     )
 
 
+def read_env(path: Path) -> dict[str, str]:
+    values: dict[str, str] = {}
+    if not path.exists():
+        return values
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            values[k.strip()] = v.strip()
+    return values
+
+
+def check_env(values: dict[str, str]) -> list[str]:
+    """Return a list of problems (empty = config is usable)."""
+    problems = []
+    if not valid_telegram_token(values.get("TELEGRAM_BOT_TOKEN", "")):
+        problems.append("TELEGRAM_BOT_TOKEN отсутствует или неверного формата")
+    if not valid_anthropic_key(values.get("ANTHROPIC_API_KEY", "")):
+        problems.append(f"ANTHROPIC_API_KEY отсутствует или это не API-ключ (должен начинаться с {KEY_PREFIX}03-)")
+    return problems
+
+
 def write_env(path: Path, content: str) -> None:
     if path.exists():
-        backup = path.with_suffix(".bak")
-        shutil.copy2(path, backup)
+        shutil.copy2(path, path.with_suffix(".bak"))
     path.write_text(content, encoding="utf-8")
     try:
         path.chmod(0o600)
@@ -46,25 +77,41 @@ def write_env(path: Path, content: str) -> None:
         pass  # Windows: permissions are managed differently
 
 
-def ask(prompt: str, check, secret: bool = False) -> str:
+def ask(prompt: str, check, secret: bool = False, current: str = "") -> str:
+    """Ask until the value passes `check`. Empty input keeps a valid `current`."""
+    keep = current and check(current)
+    if keep:
+        prompt = prompt.rstrip(": ") + " [Enter — оставить текущий]: "
     while True:
         value = (getpass.getpass(prompt) if secret else input(prompt)).strip()
+        if not value and keep:
+            return current
         if check(value):
             return value
         print("  Неверный формат, попробуйте ещё раз.")
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
     root = Path.cwd()
-    print("Joop AI: первичная настройка\n")
-    token = ask("Токен бота от @BotFather (ввод скрыт): ", valid_telegram_token, secret=True)
-    api_key = ask("Ключ Anthropic API, начинается с sk- (ввод скрыт): ", valid_anthropic_key, secret=True)
-    owner = input("Ваш chat_id (Enter, если ещё не знаете — бот покажет по /myid): ").strip()
-    if owner and not owner.lstrip("-").isdigit():
-        print("  chat_id должен быть числом — оставляю пустым, добавите позже.")
-        owner = ""
+    env_path = root / ".env"
+    current = read_env(env_path)
 
-    write_env(root / ".env", render_env(token, api_key, owner))
+    if "--check" in argv:
+        problems = check_env(current) if current else ["файл .env не найден"]
+        for p in problems:
+            print(f"Настройка: {p}")
+        return 1 if problems else 0
+
+    print("Joop AI: настройка\n")
+    token = ask("Токен бота от @BotFather (ввод скрыт): ", valid_telegram_token, True,
+                current.get("TELEGRAM_BOT_TOKEN", ""))
+    api_key = ask(f"Ключ Anthropic API, начинается с {KEY_PREFIX}03- (ввод скрыт): ", valid_anthropic_key, True,
+                  current.get("ANTHROPIC_API_KEY", ""))
+    owner = ask("Ваш chat_id (Enter, если ещё не знаете — бот покажет по /myid): ", valid_chat_id, False,
+                current.get("OWNER_CHAT_ID", ""))
+
+    write_env(env_path, render_env(token, api_key, owner, current.get("JOOP_MODEL", "claude-haiku-5-5")))
     print("Файл .env сохранён.")
 
     profile = root / "business.yaml"
@@ -75,7 +122,8 @@ def main() -> None:
     print("\nГотово. Запуск бота:  python -m joop")
     if not owner:
         print("Потом напишите боту /myid, впишите число в OWNER_CHAT_ID в .env и перезапустите.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -8,7 +8,7 @@ import logging
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandObject, CommandStart
 from aiogram.types import BufferedInputFile, Message
-from anthropic import AsyncAnthropic
+from anthropic import AsyncAnthropic, AuthenticationError
 
 from .agent import Agent
 from .business import BusinessProfile
@@ -112,6 +112,13 @@ def build_router(agent: Agent, storage: Storage, bot: Bot, owner_chat_id: int | 
         await bot.send_chat_action(chat_id, "typing")
         try:
             result = await agent.reply(chat_id, message.text, display)
+        except AuthenticationError:
+            log.error("Anthropic rejected ANTHROPIC_API_KEY (401). Run: python -m joop.setup")
+            await message.answer(
+                "Кечиресиз, техникалык ката. Бир аздан кийин кайра жазыңыз.\n"
+                "Извините, техническая ошибка. Попробуйте чуть позже."
+            )
+            return
         except Exception:
             log.exception("Agent failed for chat %s", chat_id)
             await message.answer(
