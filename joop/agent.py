@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional
 
 from .business import BusinessProfile
+from .lang import is_kyrgyz_message, looks_kyrgyz
 from .pricing import add_usage, cost_usd, empty_usage
 from .storage import Lead, Storage
 
@@ -28,8 +29,9 @@ LANGUAGE
 - Reply in the language of the customer's last message: Kyrgyz (кыргызча) or Russian.
   If the customer mixes languages, use the one they used most in that message.
 - The business profile is often written in Russian. When the customer writes in
-  Kyrgyz, still answer entirely in Kyrgyz and translate service names; do not switch
-  to Russian because the data is in Russian.
+  Kyrgyz, still answer entirely in Kyrgyz and translate service names (use the Kyrgyz
+  name from the profile when it is given); do not switch to Russian because the data
+  is in Russian.
 - Keep replies short: 1-4 sentences of plain text. No markdown: no **bold**,
   no headings, no tables (the messenger shows these as raw symbols).
 
@@ -62,6 +64,14 @@ Tone: {tone}
 BUSINESS PROFILE
 {profile}
 """
+
+# Second pass used only when a Kyrgyz message got a reply in another language.
+TRANSLATE_TO_KYRGYZ = """You rewrite one customer-service message into Kyrgyz.
+The customer wrote in Kyrgyz, but the draft you receive is in Russian. Translate the
+whole draft into natural, polite Kyrgyz in Cyrillic script. Keep every number, price,
+currency, time, date, phone number, name and address exactly as in the draft. Use only
+Kyrgyz Cyrillic letters: no Latin letters and no Kazakh letters such as і, ә, ғ, қ.
+Plain text, no markdown. Output only the translated message, nothing else."""
 
 TOOLS = [
     {
@@ -115,6 +125,7 @@ class AgentReply:
     handoff: bool = False
     usage: dict = field(default_factory=empty_usage)  # tokens summed over all model calls
     cost_usd: Optional[float] = None
+    language_fixed: bool = False  # reply was rewritten into Kyrgyz by the language guard
 
 
 def _block_to_dict(block: Any) -> dict:
@@ -198,6 +209,26 @@ class Agent:
 
         return f"ERROR: unknown tool {name}"
 
+    async def _rewrite_in_kyrgyz(self, result: AgentReply) -> None:
+        """Translate a non-Kyrgyz draft into Kyrgyz; keep the draft if that fails.
+        The call has no tools, so it cannot save leads or hand off twice."""
+        try:
+            response = await self.llm.messages.create(
+                model=self.model,
+                max_tokens=self.max_tokens,
+                system=TRANSLATE_TO_KYRGYZ,
+                messages=[{"role": "user", "content": result.text}],
+            )
+        except Exception:
+            log.exception("Kyrgyz rewrite failed; sending the draft")
+            return
+        add_usage(result.usage, getattr(response, "usage", None))
+        text = "\n".join(b.text for b in response.content if b.type == "text").strip()
+        if text and looks_kyrgyz(text):
+            result.text = text
+            result.language_fixed = True
+            log.info("Language guard rewrote a reply into Kyrgyz")
+
     async def reply(self, chat_id: int, user_text: str, display_name: str = "") -> AgentReply:
         user_text = user_text.strip()[:4000]
         messages = self.storage.history(chat_id, self.history_limit)
@@ -234,6 +265,11 @@ class Agent:
                 "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\n"
                 "Извините, сейчас не могу ответить. Администратор скоро ответит."
             )
+
+        # Language guard: the model sometimes answers a Kyrgyz message in Russian
+        # because the business data is in Russian. Rewrite such replies once.
+        if is_kyrgyz_message(user_text) and not looks_kyrgyz(result.text):
+            await self._rewrite_in_kyrgyz(result)
 
         result.cost_usd = cost_usd(result.usage, self.model)
         self.storage.add_usage(chat_id, self.model, result.usage, result.cost_usd)

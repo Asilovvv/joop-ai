@@ -11,15 +11,20 @@ languages: [ky, ru]
 
 services:
   - name: "Женская стрижка"
+    # name_ky: Kyrgyz name shown to Kyrgyz-speaking customers; have a native speaker check it
+    name_ky: "Аялдардын чачын кыркуу"
     price: "1000 сом (демо-цена)"
     duration: "1 час"
   - name: "Мужская стрижка"
+    name_ky: "Эркектердин чачын кыркуу"
     price: "500 сом (демо-цена)"
     duration: "40 минут"
   - name: "Маникюр с покрытием"
+    name_ky: "Жабуу менен маникюр"
     price: "900 сом (демо-цена)"
     duration: "1.5 часа"
   - name: "Окрашивание"
+    name_ky: "Чач боёо"
     price: "от 2500 сом, зависит от длины (демо-цена)"
     duration: "2-3 часа"
     note: "Точную цену мастер называет после консультации"
