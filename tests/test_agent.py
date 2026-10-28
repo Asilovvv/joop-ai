@@ -121,9 +121,26 @@ async def test_handoff_sets_flag_and_notifies():
 
 async def test_empty_model_answer_falls_back_to_bilingual_message():
     llm = FakeLLM([response(text(""))])
-    agent, _ = make_agent(llm)
+    agent, notes = make_agent(llm)
     r = await agent.reply(1, "привет")
     assert "Администратор" in r.text and "Кечиресиз" in r.text
+    # the fallback promises an administrator, so the owner is told
+    assert len(notes) == 1 and "привет" in notes[0] and "/reply 1" in notes[0]
+
+
+async def test_reply_cut_by_token_limit_falls_back_and_notifies_owner():
+    # Seen in eval: the model spent the whole budget thinking and returned no text
+    llm = FakeLLM([response(stop_reason="max_tokens")])
+    agent, notes = make_agent(llm)
+    r = await agent.reply(1, "Тишим ооруп, бетим шишип кетти")
+    assert "Администратор" in r.text and len(notes) == 1
+
+
+def test_token_ceiling_leaves_room_for_thinking():
+    from joop.agent import DEFAULT_MAX_TOKENS
+
+    agent, _ = make_agent(FakeLLM([]))
+    assert agent.max_tokens == DEFAULT_MAX_TOKENS >= 2048
 
 
 async def test_tool_loop_is_bounded():
