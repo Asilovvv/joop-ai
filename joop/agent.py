@@ -111,11 +111,21 @@ class AgentReply:
 
 
 def _block_to_dict(block: Any) -> dict:
-    """Convert an SDK content block to a plain dict for the next request."""
+    """Convert an SDK content block to a plain dict for the next request.
+
+    Thinking blocks must be sent back unchanged (with their signature) when
+    the conversation continues after a tool call.
+    """
     if block.type == "text":
         return {"type": "text", "text": block.text}
     if block.type == "tool_use":
         return {"type": "tool_use", "id": block.id, "name": block.name, "input": block.input}
+    if block.type == "thinking":
+        return {"type": "thinking", "thinking": block.thinking, "signature": block.signature}
+    if block.type == "redacted_thinking":
+        return {"type": "redacted_thinking", "data": block.data}
+    if hasattr(block, "model_dump"):  # any other SDK block: pass it back as the API sent it
+        return block.model_dump(exclude_none=True)
     raise ValueError(f"Unsupported block type: {block.type}")
 
 
