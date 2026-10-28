@@ -33,6 +33,7 @@ class BusinessProfile:
         "Collect a booking request. The administrator confirms it personally."
     )
     tone: str = "Friendly, short, polite."
+    rules: list[str] = field(default_factory=list)  # business-specific rules, e.g. medical safety
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "BusinessProfile":
@@ -73,4 +74,8 @@ class BusinessProfile:
                 lines.append(f"  Q: {item.get('q', '')}")
                 lines.append(f"  A: {item.get('a', '')}")
         lines.append(f"Booking policy: {self.booking_policy}")
+        if self.rules:
+            lines.append("Business-specific rules (follow strictly):")
+            for rule in self.rules:
+                lines.append(f"  - {rule}")
         return "\n".join(lines)
