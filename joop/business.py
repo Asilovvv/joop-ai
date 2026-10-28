@@ -14,6 +14,7 @@ import yaml
 @dataclass
 class Service:
     name: str
+    name_ky: str = ""  # Kyrgyz name, so the model does not translate on the fly
     price: str = ""
     duration: str = ""
     note: str = ""
@@ -60,7 +61,7 @@ class BusinessProfile:
         if self.services:
             lines.append("Services and prices:")
             for s in self.services:
-                parts = [s.name]
+                parts = [s.name + (f" (in Kyrgyz: {s.name_ky})" if s.name_ky else "")]
                 if s.price:
                     parts.append(f"price: {s.price}")
                 if s.duration:
