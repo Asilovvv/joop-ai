@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Окна{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Окна для записи</h1>
+  <p class="muted">ИИ предлагает клиентам только свободные окна. Если клиент записался по телефону, отметьте окно занятым.</p>
+</section>
+
+{% if staff %}
+<div class="cols">
+  <section class="card">
+    <h2>Заполнить по графику</h2>
+    <form method="post" action="/panel/slots/generate" class="stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label for="g-staff">Специалист
+        <select id="g-staff" name="staff_id">{% for m in staff %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}</select>
+      </label>
+      <div class="grid2">
+        <label for="g-from">С даты<input id="g-from" type="date" name="date_from" value="{{ today }}" required></label>
+        <label for="g-to">По дату<input id="g-to" type="date" name="date_to" value="{{ week }}" required></label>
+        <label for="g-start">С<input id="g-start" name="start" value="{{ work_start }}" required></label>
+        <label for="g-end">До<input id="g-end" name="end" value="{{ work_end }}" required></label>
+        <label for="g-step">Длительность окна, мин<input id="g-step" type="number" name="step" value="60" min="10" max="480"></label>
+      </div>
+      <button class="btn" type="submit">Создать окна</button>
+    </form>
+  </section>
+  <section class="card">
+    <h2>Добавить отдельные окна</h2>
+    <form method="post" action="/panel/slots/add" class="stack">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label for="a-staff">Специалист
+        <select id="a-staff" name="staff_id">{% for m in staff %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}</select>
+      </label>
+      <label for="a-day">Дата<input id="a-day" type="date" name="day" value="{{ today }}" required></label>
+      <label for="a-times">Время через запятую<input id="a-times" name="times" placeholder="10:00, 11:30, 15:00" required></label>
+      <button class="btn" type="submit">Добавить</button>
+    </form>
+  </section>
+</div>
+{% else %}
+<section class="card"><p>Сначала <a href="/panel/staff">добавьте специалистов</a>.</p></section>
+{% endif %}
+
+<section class="card">
+  <h2>Ближайшие три недели</h2>
+  {% for label, items in days %}
+    <div class="day">{{ label }}</div>
+    <div class="slots">
+      {% for slot, name, booking in items %}
+      <span class="slot {{ 'taken' if booking else ('busy' if slot.status != 'free' else '') }}" title="{{ name }}{% if booking %}: {{ booking.customer_name }}{% endif %}">
+        {{ slot.start.strftime('%H:%M') }} · {{ name.split(' ')[0] }}{% if booking %} · {{ booking.customer_name }}{% elif slot.status != 'free' %} · занято{% endif %}
+        {% if not booking %}
+        <form method="post" action="/panel/slots/{{ slot.id }}/toggle" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" title="{{ 'Отметить занятым' if slot.status == 'free' else 'Освободить' }}">{{ 'занять' if slot.status == 'free' else 'освободить' }}</button></form>
+        <form method="post" action="/panel/slots/{{ slot.id }}/delete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" title="Удалить окно" aria-label="Удалить окно">×</button></form>
+        {% endif %}
+      </span>
+      {% endfor %}
+    </div>
+  {% else %}
+  <p class="muted">Окон нет. Создайте их по графику выше.</p>
+  {% endfor %}
+</section>
+{% endblock %}

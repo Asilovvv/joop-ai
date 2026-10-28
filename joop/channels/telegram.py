@@ -85,8 +85,9 @@ class TelegramClient:
     def delete_webhook(self) -> bool:
         return self._call("deleteWebhook", {"drop_pending_updates": False}) is not None
 
-    def get_updates(self, offset: int | None, timeout: int = 25) -> list[dict[str, Any]]:
+    def get_updates(self, offset: int | None, timeout: int = 25) -> list[dict[str, Any]] | None:
+        """Long polling. None means the call failed (caller should back off), [] means no news."""
         payload: dict[str, Any] = {"timeout": timeout, "allowed_updates": ["message"]}
         if offset is not None:
             payload["offset"] = offset
-        return self._call("getUpdates", payload, timeout=timeout + 10) or []
+        return self._call("getUpdates", payload, timeout=timeout + 10)

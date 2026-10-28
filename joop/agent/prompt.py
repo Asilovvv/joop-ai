@@ -14,7 +14,7 @@ NICHE_LABELS = {
     "auto": "автосервиса",
     "education": "учебного центра",
 }
-CHANNEL_LABELS = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram Direct"}
+CHANNEL_LABELS = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram Direct", "console": "тестовом чате"}
 
 RESPONSE_FORMAT = (
     "Ответ — только JSON-объект без пояснений вокруг:\n"
