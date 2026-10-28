@@ -49,3 +49,20 @@ def test_bot_router_builds():
     agent = Agent(llm=FakeLLM([]), business=business, storage=storage, model="m")
     router = build_router(agent, storage, Bot("123456:TEST-token"), owner_chat_id=1)
     assert len(router.message.handlers) >= 9
+
+
+def test_kyrgyz_detection_on_real_replies():
+    from eval.run_eval import looks_kyrgyz
+
+    # Replies recorded in the 29 Oct 2026 run
+    assert looks_kyrgyz("Кечириңиз, дары-дармек же дозалар боюнча кеңеш бере албайм. Жазылуу үчүн атыңызды жазып жибериңиз.")
+    assert not looks_kyrgyz("Да, в клинике есть рентген: прицельный снимок делаем на месте.")
+    # A Russian reply that only contains a Kyrgyz name and "Рахмат" is not Kyrgyz
+    assert not looks_kyrgyz("Рахмат, Гүлнара! Вашу заявку на детский приём на завтра, 10:00, мы получили.")
+
+
+def test_language_and_markdown_checks():
+    ky_case = {"expect_lang": "ky"}
+    assert check_case(ky_case, "Да, рентген есть.", False, False) == ["reply is not in Kyrgyz"]
+    assert check_case({}, "Баасы **2500 сом**", False, False) == ["markdown in reply (Telegram shows it as raw symbols)"]
+    assert check_case(ky_case, "Ооба, биздин клиникада рентген бар.", False, False) == []
