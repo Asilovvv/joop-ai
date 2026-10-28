@@ -18,7 +18,7 @@ owner instantly, and hands difficult conversations to a human.
 - Owner commands: `/leads`, `/export` (CSV for Excel), `/stats`
 - Prompt-injection guard in the system prompt
 - Scripted evaluation set (`eval/`) with pass/fail metrics and latency for the thesis
-- 48 unit tests with a fake LLM (no network needed); 38 scripted evaluation cases for a beauty studio and a dental clinic (beauty set: 24/24 passed with claude-haiku-5-5, Oct 2026)
+- 50 unit tests with a fake LLM (no network needed); 38 scripted evaluation cases for a beauty studio and a dental clinic (beauty set: 24/24 passed with claude-haiku-5-5, Oct 2026)
 
 ## Architecture
 
