@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Ошибка {{ status }}{% endblock %}
+{% block content %}
+<section class="card stack">
+  <h1>{{ 'Не найдено' if status == 404 else 'Не получилось' }}</h1>
+  <p class="muted">{{ detail if detail and detail != 'Not Found' else 'Такой страницы нет.' }}</p>
+  <p><a href="/panel">Вернуться в панель</a></p>
+</section>
+{% endblock %}

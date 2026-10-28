@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Диалоги{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Диалоги</h1>
+  <p class="muted">Вся переписка ИИ с клиентами. В диалоге можно выключить ИИ и ответить самим.</p>
+</section>
+<section class="card">
+  {% if rows %}
+  <div class="list">
+    {% for c, m in rows %}
+    <a class="item" href="/panel/conversations/{{ c.id }}" style="text-decoration:none;color:inherit">
+      <div class="main">
+        <div><b>{{ c.customer_name or c.display_name or 'Клиент' }}</b> <span class="muted small">{{ c.customer_phone }}</span></div>
+        {% if m %}<div class="muted small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ {'customer': '', 'ai': 'ИИ: ', 'staff': 'Вы: '}.get(m.role, '') }}{{ m.text }}</div>{% endif %}
+      </div>
+      <div class="actions">
+        {% if c.ai_paused_until and c.ai_paused_until > now %}<span class="chip warn">ИИ на паузе</span>{% endif %}
+        <span class="chip">{{ channel_names.get(c.channel, c.channel) }}</span>
+        <span class="muted small">{{ c.last_message_at|local(business.timezone) }}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted">Диалогов пока нет. Напишите своему боту, чтобы проверить.</p>{% endif %}
+</section>
+{% endblock %}
