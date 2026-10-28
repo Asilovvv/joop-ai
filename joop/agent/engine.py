@@ -230,6 +230,18 @@ def _norm(text: str) -> str:
     return " ".join((text or "").split()).casefold()
 
 
+def _is_own_text(echo: str, sent: list[str]) -> bool:
+    """Does an echo match one of our replies? Channels may cut long texts, so a long echo may be a prefix."""
+    e = _norm(echo).rstrip("…").strip()
+    if not e:
+        return False
+    for t in sent:
+        t = _norm(t)
+        if e == t or (len(e) >= 20 and t.startswith(e)):
+            return True
+    return False
+
+
 def _handle_echo(
     session: Session, business: Business, conv: Conversation, incoming: IncomingMessage, now: datetime, off: bool
 ) -> Outcome:
@@ -241,7 +253,7 @@ def _handle_echo(
         .order_by(Message.id.desc())
         .limit(5)
     ).all()
-    if text and any(_norm(text) == _norm(t) for t in recent_ai):
+    if _is_own_text(text, list(recent_ai)):
         return Outcome(skipped="own_echo")
     _add_message(session, business, conv, "staff", text or "[сообщение администратора]", now, off, incoming.external_id)
     conv.ai_paused_until = now + STAFF_TAKEOVER_PAUSE

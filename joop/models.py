@@ -45,6 +45,7 @@ class Business(SQLModel, table=True):
     wa_template_lang: str = "ru"
     ig_account_id: str = Field(default="", index=True)
     ig_access_token: str = ""
+    ig_token_refreshed_at: Optional[NaiveDatetime] = None
 
     last_reminder_date: str = ""
     last_digest_date: str = ""

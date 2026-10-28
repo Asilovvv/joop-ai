@@ -746,6 +746,8 @@ async def channels_save(request: Request):
                 setattr(b, field, "")
             elif value(field):
                 setattr(b, field, value(field))
+                if field == "ig_access_token":
+                    b.ig_token_refreshed_at = utcnow()  # a freshly pasted token is valid for 60 days
         for field in ("wa_phone_number_id", "wa_reminder_template", "ig_account_id"):
             setattr(b, field, value(field))
         b.wa_template_lang = value("wa_template_lang") or "ru"

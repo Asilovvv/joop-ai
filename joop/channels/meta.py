@@ -9,9 +9,13 @@ from typing import Any, Iterable
 
 import httpx
 
-from .base import INSTAGRAM_MAX, WHATSAPP_MAX, IncomingMessage, clip
+from .base import INSTAGRAM_MAX_BYTES, WHATSAPP_MAX, IncomingMessage, clip, clip_bytes
 
 log = logging.getLogger(__name__)
+
+# Since 2026 WhatsApp may hide a user's phone number and send a business-scoped user id (BSUID)
+# instead. We keep such chats as "bsuid:<id>" and address replies through the `recipient` field.
+BSUID_PREFIX = "bsuid:"
 
 WA_MEDIA_LABELS = {
     "audio": "голосовое сообщение",
@@ -64,6 +68,14 @@ def _wa_text(m: dict[str, Any]) -> tuple[str, str, str]:
     return "", "", ""  # reactions, system and unsupported messages are ignored
 
 
+def _wa_party(m: dict[str, Any], side: str) -> str:
+    """Phone number of the customer ("from" or "to"), or their BSUID when the number is hidden."""
+    if m.get(side):
+        return str(m[side])
+    user_id = m.get(f"{side}_user_id")
+    return f"{BSUID_PREFIX}{user_id}" if user_id else ""
+
+
 def parse_whatsapp(payload: dict[str, Any]) -> list[tuple[str, IncomingMessage]]:
     """Return (phone_number_id, message) pairs. Consecutive texts from one sender are merged."""
     out: list[tuple[str, IncomingMessage]] = []
@@ -75,13 +87,15 @@ def parse_whatsapp(payload: dict[str, Any]) -> list[tuple[str, IncomingMessage]]
             if not phone_number_id:
                 continue
             if field == "messages":
-                names = {
-                    c.get("wa_id"): ((c.get("profile") or {}).get("name") or "")
-                    for c in value.get("contacts") or []
-                }
+                names: dict[str, str] = {}
+                for contact in value.get("contacts") or []:
+                    name = (contact.get("profile") or {}).get("name") or ""
+                    for key in (contact.get("wa_id"), contact.get("user_id")):
+                        if key:
+                            names[str(key)] = name
                 for m in value.get("messages") or []:
                     kind, text, label = _wa_text(m)
-                    sender = str(m.get("from") or "")
+                    sender = _wa_party(m, "from")
                     if not kind or not sender:
                         continue
                     if kind == "text" and not text:
@@ -100,13 +114,13 @@ def parse_whatsapp(payload: dict[str, Any]) -> list[tuple[str, IncomingMessage]]
                     out.append(
                         (
                             phone_number_id,
-                            IncomingMessage("whatsapp", sender, kind, text, names.get(sender, ""), f"wa:{m.get('id', '')}", label),
+                            IncomingMessage("whatsapp", sender, kind, text, names.get(sender.removeprefix(BSUID_PREFIX), ""), f"wa:{m.get('id', '')}", label),
                         )
                     )
             elif field == "smb_message_echoes":
                 # Coexistence: messages the clinic typed in the WhatsApp Business app.
                 for m in value.get("message_echoes") or []:
-                    customer = str(m.get("to") or "")
+                    customer = _wa_party(m, "to")
                     if not customer:
                         continue
                     _, text, _ = _wa_text(m)
@@ -165,7 +179,9 @@ def _error_text(response: httpx.Response) -> str:
 class _GraphClient:
     def __init__(self, http: httpx.Client, base_url: str, version: str, account_id: str, token: str) -> None:
         self.http = http
-        self.url = f"{base_url.rstrip('/')}/{version}/{account_id}/messages"
+        self._base = base_url.rstrip("/")
+        self._token = token
+        self.url = f"{self._base}/{version}/{account_id}/messages"
         self._headers = {"Authorization": f"Bearer {token}"}
 
     def _post(self, payload: dict[str, Any], what: str) -> bool:
@@ -180,28 +196,55 @@ class _GraphClient:
         return True
 
 
+def _addressee(to: str) -> dict[str, str]:
+    if to.startswith(BSUID_PREFIX):
+        return {"recipient": to[len(BSUID_PREFIX):]}
+    return {"to": to}
+
+
 class WhatsAppClient(_GraphClient):
     def send_text(self, to: str, text: str) -> bool:
         payload = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
-            "to": to,
+            **_addressee(to),
             "type": "text",
             "text": {"preview_url": False, "body": clip(text, WHATSAPP_MAX)},
         }
         return self._post(payload, "WhatsApp")
 
     def send_template(self, to: str, name: str, lang: str, params: list[str]) -> bool:
+        """Template with positional variables {{1}}, {{2}}, ... in its body."""
         template: dict[str, Any] = {"name": name, "language": {"code": lang or "ru"}}
         if params:
             template["components"] = [
                 {"type": "body", "parameters": [{"type": "text", "text": p} for p in params]}
             ]
-        payload = {"messaging_product": "whatsapp", "to": to, "type": "template", "template": template}
+        payload = {"messaging_product": "whatsapp", **_addressee(to), "type": "template", "template": template}
         return self._post(payload, "WhatsApp template")
 
 
 class InstagramClient(_GraphClient):
     def send_text(self, recipient_id: str, text: str) -> bool:
-        payload = {"recipient": {"id": recipient_id}, "message": {"text": clip(text, INSTAGRAM_MAX)}}
+        payload = {"recipient": {"id": recipient_id}, "message": {"text": clip_bytes(text, INSTAGRAM_MAX_BYTES)}}
         return self._post(payload, "Instagram")
+
+    def refresh_token(self) -> str | None:
+        """Instagram user tokens live 60 days; a token older than 24 hours can be exchanged for a new one."""
+        try:
+            response = self.http.get(
+                f"{self._base}/refresh_access_token",
+                params={"grant_type": "ig_refresh_token", "access_token": self._token},
+                timeout=20.0,
+            )
+        except httpx.HTTPError as exc:
+            log.warning("Instagram token refresh failed: %s", type(exc).__name__)
+            return None
+        if response.status_code >= 400:
+            log.warning("Instagram token refresh failed: HTTP %s %s", response.status_code, _error_text(response))
+            return None
+        try:
+            token = response.json().get("access_token")
+        except ValueError:
+            return None
+        return str(token) if token else None

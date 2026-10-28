@@ -18,9 +18,20 @@ class IncomingMessage:
 
 TELEGRAM_MAX = 4000
 WHATSAPP_MAX = 4000
-INSTAGRAM_MAX = 1000
+INSTAGRAM_MAX_BYTES = 1000  # Instagram counts UTF-8 bytes; a Cyrillic letter is 2 bytes
 
 
 def clip(text: str, limit: int) -> str:
     text = text or ""
     return text if len(text) <= limit else text[: limit - 1] + "…"
+
+
+def clip_bytes(text: str, limit: int) -> str:
+    """Cut text to at most `limit` UTF-8 bytes without breaking a character."""
+    text = text or ""
+    raw = text.encode("utf-8")
+    if len(raw) <= limit:
+        return text
+    ellipsis = "…".encode("utf-8")
+    cut = raw[: limit - len(ellipsis)].decode("utf-8", errors="ignore")
+    return cut + "…"
