@@ -73,3 +73,11 @@ def test_anthropic_other_errors_raise():
     llm = AnthropicLLM(api_key="x", model="m", client=client)
     with pytest.raises(LLMError):
         llm.respond("s", [{"role": "user", "content": "x"}])
+
+
+def test_token_ceiling_leaves_room_for_reply_when_thinking():
+    client, messages = _client([{"reply": "a", "booking": None, "handoff": None}] * 3)
+    AnthropicLLM(api_key="x", model="m", thinking="disabled", client=client).respond("s", [{"role": "user", "content": "x"}])
+    AnthropicLLM(api_key="x", model="m", thinking="adaptive", client=client).respond("s", [{"role": "user", "content": "x"}])
+    AnthropicLLM(api_key="x", model="m", thinking="", client=client).respond("s", [{"role": "user", "content": "x"}])
+    assert [c["max_tokens"] for c in messages.calls] == [800, 8000, 8000]

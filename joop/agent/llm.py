@@ -37,6 +37,9 @@ RESPONSE_SCHEMA: dict[str, Any] = {
 }
 
 
+THINKING_MAX_TOKENS = 8000
+
+
 class LLMError(Exception):
     """The model could not produce a usable answer."""
 
@@ -135,9 +138,13 @@ class AnthropicLLM:
         self.structured = True
 
     def _request(self, system: str, messages: list[dict]) -> dict[str, Any]:
+        # With thinking on (explicitly, or by model default when the setting is dropped), thinking
+        # tokens count against max_tokens and can leave no room for the reply. Only output actually
+        # generated is billed, so a high ceiling costs nothing extra.
+        max_tokens = self.max_tokens if self.thinking == "disabled" else max(self.max_tokens, THINKING_MAX_TOKENS)
         kwargs: dict[str, Any] = {
             "model": self.model,
-            "max_tokens": self.max_tokens,
+            "max_tokens": max_tokens,
             "system": system,
             "messages": messages,
         }
