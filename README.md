@@ -10,14 +10,15 @@ owner instantly, and hands difficult conversations to a human.
 ## Features
 
 - Answers grounded in a per-business YAML profile (services, prices, hours, FAQ); does not invent facts
-- Replies in the customer's language (Kyrgyz / Russian)
+- Replies in the customer's language (Kyrgyz / Russian); a language guard rewrites a reply into Kyrgyz when a Kyrgyz message got a Russian answer
+- Bilingual price list: each service can carry a Kyrgyz name (`name_ky`) in the profile
 - Lead capture via LLM tool use: name, phone (validated), service, preferred time
 - Instant owner notification in Telegram for every lead
 - Human handoff: bot stops auto-replying, forwards messages to the owner; owner answers with `/reply` and returns the bot with `/resume`
 - Owner commands: `/leads`, `/export` (CSV for Excel), `/stats`
 - Prompt-injection guard in the system prompt
 - Scripted evaluation set (`eval/`) with pass/fail metrics and latency for the thesis
-- 38 unit tests with a fake LLM (no network needed); 38 scripted evaluation cases for a beauty studio and a dental clinic (beauty set: 24/24 passed with claude-haiku-5-5, Oct 2026)
+- 48 unit tests with a fake LLM (no network needed); 38 scripted evaluation cases for a beauty studio and a dental clinic (beauty set: 24/24 passed with claude-haiku-5-5, Oct 2026)
 
 ## Architecture
 
@@ -83,7 +84,8 @@ python -m pytest -q                       # unit tests, no network
 python -m eval.run_eval                   # real model, needs ANTHROPIC_API_KEY
 ```
 `eval/run_eval.py` writes `eval/results.json` (pass/fail per case, lead and
-handoff detection, average latency). Have a native speaker review the Kyrgyz cases.
+handoff detection, average latency, cost, and how often the language guard
+fired). Have a native speaker review the Kyrgyz cases and the `name_ky` values.
 
 ## Deploy (24/7 server)
 
