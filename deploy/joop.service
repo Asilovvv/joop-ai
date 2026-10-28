@@ -1,0 +1,22 @@
+[Unit]
+Description=Joop AI Telegram operator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=joop
+WorkingDirectory=/opt/joop-ai
+# Settings come from /opt/joop-ai/.env (read by joop.config)
+ExecStart=/opt/joop-ai/.venv/bin/python -m joop
+Restart=always
+RestartSec=5
+# Hardening: the bot only needs its own folder
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/joop-ai
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

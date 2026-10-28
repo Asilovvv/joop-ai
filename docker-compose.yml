@@ -1,0 +1,13 @@
+# Alternative to deploy/install.sh for servers that already run Docker.
+#   cp .env.example .env   (fill in) ; set DB_PATH=data/joop.db in .env
+#   docker compose up -d --build
+services:
+  joop:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_PATH: data/joop.db
+    volumes:
+      - ./data:/app/data
+      - ./business.yaml:/app/business.yaml:ro

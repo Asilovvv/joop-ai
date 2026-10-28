@@ -1,0 +1,9 @@
+[project]
+name = "joop-ai"
+version = "0.1.0"
+description = "AI customer-service operator for small businesses in Kyrgyzstan (Kyrgyz/Russian)"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
