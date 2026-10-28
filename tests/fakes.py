@@ -13,10 +13,14 @@ def tool(name: str, args: dict, id_: str = "tu_1"):
     return SimpleNamespace(type="tool_use", id=id_, name=name, input=args)
 
 
-def response(*blocks, stop_reason: str | None = None):
+def response(*blocks, stop_reason: str | None = None, usage: dict | None = None):
     if stop_reason is None:
         stop_reason = "tool_use" if any(b.type == "tool_use" for b in blocks) else "end_turn"
-    return SimpleNamespace(content=list(blocks), stop_reason=stop_reason)
+    return SimpleNamespace(
+        content=list(blocks),
+        stop_reason=stop_reason,
+        usage=SimpleNamespace(**usage) if usage else None,
+    )
 
 
 class FakeLLM:

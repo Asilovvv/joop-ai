@@ -63,9 +63,13 @@ def build_router(agent: Agent, storage: Storage, bot: Bot, owner_chat_id: int | 
         if not is_owner(message):
             return
         s = storage.stats()
+        per_reply = s["cost_usd"] / s["replies"] if s["replies"] else 0
         await message.answer(
             f"Чатов: {s['chats']}\nСообщений: {s['messages']}\n"
-            f"Заявок: {s['leads']}\nОткрытых передач человеку: {s['handoffs_open']}"
+            f"Заявок: {s['leads']}\nОткрытых передач человеку: {s['handoffs_open']}\n"
+            f"Ответов модели: {s['replies']}\n"
+            f"Токены: {s['input_tokens']} вход / {s['output_tokens']} выход\n"
+            f"Расход API: ${s['cost_usd']:.4f} (в среднем ${per_reply:.5f} на ответ)"
         )
 
     @router.message(Command("reply"))
@@ -126,6 +130,11 @@ def build_router(agent: Agent, storage: Storage, bot: Bot, owner_chat_id: int | 
                 "Извините, техническая ошибка. Попробуйте чуть позже."
             )
             return
+        log.info(
+            "Reply to chat %s: %s in / %s out tokens, cost %s",
+            chat_id, result.usage["input_tokens"], result.usage["output_tokens"],
+            f"${result.cost_usd:.5f}" if result.cost_usd is not None else "unknown",
+        )
         await message.answer(result.text)
 
     @router.message()

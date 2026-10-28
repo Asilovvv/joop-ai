@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional
 
 from .business import BusinessProfile
+from .pricing import add_usage, cost_usd, empty_usage
 from .storage import Lead, Storage
 
 log = logging.getLogger(__name__)
@@ -108,6 +109,8 @@ class AgentReply:
     text: str
     lead: Optional[Lead] = None
     handoff: bool = False
+    usage: dict = field(default_factory=empty_usage)  # tokens summed over all model calls
+    cost_usd: Optional[float] = None
 
 
 def _block_to_dict(block: Any) -> dict:
@@ -205,6 +208,7 @@ class Agent:
                 tools=TOOLS,
                 messages=messages,
             )
+            add_usage(result.usage, getattr(response, "usage", None))
             text_parts = [b.text for b in response.content if b.type == "text"]
             tool_uses = [b for b in response.content if b.type == "tool_use"]
 
@@ -226,6 +230,9 @@ class Agent:
                 "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\n"
                 "Извините, сейчас не могу ответить. Администратор скоро ответит."
             )
+
+        result.cost_usd = cost_usd(result.usage, self.model)
+        self.storage.add_usage(chat_id, self.model, result.usage, result.cost_usd)
 
         # Persist only plain text turns; tool traffic stays out of history.
         self.storage.add_message(chat_id, "user", user_text)
