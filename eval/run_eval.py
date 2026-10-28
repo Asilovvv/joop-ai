@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -21,10 +22,32 @@ from joop.pricing import cost_usd, empty_usage
 from joop.storage import Storage
 
 
+# Common Kyrgyz words that do not occur in Russian; names like "Гүлнара" are not counted.
+KY_MARKERS = {
+    "сиз", "сизге", "сиздин", "сизди", "жана", "үчүн", "менен", "болот", "керек", "бар", "жок",
+    "жакында", "кабыл", "алынды", "жазылуу", "жазып", "жазыңыз", "эртең", "саат", "баасы", "турат",
+    "дарыгер", "дарыгердин", "дароо", "чалыңыз", "атыңызды", "номериңизди", "убакытты", "кечиресиз",
+    "кечириңиз", "ооба", "биздин", "бул", "же", "эгер", "жооп", "берет", "дагы", "суроо",
+    "суроонуз", "суроолоруңуз", "сураңыз", "шаары", "көчөсү", "дарегибиз", "рахмат",
+}
+
+
+def looks_kyrgyz(text: str) -> bool:
+    """Heuristic: at least two common Kyrgyz words, or at least two lower-case
+    words with the Kyrgyz letters ң, ө, ү (capitalised names are ignored)."""
+    words = set(re.findall(r"[а-яёңөү]+", text.lower()))
+    special = {w for w in re.findall(r"\b[а-яёңөү]+\b", text) if re.search("[ңөү]", w)}
+    return len(words & KY_MARKERS) >= 2 or len(special) >= 2
+
+
 def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool) -> list[str]:
     """Return a list of failure reasons (empty = pass)."""
     fails = []
     low = final_text.lower()
+    if "**" in final_text or re.search(r"(?m)^#{1,6} ", final_text):
+        fails.append("markdown in reply (Telegram shows it as raw symbols)")
+    if case.get("expect_lang") == "ky" and not looks_kyrgyz(final_text):
+        fails.append("reply is not in Kyrgyz")
     if "expect_lead" in case and bool(case["expect_lead"]) != lead_saved:
         fails.append(f"expect_lead={case['expect_lead']} got {lead_saved}")
     if "expect_handoff" in case and bool(case["expect_handoff"]) != handoff:
