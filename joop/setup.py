@@ -15,9 +15,9 @@ import sys
 from pathlib import Path
 
 TOKEN_RE = re.compile(r"^\d{5,}:[A-Za-z0-9_-]{20,}$")
-# Anthropic API keys look like sk-ant-api03-...; other sk-ant-* tokens
-# (console sessions, OAuth tokens) are rejected by the API with 401.
-KEY_PREFIX = "sk-ant-api"
+# Claude Console keys start with sk-ant- (workspace keys: sk-ant-api03-...,
+# personal and service account keys use other sk-ant-* prefixes).
+KEY_PREFIX = "sk-ant-"
 
 
 def valid_telegram_token(token: str) -> bool:
@@ -63,7 +63,7 @@ def check_env(values: dict[str, str]) -> list[str]:
     if not valid_telegram_token(values.get("TELEGRAM_BOT_TOKEN", "")):
         problems.append("TELEGRAM_BOT_TOKEN отсутствует или неверного формата")
     if not valid_anthropic_key(values.get("ANTHROPIC_API_KEY", "")):
-        problems.append(f"ANTHROPIC_API_KEY отсутствует или это не API-ключ (должен начинаться с {KEY_PREFIX}03-)")
+        problems.append(f"ANTHROPIC_API_KEY отсутствует или неверного формата (должен начинаться с {KEY_PREFIX})")
     return problems
 
 
@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
     print("Joop AI: настройка\n")
     token = ask("Токен бота от @BotFather (ввод скрыт): ", valid_telegram_token, True,
                 current.get("TELEGRAM_BOT_TOKEN", ""))
-    api_key = ask(f"Ключ Anthropic API, начинается с {KEY_PREFIX}03- (ввод скрыт): ", valid_anthropic_key, True,
+    api_key = ask(f"Ключ Anthropic API, начинается с {KEY_PREFIX} (ввод скрыт): ", valid_anthropic_key, True,
                   current.get("ANTHROPIC_API_KEY", ""))
     owner = ask("Ваш chat_id (Enter, если ещё не знаете — бот покажет по /myid): ", valid_chat_id, False,
                 current.get("OWNER_CHAT_ID", ""))
