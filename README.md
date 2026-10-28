@@ -68,8 +68,13 @@ Backups: the database is one file in the `joop-data` volume:
 
 ## Connecting WhatsApp and Instagram
 
-See [docs/channels.md](docs/channels.md): what Meta requires, which IDs and tokens go into the
-panel, the webhook address, and the WhatsApp reminder template.
+Telegram works the same day. WhatsApp works the same day on a new number the business owns.
+Keeping the clinic's existing WhatsApp Business app number, and answering real patients on
+Instagram, both require Meta Business Verification and App Review (plan 2–5 weeks). Instagram
+reminders are possible only within 24 hours of the patient's last message.
+
+Step-by-step setup, the webhook address and the WhatsApp reminder template:
+[docs/channels.md](docs/channels.md).
 
 ## Costs
 
@@ -95,7 +100,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 40+ tests: engine, channels, scheduler, panel, webhooks
+python -m pytest          # 50+ tests: engine, channels, scheduler, panel, webhooks
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
