@@ -19,11 +19,12 @@ def test_token_validation():
     assert not valid_telegram_token("123:short")
 
 
-def test_key_validation_accepts_only_api_keys():
+def test_key_validation():
     assert valid_anthropic_key(GOOD_KEY)
+    assert valid_anthropic_key("sk-ant-usr01-" + "x" * 90)  # personal key from the new Console
     assert not valid_anthropic_key("abc")
-    assert not valid_anthropic_key("sk-ant-usr01-" + "x" * 90)  # not an API key: API returns 401
     assert not valid_anthropic_key("sk-proj-" + "x" * 90)  # another provider's key
+    assert not valid_anthropic_key("sk-ant-" + "x" * 50 + " y")  # whitespace from a bad paste
 
 
 def test_chat_id_validation():
@@ -42,7 +43,7 @@ def test_render_and_read_env_roundtrip(tmp_path):
 
 
 def test_check_env_reports_bad_key():
-    problems = check_env({"TELEGRAM_BOT_TOKEN": GOOD_TOKEN, "ANTHROPIC_API_KEY": "sk-ant-usr01-" + "x" * 90})
+    problems = check_env({"TELEGRAM_BOT_TOKEN": GOOD_TOKEN, "ANTHROPIC_API_KEY": "sk-proj-" + "x" * 90})
     assert len(problems) == 1 and "ANTHROPIC_API_KEY" in problems[0]
 
 
