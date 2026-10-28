@@ -17,6 +17,7 @@ import yaml
 
 from joop.agent import Agent
 from joop.business import BusinessProfile
+from joop.pricing import cost_usd, empty_usage
 from joop.storage import Storage
 
 
@@ -42,6 +43,7 @@ async def run_case(llm, business, model, case) -> dict:
     lead = handoff = False
     final = ""
     latencies = []
+    usage = empty_usage()
     for turn in case["turns"]:
         t0 = time.perf_counter()
         r = await agent.reply(1, turn, "eval")
@@ -49,6 +51,8 @@ async def run_case(llm, business, model, case) -> dict:
         lead = lead or r.lead is not None
         handoff = handoff or r.handoff
         final = r.text
+        for k in usage:
+            usage[k] += r.usage.get(k, 0)
     fails = check_case(case, final, lead, handoff)
     return {
         "id": case["id"],
@@ -58,6 +62,24 @@ async def run_case(llm, business, model, case) -> dict:
         "lead": lead,
         "handoff": handoff,
         "avg_latency_s": round(sum(latencies) / len(latencies), 2),
+        "usage": usage,
+        "cost_usd": cost_usd(usage, model),
+    }
+
+
+def summarize(results: list[dict]) -> dict:
+    """Aggregate metrics for the thesis table."""
+    n = len(results)
+    costs = [r["cost_usd"] for r in results if r.get("cost_usd") is not None]
+    return {
+        "cases": n,
+        "passed": sum(r["passed"] for r in results),
+        "avg_latency_s": round(sum(r["avg_latency_s"] for r in results) / n, 2) if n else None,
+        "max_latency_s": max((r["avg_latency_s"] for r in results), default=None),
+        "input_tokens": sum(r.get("usage", {}).get("input_tokens", 0) for r in results),
+        "output_tokens": sum(r.get("usage", {}).get("output_tokens", 0) for r in results),
+        "avg_cost_usd_per_conversation": round(sum(costs) / len(costs), 6) if costs else None,
+        "total_cost_usd": round(sum(costs), 6) if costs else None,
     }
 
 
@@ -72,12 +94,21 @@ async def main() -> None:
     llm = AsyncAnthropic(api_key=settings.anthropic_api_key)
 
     results = [await run_case(llm, business, settings.model, c) for c in cases]
-    passed = sum(r["passed"] for r in results)
     for r in results:
         mark = "PASS" if r["passed"] else "FAIL"
         print(f"{mark} {r['id']:<30} {r['avg_latency_s']}s  {'; '.join(r['fails'])}")
-    print(f"\n{passed}/{len(results)} passed, model {settings.model}")
-    Path("eval/results.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), "utf-8")
+    summary = summarize(results)
+    print(f"\n{summary['passed']}/{summary['cases']} passed, model {settings.model}")
+    if summary["avg_cost_usd_per_conversation"] is not None:
+        print(f"Average cost per conversation: ${summary['avg_cost_usd_per_conversation']:.6f}; "
+              f"total ${summary['total_cost_usd']:.6f}")
+    out = Path(sys.argv[3]) if len(sys.argv) > 3 else Path("eval/results.json")
+    out.write_text(
+        json.dumps({"model": settings.model, "business_file": str(sys.argv[1] if len(sys.argv) > 1 else "business.example.yaml"),
+                    "summary": summary, "cases": results}, ensure_ascii=False, indent=2),
+        "utf-8",
+    )
+    print(f"Saved to {out}")
 
 
 if __name__ == "__main__":

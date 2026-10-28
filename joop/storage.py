@@ -8,6 +8,7 @@ import sqlite3
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Optional
 
 
 def _now() -> str:
@@ -44,6 +45,18 @@ CREATE TABLE IF NOT EXISTS leads (
     service TEXT NOT NULL,
     preferred_time TEXT NOT NULL DEFAULT '',
     comment TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS usage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    model TEXT NOT NULL,
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+    cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+    cost_usd REAL,
     created_at TEXT NOT NULL
 );
 
@@ -135,6 +148,25 @@ class Storage:
         # BOM so Excel opens Cyrillic correctly
         return ("﻿" + buf.getvalue()).encode("utf-8")
 
+    # --- token usage -----------------------------------------------------
+    def add_usage(self, chat_id: int, model: str, usage: dict, cost_usd: Optional[float]) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO usage (chat_id, model, input_tokens, output_tokens, cache_write_tokens,"
+                " cache_read_tokens, cost_usd, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    chat_id,
+                    model,
+                    usage.get("input_tokens", 0),
+                    usage.get("output_tokens", 0),
+                    usage.get("cache_creation_input_tokens", 0),
+                    usage.get("cache_read_input_tokens", 0),
+                    cost_usd,
+                    _now(),
+                ),
+            )
+            self._conn.commit()
+
     # --- chats / handoff -------------------------------------------------
     def _upsert_chat(self, chat_id: int) -> None:
         self._conn.execute(
@@ -174,4 +206,8 @@ class Storage:
                 "messages": q("SELECT COUNT(*) FROM messages"),
                 "leads": q("SELECT COUNT(*) FROM leads"),
                 "handoffs_open": q("SELECT COUNT(*) FROM chats WHERE handoff = 1"),
+                "replies": q("SELECT COUNT(*) FROM usage"),
+                "input_tokens": q("SELECT COALESCE(SUM(input_tokens), 0) FROM usage"),
+                "output_tokens": q("SELECT COALESCE(SUM(output_tokens), 0) FROM usage"),
+                "cost_usd": q("SELECT COALESCE(SUM(cost_usd), 0) FROM usage"),
             }
