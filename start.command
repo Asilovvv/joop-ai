@@ -19,7 +19,7 @@ source .venv/bin/activate
 echo "Проверяю зависимости..."
 pip install -q -r requirements.txt || { read -r -p "Ошибка установки. Enter, чтобы закрыть."; exit 1; }
 
-if [ ! -f .env ]; then
+if ! python -m joop.setup --check; then
   python -m joop.setup || exit 1
 fi
 
