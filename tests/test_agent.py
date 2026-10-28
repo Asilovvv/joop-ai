@@ -73,6 +73,24 @@ async def test_save_lead_tool_stores_lead_and_notifies_owner():
     assert last["content"][0]["tool_use_id"] == "tu_1"
 
 
+async def test_thinking_blocks_are_passed_back_with_tool_results():
+    from types import SimpleNamespace
+
+    thinking = SimpleNamespace(type="thinking", thinking="customer wants a booking", signature="sig123")
+    llm = FakeLLM(
+        [
+            response(thinking, tool("save_lead", {"name": "Айбек", "phone": "0555 123 456", "service": "Маникюр"})),
+            response(text("Заявка принята.")),
+        ]
+    )
+    agent, notes = make_agent(llm)
+    r = await agent.reply(8, "Айбек, 0555 123 456, маникюр завтра в 15:00")
+    assert r.text == "Заявка принята." and r.lead is not None and len(notes) == 1
+    assistant_turn = llm.calls[1]["messages"][-2]
+    assert assistant_turn["role"] == "assistant"
+    assert assistant_turn["content"][0] == {"type": "thinking", "thinking": "customer wants a booking", "signature": "sig123"}
+
+
 async def test_invalid_phone_is_rejected_back_to_model():
     llm = FakeLLM(
         [
