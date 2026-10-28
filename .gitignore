@@ -1,0 +1,12 @@
+.env
+*.bak
+*.db
+*.key
+secrets/
+data/
+__pycache__/
+.pytest_cache/
+eval/results*.json
+business.yaml
+clients/
+.venv/
