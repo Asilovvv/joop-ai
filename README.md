@@ -85,13 +85,21 @@ python -m eval.run_eval                   # real model, needs ANTHROPIC_API_KEY
 `eval/run_eval.py` writes `eval/results.json` (pass/fail per case, lead and
 handoff detection, average latency). Have a native speaker review the Kyrgyz cases.
 
-## Deploy (Docker)
+## Deploy (24/7 server)
 
-```bash
-docker build -t joop-ai .
-docker run -d --restart=always --env-file .env -v $(pwd)/data:/app/data joop-ai
-```
-Set `DB_PATH=data/joop.db` in `.env` so the database survives restarts.
+See [DEPLOY.md](DEPLOY.md): one-command installer for Ubuntu (systemd service,
+auto-restart, daily database backup), a Docker alternative, and verified
+hosting options including a provider that accepts Kyrgyz payment methods.
+
+## Demo profiles
+
+| File | Business | Evaluation set |
+|---|---|---|
+| `business.example.yaml` | Beauty studio | `eval/cases.yaml` (24 cases) |
+| `business.dental.example.yaml` | Dental clinic, with medical-safety rules (no diagnosis, no medication advice, urgent symptoms escalated) | `eval/cases_dental.yaml` (14 cases) |
+
+`/stats` in Telegram shows token usage and API cost; the evaluation reports
+average cost per conversation (`joop/pricing.py` holds the published prices).
 
 ## Roadmap
 
