@@ -1,0 +1,267 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/education/demo.yaml",
+  "summary": {
+    "cases": 13,
+    "passed": 12,
+    "avg_latency_s": 1.79,
+    "max_latency_s": 2.86,
+    "input_tokens": 62560,
+    "output_tokens": 2745,
+    "avg_cost_usd_per_conversation": 0.000587,
+    "total_cost_usd": 0.007629,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Подготовка к IELTS стоит 6 000 сомов в месяц, занятия в группе до 6 человек. Если хотите записаться или узнать подробнее, напишите, пожалуйста.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.79,
+      "usage": {
+        "input_tokens": 3218,
+        "output_tokens": 94,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003688,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Балдар үчүн программалоо (10–14 жаш) курсунун баасы айына 3 500 сом. Кененирээк маалымат же жазылуу үчүн телефон номериңизди жазыңызчы же +996 555 000 005 номерине чалсаңыз болот.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.55,
+      "usage": {
+        "input_tokens": 3218,
+        "output_tokens": 123,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003833,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "unknown_course_no_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Курса китайского языка в наших данных нет, поэтому точно не скажу. Уточню у администратора и передам ответ, если хотите. Также можем подобрать английский, IELTS или программирование для детей.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.43,
+      "usage": {
+        "input_tokens": 3214,
+        "output_tokens": 140,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003914,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "trial_lesson_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Сабина! Записала вас на бесплатный пробный урок английского в пятницу, 30.10, в 17:00. Адрес: Бишкек, ул. Боконбаева 120. Ждём вас!",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.53,
+      "usage": {
+        "input_tokens": 10110,
+        "output_tokens": 477,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0012495,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "trial_lesson_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жакшы, Бермет! Ишемби 31.10 саат 17:00ге программалоо тобунун сыноо сабагына жазып койдум. Дарек: Бишкек, Боконбаев көчөсү 120. Телефон: 0700 343 536.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.86,
+      "usage": {
+        "input_tokens": 10203,
+        "output_tokens": 532,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0012863000000000002,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "qualification_lead_ru",
+      "passed": false,
+      "fails": [
+        "expect_lead=True got False"
+      ],
+      "final_reply": "Хорошо, выбираем самое раннее время: Сб 31.10 в 17:00, группа программирования. Подскажите, пожалуйста, имя сына, чтобы я оформила запись.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.47,
+      "usage": {
+        "input_tokens": 10058,
+        "output_tokens": 355,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0011833000000000002,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_result_promise",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Гарантировать балл IELTS мы не можем: в описании курса подготовки к IELTS (6 000 сомов в месяц, группа до 6 человек) результат не обещается. Уточню у администратора и передам ваш вопрос, а также контакт, если вы оставите имя и телефон.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.08,
+      "usage": {
+        "input_tokens": 3223,
+        "output_tokens": 203,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004238,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте, Тимур! Чтобы записать вас на пробный урок, подскажите, какой курс вас интересует: английский, подготовка к IELTS или программирование для детей, и удобное время из свободных окон: Пт 30.10 в 17:00 или 18:30, Сб 31.10 в 17:00 или 18:30. Также напишите номер телефона для подтверждения.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.56,
+      "usage": {
+        "input_tokens": 3219,
+        "output_tokens": 160,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004019,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "schedule_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Занятия английского для взрослых проходят 3 раза в неделю по 90 минут. Стоимость группы — 4 500 сомов в месяц.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.13,
+      "usage": {
+        "input_tokens": 3216,
+        "output_tokens": 78,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00036060000000000004,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "refund_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Понимаю ваш запрос. Возврат средств решает администратор, поэтому передам вашу просьбу. Оставьте, пожалуйста, имя и номер телефона, чтобы он мог с вами связаться. Также можно позвонить нам по номеру +996 555 000 005 в рабочее время: Пн–Сб 09:00–20:00.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.89,
+      "usage": {
+        "input_tokens": 3220,
+        "output_tokens": 193,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004185,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Түшүндүм, администраторго өтүнүчүңүздү жеткиребиз. Иш убактысында (Дш–Шн 09:00–20:00) администратор сиз менен байланышат. Шашылыш болсо +996 555 000 005 номерине жаза аласыз.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.59,
+      "usage": {
+        "input_tokens": 3218,
+        "output_tokens": 181,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004123,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Извините, я администратор учебного центра и помогаю только с записью на курсы, ценами и вопросами о центре. Написать эссе я не могу. Если хотите, могу записать вас на подготовку к IELTS или пробный урок.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.44,
+      "usage": {
+        "input_tokens": 3221,
+        "output_tokens": 106,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003751,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "schedule_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "IЕLТSке даярдоо тобунда 6 кишиге чейин катышса болот. Курстун баасы айына 6 000 сом. Кошумча суроолоруңуз болсо, администраторго жеткиребиз.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.96,
+      "usage": {
+        "input_tokens": 3222,
+        "output_tokens": 103,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00037370000000000003,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}
