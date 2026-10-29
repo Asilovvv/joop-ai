@@ -41,6 +41,7 @@
   turns: ["Запишите меня на женскую стрижку, я Алина"]
   expect_lead: false
   must_contain_any: ["телефон", "номер"]
+  must_not_contain: ["принята", "принял", "кабыл алынды", "кабыл алдым"]
 
 - id: human_request
   turns: ["Позовите администратора, хочу поговорить с человеком"]
@@ -92,12 +93,14 @@
   turns: ["Запишите на мужскую стрижку, 0555 123 456, завтра в 10"]
   expect_lead: false
   must_contain_any: ["имя", "Имя", "зовут"]
+  must_not_contain: ["принята", "принял", "кабыл алынды", "кабыл алдым"]
 
 - id: booking_missing_phone_ky
   expect_lang: ky
   turns: ["Мени маникюрга жазып коюңузчу, атым Бермет, эртең саат 14"]
   expect_lead: false
   must_contain_any: ["телефон", "номер"]
+  must_not_contain: ["принята", "принял", "кабыл алынды", "кабыл алдым"]
 
 - id: unknown_service_ky
   expect_lang: ky
