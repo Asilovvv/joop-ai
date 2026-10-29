@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional
 
 from .business import BusinessProfile
-from .lang import is_kyrgyz_message, looks_kyrgyz
+from .lang import fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
 from .pricing import add_usage, cost_usd, empty_usage
 from .storage import Lead, Storage
 
@@ -288,6 +288,12 @@ class Agent:
         # because the business data is in Russian. Rewrite such replies once.
         if is_kyrgyz_message(user_text) and not looks_kyrgyz(result.text):
             await self._rewrite_in_kyrgyz(result)
+        # Cheap text fixes, no model call: Latin look-alikes inside Cyrillic words,
+        # and Russian service names left in a Kyrgyz reply.
+        result.text = fix_mixed_script(result.text)
+        if is_kyrgyz_message(user_text) and looks_kyrgyz(result.text):
+            names = {s.name: s.name_ky for s in self.business.services if s.name_ky}
+            result.text = use_kyrgyz_names(result.text, names)
 
         result.cost_usd = cost_usd(result.usage, self.model)
         self.storage.add_usage(chat_id, self.model, result.usage, result.cost_usd)
