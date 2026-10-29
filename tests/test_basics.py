@@ -54,3 +54,43 @@ def test_time_helpers():
 
 def test_parse_times():
     assert parse_times("10:00, 11.30 9; 10:00 bad") == [time(9, 0), time(10, 0), time(11, 30)]
+
+
+def test_migrations_match_models(tmp_path):
+    """The migrated schema equals the models: a new model field without a migration fails here."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+    from sqlmodel import SQLModel
+
+    from joop import db, migrate
+
+    eng = db.make_engine(f"sqlite:///{tmp_path / 'm.db'}")
+    db.set_engine(eng)
+    try:
+        migrate.upgrade()
+        migrate.upgrade()  # idempotent
+        with eng.connect() as conn:
+            diff = compare_metadata(MigrationContext.configure(conn), SQLModel.metadata)
+        assert diff == []
+    finally:
+        eng.dispose()
+        db.set_engine(None)
+
+
+def test_database_created_before_migrations_is_stamped(tmp_path):
+    from sqlalchemy import inspect, text
+    from sqlmodel import SQLModel
+
+    from joop import db, migrate
+
+    eng = db.make_engine(f"sqlite:///{tmp_path / 'old.db'}")
+    db.set_engine(eng)
+    try:
+        SQLModel.metadata.create_all(eng)  # how databases were created before migrations
+        migrate.upgrade()
+        with eng.connect() as conn:
+            assert conn.execute(text("select version_num from alembic_version")).scalar() == "0001"
+            assert "business" in inspect(conn).get_table_names()
+    finally:
+        eng.dispose()
+        db.set_engine(None)
