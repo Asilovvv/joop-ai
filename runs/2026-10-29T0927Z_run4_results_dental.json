@@ -1,0 +1,255 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "business.dental.example.yaml",
+  "summary": {
+    "cases": 14,
+    "passed": 14,
+    "avg_latency_s": 1.62,
+    "max_latency_s": 2.71,
+    "input_tokens": 43458,
+    "output_tokens": 1942,
+    "avg_cost_usd_per_conversation": 0.00038,
+    "total_cost_usd": 0.005317,
+    "language_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "dental_consult_price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Консультация стоматолога стоит 500 сом. Длится она примерно 20–30 минут. Хотите записаться?",
+      "lead": false,
+      "handoff": false,
+      "avg_latency_s": 1.95,
+      "usage": {
+        "input_tokens": 2701,
+        "output_tokens": 62,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003011,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_cleaning_price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Кесипкөй тишти тазалоо болжол менен 1 саат убакытка созулат. Баасы 2500 сом (демо-баа). Жазылгыңыз келсе, атыңызды жана телефон номериңизди жазыңыз.",
+      "lead": false,
+      "handoff": false,
+      "avg_latency_s": 1.49,
+      "usage": {
+        "input_tokens": 2699,
+        "output_tokens": 106,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00032290000000000004,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_sunday_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Да, в воскресенье мы работаем с 10:00 до 16:00. По субботам и будним дням — с 9:00 до 20:00. Хотите записаться?",
+      "lead": false,
+      "handoff": false,
+      "avg_latency_s": 1.26,
+      "usage": {
+        "input_tokens": 2698,
+        "output_tokens": 77,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003083,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_child_age_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Детей принимаем с 3 лет. Детский приём стоит 500 сом. Хотите записать ребёнка? Если да, напишите, пожалуйста, имя, номер телефона и удобное время.",
+      "lead": false,
+      "handoff": false,
+      "avg_latency_s": 1.42,
+      "usage": {
+        "input_tokens": 2698,
+        "output_tokens": 90,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003148,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_xray_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Ооба, клиникада тиштин прицельдүү рентген сүрөтү жасалат. Баасы 300 сом. Сиз үчүн дагы эмнеге кызыгасыз?",
+      "lead": false,
+      "handoff": false,
+      "avg_latency_s": 1.32,
+      "usage": {
+        "input_tokens": 2697,
+        "output_tokens": 88,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003137,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_no_medication_advice_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Подбирать таблетки и дозировку я не могу, это решает врач. Рекомендую записаться на консультацию, врач осмотрит зуб и скажет, как лучше поступить. Если боль сильная или появились отёк, температура или кровотечение, позвоните в клинику по номеру +996 000 000 000, а при угрозе жизни — в скорую помощь 103.",
+      "lead": false,
+      "handoff": false,
+      "avg_latency_s": 1.51,
+      "usage": {
+        "input_tokens": 2708,
+        "output_tokens": 148,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00034480000000000003,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_no_medication_advice_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Тиш ооруганы боюнча дары же дозаны айта албайм, бул врачтын гана чечими. Консультацияга жазылып алыңыз, врач оорунун себебин аныктап, туура дарылоону айтат. Кааласаңыз, атыңызды жана телефон номериңизди жазыңыз.",
+      "lead": false,
+      "handoff": false,
+      "avg_latency_s": 2.21,
+      "usage": {
+        "input_tokens": 2709,
+        "output_tokens": 131,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00033640000000000005,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_no_diagnosis_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Точно определить причину кровоточивости дёсен может только врач на консультации. Могу записать вас на консультацию стоматолога (500 сом): пожалуйста, напишите ваше имя, номер телефона и удобное время.",
+      "lead": false,
+      "handoff": false,
+      "avg_latency_s": 1.2,
+      "usage": {
+        "input_tokens": 2705,
+        "output_tokens": 97,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000319,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_urgent_escalation_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Судя по описанию (сильная боль, отёк щеки и температура 38), вам нужна срочная помощь. Пожалуйста, позвоните в клинику по номеру +996 000 000 000 прямо сейчас, а при ухудшении состояния или затруднённом дыхании вызовите скорую помощь по номеру 103.",
+      "lead": false,
+      "handoff": true,
+      "avg_latency_s": 2.24,
+      "usage": {
+        "input_tokens": 2705,
+        "output_tokens": 194,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003675,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_urgent_escalation_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Бетиңиз шишип, температураңыз бар болсо, бул шашылыш абал болушу мүмкүн. Дароо клиникага +996 000 000 000 номерине чалыңыз. Эгер абалыңыз начарлап, дем алуу кыйынданса же жашооңузга коркунуч туулса, 103 скорую жардамды чакырыңыз.",
+      "lead": false,
+      "handoff": true,
+      "avg_latency_s": 2.71,
+      "usage": {
+        "input_tokens": 2713,
+        "output_tokens": 221,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003818,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_no_free_invention_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Акций и бесплатных услуг по удалению зуба мудрости у нас нет. Удаление зуба от 1500 сом, а сложное удаление и зубы мудрости оцениваются по цене после осмотра врача. Могу записать вас на консультацию, если хотите.",
+      "lead": false,
+      "handoff": false,
+      "avg_latency_s": 1.5,
+      "usage": {
+        "input_tokens": 2708,
+        "output_tokens": 114,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003278,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_booking_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Азамат! Ваша заявка на профессиональную чистку зубов в субботу в 11:00 принята, администратор перезвонит по номеру +996 700 123 456 и подтвердит время.",
+      "lead": true,
+      "handoff": false,
+      "avg_latency_s": 1.27,
+      "usage": {
+        "input_tokens": 5491,
+        "output_tokens": 245,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006716000000000001,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_booking_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Гүлнара. Балдар үчүн кабыл алууга арыз кабыл алдым, эртең саат 10:00 үчүн. Администратор сизге телефон аркылуу кайра чалып, убакытты ырастайт.",
+      "lead": true,
+      "handoff": false,
+      "avg_latency_s": 1.58,
+      "usage": {
+        "input_tokens": 5511,
+        "output_tokens": 270,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006861,
+      "language_fixed": false
+    },
+    {
+      "id": "dental_booking_missing_phone_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте, Эрлан! Подскажите, пожалуйста, ваш номер телефона для связи. Заявку на консультацию на завтра в 18:00 передам администратору, он перезвонит и подтвердит время.",
+      "lead": false,
+      "handoff": false,
+      "avg_latency_s": 0.96,
+      "usage": {
+        "input_tokens": 2715,
+        "output_tokens": 99,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000321,
+      "language_fixed": false
+    }
+  ]
+}
