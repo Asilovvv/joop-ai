@@ -18,7 +18,7 @@ owner instantly, and hands difficult conversations to a human.
 - Owner commands: `/leads`, `/export` (CSV for Excel), `/stats`
 - Prompt-injection guard in the system prompt
 - Scripted evaluation set (`eval/`) with pass/fail metrics and latency for the thesis
-- 50 unit tests with a fake LLM (no network needed); 38 scripted evaluation cases for a beauty studio and a dental clinic (beauty set: 24/24 passed with claude-haiku-5-5, Oct 2026)
+- 52 unit tests with a fake LLM (no network needed); 38 scripted evaluation cases for a beauty studio and a dental clinic (beauty set: 24/24 passed with claude-haiku-5-5, Oct 2026)
 
 ## Architecture
 
@@ -85,7 +85,17 @@ python -m eval.run_eval                   # real model, needs ANTHROPIC_API_KEY
 ```
 `eval/run_eval.py` writes `eval/results.json` (pass/fail per case, lead and
 handoff detection, average latency, cost, and how often the language guard
-fired). Have a native speaker review the Kyrgyz cases and the `name_ky` values.
+fired). A case also fails when the bot sent the generic fallback instead of an
+answer. Have a native speaker review the Kyrgyz cases and the `name_ky` values.
+
+### Continuous integration
+
+- `.github/workflows/tests.yml` runs the unit tests on Python 3.10 and 3.12 for
+  every push and pull request.
+- `.github/workflows/eval.yml` runs both evaluation sets on the real model when
+  started by hand (Actions → eval → Run workflow). It needs the repository
+  secret `ANTHROPIC_API_KEY`; one run costs about $0.02. The run summary shows a
+  results table, and the JSON files are kept on the `eval-results` branch in `runs/`.
 
 ## Deploy (24/7 server)
 
