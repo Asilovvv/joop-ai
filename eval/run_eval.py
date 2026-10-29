@@ -16,7 +16,7 @@ from pathlib import Path
 
 import yaml
 
-from joop.agent import Agent
+from joop.agent import FALLBACK_TEXT, Agent
 from joop.business import BusinessProfile
 from joop.lang import KY_REPLY_MARKERS as KY_MARKERS, looks_kyrgyz  # noqa: F401  (re-exported for tests)
 from joop.pricing import cost_usd, empty_usage
@@ -27,6 +27,8 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool) -> 
     """Return a list of failure reasons (empty = pass)."""
     fails = []
     low = final_text.lower()
+    if final_text.strip() == FALLBACK_TEXT:
+        fails.append("no answer: the bot sent the generic fallback")
     if "**" in final_text or re.search(r"(?m)^#{1,6} ", final_text):
         fails.append("markdown in reply (Telegram shows it as raw symbols)")
     if case.get("expect_lang") == "ky" and not looks_kyrgyz(final_text):
