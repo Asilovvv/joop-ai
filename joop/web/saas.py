@@ -84,7 +84,9 @@ def signup_form(request: Request):
             if partners.find_active(s, ref):
                 request.session["ref"] = ref.strip().lower()
     packs = {k: p for k, p in all_packs().items()}
-    return _render(request, "signup.html", "signup", None, packs=packs, trial_days=_settings(request).trial_days)
+    chosen = request.query_params.get("niche", "")
+    return _render(request, "signup.html", "signup", None, packs=packs, trial_days=_settings(request).trial_days,
+                   chosen=chosen if chosen in packs else "dental")
 
 
 @router.post("/signup")
