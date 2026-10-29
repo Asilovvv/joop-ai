@@ -276,3 +276,23 @@ class PartnerPayout(SQLModel, table=True):
     amount_som: int
     note: str = ""
     created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class StudioRequest(SQLModel, table=True):
+    """A business asks Joop Studio for a website, slides or a menu; AI drafts it, the founder checks and delivers."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    kind: str = "site"  # site | slides | menu | other
+    business_name: str
+    contact_name: str = ""
+    phone: str = ""
+    niche: str = "other"
+    description: str = ""  # what the customer wrote: services, prices, address, wishes
+    status: str = "new"  # new | draft | sent | paid | done | lost
+    price_som: int = 0
+    content_json: str = ""  # AI draft of the site's text, as JSON; rendered by our own template
+    public_slug: Optional[str] = Field(default=None, index=True, unique=True)
+    published: bool = False
+    source: str = "form"  # form | prospect
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+    updated_at: NaiveDatetime = Field(default_factory=utcnow)

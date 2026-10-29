@@ -132,6 +132,10 @@ WhatsApp message fees for reminders.
   businesses that sign up through it are attached to the partner, who earns a set percent of
   every payment they make. The partner sees businesses and money owed on a private page
   `/partner/<secret>`; the founder records payouts.
+- **Joop Studio** (`/studio`): a business orders a one-page website, an online menu, a price list or
+  slides. In `/owner/studio` the AI drafts the site's text from the order (JSON only, rendered by our
+  own template, so the model cannot inject HTML), the founder edits and publishes it at `/site/<name>`
+  with a WhatsApp button. In the sales pipeline, "Предложить сайт" drafts a first message offering it.
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
 

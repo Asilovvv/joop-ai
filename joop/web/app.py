@@ -996,6 +996,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .saas import OwnerRequired, router as saas_router  # imported here: saas uses this module's helpers
 
     app.include_router(saas_router)
+    from .studio import router as studio_router
+
+    app.include_router(studio_router)
 
     @app.exception_handler(OwnerRequired)
     async def _owner_required(_request: Request, _exc: OwnerRequired):

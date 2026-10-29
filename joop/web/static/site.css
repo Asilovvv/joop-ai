@@ -89,3 +89,10 @@ footer.site .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-conte
 .niche { text-decoration: none; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; font-weight: 600; }
 .niche:hover, .niche:focus-visible { border-color: var(--accent); color: var(--accent); }
 .big { font-family: var(--display); font-size: 28px; }
+.studio-form { max-width: 640px; }
+.studio-form label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
+.studio-form input, .studio-form select, .studio-form textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; }
+.studio-form .hp { position: absolute; left: -9999px; }
+.flash { padding: 10px 14px; border-radius: 8px; background: var(--accent-soft); }
+.flash.error { background: #fbe3e1; color: #b3261e; }
+.small { font-size: 13px; } .muted { color: var(--muted); }

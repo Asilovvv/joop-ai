@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ name }}</title>
+<meta name="description" content="{{ site.subheadline or site.headline }}">
+<style>
+:root { --bg: #f6f4ef; --paper: #ffffff; --ink: #1d1f1c; --muted: #5f645c; --line: #e2ded4; --accent: #0d7a68; --accent-ink: #fff; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root { --bg: #121512; --paper: #1b201c; --ink: #ecefe9; --muted: #a1a99f; --line: #2c332d; --accent: #3dbea3; --accent-ink: #121512; color-scheme: dark; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.wrap { max-width: 880px; margin: 0 auto; padding-inline: 16px; }
+header { padding-block: 56px 40px; }
+h1 { font-size: clamp(30px, 6vw, 48px); line-height: 1.1; margin: 0 0 14px; text-wrap: balance; letter-spacing: -0.02em; }
+.sub { color: var(--muted); font-size: 19px; max-width: 46ch; margin: 0 0 24px; }
+.cta { display: inline-block; background: var(--accent); color: var(--accent-ink); text-decoration: none; font-weight: 600; padding: 13px 22px; border-radius: 12px; }
+section { padding-block: 32px; border-top: 1px solid var(--line); }
+h2 { font-size: 22px; margin: 0 0 16px; }
+.services { display: grid; gap: 10px; }
+.svc { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; justify-content: space-between; gap: 12px; }
+.svc b { font-weight: 600; } .svc small { display: block; color: var(--muted); }
+.price { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+.info { display: grid; gap: 8px; } .info p { margin: 0; }
+footer { padding-block: 32px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header class="wrap">
+  <p style="color: var(--muted); margin: 0 0 8px;">{{ name }}</p>
+  <h1>{{ site.headline }}</h1>
+  {% if site.subheadline %}<p class="sub">{{ site.subheadline }}</p>{% endif %}
+  {% if wa %}<a class="cta" href="https://wa.me/{{ wa }}">{{ site.cta or 'Написать' }}</a>{% endif %}
+</header>
+<main class="wrap">
+  {% if site.services %}<section><h2>Услуги и цены</h2><div class="services">
+    {% for s in site.services %}<div class="svc"><div><b>{{ s.name }}</b>{% if s.note %}<small>{{ s.note }}</small>{% endif %}</div>{% if s.price %}<span class="price">{{ s.price }}</span>{% endif %}</div>{% endfor %}
+  </div></section>{% endif %}
+  {% if site.about %}<section><h2>О нас</h2><p>{{ site.about }}</p></section>{% endif %}
+  {% if site.address or site.hours or site.phone or site.instagram %}<section><h2>Контакты</h2><div class="info">
+    {% if site.address %}<p>Адрес: {{ site.address }}</p>{% endif %}
+    {% if site.hours %}<p>Часы работы: {{ site.hours }}</p>{% endif %}
+    {% if site.phone %}<p>Телефон: {{ site.phone }}</p>{% endif %}
+    {% if site.instagram %}<p>Instagram: <a href="https://instagram.com/{{ site.instagram }}" rel="noopener">@{{ site.instagram }}</a></p>{% endif %}
+  </div></section>{% endif %}
+</main>
+<footer class="wrap">Сайт сделан в <a href="/studio">Joop Studio</a></footer>
+</body>
+</html>
