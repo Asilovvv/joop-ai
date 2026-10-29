@@ -111,6 +111,14 @@ See [docs/pilot-economics.md](docs/pilot-economics.md). In short: the AI itself 
 100 som per clinic per month at current Claude Haiku 5.5 prices. The main costs are the server and
 WhatsApp message fees for reminders.
 
+## Database migrations
+
+The schema is managed with Alembic (`joop/migrations`). The server applies pending migrations on
+start; `python -m joop migrate` does it by hand. After changing a model, generate a migration with
+`python -m joop make-migration "what changed"`, review it, and commit it with the model change:
+a test fails when models and migrations differ. Back up the database file before upgrading a live
+server.
+
 ## Configuration
 
 All settings are environment variables; see [.env.example](.env.example).
@@ -129,7 +137,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 100+ tests: engine, niches, channels, scheduler, panel, webhooks, evaluation
+python -m pytest          # 106 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

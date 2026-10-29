@@ -31,6 +31,14 @@ def _password(given: str | None) -> str | None:
     return password
 
 
+def cmd_make_migration(args) -> int:
+    from .migrate import make_migration
+
+    make_migration(args.message)
+    print("Миграция создана в joop/migrations/versions. Проверьте её перед коммитом.")
+    return 0
+
+
 def cmd_init_db(_args) -> int:
     init_db()
     print("База данных готова.")
@@ -64,7 +72,7 @@ def cmd_create_business(args) -> int:
         print(f"Готово. Логин панели: {business.slug}")
         print(f"Код для уведомлений в Telegram: /admin {business.admin_link_code}")
         if args.demo:
-            print("Добавлены демо-прайс, врачи и окна на неделю. Замените их в панели на настоящие.")
+            print("Добавлены демо-данные ниши и окна на неделю. Замените их в панели на настоящие.")
     return 0
 
 
@@ -184,7 +192,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m joop", description="Joop AI: ИИ-администратор для бизнеса")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("init-db", help="создать таблицы базы данных").set_defaults(func=cmd_init_db)
+    sub.add_parser("init-db", help="создать или обновить таблицы базы данных").set_defaults(func=cmd_init_db)
+    sub.add_parser("migrate", help="обновить схему базы данных до последней версии").set_defaults(func=cmd_init_db)
+    p = sub.add_parser("make-migration", help="для разработчиков: миграция из изменений моделей")
+    p.add_argument("message")
+    p.set_defaults(func=cmd_make_migration)
 
     p = sub.add_parser("create-business", help="создать компанию и вход в панель")
     p.add_argument("--slug", required=True, help="логин компании латиницей, например aktish")
