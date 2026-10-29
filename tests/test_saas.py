@@ -302,3 +302,10 @@ def test_weekly_report_counts_what_the_ai_did(engine, business):
         s.commit()
         text = weekly_report_text(s, b, NOW_UTC)
     assert "Ответил 1 клиентам, из них 1 — в нерабочее время" in text and "записей 1" in text
+
+
+def test_landing_shows_price_niches_and_signup_preselects_niche(app_client):
+    page = app_client.get("/").text
+    assert "3 000 сом" in page and "/signup?niche=restaurant" in page and 'href="/signup"' in page
+    form = app_client.get("/signup?niche=restaurant").text
+    assert 'value="restaurant" selected' in form
