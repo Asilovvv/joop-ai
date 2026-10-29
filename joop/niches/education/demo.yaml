@@ -16,3 +16,17 @@ resources:
   - {name: "Группа английского (вечер)", role: "английский"}
   - {name: "Группа программирования (суббота)", role: "программирование"}
 slots: {days: 7, start: "17:00", end: "20:00", step: 90}
+# Demo level test (8 sample questions). A real school uploads its own questions in the panel.
+placement_test:
+  title: "Английский: тест на уровень (демо)"
+  minutes: 10
+  scale: "0-2 A1\n3-4 A2\n5-6 B1\n7-8 B2"
+  questions:
+    - ["Грамматика", "She ___ a teacher.", ["am", "is", "are"], 2]
+    - ["Грамматика", "I ___ to school every day.", ["go", "goes", "going"], 1]
+    - ["Грамматика", "Yesterday we ___ a film.", ["watch", "watched", "have watched"], 2]
+    - ["Грамматика", "If it rains, we ___ at home.", ["stay", "will stay", "would stay"], 2]
+    - ["Лексика", "The opposite of 'cheap' is…", ["expensive", "easy", "early"], 1]
+    - ["Лексика", "I'm looking forward ___ you.", ["to see", "to seeing", "seeing"], 2]
+    - ["Грамматика", "By next year she ___ here for ten years.", ["will work", "will have worked", "works"], 2]
+    - ["Лексика", "He was too tired to ___ the meeting.", ["attend", "assist", "attain"], 1]

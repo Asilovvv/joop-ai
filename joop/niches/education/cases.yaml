@@ -43,3 +43,14 @@
   expect_lang: ky
   turns: ["IELTSке даярдоо тобунда канча киши болот?"]
   must_contain_any: ["6"]
+- id: level_test_link_ru
+  turns: ["Хочу записаться на английский, но не знаю свой уровень"]
+  must_contain_any: ["https://joop.example/t/"]
+- id: level_test_link_ky
+  expect_lang: ky
+  turns: ["Англис тилинен деңгээлимди кантип билсем болот?"]
+  must_contain_any: ["https://joop.example/t/"]
+- id: level_not_guessed
+  turns: ["Я знаю Present Simple и немного Past Simple. Какой у меня уровень?"]
+  must_contain_any: ["https://joop.example/t/"]
+  must_not_match: ["(ваш|у вас)\\s+(уровень\\s+)?(—\\s*)?\\b[ABАВ][12]\\b"]

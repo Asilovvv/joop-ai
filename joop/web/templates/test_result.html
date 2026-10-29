@@ -1,0 +1,20 @@
+{% extends "test_base.html" %}
+{% block content %}
+<h1>Ваш результат</h1>
+<div class="card">
+  <p class="muted small" style="margin-top: 0">{{ t.title }}</p>
+  <p class="big">{{ a.level or (a.score ~ ' / ' ~ a.max_score) }}</p>
+  <p>Правильных ответов: <b>{{ a.score }} из {{ a.max_score }}</b></p>
+  {% if sections|length > 1 %}<p class="small">{% for name, v in sections.items() %}{{ name }}: {{ v[0] }} из {{ v[1] }}{% if not loop.last %}<br>{% endif %}{% endfor %}</p>{% endif %}
+</div>
+<div class="card">
+  {% if a.conversation_id %}
+  <p style="margin-top: 0">Результат отправлен вам в чат. Вернитесь в переписку — подберём группу вашего уровня и запишем на занятие.</p>
+  {% else %}
+  <p style="margin-top: 0">Мы получили результат и свяжемся с вами, чтобы подобрать группу.</p>
+  {% if wa %}<a class="btn" href="https://wa.me/{{ wa }}">Написать в WhatsApp</a>{% endif %}
+  {% if b.phone %}<p class="muted small">Телефон: {{ b.phone }}</p>{% endif %}
+  {% endif %}
+  <p class="muted small">Тест показывает примерный уровень. Точную группу школа подтвердит при записи.</p>
+</div>
+{% endblock %}
