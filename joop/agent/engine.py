@@ -14,6 +14,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
+from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
 from ..lang import fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff
@@ -112,7 +113,8 @@ def handle_incoming(
     if not text:
         return Outcome(skipped="empty")
 
-    services = session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort, Service.id)).all()
+    services = list(session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort, Service.id)).all())
+    services, catalog_hint = _catalog_for_prompt(session, conv, services, text)
     staff = session.exec(select(Staff).where(Staff.business_id == business.id).order_by(Staff.id)).all()
     faqs = session.exec(select(Faq).where(Faq.business_id == business.id).order_by(Faq.id)).all()
     slots = free_slots(session, business.id, now_local)
@@ -125,6 +127,7 @@ def handle_incoming(
         now_local=now_local,
         conversation=conv,
         channel=incoming.channel,
+        catalog_hint=catalog_hint,
     )
     history = _history(session, conv, now)
 
@@ -197,6 +200,24 @@ def handle_incoming(
 
 
 # --- helpers -----------------------------------------------------------------------------------
+
+
+def _catalog_for_prompt(session: Session, conv: Conversation, services: list[Service], text: str) -> tuple[list[Service], str]:
+    """Large catalogs: send only items relevant to the last customer messages, plus the category list."""
+    available = [s for s in services if s.available]
+    if len(available) <= CATALOG_PROMPT_LIMIT:
+        return services, ""
+    recent = session.exec(
+        select(Message.text).where(Message.conversation_id == conv.id, Message.role == "customer").order_by(Message.id.desc()).limit(3)
+    ).all()
+    chosen = select_relevant(available, [text, *recent])
+    categories = sorted({s.category for s in available if s.category})
+    hint = (
+        f"Показаны {len(chosen)} из {len(available)} позиций, подходящих к вопросу клиента."
+        + (" Категории: " + ", ".join(categories) + "." if categories else "")
+        + " Если нужной позиции нет в показанных, уточни у клиента название или категорию; не говори, что её нет."
+    )
+    return chosen, hint
 
 
 def _already_seen(session: Session, business_id: int, external_id: str) -> bool:
@@ -469,11 +490,21 @@ def _try_order(
         detail = "; ".join(dict.fromkeys(problems)) or "в заказе нет позиций"
         return f"Не получилось оформить заказ: {detail}. Выберите, пожалуйста, из списка.", None
 
-    total = None if any(item.price_value is None for item, _, _ in lines) else sum(item.price_value * q for item, q, _ in lines)
+    items_total = None if any(item.price_value is None for item, _, _ in lines) else sum(item.price_value * q for item, q, _ in lines)
+    if items_total is not None and business.min_order and items_total < business.min_order:
+        return (
+            f"Минимальная сумма заказа — {_som(business.min_order)}, сейчас в заказе на {_som(items_total)}. "
+            "Хотите что-нибудь добавить?"
+        ), None
+    fee = 0
+    if mode == "delivery" and business.delivery_fee:
+        free = business.free_delivery_from and items_total is not None and items_total >= business.free_delivery_from
+        fee = 0 if free else business.delivery_fee
+    total = None if items_total is None else items_total + fee
     order = Order(
         business_id=business.id, conversation_id=conv.id, customer_name=name, customer_phone=phone, mode=mode,
         address=address, wanted_time=(data.get("time") or "").strip()[:100], comment=(data.get("comment") or "").strip()[:300],
-        total=total, channel=channel, chat_id=conv.chat_id, created_at=now, created_off_hours=off,
+        total=total, delivery_fee=fee, channel=channel, chat_id=conv.chat_id, created_at=now, created_off_hours=off,
     )
     session.add(order)
     session.flush()
@@ -482,8 +513,17 @@ def _try_order(
     conv.customer_name, conv.customer_phone = name, phone
     session.add(conv)
     session.flush()
-    summary = f"Сумма заказа: {total:,} сом.".replace(",", " ") if total is not None else "Точную сумму подтвердит администратор."
+    if total is None:
+        summary = "Точную сумму подтвердит администратор."
+    elif fee:
+        summary = f"Сумма заказа: {_som(total)}, включая доставку {_som(fee)}."
+    else:
+        summary = f"Сумма заказа: {_som(total)}."
     return f"{reply}\n{summary}", order
+
+
+def _som(value: int) -> str:
+    return f"{value:,} сом".replace(",", " ")
 
 
 def _order_note(session: Session, conv: Conversation, order: Order, off: bool) -> str:
@@ -491,7 +531,9 @@ def _order_note(session: Session, conv: Conversation, order: Order, off: bool) -
     rows = session.exec(select(OrderLine).where(OrderLine.order_id == order.id).order_by(OrderLine.id)).all()
     items = [f"{r.quantity} × {r.name}" + (f" ({r.note})" if r.note else "") for r in rows]
     how = f"доставка: {order.address}" if order.mode == "delivery" else "самовывоз"
-    total = f"{order.total} сом" if order.total is not None else "сумму уточнить"
+    total = _som(order.total) if order.total is not None else "сумму уточнить"
+    if order.delivery_fee:
+        total += f" (доставка {_som(order.delivery_fee)})"
     lines = [f"Новый заказ #{order.id}{when}", f"{order.customer_name}, {order.customer_phone}", *items,
              f"Итого: {total}; {how}" + (f"; к {order.wanted_time}" if order.wanted_time else "")]
     if order.comment:

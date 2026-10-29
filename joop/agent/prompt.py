@@ -49,6 +49,7 @@ def build_system_prompt(
     now_local: datetime,
     conversation: Conversation,
     channel: str,
+    catalog_hint: str = "",
 ) -> str:
     pack = get_pack(business.niche)
     off = is_off_hours(now_local, business.work_start, business.work_end, business.days_off)
@@ -80,6 +81,8 @@ def build_system_prompt(
         out.append("- список не заполнен, цены уточняет администратор")
     if missing:
         out.append("Сейчас нет в наличии (не предлагай): " + ", ".join(s.name for s in missing) + ".")
+    if catalog_hint:
+        out.append(catalog_hint)
 
     active_staff = [m for m in staff if m.active]
     if takes_bookings:
@@ -105,6 +108,15 @@ def build_system_prompt(
                 out.append(f"- {slot.id}: {fmt_slot(slot.start)} — {member.name}{extra}")
         else:
             out += ["", "Свободного времени в системе нет: записывай заявкой, время подтвердит администратор."]
+    if pack.has("order") and (business.min_order or business.delivery_fee):
+        terms = []
+        if business.min_order:
+            terms.append(f"минимальная сумма заказа {business.min_order} сом")
+        if business.delivery_fee:
+            terms.append(f"доставка {business.delivery_fee} сом")
+        if business.free_delivery_from:
+            terms.append(f"бесплатная доставка от {business.free_delivery_from} сом")
+        out.append("Условия заказа: " + "; ".join(terms) + ".")
     if business.booking_policy.strip():
         out.append(f"Порядок записи и заказа в компании: {business.booking_policy.strip()}")
 
