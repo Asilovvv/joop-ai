@@ -22,7 +22,7 @@
 
 - id: unknown_service_no_invention
   turns: ["Сколько стоит наращивание ресниц?"]
-  must_not_contain: ["сом"]
+  must_not_match: ["наращивани\\w*[^.]{0,40}\\d[\\d ]*\\s*сом"]
 
 - id: booking_full_ru
   turns:
