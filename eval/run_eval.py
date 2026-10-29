@@ -2,9 +2,11 @@
 
 Usage (needs ANTHROPIC_API_KEY in the environment or .env):
     python -m eval.run_eval [business.example.yaml] [eval/cases.yaml] [eval/results.json]
+    python -m eval.run_eval restaurant          # a niche pack: its demo.yaml and cases.yaml
+    python -m eval.run_eval all                 # every niche pack
 
-Every case is a fresh conversation with a business loaded from the YAML profile. The profiles have
-no time slots, so bookings are taken as requests (name, phone, service, preferred time).
+Every case is a fresh conversation with a business loaded from the YAML profile. Profiles without
+`slots` take bookings as requests; pack demos have slots generated from the current time.
 Writes the results file used in the thesis and by the CI summary (eval/summary.py).
 """
 
@@ -27,10 +29,11 @@ from joop.lang import looks_kyrgyz
 from joop.models import Business, Lead
 from joop.presets import create_business
 from joop.pricing import cost_usd, empty_usage
+from joop.niches import all_packs
 from joop.profile import apply_profile, load_profile
 
 
-def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool) -> list[str]:
+def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, order_saved: bool = False) -> list[str]:
     """Return a list of failure reasons (empty = pass)."""
     fails = []
     low = final_text.lower()
@@ -42,6 +45,8 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool) -> 
         fails.append("reply is not in Kyrgyz")
     if "expect_lead" in case and bool(case["expect_lead"]) != lead_saved:
         fails.append(f"expect_lead={case['expect_lead']} got {lead_saved}")
+    if "expect_order" in case and bool(case["expect_order"]) != order_saved:
+        fails.append(f"expect_order={case['expect_order']} got {order_saved}")
     if "expect_handoff" in case and bool(case["expect_handoff"]) != handoff:
         fails.append(f"expect_handoff={case['expect_handoff']} got {handoff}")
     any_of = case.get("must_contain_any")
@@ -54,14 +59,19 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool) -> 
 
 
 def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict:
-    """One case = one new business and one conversation. A 'lead' is a booking or a booking request."""
+    """One case = one new business and one conversation.
+
+    'lead' = a booking, a booking request or a qualified lead; 'order' = an order with checked lines.
+    """
     with db.new_session() as s:
-        business = create_business(s, slug=f"eval{index}", name=profile["name"], password="eval-only-password")
+        business = create_business(
+            s, slug=f"eval{index}", name=profile["name"], password="eval-only-password", niche=profile.get("niche", "other")
+        )
         apply_profile(s, business, profile)
         s.commit()
         business_id = business.id
 
-    lead = handoff = language_fixed = False
+    lead = handoff = order = language_fixed = False
     final = ""
     latencies: list[float] = []
     usage = empty_usage()
@@ -75,13 +85,14 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
             if out.lead_id is not None:
                 handoff = handoff or s.get(Lead, out.lead_id).kind == "handoff"
         latencies.append(time.perf_counter() - t0)
-        lead = lead or out.booking_id is not None or out.request_id is not None
+        lead = lead or any(x is not None for x in (out.booking_id, out.request_id, out.qualified_lead_id))
+        order = order or out.order_id is not None
         language_fixed = language_fixed or out.language_fixed
         final = out.reply or ""
         for k in usage:
             usage[k] += out.usage.get(k, 0)
 
-    fails = check_case(case, final, lead, handoff)
+    fails = check_case(case, final, lead, handoff, order)
     return {
         "id": case["id"],
         "passed": not fails,
@@ -89,6 +100,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
         "final_reply": final,
         "lead": lead,
         "handoff": handoff,
+        "order": order,
         "avg_latency_s": round(sum(latencies) / len(latencies), 2),
         "usage": usage,
         "cost_usd": cost_usd(usage, model),
@@ -136,17 +148,26 @@ def main() -> None:
     settings = get_settings()
     if not settings.anthropic_api_key:
         sys.exit("ANTHROPIC_API_KEY is not set (environment or .env)")
-    profile_path = sys.argv[1] if len(sys.argv) > 1 else "business.example.yaml"
+    rt = Runtime(settings)
+    arg = sys.argv[1] if len(sys.argv) > 1 else "business.example.yaml"
+    if arg == "all" or arg in all_packs():
+        names = [n for n, p in all_packs().items() if p.cases_file.exists()] if arg == "all" else [arg]
+        for name in names:
+            pack = all_packs()[name]
+            report(run(str(pack.demo_file), str(pack.cases_file), rt.get_llm, settings.model), Path(f"eval/results_{name}.json"), settings.model)
+        return
+    profile_path = arg
     cases_path = sys.argv[2] if len(sys.argv) > 2 else "eval/cases.yaml"
     out = Path(sys.argv[3]) if len(sys.argv) > 3 else Path("eval/results.json")
+    report(run(profile_path, cases_path, rt.get_llm, settings.model), out, settings.model)
 
-    rt = Runtime(settings)
-    data = run(profile_path, cases_path, rt.get_llm, settings.model)
+
+def report(data: dict, out: Path, model: str) -> None:
     for r in data["cases"]:
         mark = "PASS" if r["passed"] else "FAIL"
         print(f"{mark} {r['id']:<34} {r['avg_latency_s']}s  {'; '.join(r['fails'])}")
     summary = data["summary"]
-    print(f"\n{summary['passed']}/{summary['cases']} passed, model {settings.model}")
+    print(f"\n{data['business_file']}: {summary['passed']}/{summary['cases']} passed, model {model}")
     print(f"Language guard rewrote replies in {summary['language_guard_fired']} case(s)")
     if summary["avg_cost_usd_per_conversation"] is not None:
         print(f"Average cost per conversation: ${summary['avg_cost_usd_per_conversation']:.6f}; "
