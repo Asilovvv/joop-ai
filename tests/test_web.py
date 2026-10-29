@@ -271,3 +271,18 @@ def test_kyrgyz_name_and_profile_texts_saved(client, business):
         b = s.get(Business, business.id)
         assert (b.description, b.booking_policy, b.tone) == ("Частная клиника", "Администратор перезванивает", "На «вы»")
     assert "расход на ИИ" in client.get("/panel").text
+
+
+def test_public_pages(settings, rt, business):
+    import dataclasses
+
+    app = create_app(dataclasses.replace(settings, company_legal_name="ИП Асилов Б.", contact_email="hi@joop.kg", contact_telegram="joop_kg"), rt, init=False)
+    with TestClient(app) as c:
+        home = c.get("/")
+        assert home.status_code == 200 and "Попробовать 14 дней бесплатно" in home.text
+        assert "ИП Асилов Б." in home.text and "@joop_kg" in home.text
+        privacy = c.get("/privacy").text
+        assert "Anthropic" in privacy and "ИП Асилов Б." in privacy and "hi@joop.kg" in privacy
+        assert "в течение 30 дней" in c.get("/data-deletion").text
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        assert "Контакты появятся здесь" in c.get("/").text
