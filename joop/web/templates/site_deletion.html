@@ -1,0 +1,16 @@
+{% extends "site_base.html" %}
+{% block title %}Удаление данных — Joop AI{% endblock %}
+{% block content %}
+<article class="wrap doc">
+  <h1>Как удалить свои данные</h1>
+  <p class="muted">Редакция от {{ updated }}</p>
+  <p>Если вы писали компании, которая пользуется Joop AI, в WhatsApp, Instagram или Telegram, мы храним вашу переписку и данные записи от имени этой компании. Чтобы удалить их:</p>
+  <ol>
+    <li>Напишите нам{% if email %} на <a href="mailto:{{ email }}">{{ email }}</a>{% endif %}{% if telegram %} или в Telegram <a href="https://t.me/{{ telegram }}">@{{ telegram }}</a>{% endif %}.</li>
+    <li>Укажите название компании, которой вы писали, мессенджер и номер телефона или имя профиля.</li>
+    <li>Мы удалим переписку и записи в течение 30 дней и ответим, когда это сделано.</li>
+  </ol>
+  <p>Записи на будущие визиты после удаления пропадут: при необходимости запишитесь заново.</p>
+  <p>Подробнее — в <a href="/privacy">политике конфиденциальности</a>.</p>
+</article>
+{% endblock %}
