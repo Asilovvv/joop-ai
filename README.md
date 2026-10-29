@@ -1,5 +1,7 @@
 # Joop AI
 
+*Joop (жооп) means "answer" in Kyrgyz.*
+
 An AI administrator for small businesses in Kyrgyzstan. It answers customers in Telegram,
 WhatsApp and Instagram Direct, in Russian or Kyrgyz, quotes prices from the business's own price
 list, books customers into real free time slots, reminds them the day before, and hands anything
@@ -16,6 +18,11 @@ weekends often go unanswered until the next working day.
 - Reminders the day before the appointment and a morning summary for staff.
 - A web panel: price list, specialists, FAQ, time slots, bookings, conversations and pilot numbers.
 - Staff can take over any conversation, and the AI steps aside.
+- Kyrgyz and Russian: the reply follows the customer's language; a language guard rewrites a
+  Russian reply to a Kyrgyz message, and services can carry Kyrgyz names.
+- Businesses without a schedule in the panel still get bookings: the AI takes a request (name,
+  phone, service, preferred time) and staff call back to confirm.
+- Cost tracking: tokens and USD per AI reply, shown in the panel.
 
 ## Quick start on your computer (about 10 minutes)
 
@@ -34,6 +41,14 @@ python -m joop chat --slug demo      # talk to the AI in the terminal as a patie
 `--demo` adds a sample price list, three specialists and a week of free slots. Replace them with
 real data in the panel.
 
+A client's price list, FAQ and rules can also come from a YAML profile (format:
+[business.dental.example.yaml](business.dental.example.yaml)):
+
+```bash
+python -m joop create-business --slug aktish --profile clients/aktish.yaml
+python -m joop import-profile --slug aktish --file clients/aktish.yaml   # update later
+```
+
 ### Telegram bot without a server
 
 1. In Telegram, open @BotFather, send `/newbot`, copy the token.
@@ -49,6 +64,14 @@ server with HTTPS.
 
 You need a small Linux server (2 GB RAM is enough for several businesses), a domain name pointing
 to it, and Docker.
+
+| Server | Price / month | RAM | Pays from Kyrgyzstan |
+|---|---|---|---|
+| [MyHost.kg](https://www.myhost.kg/en/) VDS-KVM-2G | 1,600 som | 2 GB | Yes: Elkart, MBank, O!Dengi, QR ([payment page](https://www.myhost.kg/oplata.html)) |
+| [DigitalOcean](https://www.digitalocean.com/pricing/droplets) Basic | $12 | 2 GB | Card or PayPal |
+| [Hetzner Cloud](https://www.hetzner.com/cloud/) CX23 | €5.99 incl. IPv4, excl. VAT | 4 GB | Card or PayPal; often out of stock |
+
+Prices checked on the providers' pages on 29 October 2026.
 
 ```bash
 git clone <this repository> joop-ai && cd joop-ai
@@ -100,18 +123,39 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 50+ tests: engine, channels, scheduler, panel, webhooks
+python -m pytest          # 69 tests: engine, channels, scheduler, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
+
+## Evaluation with the real model
+
+Scripted conversations check grounding, Kyrgyz replies, booking capture, escalation, medical
+safety and prompt-injection resistance:
+
+| Profile | Cases |
+|---|---|
+| [business.example.yaml](business.example.yaml) (beauty studio) | [eval/cases.yaml](eval/cases.yaml), 24 |
+| [business.dental.example.yaml](business.dental.example.yaml) (dental clinic) | [eval/cases_dental.yaml](eval/cases_dental.yaml), 14 |
+
+```bash
+python -m eval.run_eval business.dental.example.yaml eval/cases_dental.yaml eval/results_dental.json
+```
+
+The run prints pass/fail per case, average and maximum reply time, cost per conversation and how
+often the language guard fired, and saves everything to a JSON file. On GitHub, Actions → eval →
+Run workflow does the same with the repository secret `ANTHROPIC_API_KEY` and keeps results on the
+`eval-results` branch. On macOS, double-click `eval.command`. Have a native speaker review the
+Kyrgyz cases and the `name_ky` values before reporting results.
 How the parts fit together: [docs/architecture.md](docs/architecture.md).
 
 ## Known limitations
 
+- The fixed replies for voice notes and errors are in Kyrgyz and Russian; the Kyrgyz wording needs
+  a native speaker's check.
 - Voice notes: the AI asks the customer to write and sends the voice note to staff as a request.
   Speech-to-text is not built yet; Kyrgyz recognition quality must be tested first (see the
   economics doc).
-- Fixed system messages (voice-note reply, error reply) are in Russian only.
 - One panel login per business; no staff roles and no login attempt limit yet.
 - Channel tokens are stored in the database unencrypted: protect the server and its backups.
 - Customers cannot cancel or reschedule by themselves yet: the AI passes such requests to staff.

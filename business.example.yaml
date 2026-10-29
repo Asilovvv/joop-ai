@@ -2,6 +2,7 @@
 # This is a DEMO business. Replace every value with the real client's data.
 # The bot answers ONLY from this file, so anything missing here it will not invent.
 
+niche: beauty  # dental | beauty | auto | education | other
 name: "Demo Beauty Studio"
 description: "Салон красоты в центре Бишкека: стрижки, окрашивание, маникюр. (демо)"
 address: "г. Бишкек, ул. Примерная, 1 (демо-адрес)"
