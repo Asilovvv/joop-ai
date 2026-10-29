@@ -16,7 +16,7 @@ from sqlmodel import Session, select
 
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
-from ..lang import fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
+from ..lang import claims_confirmation, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff
 from ..niches import Pack, get_pack
 from ..phone import normalize_phone
@@ -62,6 +62,7 @@ class Outcome:
     qualified_lead_id: int | None = None  # Lead of kind "lead"
     skipped: str = ""  # why nothing was sent, for logs and tests
     language_fixed: bool = False
+    confirmation_fixed: bool = False  # the reply claimed a booking that was not made and was rewritten
     usage: dict = field(default_factory=empty_usage)
     cost_usd: float | None = None
 
@@ -175,6 +176,15 @@ def handle_incoming(
         outcome.lead_id = lead.id
         outcome.admin_notes.append(_lead_note(business, conv, lead, off))
 
+    # Confirmation guard: the model sometimes says "вы записаны" / "кабыл алдым" while it is still asking
+    # for a phone number or a time. Nothing was captured, so rewrite the reply once without the claim.
+    captured = any(x is not None for x in (outcome.booking_id, outcome.request_id, outcome.order_id, outcome.qualified_lead_id))
+    if outcome.reply and not captured and claims_confirmation(outcome.reply) and not _has_capture(session, conv):
+        fixed = llm.remove_false_confirmation(outcome.reply, outcome.usage)
+        if fixed and not claims_confirmation(fixed):
+            outcome.reply = fixed
+            outcome.confirmation_fixed = True
+
     # Language guard: a Kyrgyz message sometimes gets a Russian answer because the business data
     # is in Russian. Rewrite such a reply once; keep the draft if the rewrite is not Kyrgyz either.
     if outcome.reply and is_kyrgyz_message(text) and not looks_kyrgyz(outcome.reply):
@@ -200,6 +210,15 @@ def handle_incoming(
 
 
 # --- helpers -----------------------------------------------------------------------------------
+
+
+def _has_capture(session: Session, conv: Conversation) -> bool:
+    """Did this conversation already produce a booking, request, lead or order (so "вы записаны" may be true)?"""
+    if session.exec(select(Booking.id).where(Booking.conversation_id == conv.id, Booking.status == "booked")).first():
+        return True
+    if session.exec(select(Order.id).where(Order.conversation_id == conv.id)).first():
+        return True
+    return session.exec(select(Lead.id).where(Lead.conversation_id == conv.id, Lead.kind.in_(["request", "lead"]))).first() is not None
 
 
 def _catalog_for_prompt(session: Session, conv: Conversation, services: list[Service], text: str) -> tuple[list[Service], str]:

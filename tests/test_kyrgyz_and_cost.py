@@ -181,3 +181,37 @@ def test_russian_reply_keeps_russian_service_names(business):
 @pytest.mark.parametrize("name", ["business.example.yaml", "business.dental.example.yaml"])
 def test_demo_profiles_have_kyrgyz_names(name):
     assert all(s.get("name_ky") for s in load_profile(ROOT / name)["services"])
+
+
+# --- false confirmation guard (eval run 9, 29 Oct 2026) ----------------------------------------------
+
+
+def test_false_confirmation_is_rewritten(business):
+    bad = "Бермет, маникюр үчүн жазууңузду кабыл алдым. Байланыш номериңизди жазыңызчы."
+    good = "Бермет, жазуу үчүн байланыш номериңизди жазыңызчы."
+    llm = FakeLLM([AgentReply(bad)])
+    llm.unconfirm = [good]
+    out = say(business, "Мени маникюрга жазып коюңузчу, атым Бермет", llm, "u1")
+    assert out.reply == good and out.confirmation_fixed and llm.unconfirm_calls == [bad]
+
+
+def test_true_confirmation_is_kept(business):
+    with db.new_session() as s:
+        slot = s.exec(select(Slot).where(Slot.status == "free").order_by(Slot.start)).first()
+    llm = FakeLLM([
+        AgentReply("Вы записаны на четверг 09:00.", booking={"slot_id": slot.id, "name": "Айбек", "phone": "0555123456", "service": "осмотр", "preferred_time": "", "party_size": 0}),
+        AgentReply("Да, вы записаны на четверг 09:00, адрес — Токтогула 120."),
+    ])
+    llm.unconfirm = ["should not be used"]
+    assert say(business, "Айбек 0555123456, 9:00", llm, "u2").booking_id
+    out = say(business, "Я точно записан?", llm, "u3")  # earlier booking in this conversation: the claim is true
+    assert out.reply.startswith("Да, вы записаны") and not out.confirmation_fixed
+
+
+def test_claims_confirmation_patterns():
+    from joop.lang import claims_confirmation
+
+    for t in ["Вы записаны на пробный урок", "Заявка принята!", "Заказ оформлен", "жазууңузду кабыл алдым", "Сизди жазып койдум"]:
+        assert claims_confirmation(t), t
+    for t in ["Какое время удобно?", "Чтобы записать вас, нужен телефон", "Скидку обещать не могу"]:
+        assert not claims_confirmation(t), t
