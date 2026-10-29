@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Партнёры{% endblock %}
+{% set active = 'partners' %}
+{% block content %}
+{% include "owner_nav.html" %}
+<section class="card stack">
+  <h2>Добавить партнёра</h2>
+  <p class="muted small">Партнёр — SMM-специалист, агентство или знакомый владельцев бизнеса. Он делится своей ссылкой, бизнесы регистрируются по ней, и партнёр получает процент с каждой их оплаты, пока они платят.</p>
+  <form method="post" action="/owner/partners" class="grid2">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Имя<input name="name" required></label>
+    <label>Телефон<input name="phone"></label>
+    <label>Процент с оплат<input name="percent" type="number" min="0" max="50" value="20"></label>
+    <label>Код ссылки (по желанию)<input name="code" placeholder="например aibek-smm"></label>
+    <div><button class="btn" type="submit">Добавить</button></div>
+  </form>
+</section>
+<section class="card">
+  <h2>Партнёры ({{ items | length }})</h2>
+  <div class="scroll"><table class="table">
+    <tr><th>Партнёр</th><th>Привёл / платят</th><th>Оплаты клиентов, сом</th><th>Заработал / выплачено / долг, сом</th><th>Действия</th></tr>
+    {% for st in items %}
+    <tr>
+      <td><b>{{ st.partner.name }}</b> {% if not st.partner.active %}<span class="chip warn">отключён</span>{% endif %}<br>
+        <span class="muted small">{{ st.partner.percent }}% · ссылка <code>{{ base }}/r/{{ st.partner.code }}</code><br>личная страница <code>{{ base }}/partner/{{ st.partner.secret }}</code></span></td>
+      <td class="mono">{{ st.businesses | length }} / {{ st.paying }}</td>
+      <td class="mono">{{ st.revenue_som }}</td>
+      <td class="mono">{{ st.earned_som }} / {{ st.paid_out_som }} / <b>{{ st.owed_som }}</b></td>
+      <td><div class="actions" style="justify-content: flex-start">
+        <form method="post" action="/owner/partners/{{ st.partner.id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="payout"><input name="amount" type="number" min="1" value="{{ st.owed_som or '' }}" style="width: 90px" aria-label="Сумма выплаты"> <button class="btn small">Выплатил</button></form>
+        <form method="post" action="/owner/partners/{{ st.partner.id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn ghost small" name="action" value="toggle">{{ 'Отключить' if st.partner.active else 'Включить' }}</button></form>
+      </div></td>
+    </tr>
+    {% else %}<tr><td colspan="5" class="muted">Пока нет партнёров.</td></tr>{% endfor %}
+  </table></div>
+</section>
+{% endblock %}

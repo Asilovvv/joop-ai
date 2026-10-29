@@ -21,11 +21,13 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .. import billing
+from .. import billing, partners
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
-from ..models import Booking, Business, Conversation, Lead, Message, Order, Payment, Prospect, Service, Subscription
+from ..models import (
+    Booking, Business, Conversation, Lead, Message, Order, Partner, PartnerPayout, Payment, Prospect, Service, Subscription,
+)
 from ..niches import all_packs, get_pack
 from ..presets import SlugTaken, create_business
 from ..pricing import empty_usage
@@ -76,6 +78,11 @@ def unique_slug(session: Session, name: str) -> str:
 def signup_form(request: Request):
     if not _settings(request).signup_enabled:
         raise HTTPException(status_code=404)
+    ref = request.query_params.get("ref", "")
+    if ref:
+        with new_session() as s:
+            if partners.find_active(s, ref):
+                request.session["ref"] = ref.strip().lower()
     packs = {k: p for k, p in all_packs().items()}
     return _render(request, "signup.html", "signup", None, packs=packs, trial_days=_settings(request).trial_days)
 
@@ -119,6 +126,9 @@ def signup(
         business.address = ""
         business.phone = phone
         billing.start_trial(s, business, settings.trial_days, now, "signup", contact_name, phone)
+        partner = partners.find_active(s, request.session.get("ref", ""))
+        if partner is not None:
+            partners.attach(s, business.id, partner)
         s.add(business)
         s.commit()
         bid = business.id
@@ -664,3 +674,76 @@ def prospect_action(request: Request, pid: int, action: str = Form(""), status: 
         s.add(p)
         s.commit()
     return _back(f"/owner/prospects#p{pid}")
+
+
+# --- partners (referral program) ------------------------------------------------------------------
+
+
+@router.get("/r/{code}")
+def referral_link(request: Request, code: str):
+    """Short link a partner shares: remembers the partner and opens the landing page."""
+    with new_session() as s:
+        if partners.find_active(s, code):
+            request.session["ref"] = code.strip().lower()
+    return RedirectResponse("/", status_code=303)
+
+
+@router.get("/partner/{secret}")
+def partner_page(request: Request, secret: str):
+    """The partner's own page: their link, businesses they brought, money earned. The URL is the password."""
+    if len(secret) < 16:
+        raise HTTPException(status_code=404)
+    with new_session() as s:
+        partner = s.exec(select(Partner).where(Partner.secret == secret)).first()
+        if partner is None:
+            raise HTTPException(status_code=404)
+        st = partners.stats(s, partner, utcnow())
+    base = _settings(request).public_base_url
+    return _owner_render(request, "partner.html", st=st, link=f"{base}/r/{partner.code}" if base else f"/r/{partner.code}",
+                         price=_settings(request).price_som)
+
+
+@router.get("/owner/partners")
+def owner_partners(request: Request):
+    _owner(request)
+    now = utcnow()
+    with new_session() as s:
+        items = [partners.stats(s, p, now) for p in s.exec(select(Partner).order_by(Partner.id.desc())).all()]
+    return _owner_render(request, "owner_partners.html", items=items, base=_settings(request).public_base_url)
+
+
+@router.post("/owner/partners")
+def owner_partner_add(request: Request, name: str = Form(""), phone: str = Form(""), percent: int = Form(20),
+                      code: str = Form(""), csrf: str = Form("")):
+    _owner(request)
+    _check_csrf(request, csrf)
+    if len(name.strip()) < 2:
+        _flash(request, "Укажите имя партнёра.", "error")
+        return _back("/owner/partners")
+    with new_session() as s:
+        p = partners.new_partner(s, name, phone, percent, code)
+        s.commit()
+        _flash(request, f"Партнёр добавлен. Ссылка: /r/{p.code}. Личная страница партнёра: /partner/{p.secret} — отправьте её ему.")
+    return _back("/owner/partners")
+
+
+@router.post("/owner/partners/{pid}")
+def owner_partner_action(request: Request, pid: int, action: str = Form(""), amount: int = Form(0), note: str = Form(""),
+                         csrf: str = Form("")):
+    _owner(request)
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        p = s.get(Partner, pid)
+        if p is None:
+            raise HTTPException(status_code=404)
+        if action == "payout" and amount > 0:
+            s.add(PartnerPayout(partner_id=pid, amount_som=amount, note=note.strip()[:200]))
+            _flash(request, f"Выплата {amount} сом партнёру {p.name} записана.")
+        elif action == "toggle":
+            p.active = not p.active
+            s.add(p)
+            _flash(request, f"{p.name}: {'активен' if p.active else 'отключён'}.")
+        else:
+            raise HTTPException(status_code=400)
+        s.commit()
+    return _back("/owner/partners")
