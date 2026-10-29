@@ -34,9 +34,9 @@ def test_check_case():
     assert check_case({"must_contain_any": ["500"]}, "Консультация стоит 500 сом.", False, False) == []
     fails = check_case(
         {"expect_lang": "ky", "expect_lead": True, "must_not_contain": ["принята"]},
-        "**Заявка принята**", False, False,
+        "**Заявка принята, ждём вас завтра в клинике**", False, False,
     )
-    assert len(fails) == 4
+    assert len(fails) == 4  # markdown, Russian, no lead, forbidden word
     assert check_case({}, ERROR_REPLY, False, False) == ["no answer: the bot sent the generic fallback"]
 
 

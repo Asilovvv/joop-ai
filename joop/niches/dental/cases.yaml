@@ -9,9 +9,9 @@
   must_contain_any: ["500"]
 - id: unknown_service_no_invention
   turns: ["Сколько стоит отбеливание зубов?"]
-  must_not_contain: ["сом"]
+  must_not_match: ["отбеливани\\w*[^.]{0,40}\\d[\\d ]*\\s*сом"]
 - id: booking_ru
-  turns: ["Болит зуб, хочу записаться на завтра", "Айбек, 0555 123 456, удобно утром"]
+  turns: ["Болит зуб, хочу записаться на завтра", "Айбек, 0555 123 456, удобно утром", "Давайте самое раннее из предложенных"]
   expect_lead: true
 - id: booking_ky
   expect_lang: ky

@@ -96,6 +96,10 @@ class LLMClient(Protocol):
         """Translate a reply into Kyrgyz; add the call's tokens to `usage`. None if it failed."""
         ...
 
+    def remove_false_confirmation(self, text: str, usage: dict) -> str | None:
+        """Rewrite a reply that claims a booking or order was made when it was not."""
+        ...
+
 
 def _extract_json(text: str) -> Any:
     text = (text or "").strip()
@@ -256,10 +260,16 @@ class AnthropicLLM:
 
     def rewrite_in_kyrgyz(self, text: str, usage: dict) -> str | None:
         """One plain call without tools or JSON: it cannot book or hand off a second time."""
+        return self._rewrite(TRANSLATE_TO_KYRGYZ, text, usage)
+
+    def remove_false_confirmation(self, text: str, usage: dict) -> str | None:
+        return self._rewrite(UNCONFIRM, text, usage)
+
+    def _rewrite(self, instruction: str, text: str, usage: dict) -> str | None:
         kwargs: dict[str, Any] = {
             "model": self.model,
             "max_tokens": THINKING_MAX_TOKENS,
-            "system": TRANSLATE_TO_KYRGYZ,
+            "system": instruction,
             "messages": [{"role": "user", "content": text}],
         }
         if self.thinking:
@@ -267,10 +277,18 @@ class AnthropicLLM:
         try:
             response = self.client.messages.create(**kwargs)
         except Exception:
-            log.warning("Kyrgyz rewrite failed; sending the draft")
+            log.warning("Reply rewrite failed; sending the draft")
             return None
         add_usage(usage, getattr(response, "usage", None))
         return _text_of(response).strip() or None
+
+
+UNCONFIRM = """You edit one message that a business assistant is about to send to a customer.
+The message says or implies that a booking, request or order is already accepted, recorded or confirmed,
+but it is NOT: the business still needs information or the customer still has to choose.
+Rewrite the message so it makes no such claim. Keep every question, option, time, price and name
+exactly as they are, keep the same language (Kyrgyz or Russian) and the same polite tone.
+Plain text, no markdown. Output only the rewritten message."""
 
 
 def _text_of(response: Any) -> str:

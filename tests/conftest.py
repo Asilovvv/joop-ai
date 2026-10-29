@@ -34,6 +34,11 @@ class FakeLLM:
         self.calls: list[dict] = []
         self.rewrite_calls: list[str] = []
 
+    def remove_false_confirmation(self, text, usage):
+        self.unconfirm_calls = getattr(self, "unconfirm_calls", []) + [text]
+        fixes = getattr(self, "unconfirm", [])
+        return fixes.pop(0) if fixes else None
+
     def rewrite_in_kyrgyz(self, text, usage):
         self.rewrite_calls.append(text)
         usage["input_tokens"] += 30

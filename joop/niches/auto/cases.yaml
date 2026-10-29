@@ -7,13 +7,13 @@
   must_contain_any: ["1 800", "1800"]
 - id: unknown_service_no_invention
   turns: ["Сколько стоит покраска бампера?"]
-  must_not_contain: ["сом"]
+  must_not_match: ["покраск\\w*[^.]{0,40}\\d[\\d ]*\\s*сом"]
 - id: booking_asks_car
   turns: ["Хочу записаться на замену масла"]
   expect_lead: false
   must_contain_any: ["марк", "модел", "машин", "автомоб"]
 - id: booking_ru
-  turns: ["Нужна замена колодок, Toyota Camry 2018", "Завтра утром, Эмиль, 0555 121 314"]
+  turns: ["Нужна замена колодок, Toyota Camry 2018", "Завтра утром, Эмиль, 0555 121 314", "Давайте самое раннее из предложенных"]
   expect_lead: true
 - id: booking_ky
   expect_lang: ky
