@@ -61,7 +61,10 @@ class Service(SQLModel, table=True):
     name: str
     name_ky: str = ""  # Kyrgyz name, so the model does not translate service names on the fly
     price: str = ""  # free text, e.g. "от 3 500"
+    price_value: Optional[int] = None  # exact price in som when the text is a single number; used for order totals
     note: str = ""
+    category: str = ""
+    available: bool = True  # False = stop list / sold out: the AI does not offer it
     sort: int = 0
 
 
@@ -71,6 +74,7 @@ class Staff(SQLModel, table=True):
     name: str
     role: str = ""
     handles: str = ""  # what this person takes care of, used to pick the right specialist
+    capacity: int = 0  # seats for a table, 0 = not relevant
     active: bool = True
 
 
@@ -131,6 +135,7 @@ class Booking(SQLModel, table=True):
     staff_name: str = ""
     start: NaiveDatetime = Field(index=True)
     service: str = ""
+    party_size: int = 0
     customer_name: str = ""
     customer_phone: str = ""
     channel: str = ""
@@ -146,8 +151,9 @@ class Lead(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     business_id: int = Field(foreign_key="business.id", index=True)
     conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.id")
-    kind: str = "handoff"  # handoff | request (booking request without a slot) | media | error
+    kind: str = "handoff"  # handoff | request (booking without a slot) | lead (qualified) | media | error
     summary: str = ""
+    details: str = ""  # qualification answers for kind="lead", e.g. "Бюджет: 60 000 $; Район: Джал"
     customer_name: str = ""
     customer_phone: str = ""
     channel: str = ""
@@ -155,3 +161,33 @@ class Lead(SQLModel, table=True):
     status: str = "new"  # new | done
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     off_hours: bool = False
+
+
+class Order(SQLModel, table=True):
+    """A cart the AI collected (cafe, wholesale). Totals are computed by code from catalog prices."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.id")
+    customer_name: str = ""
+    customer_phone: str = ""
+    mode: str = "pickup"  # pickup | delivery
+    address: str = ""
+    wanted_time: str = ""
+    comment: str = ""
+    total: Optional[int] = None  # None when some price is not exact ("от ...")
+    status: str = "new"  # new | accepted | done | cancelled
+    channel: str = ""
+    chat_id: str = ""
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+    created_off_hours: bool = False
+
+
+class OrderLine(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    order_id: int = Field(foreign_key="order.id", index=True)
+    item_id: Optional[int] = Field(default=None, foreign_key="service.id")
+    name: str
+    quantity: int = 1
+    unit_price: Optional[int] = None
+    note: str = ""

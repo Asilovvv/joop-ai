@@ -11,7 +11,7 @@ def test_parse_reply_variants():
     assert plain.reply == "Здравствуйте" and plain.booking is None and plain.handoff is None
 
     fenced = parse_reply('Вот ответ:\n```json\n{"reply": "Ок", "booking": {"slot_id": "12", "name": " Айбек ", "phone": "0555123456", "service": "чистка"}, "handoff": ""}\n```')
-    assert fenced.booking == {"slot_id": 12, "name": "Айбек", "phone": "0555123456", "service": "чистка", "preferred_time": ""}
+    assert fenced.booking == {"slot_id": 12, "name": "Айбек", "phone": "0555123456", "service": "чистка", "preferred_time": "", "party_size": 0}
     assert fenced.handoff is None
 
     embedded = parse_reply('Ответ: {"reply": "Передам администратору", "booking": null, "handoff": "перезвонить"} конец')

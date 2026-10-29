@@ -16,12 +16,13 @@ from sqlmodel import Session, select
 
 from ..channels.base import IncomingMessage
 from ..lang import fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
-from ..models import Booking, Business, Conversation, Faq, Lead, Message, Service, Slot, Staff
+from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff
+from ..niches import Pack, get_pack
 from ..phone import normalize_phone
 from ..pricing import cost_usd, empty_usage
 from ..slots import claim_slot, free_slots
 from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
-from .llm import AgentReply, LLMClient
+from .llm import AgentReply, LLMClient, response_schema
 from .prompt import CHANNEL_LABELS, build_history, build_system_prompt
 
 log = logging.getLogger(__name__)
@@ -56,6 +57,8 @@ class Outcome:
     booking_id: int | None = None
     request_id: int | None = None  # booking request without a slot (Lead of kind "request")
     lead_id: int | None = None  # handoff, media or error lead
+    order_id: int | None = None
+    qualified_lead_id: int | None = None  # Lead of kind "lead"
     skipped: str = ""  # why nothing was sent, for logs and tests
     language_fixed: bool = False
     usage: dict = field(default_factory=empty_usage)
@@ -127,7 +130,8 @@ def handle_incoming(
 
     try:
         llm = get_llm()
-        result: AgentReply = llm.respond(system, history)
+        pack = get_pack(business.niche)
+        result: AgentReply = llm.respond(system, history, schema=response_schema(pack.outcomes))
     except Exception:
         log.exception("Model call failed for business %s", business.slug)
         lead = _add_lead(session, business, conv, "error", f"ИИ не смог ответить на сообщение: «{text[:300]}»", now, off)
@@ -135,6 +139,21 @@ def handle_incoming(
         return Outcome(reply=ERROR_REPLY, admin_notes=[_lead_note(business, conv, lead, off)], lead_id=lead.id)
 
     outcome = Outcome(reply=result.reply, usage=dict(result.usage))
+    # The model may only use outcomes the niche enables; anything else is ignored.
+    if result.booking and not (pack.has("booking") or pack.has("request")):
+        result.booking = None
+    if result.booking and result.booking.get("slot_id") is not None and not pack.has("booking"):
+        result.booking["slot_id"] = None
+    if result.order and pack.has("order"):
+        outcome.reply, order = _try_order(session, business, pack, conv, result.order, result.reply, now, off, incoming.channel)
+        if order is not None:
+            outcome.order_id = order.id
+            outcome.admin_notes.append(_order_note(session, conv, order, off))
+    if result.lead and pack.has("lead"):
+        outcome.reply, qualified = _qualified_lead(session, business, conv, result.lead, outcome.reply, now, off)
+        if qualified is not None:
+            outcome.qualified_lead_id = qualified.id
+            outcome.admin_notes.append(_lead_note(business, conv, qualified, off))
     if result.booking:
         if result.booking.get("slot_id") is None:
             outcome.reply, request = _booking_request(session, business, conv, result.booking, result.reply, now, off)
@@ -143,7 +162,7 @@ def handle_incoming(
                 outcome.admin_notes.append(_request_note(conv, request, off))
         else:
             outcome.reply, booking = _try_booking(
-                session, business, conv, result.booking, result.reply, now, now_local, off, incoming.channel
+                session, business, conv, result.booking, result.reply, now, now_local, off, incoming.channel, pack
             )
             if booking is not None:
                 outcome.booking_id = booking.id
@@ -319,11 +338,15 @@ def _handle_command(
     return None  # other slash-texts are answered like normal messages
 
 
-def _alternatives(session: Session, business: Business, now_local: datetime, staff_id: int | None) -> list[str]:
+def _alternatives(
+    session: Session, business: Business, now_local: datetime, staff_id: int | None, min_capacity: int = 0
+) -> list[str]:
     rows = free_slots(session, business.id, now_local, staff_id=staff_id, limit=3) if staff_id else []
     if not rows:
-        rows = free_slots(session, business.id, now_local, limit=3)
-    return [f"{fmt_slot(slot.start)} ({member.name})" for slot, member in rows]
+        rows = free_slots(session, business.id, now_local, limit=200)
+    if min_capacity:
+        rows = [(slot, m) for slot, m in rows if not m.capacity or m.capacity >= min_capacity]
+    return [f"{fmt_slot(slot.start)} ({member.name})" for slot, member in rows[:3]]
 
 
 def _try_booking(
@@ -336,6 +359,7 @@ def _try_booking(
     now_local: datetime,
     off: bool,
     channel: str,
+    pack: Pack | None = None,
 ) -> tuple[str, Booking | None]:
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
@@ -353,6 +377,15 @@ def _try_booking(
         and member is not None
         and member.active
     )
+    party = int(data.get("party_size") or 0)
+    if usable and pack is not None and pack.party_size:
+        if party <= 0:
+            return "Сколько будет гостей? Подберу стол нужного размера.", None
+        if member.capacity and party > member.capacity:
+            options = _alternatives(session, business, now_local, None, min_capacity=party)
+            text = f"Этот стол рассчитан на {member.capacity} гостей."
+            text += (" Подойдут: " + "; ".join(options) + ". Какое время удобно?") if options else " Оставьте телефон — администратор подберёт стол."
+            return text, None
     if not usable or not claim_slot(session, slot.id):
         options = _alternatives(session, business, now_local, slot.staff_id if slot else None)
         if options:
@@ -369,6 +402,7 @@ def _try_booking(
         staff_name=member.name,
         start=slot.start,
         service=(data.get("service") or "").strip()[:200],
+        party_size=max(0, party),
         customer_name=name,
         customer_phone=phone,
         channel=channel,
@@ -400,6 +434,87 @@ def _booking_request(
     return reply, _add_lead(session, business, conv, "request", summary, now, off)
 
 
+MAX_QUANTITY = 50
+ASK_ORDER_CONTACTS = "Чтобы оформить заказ, напишите, пожалуйста, имя и номер телефона."
+
+
+def _try_order(
+    session: Session, business: Business, pack: Pack, conv: Conversation, data: dict, reply: str,
+    now: datetime, off: bool, channel: str,
+) -> tuple[str, Order | None]:
+    """Check every line against the catalog and compute the total in code; the model never sets prices."""
+    name = (data.get("name") or "").strip()[:120]
+    phone = normalize_phone(data.get("phone"))
+    if not name or not phone:
+        return ASK_ORDER_CONTACTS, None
+    mode = data.get("mode") if data.get("mode") in pack.order_modes else pack.order_modes[0]
+    address = (data.get("address") or "").strip()[:300]
+    if mode == "delivery" and not address:
+        return "Напишите, пожалуйста, адрес доставки.", None
+
+    lines: list[tuple[Service, int, str]] = []
+    problems: list[str] = []
+    for line in data.get("lines") or []:
+        item = session.get(Service, line.get("item_id")) if line.get("item_id") else None
+        qty = int(line.get("quantity") or 0)
+        if item is None or item.business_id != business.id:
+            problems.append("одной позиции нет в списке")
+        elif not item.available:
+            problems.append(f"«{item.name}» сейчас нет в наличии")
+        elif not 1 <= qty <= MAX_QUANTITY:
+            problems.append(f"количество «{item.name}» должно быть от 1 до {MAX_QUANTITY}")
+        else:
+            lines.append((item, qty, (line.get("note") or "").strip()[:200]))
+    if problems or not lines:
+        detail = "; ".join(dict.fromkeys(problems)) or "в заказе нет позиций"
+        return f"Не получилось оформить заказ: {detail}. Выберите, пожалуйста, из списка.", None
+
+    total = None if any(item.price_value is None for item, _, _ in lines) else sum(item.price_value * q for item, q, _ in lines)
+    order = Order(
+        business_id=business.id, conversation_id=conv.id, customer_name=name, customer_phone=phone, mode=mode,
+        address=address, wanted_time=(data.get("time") or "").strip()[:100], comment=(data.get("comment") or "").strip()[:300],
+        total=total, channel=channel, chat_id=conv.chat_id, created_at=now, created_off_hours=off,
+    )
+    session.add(order)
+    session.flush()
+    for item, qty, note in lines:
+        session.add(OrderLine(order_id=order.id, item_id=item.id, name=item.name, quantity=qty, unit_price=item.price_value, note=note))
+    conv.customer_name, conv.customer_phone = name, phone
+    session.add(conv)
+    session.flush()
+    summary = f"Сумма заказа: {total:,} сом.".replace(",", " ") if total is not None else "Точную сумму подтвердит администратор."
+    return f"{reply}\n{summary}", order
+
+
+def _order_note(session: Session, conv: Conversation, order: Order, off: bool) -> str:
+    when = " (в нерабочее время)" if off else ""
+    rows = session.exec(select(OrderLine).where(OrderLine.order_id == order.id).order_by(OrderLine.id)).all()
+    items = [f"{r.quantity} × {r.name}" + (f" ({r.note})" if r.note else "") for r in rows]
+    how = f"доставка: {order.address}" if order.mode == "delivery" else "самовывоз"
+    total = f"{order.total} сом" if order.total is not None else "сумму уточнить"
+    lines = [f"Новый заказ #{order.id}{when}", f"{order.customer_name}, {order.customer_phone}", *items,
+             f"Итого: {total}; {how}" + (f"; к {order.wanted_time}" if order.wanted_time else "")]
+    if order.comment:
+        lines.append(f"Комментарий: {order.comment}")
+    lines.append(f"Канал: {CHANNEL_LABELS.get(conv.channel, conv.channel)}")
+    return "\n".join(lines)
+
+
+def _qualified_lead(
+    session: Session, business: Business, conv: Conversation, data: dict, reply: str, now: datetime, off: bool
+) -> tuple[str, Lead | None]:
+    name = (data.get("name") or "").strip()[:120]
+    phone = normalize_phone(data.get("phone"))
+    if not name or not phone:
+        return ASK_CONTACTS_REPLY, None
+    conv.customer_name, conv.customer_phone = name, phone
+    session.add(conv)
+    lead = _add_lead(session, business, conv, "lead", "Заявка на подбор / консультацию. Свяжитесь с клиентом.", now, off)
+    lead.details = (data.get("details") or "").strip()[:1000]
+    session.add(lead)
+    return reply, lead
+
+
 def _request_note(conv: Conversation, lead: Lead, off: bool) -> str:
     when = " (в нерабочее время)" if off else ""
     return "\n".join(
@@ -427,8 +542,9 @@ def _lead_note(business: Business, conv: Conversation, lead: Lead, off: bool) ->
     when = " (в нерабочее время)" if off else ""
     who = ", ".join(x for x in [lead.customer_name, lead.customer_phone] if x) or "имя не указано"
     lines = [
-        f"Заявка администратору{when}",
+        ("Новый лид" if lead.kind == "lead" else "Заявка администратору") + when,
         lead.summary,
+        *([lead.details] if lead.details else []),
         f"Клиент: {who}",
         f"Канал: {CHANNEL_LABELS.get(conv.channel, conv.channel)}",
     ]
