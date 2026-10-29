@@ -1,0 +1,267 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/realty/demo.yaml",
+  "summary": {
+    "cases": 13,
+    "passed": 12,
+    "avg_latency_s": 1.81,
+    "max_latency_s": 3.17,
+    "input_tokens": 76322,
+    "output_tokens": 3147,
+    "avg_cost_usd_per_conversation": 0.000708,
+    "total_cost_usd": 0.009206,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "listing_price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Двухкомнатная квартира в Джале, объект 101, 64 м², 7/12 этаж, с ремонтом, стоит 78 000 $. Если хотите, могу записать вас на показ к агенту.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.08,
+      "usage": {
+        "input_tokens": 4173,
+        "output_tokens": 99,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004668,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "rent_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Ооба, Асанбай районунда 42 м², 5/10 кабатта жайгашкан 1 бөлмөлүү батир бар (объект 103), айына 450 $ ижара менен, эмерек менен. Көрүүгө жазылгыңыз келсе, ижара боюнча агент Жылдыз менен бош убакыттар: жума 30.10 саат 10:00, 12:00 же 14:00, ошондой эле дүйшөмбү 02.11 саат 10:00. Кайсынысы ыңгайлуу жана атыңызды жана телефон номериңизди жазып коюңузчу?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.51,
+      "usage": {
+        "input_tokens": 4179,
+        "output_tokens": 238,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005369000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_invented_listing",
+      "passed": false,
+      "fails": [
+        "contains forbidden '$'"
+      ],
+      "final_reply": "Сейчас в нашей базе есть такие объекты: 2-комнатная квартира на Джале (64 м², 7/12 этаж, ремонт, 78 000 $), 3-комнатная на Магистрали (92 м², 3/9 этаж, ПСО, 95 000 $) и 1-комнатная в Асанбае (42 м², 5/10 этаж, мебель, 450 $ в месяц). Квартир в Арча-Бешике в данных сейчас нет, уточню у администратора и напишу вам, если появятся варианты.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.93,
+      "usage": {
+        "input_tokens": 4175,
+        "output_tokens": 262,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005485,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "qualification_lead_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Тимур! Ваши данные сохранены, и администратор свяжется с вами по номеру 0555 101 202. Подскажите, пожалуйста, когда вам удобнее посмотреть квартиры: в пятницу, субботу или в начале следующей недели?",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.63,
+      "usage": {
+        "input_tokens": 12988,
+        "output_tokens": 544,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0015708000000000002,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "qualification_lead_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Айбек! Маалыматыңызды кабыл алдым, адистибиз жакында байланышып, ыңгайлуу варианттарды сунуштайт. Эгер каалаган район же бөлмө санын дагы айтсаңыз, так тандоого жардам берем.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.31,
+      "usage": {
+        "input_tokens": 8555,
+        "output_tokens": 393,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.001052,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "viewing_booking_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Хорошо, Динара. Записываю вас на показ объекта 101 в пятницу, 30.10, в 14:00 с агентом Бакыт. Адрес квартиры сообщим после подтверждения записи.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.32,
+      "usage": {
+        "input_tokens": 13008,
+        "output_tokens": 516,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0015588000000000002,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте, Марат! Сейчас нерабочее время, но я помогу с записью на показ объекта 102. Подскажите, пожалуйста, ваш номер телефона, а также в какое время вам удобнее: завтра, пятница 30.10, в 10:00, 12:00, 14:00 или 16:00?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.61,
+      "usage": {
+        "input_tokens": 4179,
+        "output_tokens": 137,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00048640000000000006,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_discount_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Скидок и торга по объектам в данных нет, поэтому не могу подтвердить снижение цены. Объект 104 — дом 160 м² на 6 сотках в Кок-Жаре, цена 180 000 $. Уточню у администратора, возможен ли торг, и передам вам ответ.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.59,
+      "usage": {
+        "input_tokens": 4179,
+        "output_tokens": 218,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005269000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "mortgage_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Вопрос по ипотеке и условиям банков я передам администратору, он уточнит и свяжется с вами. Также можете назвать имя и телефон для связи.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.02,
+      "usage": {
+        "input_tokens": 4180,
+        "output_tokens": 186,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000511,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "commission_faq_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "При аренде комиссия агентства составляет 50% от месячной платы. При покупке комиссию платит продавец.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.19,
+      "usage": {
+        "input_tokens": 4173,
+        "output_tokens": 65,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00044980000000000004,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Түшүнүктүү, агент менен байланышууну администраторго өтүнүч катары жөнөтөм. Иш убактысында (Дш–Шш 09:00–19:00) администратор сиз менен байланышат. Ошол мезгилге чейин телефон номериңизди жазып калсаңыз болот: +996 555 000 003.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 3.17,
+      "usage": {
+        "input_tokens": 4174,
+        "output_tokens": 201,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005179000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Составление юридических документов, включая договор купли-продажи, я не делаю. Передам ваш запрос администратору, и он свяжется с вами. Если хотите, могу подобрать объект или записать вас на показ.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.54,
+      "usage": {
+        "input_tokens": 4179,
+        "output_tokens": 149,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004924,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Марат, рахмат! 101-объектини көрүү үчүн сизге ыңгайлуу убакытты тандап, телефон номериңизди жазыңызчы. Эртең (пятница) бош убакыттар: 10:00, 12:00, 14:00 же 16:00 — кайсынысы ыңгайлуу?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.57,
+      "usage": {
+        "input_tokens": 4180,
+        "output_tokens": 139,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004875,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}
