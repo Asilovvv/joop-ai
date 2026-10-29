@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Joop AI{% endblock %}</title>
+<meta name="description" content="ИИ-администратор для клиник и сервисов Бишкека: отвечает пациентам в WhatsApp, Instagram и Telegram, записывает на приём и напоминает о визите.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="/static/site.css">
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="/">Joop AI<small>жооп — ответ</small></a>
+    <nav class="nav" aria-label="Сайт">
+      <a href="/#how">Как работает</a>
+      <a href="/#pilot">Пилот</a>
+      <a href="/#contact">Контакты</a>
+      <a href="/login">Вход для клиник</a>
+    </nav>
+  </div>
+</header>
+<main>{% block content %}{% endblock %}</main>
+<footer class="site">
+  <div class="wrap">
+    <span>© 2026 {{ legal_name or 'Joop AI' }}, Бишкек</span>
+    <span><a href="/privacy">Политика конфиденциальности</a> · <a href="/data-deletion">Удаление данных</a></span>
+  </div>
+</footer>
+</body>
+</html>
