@@ -286,3 +286,54 @@ def test_public_pages(settings, rt, business):
         assert "в течение 30 дней" in c.get("/data-deletion").text
     with TestClient(create_app(settings, rt, init=False)) as c:
         assert "Контакты появятся здесь" in c.get("/").text
+
+
+def test_restaurant_panel(settings, rt, engine):
+    from joop.agent.engine import handle_incoming as handle
+    from joop.models import Order
+    from joop.presets import create_business as create
+
+    with db.new_session() as s:
+        b = create(s, slug="cafe", name="Кафе", password="secret-pass", niche="restaurant", demo=True, now_utc=NOW_UTC)
+        s.commit()
+        plov = s.exec(select(Service).where(Service.business_id == b.id, Service.name == "Плов")).one()
+        llm = FakeLLM([AgentReply("Готово.", order={"lines": [{"item_id": plov.id, "quantity": 2, "note": ""}], "mode": "delivery",
+                                                     "address": "Киевская 1", "time": "", "name": "Айбек", "phone": "0555123456", "comment": ""})])
+        out = handle(s, b, IncomingMessage("telegram", "1", "text", "2 плова", "", "ord"), lambda: llm, NOW_UTC)
+        s.commit()
+    app = create_app(settings, rt, init=False)
+    with TestClient(app) as c:
+        token = csrf_of(c.get("/login").text)
+        c.post("/login", data={"slug": "cafe", "password": "secret-pass", "csrf": token})
+        token = csrf_of(c.get("/panel").text)
+        panel = c.get("/panel").text
+        assert "Заказы" in panel and "Меню" in panel and "Столы" in panel and "заказов принял ИИ" in panel
+        orders = c.get("/panel/orders").text
+        assert "2 × Плов" in orders and "700 сом" in orders and "Киевская 1" in orders
+        c.post(f"/panel/orders/{out.order_id}/status", data={"status": "accepted", "csrf": token})
+        with db.new_session() as s:
+            assert s.get(Order, out.order_id).status == "accepted"
+        # stop list and price value
+        c.post(f"/panel/services/{plov.id}", data={"name": "Плов", "name_ky": "Палоо", "price": "380", "note": "", "csrf": token})
+        with db.new_session() as s:
+            row = s.get(Service, plov.id)
+            assert row.available is False and row.price_value == 380
+        # table capacity
+        c.post("/panel/staff", data={"name": "Стол 9", "role": "VIP", "handles": "", "capacity": "12", "csrf": token})
+        with db.new_session() as s:
+            from joop.models import Staff
+            assert s.exec(select(Staff).where(Staff.name == "Стол 9")).one().capacity == 12
+        assert 'name="capacity"' in c.get("/panel/staff").text
+
+
+def test_wholesale_panel_hides_booking_sections(settings, rt, engine):
+    from joop.presets import create_business as create
+
+    with db.new_session() as s:
+        create(s, slug="opt", name="Опт", password="secret-pass", niche="wholesale", demo=True, now_utc=NOW_UTC)
+        s.commit()
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        token = csrf_of(c.get("/login").text)
+        c.post("/login", data={"slug": "opt", "password": "secret-pass", "csrf": token})
+        nav = c.get("/panel").text.split("</nav>")[0]
+        assert "Каталог" in nav and "Заказы" in nav and "Окна" not in nav and "Записи" not in nav
