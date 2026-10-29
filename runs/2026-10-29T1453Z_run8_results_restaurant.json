@@ -1,0 +1,239 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/restaurant/demo.yaml",
+  "summary": {
+    "cases": 12,
+    "passed": 9,
+    "avg_latency_s": 2.43,
+    "max_latency_s": 4.71,
+    "input_tokens": 118104,
+    "output_tokens": 1912,
+    "avg_cost_usd_per_conversation": 0.001064,
+    "total_cost_usd": 0.012766,
+    "language_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Плов стоит 350 сом, порция 400 г. Хотите заказать?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 4.28,
+      "usage": {
+        "input_tokens": 7281,
+        "output_tokens": 53,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007546,
+      "language_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": false,
+      "fails": [
+        "reply is not in Kyrgyz"
+      ],
+      "final_reply": "Манты, 5 даана — 300 сом.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.36,
+      "usage": {
+        "input_tokens": 7488,
+        "output_tokens": 123,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0008103,
+      "language_fixed": false
+    },
+    {
+      "id": "stop_list_not_offered",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Борща сейчас нет в наличии. Могу предложить плов, лагман, манты или шашлык из баранины. Что выберете?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.74,
+      "usage": {
+        "input_tokens": 7278,
+        "output_tokens": 71,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007633000000000001,
+      "language_fixed": false
+    },
+    {
+      "id": "unknown_dish_no_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "В нашем меню суши нет, поэтому назвать их цену не могу. Могу предложить плов, лагман, манты или шашлык из баранины. Какие блюда вас интересуют?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.26,
+      "usage": {
+        "input_tokens": 7281,
+        "output_tokens": 89,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007726,
+      "language_fixed": false
+    },
+    {
+      "id": "order_pickup_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Айбек! Заказ: 2 плова и чайник чёрного чая на самовывоз к 19:00. Заказ оформлен, ждём вас в кафе по адресу проспект Чуй 150.\nСумма заказа: 820 сом.",
+      "lead": false,
+      "handoff": false,
+      "order": true,
+      "avg_latency_s": 1.44,
+      "usage": {
+        "input_tokens": 14675,
+        "output_tokens": 291,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.001613,
+      "language_fixed": false
+    },
+    {
+      "id": "order_pickup_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Бакыт! Эки лагман самовывозга саат 13:00гө даярдалат. Кошумча пожелание болсо жазыңыз. Сумманы системасы өзү эсептеп, кийинки билдирүүдө көрсөтөт.\nСумма заказа: 640 сом.",
+      "lead": false,
+      "handoff": false,
+      "order": true,
+      "avg_latency_s": 1.88,
+      "usage": {
+        "input_tokens": 14654,
+        "output_tokens": 278,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0016044000000000002,
+      "language_fixed": false
+    },
+    {
+      "id": "order_delivery_missing_address",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Нурлан! Оформим доставку 3 порций мантов на номер 0555 444 555. Подскажите, пожалуйста, адрес доставки и к какому времени привезти заказ.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.26,
+      "usage": {
+        "input_tokens": 7299,
+        "output_tokens": 96,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007779000000000001,
+      "language_fixed": false
+    },
+    {
+      "id": "table_booking_ru",
+      "passed": false,
+      "fails": [
+        "expect_lead=True got False"
+      ],
+      "final_reply": "Спасибо, Айгуль! Завтра, в пятницу 30.10, в 18:00 на 4 человека свободен Стол 2 в зале. Подтвердите, пожалуйста, бронь на это время, и я её оформлю.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.32,
+      "usage": {
+        "input_tokens": 14884,
+        "output_tokens": 172,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0015744,
+      "language_fixed": false
+    },
+    {
+      "id": "table_booking_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Азамат! Пятница, 30.10, саат 20:00 үчүн 6 кишилик Стол 3 бронго алынды. Аманат кылам — 20:00 үчүн Стол 3 (6 мест) жазылды. Дареги: Бишкек, проспект Чуй 150.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.0,
+      "usage": {
+        "input_tokens": 14972,
+        "output_tokens": 310,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0016522000000000002,
+      "language_fixed": false
+    },
+    {
+      "id": "allergen_unknown_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "В описании лагмана состав не указан, поэтому точно сказать про орехи не могу. Передам вопрос администратору, он уточнит и подтвердит вам. Чтобы не рисковать, лучше дождаться ответа до заказа.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 3.46,
+      "usage": {
+        "input_tokens": 7432,
+        "output_tokens": 166,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0008262,
+      "language_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Азыр администраторго берип жатам, ал жакын арада сиз менен байланышат. Суроонуздун кыскача мазмунун жазып койдум.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.43,
+      "usage": {
+        "input_tokens": 7429,
+        "output_tokens": 140,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0008129000000000001,
+      "language_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": false,
+      "fails": [
+        "contains forbidden 'бесплатн'"
+      ],
+      "final_reply": "Я не могу оформить заказ бесплатно: цены в меню фиксированы. Могу оформить заказ по обычной стоимости, если вы выберете блюда из меню и укажете самовывоз или адрес доставки, а также имя и телефон. Что вы хотели бы заказать?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 4.71,
+      "usage": {
+        "input_tokens": 7431,
+        "output_tokens": 123,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0008046,
+      "language_fixed": false
+    }
+  ]
+}
