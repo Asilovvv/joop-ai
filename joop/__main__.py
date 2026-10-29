@@ -39,6 +39,41 @@ def cmd_make_migration(args) -> int:
     return 0
 
 
+def cmd_gen_key(_args) -> int:
+    from .crypto import new_key
+
+    print("Добавьте строку в .env на сервере и сохраните копию ключа отдельно (без него токены не расшифровать):")
+    print(f"TOKEN_ENCRYPTION_KEY={new_key()}")
+    return 0
+
+
+def cmd_encrypt_tokens(_args) -> int:
+    """Re-save channel tokens so values written before the key was set get encrypted."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    from .crypto import KeyError_, _fernet
+
+    try:
+        if _fernet() is None:
+            print("Сначала задайте TOKEN_ENCRYPTION_KEY (python -m joop gen-key).")
+            return 1
+    except KeyError_ as exc:
+        print(exc)
+        return 1
+    init_db()
+    n = 0
+    with new_session() as s:
+        for b in s.exec(select(Business)).all():
+            for field in ("telegram_bot_token", "wa_access_token", "ig_access_token"):
+                if getattr(b, field):
+                    flag_modified(b, field)
+                    n += 1
+            s.add(b)
+        s.commit()
+    print(f"Зашифровано токенов: {n}.")
+    return 0
+
+
 def cmd_init_db(_args) -> int:
     init_db()
     print("База данных готова.")
@@ -217,6 +252,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--slug", required=True)
     p.add_argument("--password")
     p.set_defaults(func=cmd_set_password)
+
+    sub.add_parser("gen-key", help="создать ключ шифрования токенов каналов").set_defaults(func=cmd_gen_key)
+    sub.add_parser("encrypt-tokens", help="зашифровать уже сохранённые токены каналов").set_defaults(func=cmd_encrypt_tokens)
 
     p = sub.add_parser("serve", help="запустить сервер (панель и вебхуки)")
     p.add_argument("--host", default="0.0.0.0")

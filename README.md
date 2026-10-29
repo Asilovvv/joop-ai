@@ -205,7 +205,9 @@ How the parts fit together: [docs/architecture.md](docs/architecture.md).
   Speech-to-text is not built yet; Kyrgyz recognition quality must be tested first (see the
   economics doc).
 - One panel login per business; no staff roles and no login attempt limit yet.
-- Channel tokens are stored in the database unencrypted: protect the server and its backups.
+- Channel tokens are encrypted in the database when `TOKEN_ENCRYPTION_KEY` is set
+  (`python -m joop gen-key`, then `python -m joop encrypt-tokens` for tokens saved earlier).
+  Keep a copy of the key apart from the database backups: a lost key means reconnecting every channel.
 - Customers cannot cancel or reschedule by themselves yet: the AI passes such requests to staff.
 - The service stores patient names, phone numbers and what they wrote. Agree with each business in
   writing how this data is processed and stored, as personal data rules require.
