@@ -35,8 +35,10 @@ def upgrade() -> None:
         sa.Column("public_slug", S(), nullable=True),
         sa.Column("published", sa.Boolean(), nullable=False),
         sa.Column("source", S(), nullable=False),
+        sa.Column("business_id", sa.Integer(), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
+        sa.ForeignKeyConstraint(["business_id"], ["business.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_studiorequest_public_slug", "studiorequest", ["public_slug"], unique=True)

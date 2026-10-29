@@ -29,7 +29,14 @@ At most 12 services."""
 
 FIELDS = ("headline", "subheadline", "about", "address", "hours", "phone", "instagram", "cta")
 LIMITS = {"headline": 80, "subheadline": 200, "about": 900, "address": 200, "hours": 200, "phone": 40,
-          "instagram": 60, "cta": 40}
+          "instagram": 60, "cta": 40, "booking_url": 200}
+# The site's main button may lead only to a messenger chat, never to an arbitrary site.
+BOOKING_URL = re.compile(r"^https://(t\.me|wa\.me|instagram\.com|ig\.me)/[A-Za-z0-9_./?=-]{1,150}$")
+
+
+def clean_booking_url(value: str) -> str:
+    value = (value or "").strip()
+    return value if BOOKING_URL.match(value) else ""
 
 
 def _clean(value: Any, limit: int) -> str:
@@ -77,3 +84,27 @@ def phone_digits(phone: str) -> str:
     if digits.startswith("0") and len(digits) == 10:
         digits = "996" + digits[1:]
     return digits
+
+
+def business_from_site(session, request, site: dict, password: str, now, trial_days: int):
+    """Create a Joop AI company from a studio order: services, prices and contacts come from the site draft."""
+    from . import billing
+    from .catalog import parse_price
+    from .models import Service
+    from .presets import create_business
+    from .web.saas import unique_slug
+
+    b = create_business(session, slug=unique_slug(session, request.business_name), name=request.business_name,
+                        password=password, niche=request.niche, demo=False, now_utc=now)
+    b.phone = site.get("phone") or request.phone
+    b.address = site.get("address", "")
+    b.hours_text = site.get("hours", "")
+    b.description = site.get("about", "")
+    for i, item in enumerate(site.get("services", [])):
+        session.add(Service(business_id=b.id, name=item["name"], price=item.get("price", ""),
+                            price_value=parse_price(item.get("price")), note=item.get("note", ""), sort=i))
+    session.add(b)
+    billing.start_trial(session, b, days=trial_days, now=now, source="studio", contact_name=request.contact_name,
+                        contact_phone=request.phone)
+    request.business_id = b.id
+    return b
