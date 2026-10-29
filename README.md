@@ -128,6 +128,12 @@ WhatsApp message fees for reminders.
   personal first message in Russian or Kyrgyz, create a demo account for a prospect in one
   click, and move it through new → contacted → replied → demo → trial → paid. Messages are
   sent by the founder himself: no automatic mass messaging or calls.
+- **Partners** (`/owner/partners`): an SMM specialist or agency gets a link `/r/<code>`;
+  businesses that sign up through it are attached to the partner, who earns a set percent of
+  every payment they make. The partner sees businesses and money owed on a private page
+  `/partner/<secret>`; the founder records payouts.
+- **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
+  customers answered, how many outside working hours, bookings, requests and orders.
 
 ## Database migrations
 
