@@ -265,6 +265,10 @@ class AnthropicLLM:
     def remove_false_confirmation(self, text: str, usage: dict) -> str | None:
         return self._rewrite(UNCONFIRM, text, usage)
 
+    def write(self, instruction: str, text: str, usage: dict) -> str | None:
+        """One plain text call (used by the founder console to draft sales messages)."""
+        return self._rewrite(instruction, text, usage)
+
     def _rewrite(self, instruction: str, text: str, usage: dict) -> str | None:
         kwargs: dict[str, Any] = {
             "model": self.model,

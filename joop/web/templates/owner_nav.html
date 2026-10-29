@@ -1,0 +1,14 @@
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="/owner">Joop AI · основатель</a>
+    <span class="biz"></span>
+    <form method="post" action="/owner/logout" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="link" type="submit">Выйти</button>
+    </form>
+  </div>
+  <nav class="nav" aria-label="Разделы">
+    <a href="/owner" class="{{ 'on' if active == 'owner' }}">Компании и деньги</a>
+    <a href="/owner/prospects" class="{{ 'on' if active == 'prospects' }}">Продажи</a>
+  </nav>
+</header>
