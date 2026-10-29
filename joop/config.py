@@ -54,6 +54,10 @@ class Settings:
     telegram_api_base: str
     scheduler_enabled: bool
     scheduler_interval: int
+    company_legal_name: str = ""
+    contact_email: str = ""
+    contact_phone: str = ""
+    contact_telegram: str = ""
 
 
 def settings_from_env() -> Settings:
@@ -84,6 +88,10 @@ def settings_from_env() -> Settings:
         telegram_api_base=env.get("TELEGRAM_API_BASE", "https://api.telegram.org").rstrip("/"),
         scheduler_enabled=_flag(env.get("SCHEDULER_ENABLED"), True),
         scheduler_interval=interval,
+        company_legal_name=env.get("COMPANY_LEGAL_NAME", "").strip(),
+        contact_email=env.get("CONTACT_EMAIL", "").strip(),
+        contact_phone=env.get("CONTACT_PHONE", "").strip(),
+        contact_telegram=env.get("CONTACT_TELEGRAM", "").strip().lstrip("@"),
     )
 
 
