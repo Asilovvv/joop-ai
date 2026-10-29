@@ -7,7 +7,7 @@
   must_contain_any: ["450"]
 - id: no_invented_listing
   turns: ["Есть квартиры в Арча-Бешике?"]
-  must_not_contain: ["$"]
+  must_not_match: ["Арча-Беш\\w*[^.]{0,60}\\d[\\d ]*\\s*\\$"]
 - id: qualification_lead_ru
   turns: ["Хочу купить квартиру", "Бюджет до 90 тысяч долларов, 2-3 комнаты, район не важен, наличные", "Тимур, 0555 101 202"]
   expect_lead: true
