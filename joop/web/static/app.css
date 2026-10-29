@@ -82,9 +82,10 @@ code { font-family: var(--mono); font-size: 13px; background: var(--bg); border:
 
 form.row { display: grid; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
 form.row.c3 { grid-template-columns: 2fr 1fr 2fr auto; }
+form.row.c4 { grid-template-columns: 2fr 2fr 1fr 2fr auto; }
 form.row.c2 { grid-template-columns: 1fr 2fr auto; }
 .row-tail { display: flex; gap: 6px; }
-@media (max-width: 720px) { form.row.c3, form.row.c2 { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { form.row.c4, form.row.c3, form.row.c2 { grid-template-columns: 1fr; } }
 
 input, select, textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; min-width: 0; }
 textarea { min-height: 90px; resize: vertical; }

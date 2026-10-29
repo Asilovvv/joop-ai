@@ -31,8 +31,9 @@
     <div class="stat"><b>{{ s14.off_hours_conversations }}</b><span>из них в нерабочее время</span></div>
     <div class="stat"><b>{{ s14.bookings }}</b><span>записей сделал ИИ</span></div>
     <div class="stat"><b>{{ s14.off_hours_bookings }}</b><span>записей в нерабочее время</span></div>
-    <div class="stat"><b>{{ s14.leads }}</b><span>заявок администратору</span></div>
-    <div class="stat"><b>{{ s1.conversations }}</b><span>диалогов за сутки</span></div>
+    <div class="stat"><b>{{ s14.requests }}</b><span>заявок на запись (перезвонить)</span></div>
+    <div class="stat"><b>{{ s14.leads }}</b><span>вопросов передано людям</span></div>
+    <div class="stat"><b>${{ '%.2f'|format(s14.ai_cost_usd) }}</b><span>расход на ИИ, {{ s14.ai_replies }} ответов</span></div>
   </div>
 </section>
 

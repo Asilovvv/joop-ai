@@ -38,6 +38,9 @@
 
   <section class="card stack">
     <h2>Поведение ИИ</h2>
+    <label for="s-desc">О компании, одной-двумя фразами<textarea id="s-desc" name="description">{{ business.description }}</textarea></label>
+    <label for="s-policy">Порядок записи (например: администратор перезванивает и подтверждает время)<textarea id="s-policy" name="booking_policy">{{ business.booking_policy }}</textarea></label>
+    <label for="s-tone">Тон общения<input id="s-tone" name="tone" value="{{ business.tone }}" placeholder="Спокойно, вежливо, коротко, на «вы»"></label>
     <label for="s-greet">Приветствие в Telegram по команде /start (пусто — стандартное)<textarea id="s-greet" name="greeting">{{ business.greeting }}</textarea></label>
     <label for="s-rules">Дополнительные правила для ИИ<textarea id="s-rules" name="extra_rules" placeholder="Например: детей до 3 лет не принимаем; рассрочка только на импланты.">{{ business.extra_rules }}</textarea></label>
   </section>

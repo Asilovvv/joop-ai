@@ -255,3 +255,19 @@ def test_customer_text_is_escaped_in_panel(client, business):
     assert "<b>x</b>" not in listing and "&lt;b&gt;x&lt;/b&gt;" in listing
     detail = client.get(f"/panel/conversations/{conv_id}").text
     assert "<script>alert(1)</script>" not in detail and "&lt;script&gt;" in detail
+
+
+def test_kyrgyz_name_and_profile_texts_saved(client, business):
+    token = login(client)
+    client.post("/panel/services", data={"name": "Отбеливание", "name_ky": "Тишти агартуу", "price": "8 000", "note": "", "csrf": token})
+    with db.new_session() as s:
+        assert s.exec(select(Service).where(Service.name == "Отбеливание")).one().name_ky == "Тишти агартуу"
+    client.post("/panel/settings", data={
+        "csrf": token, "name": "Ак-Тиш Дент", "work_start": "09:00", "work_end": "19:00", "timezone": "Asia/Bishkek",
+        "description": "Частная клиника", "booking_policy": "Администратор перезванивает", "tone": "На «вы»",
+        "bot_enabled": "1", "reminder_hour": "18", "digest_hour": "8",
+    })
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        assert (b.description, b.booking_policy, b.tone) == ("Частная клиника", "Администратор перезванивает", "На «вы»")
+    assert "расход на ИИ" in client.get("/panel").text

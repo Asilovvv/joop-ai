@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 from .models import Booking, Lead, Message
 
 
-def activity(session: Session, business_id: int, since_utc: datetime) -> dict[str, int]:
+def activity(session: Session, business_id: int, since_utc: datetime) -> dict:
     def scalar(query) -> int:
         return int(session.exec(query).one() or 0)
 
@@ -34,7 +34,27 @@ def activity(session: Session, business_id: int, since_utc: datetime) -> dict[st
                 Booking.created_off_hours == True,  # noqa: E712
             )
         ),
+        "requests": scalar(
+            select(func.count()).select_from(Lead).where(
+                Lead.business_id == business_id, Lead.kind == "request", Lead.created_at >= since_utc
+            )
+        ),
         "leads": scalar(
-            select(func.count()).select_from(Lead).where(Lead.business_id == business_id, Lead.created_at >= since_utc)
+            select(func.count()).select_from(Lead).where(
+                Lead.business_id == business_id, Lead.kind != "request", Lead.created_at >= since_utc
+            )
+        ),
+        "ai_replies": scalar(
+            select(func.count()).select_from(Message).where(
+                Message.business_id == business_id, Message.role == "ai", Message.created_at >= since_utc
+            )
+        ),
+        "ai_cost_usd": float(
+            session.exec(
+                select(func.coalesce(func.sum(Message.cost_usd), 0.0)).where(
+                    Message.business_id == business_id, Message.created_at >= since_utc
+                )
+            ).one()
+            or 0.0
         ),
     }
