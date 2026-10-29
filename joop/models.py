@@ -295,5 +295,6 @@ class StudioRequest(SQLModel, table=True):
     public_slug: Optional[str] = Field(default=None, index=True, unique=True)
     published: bool = False
     source: str = "form"  # form | prospect
+    business_id: Optional[int] = Field(default=None, foreign_key="business.id")  # Joop AI company made from this order
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     updated_at: NaiveDatetime = Field(default_factory=utcnow)

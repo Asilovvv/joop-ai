@@ -100,3 +100,43 @@ def test_prospect_site_offer_uses_site_writer(client, llm):
         pid = s.exec(select(Prospect)).one().id
     r = client.post(f"/owner/prospects/{pid}", data={"action": "draft_site", "csrf": token})
     assert "Joop Studio" in seen["instruction"] and "меню онлайн" in r.text
+
+
+def test_booking_url_accepts_only_messenger_links():
+    assert studio.clean_booking_url("https://t.me/dent_jal_bot") == "https://t.me/dent_jal_bot"
+    assert studio.clean_booking_url("https://wa.me/996555123456") == "https://wa.me/996555123456"
+    assert studio.clean_booking_url("javascript:alert(1)") == ""
+    assert studio.clean_booking_url("https://evil.example/t.me/x") == ""
+
+
+def test_studio_order_becomes_joop_company_with_trial(client):
+    from joop import billing
+    from joop.models import Business, Service
+
+    token = owner_login(client)
+    with db.new_session() as s:
+        r = StudioRequest(kind="site", business_name="Дент Джал", contact_name="Айгуль", phone="0555 123 456",
+                          niche="dental", description="Нужен сайт для стоматологии", content_json=GOOD,
+                          public_slug="dent-dzhal", published=True)
+        s.add(r)
+        s.commit()
+        rid = r.id
+    page = client.get("/owner/studio")
+    assert "Подключить ИИ-администратора" in page.text
+    resp = client.post(f"/owner/studio/{rid}", data={"action": "create_business", "csrf": token})
+    assert "Компания Joop AI создана" in resp.text
+    with db.new_session() as s:
+        r = s.get(StudioRequest, rid)
+        b = s.get(Business, r.business_id)
+        services = s.exec(select(Service).where(Service.business_id == b.id).order_by(Service.sort)).all()
+        assert b.niche == "dental" and b.address == "Бишкек, Джал" and b.hours_text == "Пн–Сб 9–19"
+        assert services[0].name == "Чистка" and services[0].price_value == 2500
+        assert billing.get_subscription(s, b.id).status == "trial"
+    # A second click does not create a duplicate company.
+    assert client.post(f"/owner/studio/{rid}", data={"action": "create_business", "csrf": token}).status_code == 400
+    # The site's main button leads to the bot once the link is saved; unsafe links are refused.
+    client.post(f"/owner/studio/{rid}", data={"action": "save", "booking_url": "javascript:alert(1)", "csrf": token})
+    assert "Записаться через ИИ" not in client.get("/site/dent-dzhal").text
+    client.post(f"/owner/studio/{rid}", data={"action": "save", "booking_url": "https://t.me/dent_jal_bot", "csrf": token})
+    site = client.get("/site/dent-dzhal").text
+    assert "Записаться через ИИ" in site and "https://t.me/dent_jal_bot" in site

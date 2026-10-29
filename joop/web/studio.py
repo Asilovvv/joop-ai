@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import secrets
 import time
 
 from fastapi import APIRouter, Form, HTTPException, Request
@@ -114,8 +115,17 @@ async def owner_studio_action(request: Request, rid: int):
             for key in ("headline", "subheadline", "about", "address", "hours", "phone", "instagram", "cta"):
                 if key in form:
                     site[key] = studio._clean(form.get(key), studio.LIMITS[key])
+            if "booking_url" in form:
+                site["booking_url"] = studio.clean_booking_url(str(form.get("booking_url")))
+                if str(form.get("booking_url")).strip() and not site["booking_url"]:
+                    _flash(request, "Ссылка на запись должна вести в t.me, wa.me или Instagram — она не сохранена.", "error")
             r.content_json = json.dumps(site, ensure_ascii=False)
             _flash(request, "Сохранено.")
+        elif action == "create_business" and r.content_json and not r.business_id:
+            password = secrets.token_urlsafe(9)
+            b = studio.business_from_site(s, r, json.loads(r.content_json), password, utcnow(), _settings(request).trial_days)
+            _flash(request, f"Компания Joop AI создана: вход {b.slug}, пароль {password} (показан один раз — передайте клиенту). "
+                            "Подключите Telegram-бота в панели компании и вставьте ссылку t.me/… в поле «Ссылка на запись».")
         elif action in {"publish", "unpublish"} and r.content_json:
             r.published = action == "publish"
             _flash(request, f"Сайт {'опубликован' if r.published else 'снят с публикации'}: /site/{r.public_slug}")

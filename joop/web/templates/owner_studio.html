@@ -19,8 +19,8 @@
         <input type="hidden" name="csrf" value="{{ csrf }}">
         {% if row.site %}
         <div class="grid2">
-          {% for key, label in [('headline', 'Заголовок'), ('subheadline', 'Подзаголовок'), ('cta', 'Кнопка'), ('phone', 'Телефон'), ('address', 'Адрес'), ('hours', 'Часы'), ('instagram', 'Instagram')] %}
-          <label>{{ label }}<input name="{{ key }}" value="{{ row.site[key] }}"></label>
+          {% for key, label in [('headline', 'Заголовок'), ('subheadline', 'Подзаголовок'), ('cta', 'Кнопка'), ('phone', 'Телефон'), ('address', 'Адрес'), ('hours', 'Часы'), ('instagram', 'Instagram'), ('booking_url', 'Ссылка на запись (t.me/…)')] %}
+          <label>{{ label }}<input name="{{ key }}" value="{{ row.site.get(key, '') }}"></label>
           {% endfor %}
           <label style="grid-column: 1 / -1">О компании<textarea name="about" rows="3">{{ row.site.about }}</textarea></label>
         </div>
@@ -30,7 +30,9 @@
           {% if r.kind in ('site', 'menu') %}<button class="btn small" name="action" value="draft">{{ 'Переписать ИИ' if row.site else 'Сделать черновик ИИ' }}</button>{% endif %}
           {% if row.site %}<button class="btn ghost small" name="action" value="save">Сохранить текст</button>
           <button class="btn ghost small" name="action" value="{{ 'unpublish' if r.published else 'publish' }}">{{ 'Снять с публикации' if r.published else 'Опубликовать' }}</button>
-          <a class="btn ghost small" href="/site/{{ r.public_slug }}" target="_blank" rel="noopener">Посмотреть</a>{% endif %}
+          <a class="btn ghost small" href="/site/{{ r.public_slug }}" target="_blank" rel="noopener">Посмотреть</a>
+          {% if r.business_id %}<span class="chip ok">ИИ-администратор: компания #{{ r.business_id }}</span>
+          {% else %}<button class="btn ghost small" name="action" value="create_business" title="Создать компанию Joop AI с услугами и ценами из сайта, с пробным периодом">Подключить ИИ-администратора</button>{% endif %}{% endif %}
           <select name="status" aria-label="Статус" style="width: auto">{% for key, label in statuses.items() %}<option value="{{ key }}" {{ 'selected' if key == r.status }}>{{ label }}</option>{% endfor %}</select>
           <input name="price_som" type="number" min="0" step="500" value="{{ r.price_som or '' }}" placeholder="Цена, сом" style="width: 110px" aria-label="Цена">
           <button class="btn ghost small" name="action" value="status">Сохранить статус</button>

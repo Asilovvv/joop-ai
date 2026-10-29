@@ -31,7 +31,8 @@ a { color: var(--accent); }
   <p style="color: var(--muted); margin: 0 0 8px;">{{ name }}</p>
   <h1>{{ site.headline }}</h1>
   {% if site.subheadline %}<p class="sub">{{ site.subheadline }}</p>{% endif %}
-  {% if wa %}<a class="cta" href="https://wa.me/{{ wa }}">{{ site.cta or 'Написать' }}</a>{% endif %}
+  {% if site.booking_url %}<a class="cta" href="{{ site.booking_url }}" rel="noopener">Записаться через ИИ</a>
+  {% elif wa %}<a class="cta" href="https://wa.me/{{ wa }}">{{ site.cta or 'Написать' }}</a>{% endif %}
 </header>
 <main class="wrap">
   {% if site.services %}<section><h2>Услуги и цены</h2><div class="services">

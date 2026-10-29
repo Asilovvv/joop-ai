@@ -136,6 +136,10 @@ WhatsApp message fees for reminders.
   slides. In `/owner/studio` the AI drafts the site's text from the order (JSON only, rendered by our
   own template, so the model cannot inject HTML), the founder edits and publishes it at `/site/<name>`
   with a WhatsApp button. In the sales pipeline, "Предложить сайт" drafts a first message offering it.
+  "Подключить ИИ-администратора" turns the order into a Joop AI company in one click (services and
+  prices from the site, trial period started); once its Telegram bot is connected, the founder pastes
+  the bot link into "Ссылка на запись" and the site's main button becomes "Записаться через ИИ"
+  (only t.me, wa.me and Instagram links are accepted).
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
 
