@@ -115,3 +115,36 @@ def release_slot(session: Session, slot_id: int | None) -> None:
     if slot_id is None:
         return
     session.exec(update(Slot).where(Slot.id == slot_id).values(status="free"))
+
+
+# --- the time a customer named in their own words ------------------------------------------------
+
+_DAY_WORDS = (
+    (re.compile(r"послезавтра|бүрсүгүнү|бурсугуну", re.I), 2),
+    (re.compile(r"завтра|эртең|эртен", re.I), 1),
+    (re.compile(r"сегодня|бүгүн|бугун", re.I), 0),
+)
+_TIMES = (
+    re.compile(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\b"),  # 18:00, 9.30
+    re.compile(r"(?:саат|в|к|на)\s+([01]?\d|2[0-3])\b(?![:.,]?\d)(?!\s*(?:человек|чел|киши|гост|адам|орун|мест))", re.I),
+    re.compile(r"\b([01]?\d|2[0-3])\s?-?(?:да|де|до|дө|та|те|то|тө|ге|га|ке|ка|гө|го)\b", re.I),  # 10до, 12де
+)
+
+_EVENING = re.compile(r"вечер|кечинде|кечки|кечкурун", re.I)
+
+
+def requested_time(text: str, today: date) -> datetime | None:
+    """'Завтра в 18:00' / 'эртең саат 10до' -> that day and time. None when the day or the time is missing."""
+    day = next((today + timedelta(days=shift) for pattern, shift in _DAY_WORDS if pattern.search(text)), None)
+    if day is None:
+        return None
+    for pattern in _TIMES:
+        m = pattern.search(text)
+        if m:
+            hour = int(m.group(1))
+            if hour < 12 and _EVENING.search(text):
+                hour += 12
+            minute = int(m.group(2)) if m.lastindex and m.lastindex >= 2 else 0
+            if 7 <= hour <= 23:
+                return datetime.combine(day, time(hour, minute))
+    return None

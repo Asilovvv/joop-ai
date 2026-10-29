@@ -71,6 +71,16 @@ def claims_confirmation(text: str) -> bool:
     return bool(_CLAIMS.search(text or ""))
 
 
+_SENTENCE = re.compile(r".+?(?:[.!?]+(?=\s|$)|$)\s*", re.S)
+
+
+def drop_claim_sentences(text: str) -> str:
+    """Last resort when the rewrite failed: remove the sentences that claim a booking was made.
+    Returns "" when nothing useful (a question or other text) would be left."""
+    kept = "".join(part for part in _SENTENCE.findall(text or "") if not claims_confirmation(part)).strip()
+    return kept if len(kept) >= 15 else ""
+
+
 # Latin letters that look like Cyrillic ones. The model sometimes puts one inside
 # a Cyrillic word ("Бааsы", "алbаймын"); readers see a typo, search breaks.
 _LATIN_TO_CYRILLIC = str.maketrans({

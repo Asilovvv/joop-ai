@@ -17,12 +17,12 @@ from sqlmodel import Session, select
 from ..billing import access_ok
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
-from ..lang import claims_confirmation, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
+from ..lang import claims_confirmation, drop_claim_sentences, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff
 from ..niches import Pack, get_pack
 from ..phone import normalize_phone
 from ..pricing import cost_usd, empty_usage
-from ..slots import claim_slot, free_slots
+from ..slots import claim_slot, free_slots, requested_time
 from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
@@ -134,7 +134,8 @@ def handle_incoming(
         conversation=conv,
         channel=incoming.channel,
         catalog_hint=catalog_hint,
-        extra_facts=placement.prompt_hint(session, business, conv, base_url),
+        extra_facts=_requested_slot_hint(session, conv, slots, now_local, now)
+        + placement.prompt_hint(session, business, conv, base_url),
     )
     history = _history(session, conv, now)
 
@@ -187,6 +188,8 @@ def handle_incoming(
     captured = any(x is not None for x in (outcome.booking_id, outcome.request_id, outcome.order_id, outcome.qualified_lead_id))
     if outcome.reply and not captured and claims_confirmation(outcome.reply) and not _has_capture(session, conv):
         fixed = llm.remove_false_confirmation(outcome.reply, outcome.usage)
+        if not fixed or claims_confirmation(fixed):
+            fixed = drop_claim_sentences(fixed or "") or drop_claim_sentences(outcome.reply)
         if fixed and not claims_confirmation(fixed):
             outcome.reply = fixed
             outcome.confirmation_fixed = True
@@ -382,6 +385,32 @@ def _handle_command(
             return Outcome(reply="Готово. Сюда будут приходить уведомления о новых записях и заявках.")
         return Outcome(reply="Код не подошёл. Код есть в панели управления: «Настройки» → «Уведомления в Telegram».")
     return None  # other slash-texts are answered like normal messages
+
+
+def _requested_slot_hint(
+    session: Session, conv: Conversation, slots: list[tuple[Slot, Staff]], now_local: datetime, now: datetime
+) -> str:
+    """Point the model at the slot the customer already named ("завтра в 18:00"), so it books it instead of
+    asking "подтверждаете?" again or offering other times."""
+    if not slots:
+        return ""
+    texts = session.exec(
+        select(Message.text)
+        .where(Message.conversation_id == conv.id, Message.role == "customer", Message.created_at >= now - HISTORY_WINDOW)
+        .order_by(Message.id.desc())
+        .limit(4)
+    ).all()
+    wanted = next((t for t in (requested_time(x, now_local.date()) for x in texts) if t), None)
+    if wanted is None:
+        return ""
+    matches = [(slot, m) for slot, m in slots if slot.start == wanted]
+    if not matches:
+        return (f"\nКлиент назвал время {fmt_slot(wanted)}, но такого свободного окна нет: предложи ближайшие окна из "
+                "списка или прими заявку на это время.")
+    options = "; ".join(f"окно {slot.id} — {m.name}" for slot, m in matches[:4])
+    return (f"\nКлиент сам назвал время {fmt_slot(wanted)}, и оно свободно ({options}). Это и есть выбор клиента: "
+            "не переспрашивай «подтверждаете?» и не предлагай другое время. Как только есть имя и телефон, "
+            "сразу заполни booking с этим slot_id.")
 
 
 def _alternatives(
