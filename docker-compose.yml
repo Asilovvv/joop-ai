@@ -1,13 +1,29 @@
-# Alternative to deploy/install.sh for servers that already run Docker.
-#   cp .env.example .env   (fill in) ; set DB_PATH=data/joop.db in .env
-#   docker compose up -d --build
+# Production setup: the app plus Caddy, which gets a free HTTPS certificate for DOMAIN.
+# Usage on a server with Docker:  cp .env.example .env  (fill it in, set DOMAIN)  then  docker compose up -d
 services:
-  joop:
+  app:
     build: .
-    restart: unless-stopped
     env_file: .env
     environment:
-      DB_PATH: data/joop.db
+      DATABASE_URL: sqlite:////data/joop.db
     volumes:
-      - ./data:/app/data
-      - ./business.yaml:/app/business.yaml:ro
+      - joop-data:/data
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  joop-data:
+  caddy-data:

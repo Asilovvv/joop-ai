@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Вопросы{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Частые вопросы</h1>
+  <p class="muted">Парковка, оплата, гарантия, дети — всё, о чём спрашивают чаще всего. ИИ отвечает по этим ответам.</p>
+</section>
+<section class="card">
+  {% for r in rows %}
+  <form class="row c2" method="post" action="/panel/faq/{{ r.id }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input name="question" value="{{ r.question }}" aria-label="Вопрос" required>
+    <input name="answer" value="{{ r.answer }}" aria-label="Ответ" required>
+    <div class="row-tail">
+      <button class="btn small ghost" type="submit">Сохранить</button>
+      <button class="btn small danger" type="submit" formaction="/panel/faq/{{ r.id }}/delete">Удалить</button>
+    </div>
+  </form>
+  {% else %}<p class="muted">Вопросов нет.</p>{% endfor %}
+</section>
+<section class="card">
+  <h2>Добавить вопрос</h2>
+  <form class="row c2" method="post" action="/panel/faq">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input name="question" placeholder="Вопрос" required>
+    <input name="answer" placeholder="Ответ" required>
+    <div class="row-tail"><button class="btn small" type="submit">Добавить</button></div>
+  </form>
+</section>
+{% endblock %}

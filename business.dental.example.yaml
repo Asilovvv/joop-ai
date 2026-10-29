@@ -1,6 +1,7 @@
 # DEMO dental clinic profile for sales demos. Not a real clinic:
 # every price, address and phone below is a placeholder to replace with the client's data.
 
+niche: dental  # dental | beauty | auto | education | other
 name: "Demo Dental Clinic"
 description: "Частная стоматологическая клиника в Бишкеке: лечение, чистка, удаление, детский приём. (демо)"
 address: "г. Бишкек, ул. Примерная, 10 (демо-адрес)"

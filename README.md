@@ -1,126 +1,163 @@
 # Joop AI
 
-AI customer-service operator for small businesses in Kyrgyzstan.
-It answers customers in Telegram in **Kyrgyz and Russian**, using only the
-business's own price list and FAQ, collects booking requests, notifies the
-owner instantly, and hands difficult conversations to a human.
-
 *Joop (жооп) means "answer" in Kyrgyz.*
 
-## Features
+An AI administrator for small businesses in Kyrgyzstan. It answers customers in Telegram,
+WhatsApp and Instagram Direct, in Russian or Kyrgyz, quotes prices from the business's own price
+list, books customers into real free time slots, reminds them the day before, and hands anything
+it cannot handle to staff in Telegram.
 
-- Answers grounded in a per-business YAML profile (services, prices, hours, FAQ); does not invent facts
-- Replies in the customer's language (Kyrgyz / Russian); a language guard rewrites a reply into Kyrgyz when a Kyrgyz message got a Russian answer
-- Bilingual price list: each service can carry a Kyrgyz name (`name_ky`) in the profile
-- Lead capture via LLM tool use: name, phone (validated), service, preferred time
-- Instant owner notification in Telegram for every lead
-- Human handoff: bot stops auto-replying, forwards messages to the owner; owner answers with `/reply` and returns the bot with `/resume`
-- Owner commands: `/leads`, `/export` (CSV for Excel), `/stats`
-- Prompt-injection guard in the system prompt
-- Scripted evaluation set (`eval/`) with pass/fail metrics and latency for the thesis
-- 56 unit tests with a fake LLM (no network needed); 38 scripted evaluation cases for a beauty studio and a dental clinic (beauty set: 24/24 passed with claude-haiku-5-5, Oct 2026)
+First niche: private dental clinics in Bishkek, where messages that arrive in the evening and at
+weekends often go unanswered until the next working day.
 
-## Architecture
+## What a business gets
 
-```
-Telegram ──► aiogram router (joop/bot.py)
-                 │  handoff? ── yes ──► forward to owner
-                 ▼ no
-             Agent (joop/agent.py) ──► Claude API (tool use)
-                 │      tools: save_lead, handoff_to_human
-                 ▼
-             Storage (joop/storage.py, SQLite): messages, leads, chats
-                 │
-                 └──► owner notification (Telegram)
-Business profile (business.yaml) ──► system prompt
-```
+- Replies within seconds at any hour, including nights and weekends.
+- Bookings only into free slots, checked by code. Two customers can never get the same slot.
+- A Telegram message to staff for every new booking and every request the AI escalates.
+- Reminders the day before the appointment and a morning summary for staff.
+- A web panel: price list, specialists, FAQ, time slots, bookings, conversations and pilot numbers.
+- Staff can take over any conversation, and the AI steps aside.
+- Kyrgyz and Russian: the reply follows the customer's language; a language guard rewrites a
+  Russian reply to a Kyrgyz message, and services can carry Kyrgyz names.
+- Businesses without a schedule in the panel still get bookings: the AI takes a request (name,
+  phone, service, preferred time) and staff call back to confirm.
+- Cost tracking: tokens and USD per AI reply, shown in the panel.
 
-## Quick start
+## Quick start on your computer (about 10 minutes)
 
-1. Python 3.10+:
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. Create a bot with [@BotFather](https://t.me/BotFather) and copy its token.
-3. Get an Anthropic API key at https://console.anthropic.com.
-4. Configure (interactive, secrets are typed hidden and saved to `.env`):
-   ```bash
-   python -m joop.setup
-   ```
-   It also creates `business.yaml` from the demo profile; replace it with the real business data.
-5. Run:
-   ```bash
-   python -m joop
-   ```
-6. In Telegram, send `/myid` to the bot, put the number into `OWNER_CHAT_ID` in `.env`, restart.
-   From now on, leads and handoffs arrive in that chat.
+You need Python 3.11 or newer and a Claude API key from https://platform.claude.com.
 
-Try it in the terminal without Telegram:
 ```bash
-python -m joop.cli business.example.yaml
+git clone <this repository> joop-ai && cd joop-ai
+python -m venv .venv
+source .venv/bin/activate            # Windows: .venv\Scripts\activate
+pip install -r requirements-dev.txt
+cp .env.example .env                 # then put ANTHROPIC_API_KEY and SESSION_SECRET into .env
+python -m joop create-business --slug demo --name "Demo Dental" --demo
+python -m joop chat --slug demo      # talk to the AI in the terminal as a patient
 ```
 
-## Owner commands
+`--demo` adds a sample price list, three specialists and a week of free slots. Replace them with
+real data in the panel.
 
-| Command | What it does |
+A client's price list, FAQ and rules can also come from a YAML profile (format:
+[business.dental.example.yaml](business.dental.example.yaml)):
+
+```bash
+python -m joop create-business --slug aktish --profile clients/aktish.yaml
+python -m joop import-profile --slug aktish --file clients/aktish.yaml   # update later
+```
+
+### Telegram bot without a server
+
+1. In Telegram, open @BotFather, send `/newbot`, copy the token.
+2. Run `python -m joop dev --slug demo` and open http://127.0.0.1:8000/login (login `demo`).
+3. Open "Каналы", paste the token, save. Message your bot from your phone: it answers.
+4. Open "Настройки" and send the shown `/admin <code>` to the bot: booking notifications will
+   arrive in that chat. Add the bot to a staff group and send the code there to notify everyone.
+
+`dev` mode polls Telegram, so it needs no public address. For WhatsApp and Instagram you need a
+server with HTTPS.
+
+## Deploy to a server
+
+You need a small Linux server (2 GB RAM is enough for several businesses), a domain name pointing
+to it, and Docker.
+
+| Server | Price / month | RAM | Pays from Kyrgyzstan |
+|---|---|---|---|
+| [MyHost.kg](https://www.myhost.kg/en/) VDS-KVM-2G | 1,600 som | 2 GB | Yes: Elkart, MBank, O!Dengi, QR ([payment page](https://www.myhost.kg/oplata.html)) |
+| [DigitalOcean](https://www.digitalocean.com/pricing/droplets) Basic | $12 | 2 GB | Card or PayPal |
+| [Hetzner Cloud](https://www.hetzner.com/cloud/) CX23 | €5.99 incl. IPv4, excl. VAT | 4 GB | Card or PayPal; often out of stock |
+
+Prices checked on the providers' pages on 29 October 2026.
+
+```bash
+git clone <this repository> joop-ai && cd joop-ai
+cp .env.example .env
+# fill in: ANTHROPIC_API_KEY, SESSION_SECRET, DOMAIN=joop.example.kg,
+# PUBLIC_BASE_URL=https://joop.example.kg, SECURE_COOKIES=true,
+# META_VERIFY_TOKEN and META_APP_SECRET if you connect WhatsApp or Instagram
+docker compose up -d --build
+docker compose run --rm app python -m joop create-business --slug aktish --name "Ак-Тиш Дент"
+```
+
+Caddy obtains the HTTPS certificate automatically. The panel is at `https://<DOMAIN>/login`. In
+"Каналы", the "Подключить Telegram" button registers the bot's webhook.
+
+Backups: the database is one file in the `joop-data` volume:
+`docker compose cp app:/data/joop.db ./joop-$(date +%F).db`.
+
+## Connecting WhatsApp and Instagram
+
+Telegram works the same day. WhatsApp works the same day on a new number the business owns.
+Keeping the clinic's existing WhatsApp Business app number, and answering real patients on
+Instagram, both require Meta Business Verification and App Review (plan 2–5 weeks). Instagram
+reminders are possible only within 24 hours of the patient's last message.
+
+Step-by-step setup, the webhook address and the WhatsApp reminder template:
+[docs/channels.md](docs/channels.md).
+
+## Costs
+
+See [docs/pilot-economics.md](docs/pilot-economics.md). In short: the AI itself costs well under
+100 som per clinic per month at current Claude Haiku 5.5 prices. The main costs are the server and
+WhatsApp message fees for reminders.
+
+## Configuration
+
+All settings are environment variables; see [.env.example](.env.example).
+
+| Variable | Purpose |
 |---|---|
-| `/leads` | Last 20 leads |
-| `/export` | All leads as `leads.csv` |
-| `/stats` | Chats, messages, leads, open handoffs |
-| `/reply <chat_id> <text>` | Answer a customer as a human |
-| `/resume <chat_id>` | Let the bot reply in that chat again |
-| `/myid` | Show your chat id (works for anyone) |
+| `ANTHROPIC_API_KEY` | Claude API key |
+| `JOOP_MODEL` | Model for replies, default `claude-haiku-5-5` |
+| `JOOP_THINKING`, `JOOP_EFFORT` | Thinking mode (`disabled` for speed) and effort level |
+| `SESSION_SECRET` | Signs panel login cookies; any long random string |
+| `PUBLIC_BASE_URL` | `https://` address of the server, for webhooks |
+| `META_VERIFY_TOKEN`, `META_APP_SECRET` | Meta webhook verification and signature check |
+| `DATABASE_URL` | SQLite by default; Postgres works with a driver such as `psycopg` |
+| `SCHEDULER_ENABLED` | Reminders and morning summary |
 
-## Onboarding a new client
-
-1. Copy `business.example.yaml` to `clients/<name>.yaml`, fill in the real data.
-2. Create a separate bot token for the client.
-3. Run one process per client with its own `.env` (`BUSINESS_FILE`, `DB_PATH`, token).
-
-## Tests and evaluation
+## Development
 
 ```bash
-python -m pytest -q                       # unit tests, no network
-python -m eval.run_eval                   # real model, needs ANTHROPIC_API_KEY
+python -m pytest          # 75 tests: engine, channels, scheduler, panel, webhooks, evaluation
 ```
-`eval/run_eval.py` writes `eval/results.json` (pass/fail per case, lead and
-handoff detection, average latency, cost, and how often the language guard
-fired). A case also fails when the bot sent the generic fallback instead of an
-answer. Have a native speaker review the Kyrgyz cases and the `name_ky` values.
 
-### Continuous integration
+The tests use a fake model and fake channels, so they need no keys or network.
 
-- `.github/workflows/tests.yml` runs the unit tests on Python 3.10 and 3.12 for
-  every push and pull request.
-- `.github/workflows/eval.yml` runs both evaluation sets on the real model when
-  started by hand (Actions → eval → Run workflow). It needs the repository
-  secret `ANTHROPIC_API_KEY`; one run costs about $0.02. The run summary shows a
-  results table, and the JSON files are kept on the `eval-results` branch in `runs/`.
+## Evaluation with the real model
 
-## Deploy (24/7 server)
+Scripted conversations check grounding, Kyrgyz replies, booking capture, escalation, medical
+safety and prompt-injection resistance:
 
-See [DEPLOY.md](DEPLOY.md): one-command installer for Ubuntu (systemd service,
-auto-restart, daily database backup), a Docker alternative, and verified
-hosting options including a provider that accepts Kyrgyz payment methods.
+| Profile | Cases |
+|---|---|
+| [business.example.yaml](business.example.yaml) (beauty studio) | [eval/cases.yaml](eval/cases.yaml), 24 |
+| [business.dental.example.yaml](business.dental.example.yaml) (dental clinic) | [eval/cases_dental.yaml](eval/cases_dental.yaml), 14 |
 
-## Demo profiles
+```bash
+python -m eval.run_eval business.dental.example.yaml eval/cases_dental.yaml eval/results_dental.json
+```
 
-| File | Business | Evaluation set |
-|---|---|---|
-| `business.example.yaml` | Beauty studio | `eval/cases.yaml` (24 cases) |
-| `business.dental.example.yaml` | Dental clinic, with medical-safety rules (no diagnosis, no medication advice, urgent symptoms escalated) | `eval/cases_dental.yaml` (14 cases) |
+The run prints pass/fail per case, average and maximum reply time, cost per conversation and how
+often the language guard fired, and saves everything to a JSON file. On GitHub, Actions → eval →
+Run workflow does the same with the repository secret `ANTHROPIC_API_KEY` and keeps results on the
+`eval-results` branch. On macOS, double-click `eval.command`. Have a native speaker review the
+Kyrgyz cases and the `name_ky` values before reporting results.
+How the parts fit together: [docs/architecture.md](docs/architecture.md).
 
-`/stats` in Telegram shows token usage and API cost; the evaluation reports
-average cost per conversation (`joop/pricing.py` holds the published prices).
+## Known limitations
 
-## Roadmap
-
-- WhatsApp Business API channel
-- Voice messages (speech-to-text for Kyrgyz)
-- Web dashboard for owners, Google Sheets / CRM sync
-- Multi-tenant mode (many businesses in one process)
-
-## Security
-
-Never commit `.env`. The bot does not ask customers for card numbers,
-passwords or ID documents.
+- The fixed replies for voice notes and errors are in Kyrgyz and Russian; the Kyrgyz wording needs
+  a native speaker's check.
+- Voice notes: the AI asks the customer to write and sends the voice note to staff as a request.
+  Speech-to-text is not built yet; Kyrgyz recognition quality must be tested first (see the
+  economics doc).
+- One panel login per business; no staff roles and no login attempt limit yet.
+- Channel tokens are stored in the database unencrypted: protect the server and its backups.
+- Customers cannot cancel or reschedule by themselves yet: the AI passes such requests to staff.
+- The service stores patient names, phone numbers and what they wrote. Agree with each business in
+  writing how this data is processed and stored, as personal data rules require.

@@ -1,0 +1,184 @@
+"""Background jobs: reminders the day before an appointment and the morning summary for staff."""
+
+from __future__ import annotations
+
+import logging
+import threading
+from datetime import datetime, time, timedelta
+
+from sqlmodel import Session, select
+
+from .db import new_session
+from .dispatch import notify_admins
+from .models import Booking, Business, Conversation, Message
+from .runtime import Runtime
+from .stats import activity
+from .timeutil import fmt_slot, utc_to_local, utcnow
+
+log = logging.getLogger(__name__)
+
+JOB_WINDOW_HOURS = 3  # a job may run late (server restart), but not at night
+SERVICE_WINDOW = timedelta(hours=23)  # Meta allows free-form messages within 24h of the customer's last message
+TOKEN_REFRESH_EVERY = timedelta(days=7)  # Instagram user tokens expire after 60 days unless refreshed
+
+
+def _due(hour_now: int, target: int) -> bool:
+    return target <= hour_now < target + JOB_WINDOW_HOURS
+
+
+def reminder_text(business: Business, booking: Booking) -> str:
+    parts = [f"Напоминаем: завтра, {fmt_slot(booking.start)}, вы записаны в «{business.name}»"]
+    if booking.service:
+        parts[0] += f" ({booking.service})"
+    if booking.staff_name:
+        parts.append(f"Специалист: {booking.staff_name}")
+    if business.address:
+        parts.append(f"Адрес: {business.address}")
+    parts.append("Если планы изменились, ответьте на это сообщение")
+    return ". ".join(parts) + "."
+
+
+def _send_reminder(session: Session, rt: Runtime, business: Business, booking: Booking, now_utc: datetime) -> bool:
+    text = reminder_text(business, booking)
+    conv = session.get(Conversation, booking.conversation_id) if booking.conversation_id else None
+    in_window = bool(conv and conv.last_customer_at and now_utc - conv.last_customer_at < SERVICE_WINDOW)
+    sent = False
+    if booking.channel == "telegram" or (booking.channel in {"whatsapp", "instagram"} and in_window):
+        client = rt.channel_client(business, booking.channel)
+        sent = bool(client and client.send_text(booking.chat_id, text))
+    if not sent and booking.channel == "whatsapp" and business.wa_reminder_template:
+        # Outside the 24-hour window WhatsApp only allows approved templates.
+        client = rt.whatsapp(business)
+        params = [booking.customer_name or "клиент", fmt_slot(booking.start), booking.staff_name or business.name]
+        sent = bool(client and client.send_template(booking.chat_id, business.wa_reminder_template, business.wa_template_lang, params))
+    if sent and conv is not None:
+        session.add(Message(business_id=business.id, conversation_id=conv.id, role="ai", text=text, created_at=now_utc))
+    return sent
+
+
+def send_reminders(session: Session, rt: Runtime, business: Business, now_utc: datetime) -> dict[str, int]:
+    now_local = utc_to_local(now_utc, business.timezone)
+    day = datetime.combine((now_local + timedelta(days=1)).date(), time.min)
+    bookings = session.exec(
+        select(Booking)
+        .where(
+            Booking.business_id == business.id,
+            Booking.status == "booked",
+            Booking.start >= day,
+            Booking.start < day + timedelta(days=1),
+            Booking.reminder_status == "",
+        )
+        .order_by(Booking.start)
+    ).all()
+    manual: list[Booking] = []
+    for booking in bookings:
+        ok = _send_reminder(session, rt, business, booking, now_utc)
+        booking.reminder_status = "sent" if ok else "manual"
+        session.add(booking)
+        if not ok:
+            manual.append(booking)
+    if manual:
+        lines = ["Напомните вручную о записи на завтра:"]
+        lines += [f"{b.start:%H:%M} — {b.customer_name}, {b.customer_phone or 'телефон не указан'} ({b.staff_name})" for b in manual]
+        notify_admins(rt, business, ["\n".join(lines)])
+    return {"sent": len(bookings) - len(manual), "manual": len(manual)}
+
+
+def digest_text(session: Session, business: Business, now_utc: datetime) -> str | None:
+    stats = activity(session, business.id, now_utc - timedelta(hours=24))
+    now_local = utc_to_local(now_utc, business.timezone)
+    day = datetime.combine(now_local.date(), time.min)
+    today = session.exec(
+        select(Booking)
+        .where(
+            Booking.business_id == business.id,
+            Booking.status == "booked",
+            Booking.start >= day,
+            Booking.start < day + timedelta(days=1),
+        )
+        .order_by(Booking.start)
+    ).all()
+    if not stats["conversations"] and not stats["leads"] and not today:
+        return None
+    lines = [
+        f"Сводка «{business.name}» на {now_local:%d.%m}",
+        f"За сутки: диалогов {stats['conversations']} (в нерабочее время {stats['off_hours_conversations']}), "
+        f"записей через ИИ {stats['bookings']} (в нерабочее время {stats['off_hours_bookings']}), "
+        f"заявок администратору {stats['leads']}.",
+    ]
+    if today:
+        lines.append("Сегодня записаны:")
+        lines += [f"{b.start:%H:%M} — {b.customer_name}, {b.customer_phone} — {b.service or 'приём'} ({b.staff_name})" for b in today]
+    else:
+        lines.append("Записей на сегодня в системе нет.")
+    return "\n".join(lines)
+
+
+def refresh_instagram_token(rt: Runtime, business: Business, now_utc: datetime) -> bool | None:
+    """Swap the Instagram token for a fresh one weekly. None = nothing to do, False = failed (retry tomorrow)."""
+    if not business.ig_access_token:
+        return None
+    last = business.ig_token_refreshed_at
+    if last is not None and now_utc - last < TOKEN_REFRESH_EVERY:
+        return None
+    client = rt.instagram(business)
+    if client is None:
+        return None
+    token = client.refresh_token()
+    if token:
+        business.ig_access_token = token
+        business.ig_token_refreshed_at = now_utc
+        return True
+    business.ig_token_refreshed_at = now_utc - TOKEN_REFRESH_EVERY + timedelta(days=1)
+    log.warning("Instagram token for %s was not refreshed; will retry tomorrow", business.slug)
+    return False
+
+
+def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: datetime) -> dict:
+    now_local = utc_to_local(now_utc, business.timezone)
+    today = now_local.date().isoformat()
+    report: dict = {}
+    if _due(now_local.hour, business.reminder_hour) and business.last_reminder_date != today:
+        business.last_reminder_date = today
+        report["reminders"] = send_reminders(session, rt, business, now_utc)
+    if _due(now_local.hour, business.digest_hour) and business.last_digest_date != today:
+        business.last_digest_date = today
+        text = digest_text(session, business, now_utc)
+        report["digest"] = bool(text) and notify_admins(rt, business, [text]) > 0
+    refreshed = refresh_instagram_token(rt, business, now_utc)
+    if refreshed is not None:
+        report["instagram_token"] = refreshed
+    session.add(business)
+    return report
+
+
+class Scheduler(threading.Thread):
+    """Runs due jobs for every active business every `interval` seconds."""
+
+    def __init__(self, rt: Runtime, interval: int) -> None:
+        super().__init__(daemon=True, name="joop-scheduler")
+        self.rt = rt
+        self.interval = interval
+        self._stop = threading.Event()
+
+    def tick(self, now_utc: datetime | None = None) -> None:
+        with new_session() as session:
+            ids = session.exec(select(Business.id).where(Business.bot_enabled == True)).all()  # noqa: E712
+        for business_id in ids:
+            with new_session() as session:
+                business = session.get(Business, business_id)
+                try:
+                    run_due_jobs(session, self.rt, business, now_utc or utcnow())
+                    session.commit()
+                except Exception:
+                    session.rollback()
+                    log.exception("Scheduled jobs failed for business %s", business_id)
+
+    def run(self) -> None:  # pragma: no cover - thread loop
+        while not self._stop.wait(5):
+            self.tick()
+            if self._stop.wait(self.interval):
+                break
+
+    def stop(self) -> None:
+        self._stop.set()
