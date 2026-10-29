@@ -14,6 +14,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
+from ..billing import access_ok
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
 from ..lang import claims_confirmation, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
@@ -102,6 +103,8 @@ def handle_incoming(
 
     if not business.bot_enabled:
         return Outcome(skipped="bot_disabled")
+    if not access_ok(session, business.id, now):
+        return Outcome(skipped="subscription")  # trial over or not paid: staff answer by hand
     if conv.ai_paused_until and conv.ai_paused_until > now:
         return Outcome(skipped="paused")
 
