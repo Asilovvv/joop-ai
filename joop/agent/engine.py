@@ -15,8 +15,10 @@ from typing import Callable
 from sqlmodel import Session, select
 
 from ..channels.base import IncomingMessage
+from ..lang import is_kyrgyz_message, looks_kyrgyz
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Service, Slot, Staff
 from ..phone import normalize_phone
+from ..pricing import cost_usd, empty_usage
 from ..slots import claim_slot, free_slots
 from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient
@@ -28,11 +30,14 @@ HISTORY_LIMIT = 20
 HISTORY_WINDOW = timedelta(hours=72)
 STAFF_TAKEOVER_PAUSE = timedelta(hours=12)
 
+# Fixed replies sent without the model: both languages, since we do not know which one the customer reads.
+# The Kyrgyz lines should be checked by a native speaker.
 TEXT_ONLY_REPLY = (
-    "Я пока понимаю только текстовые сообщения. Напишите, пожалуйста, текстом — "
-    "и я сразу помогу с записью."
+    "Азырынча текст билдирүүлөрдү гана түшүнөм. Сураныч, текст менен жазыңыз.\n"
+    "Я пока понимаю только текстовые сообщения. Напишите, пожалуйста, текстом — и я сразу помогу с записью."
 )
 ERROR_REPLY = (
+    "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\n"
     "Извините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся."
 )
 ASK_CONTACTS_REPLY = (
@@ -49,8 +54,12 @@ class Outcome:
     reply: str | None = None
     admin_notes: list[str] = field(default_factory=list)
     booking_id: int | None = None
-    lead_id: int | None = None
+    request_id: int | None = None  # booking request without a slot (Lead of kind "request")
+    lead_id: int | None = None  # handoff, media or error lead
     skipped: str = ""  # why nothing was sent, for logs and tests
+    language_fixed: bool = False
+    usage: dict = field(default_factory=empty_usage)
+    cost_usd: float | None = None
 
 
 def handle_incoming(
@@ -117,27 +126,48 @@ def handle_incoming(
     history = _history(session, conv, now)
 
     try:
-        result: AgentReply = get_llm().respond(system, history)
+        llm = get_llm()
+        result: AgentReply = llm.respond(system, history)
     except Exception:
         log.exception("Model call failed for business %s", business.slug)
         lead = _add_lead(session, business, conv, "error", f"ИИ не смог ответить на сообщение: «{text[:300]}»", now, off)
         _add_message(session, business, conv, "ai", ERROR_REPLY, now, off)
         return Outcome(reply=ERROR_REPLY, admin_notes=[_lead_note(business, conv, lead, off)], lead_id=lead.id)
 
-    outcome = Outcome(reply=result.reply)
+    outcome = Outcome(reply=result.reply, usage=dict(result.usage))
     if result.booking:
-        reply, booking = _try_booking(session, business, conv, result.booking, result.reply, now, now_local, off, incoming.channel)
-        outcome.reply = reply
-        if booking is not None:
-            outcome.booking_id = booking.id
-            outcome.admin_notes.append(_booking_note(business, booking, off))
+        if result.booking.get("slot_id") is None:
+            outcome.reply, request = _booking_request(session, business, conv, result.booking, result.reply, now, off)
+            if request is not None:
+                outcome.request_id = request.id
+                outcome.admin_notes.append(_request_note(conv, request, off))
+        else:
+            outcome.reply, booking = _try_booking(
+                session, business, conv, result.booking, result.reply, now, now_local, off, incoming.channel
+            )
+            if booking is not None:
+                outcome.booking_id = booking.id
+                outcome.admin_notes.append(_booking_note(business, booking, off))
     if result.handoff:
         lead = _add_lead(session, business, conv, "handoff", result.handoff, now, off)
         outcome.lead_id = lead.id
         outcome.admin_notes.append(_lead_note(business, conv, lead, off))
 
+    # Language guard: a Kyrgyz message sometimes gets a Russian answer because the business data
+    # is in Russian. Rewrite such a reply once; keep the draft if the rewrite is not Kyrgyz either.
+    if outcome.reply and is_kyrgyz_message(text) and not looks_kyrgyz(outcome.reply):
+        rewritten = llm.rewrite_in_kyrgyz(outcome.reply, outcome.usage)
+        if rewritten and looks_kyrgyz(rewritten):
+            outcome.reply = rewritten
+            outcome.language_fixed = True
+
+    outcome.cost_usd = cost_usd(outcome.usage, getattr(llm, "model", ""))
     if outcome.reply:
-        _add_message(session, business, conv, "ai", outcome.reply, now, off)
+        msg = _add_message(session, business, conv, "ai", outcome.reply, now, off)
+        msg.input_tokens = outcome.usage.get("input_tokens", 0) + outcome.usage.get("cache_read_input_tokens", 0)
+        msg.output_tokens = outcome.usage.get("output_tokens", 0)
+        msg.cost_usd = outcome.cost_usd or 0.0
+        msg.language_fixed = outcome.language_fixed
     return outcome
 
 
@@ -346,6 +376,34 @@ def _try_booking(
     session.add(conv)
     session.flush()
     return reply, booking
+
+
+def _booking_request(
+    session: Session, business: Business, conv: Conversation, data: dict, reply: str, now: datetime, off: bool
+) -> tuple[str, Lead | None]:
+    """The customer wants an appointment but no slot was chosen: staff call back to confirm the time."""
+    name = (data.get("name") or "").strip()[:120]
+    phone = normalize_phone(data.get("phone"))
+    if not name or not phone:
+        return ASK_CONTACTS_REPLY, None
+    conv.customer_name, conv.customer_phone = name, phone
+    session.add(conv)
+    service = (data.get("service") or "").strip()[:200] or "запись"
+    when = (data.get("preferred_time") or "").strip()[:200]
+    summary = f"Заявка на запись: {service}" + (f", удобное время: {when}" if when else "") + ". Перезвоните и подтвердите время."
+    return reply, _add_lead(session, business, conv, "request", summary, now, off)
+
+
+def _request_note(conv: Conversation, lead: Lead, off: bool) -> str:
+    when = " (в нерабочее время)" if off else ""
+    return "\n".join(
+        [
+            f"Новая заявка на запись{when}",
+            f"{lead.customer_name}, {lead.customer_phone}",
+            lead.summary,
+            f"Канал: {CHANNEL_LABELS.get(conv.channel, conv.channel)}",
+        ]
+    )
 
 
 def _booking_note(business: Business, booking: Booking, off: bool) -> str:

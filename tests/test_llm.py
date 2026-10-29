@@ -11,7 +11,7 @@ def test_parse_reply_variants():
     assert plain.reply == "Здравствуйте" and plain.booking is None and plain.handoff is None
 
     fenced = parse_reply('Вот ответ:\n```json\n{"reply": "Ок", "booking": {"slot_id": "12", "name": " Айбек ", "phone": "0555123456", "service": "чистка"}, "handoff": ""}\n```')
-    assert fenced.booking == {"slot_id": 12, "name": "Айбек", "phone": "0555123456", "service": "чистка"}
+    assert fenced.booking == {"slot_id": 12, "name": "Айбек", "phone": "0555123456", "service": "чистка", "preferred_time": ""}
     assert fenced.handoff is None
 
     embedded = parse_reply('Ответ: {"reply": "Передам администратору", "booking": null, "handoff": "перезвонить"} конец')
@@ -39,7 +39,12 @@ class _FakeMessages:
         item = self.outcomes.pop(0)
         if isinstance(item, Exception):
             raise item
-        return SimpleNamespace(content=[SimpleNamespace(type="text", text=json.dumps(item, ensure_ascii=False))])
+        text = item if isinstance(item, str) else json.dumps(item, ensure_ascii=False)
+        return SimpleNamespace(
+            content=[SimpleNamespace(type="text", text=text)],
+            usage=SimpleNamespace(input_tokens=100, output_tokens=10),
+            stop_reason="end_turn",
+        )
 
 
 def _client(outcomes):
@@ -81,3 +86,15 @@ def test_token_ceiling_leaves_room_for_reply_when_thinking():
     AnthropicLLM(api_key="x", model="m", thinking="adaptive", client=client).respond("s", [{"role": "user", "content": "x"}])
     AnthropicLLM(api_key="x", model="m", thinking="", client=client).respond("s", [{"role": "user", "content": "x"}])
     assert [c["max_tokens"] for c in messages.calls] == [800, 8000, 8000]
+
+
+def test_usage_and_kyrgyz_rewrite():
+    client, messages = _client([{"reply": "Цена 500 сом", "booking": None, "handoff": None}, "Баасы 500 сом."])
+    llm = AnthropicLLM(api_key="x", model="claude-haiku-5-5", client=client)
+    result = llm.respond("s", [{"role": "user", "content": "канча турат"}])
+    assert result.usage["input_tokens"] == 100 and result.usage["output_tokens"] == 10
+    assert llm.rewrite_in_kyrgyz("Цена 500 сом", result.usage) == "Баасы 500 сом."
+    assert result.usage["input_tokens"] == 200
+    second = messages.calls[1]
+    assert "output_config" not in second and "tools" not in second
+    assert second["messages"] == [{"role": "user", "content": "Цена 500 сом"}]

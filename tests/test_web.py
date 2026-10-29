@@ -223,7 +223,7 @@ def test_whatsapp_and_instagram_webhooks(client, rt, business):
     }
     raw, headers = _signed(voice)
     client.post("/webhooks/meta", content=raw, headers=headers)
-    assert rt.wa.sent[-1][1].startswith("Я пока понимаю только текстовые сообщения")
+    assert "Я пока понимаю только текстовые сообщения" in rt.wa.sent[-1][1]
 
     ig = {"object": "instagram", "entry": [{"id": "ig-1", "time": 1, "messaging": [
         {"sender": {"id": "igsid-9"}, "recipient": {"id": "ig-1"}, "timestamp": 1, "message": {"mid": "m-1", "text": "Есть запись на завтра?"}}

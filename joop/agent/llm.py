@@ -5,8 +5,10 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Protocol
+
+from ..pricing import add_usage, empty_usage
 
 log = logging.getLogger(__name__)
 
@@ -20,12 +22,13 @@ RESPONSE_SCHEMA: dict[str, Any] = {
                 {
                     "type": "object",
                     "properties": {
-                        "slot_id": {"type": "integer"},
+                        "slot_id": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
                         "name": {"type": "string"},
                         "phone": {"type": "string"},
                         "service": {"type": "string"},
+                        "preferred_time": {"type": "string"},
                     },
-                    "required": ["slot_id", "name", "phone", "service"],
+                    "required": ["slot_id", "name", "phone", "service", "preferred_time"],
                     "additionalProperties": False,
                 },
             ]
@@ -44,15 +47,30 @@ class LLMError(Exception):
     """The model could not produce a usable answer."""
 
 
+TRANSLATE_TO_KYRGYZ = """You rewrite one customer-service message into Kyrgyz.
+The customer wrote in Kyrgyz, but the draft you receive is in Russian. Translate the
+whole draft into natural, polite Kyrgyz in Cyrillic script. Keep every number, price,
+currency, time, date, phone number, name and address exactly as in the draft. Use only
+Kyrgyz Cyrillic letters: no Latin letters and no Kazakh letters such as і, ә, ғ, қ.
+Plain text, no markdown. Output only the translated message, nothing else."""
+
+
 @dataclass
 class AgentReply:
     reply: str
     booking: dict | None = None
     handoff: str | None = None
+    usage: dict = field(default_factory=empty_usage)
 
 
 class LLMClient(Protocol):
+    model: str
+
     def respond(self, system: str, messages: list[dict]) -> AgentReply: ...
+
+    def rewrite_in_kyrgyz(self, text: str, usage: dict) -> str | None:
+        """Translate a reply into Kyrgyz; add the call's tokens to `usage`. None if it failed."""
+        ...
 
 
 def _extract_json(text: str) -> Any:
@@ -94,6 +112,7 @@ def coerce_reply(data: Any) -> AgentReply:
             "name": str(booking.get("name") or "").strip(),
             "phone": str(booking.get("phone") or "").strip(),
             "service": str(booking.get("service") or "").strip(),
+            "preferred_time": str(booking.get("preferred_time") or "").strip(),
         }
     else:
         booking = None
@@ -170,6 +189,7 @@ class AnthropicLLM:
         return False
 
     def respond(self, system: str, messages: list[dict]) -> AgentReply:
+        usage = empty_usage()
         while True:
             try:
                 response = self.client.messages.create(**self._request(system, messages))
@@ -178,7 +198,31 @@ class AnthropicLLM:
                     log.warning("Claude API rejected a request option (%s); retrying without it", type(exc).__name__)
                     continue
                 raise LLMError(f"Claude API call failed: {type(exc).__name__}") from exc
-            text = "".join(
-                getattr(block, "text", "") for block in response.content if getattr(block, "type", "") == "text"
-            )
-            return parse_reply(text)
+            add_usage(usage, getattr(response, "usage", None))
+            if getattr(response, "stop_reason", "") == "max_tokens":
+                log.warning("Reply hit the max_tokens ceiling (%s)", self.max_tokens)
+            result = parse_reply(_text_of(response))
+            result.usage = usage
+            return result
+
+    def rewrite_in_kyrgyz(self, text: str, usage: dict) -> str | None:
+        """One plain call without tools or JSON: it cannot book or hand off a second time."""
+        kwargs: dict[str, Any] = {
+            "model": self.model,
+            "max_tokens": THINKING_MAX_TOKENS,
+            "system": TRANSLATE_TO_KYRGYZ,
+            "messages": [{"role": "user", "content": text}],
+        }
+        if self.thinking:
+            kwargs["thinking"] = {"type": self.thinking}
+        try:
+            response = self.client.messages.create(**kwargs)
+        except Exception:
+            log.warning("Kyrgyz rewrite failed; sending the draft")
+            return None
+        add_usage(usage, getattr(response, "usage", None))
+        return _text_of(response).strip() or None
+
+
+def _text_of(response: Any) -> str:
+    return "".join(getattr(b, "text", "") for b in response.content if getattr(b, "type", "") == "text")
