@@ -114,6 +114,32 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
     return "\n".join(lines)
 
 
+def weekly_report_text(session: Session, business: Business, now_utc: datetime) -> str | None:
+    """Monday report for the owner: what the AI did in 7 days, so the value of the subscription is visible."""
+    st = activity(session, business.id, now_utc - timedelta(days=7))
+    if not st["conversations"]:
+        return None
+    results = st["bookings"] + st["requests"] + st["orders"]
+    lines = [
+        f"Итоги недели «{business.name}»: ИИ-администратор",
+        f"Ответил {st['conversations']} клиентам, из них {st['off_hours_conversations']} — в нерабочее время, когда никого не было на месте.",
+    ]
+    parts = []
+    if st["bookings"]:
+        parts.append(f"записей {st['bookings']} (ночью и в выходные: {st['off_hours_bookings']})")
+    if st["requests"]:
+        parts.append(f"заявок на запись {st['requests']}")
+    if st["orders"]:
+        parts.append(f"заказов {st['orders']}")
+    if parts:
+        lines.append("Оформил: " + ", ".join(parts) + ".")
+    if st["leads"]:
+        lines.append(f"Передал вам {st['leads']} вопросов, на которые нужен человек.")
+    if results:
+        lines.append(f"Итого {results} готовых обращений без участия администратора.")
+    return "\n".join(lines)
+
+
 def refresh_instagram_token(rt: Runtime, business: Business, now_utc: datetime) -> bool | None:
     """Swap the Instagram token for a fresh one weekly. None = nothing to do, False = failed (retry tomorrow)."""
     if not business.ig_access_token:
@@ -143,8 +169,13 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
         report["reminders"] = send_reminders(session, rt, business, now_utc)
     if _due(now_local.hour, business.digest_hour) and business.last_digest_date != today:
         business.last_digest_date = today
-        text = digest_text(session, business, now_utc)
-        report["digest"] = bool(text) and notify_admins(rt, business, [text]) > 0
+        texts = [t for t in [digest_text(session, business, now_utc)] if t]
+        if now_local.weekday() == 0:  # Monday: the week in numbers
+            weekly = weekly_report_text(session, business, now_utc)
+            if weekly:
+                texts.append(weekly)
+                report["weekly"] = True
+        report["digest"] = bool(texts) and notify_admins(rt, business, texts) > 0
     refreshed = refresh_instagram_token(rt, business, now_utc)
     if refreshed is not None:
         report["instagram_token"] = refreshed
