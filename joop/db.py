@@ -42,9 +42,10 @@ def set_engine(engine: Engine) -> None:
 
 
 def init_db() -> None:
-    from . import models  # noqa: F401  (register tables)
+    """Create or upgrade the schema through migrations (joop/migrations)."""
+    from .migrate import upgrade
 
-    SQLModel.metadata.create_all(get_engine())
+    upgrade()
 
 
 def new_session() -> Session:
