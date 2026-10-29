@@ -39,6 +39,18 @@
     </div>
   </section>
 
+  {% if pack.has('order') %}
+  <section class="card stack">
+    <h2>Заказы</h2>
+    <p class="muted small">Система проверяет минимальную сумму и добавляет доставку к сумме заказа. 0 — не применять.</p>
+    <div class="grid2">
+      <label for="s-min">Минимальный заказ, сом<input id="s-min" type="number" min="0" name="min_order" value="{{ business.min_order }}"></label>
+      <label for="s-fee">Доставка, сом<input id="s-fee" type="number" min="0" name="delivery_fee" value="{{ business.delivery_fee }}"></label>
+      <label for="s-free">Бесплатная доставка от, сом<input id="s-free" type="number" min="0" name="free_delivery_from" value="{{ business.free_delivery_from }}"></label>
+    </div>
+  </section>
+  {% endif %}
+
   <section class="card stack">
     <h2>Поведение ИИ</h2>
     <label for="s-desc">О компании, одной-двумя фразами<textarea id="s-desc" name="description">{{ business.description }}</textarea></label>

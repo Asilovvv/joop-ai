@@ -19,7 +19,7 @@
       </div>
       <div class="actions">
         <span class="chip {{ 'ok' if o.status in ('accepted', 'done') else ('warn' if o.status == 'new' else '') }}">{{ statuses[o.status] }}</span>
-        <b class="mono">{{ '%s сом'|format(o.total) if o.total is not none else 'сумма ?' }}</b>
+        <b class="mono">{{ '%s сом'|format(o.total) if o.total is not none else 'сумма ?' }}</b>{% if o.delivery_fee %}<span class="muted small">доставка {{ o.delivery_fee }}</span>{% endif %}
         {% for key, label in [('accepted', 'Принять'), ('done', 'Выполнен'), ('cancelled', 'Отменить')] if key != o.status and o.status not in ('done', 'cancelled') %}
         <form method="post" action="/panel/orders/{{ o.id }}/status" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ key }}"><button class="btn small {{ 'danger' if key == 'cancelled' else 'ghost' }}" type="submit">{{ label }}</button></form>
         {% endfor %}
