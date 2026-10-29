@@ -13,6 +13,7 @@ from .config import get_settings
 from .db import init_db, new_session
 from .models import Business
 from .presets import SlugTaken, create_business
+from .profile import ProfileError, apply_profile, load_profile
 from .security import hash_password
 
 
@@ -40,17 +41,47 @@ def cmd_create_business(args) -> int:
     password = _password(args.password)
     if password is None:
         return 1
+    profile = None
+    if args.profile:
+        try:
+            profile = load_profile(args.profile)
+        except (OSError, ProfileError) as exc:
+            print(f"Профиль не загружен: {exc}")
+            return 1
     with new_session() as s:
         try:
-            business = create_business(s, slug=args.slug, name=args.name, password=password, niche=args.niche, demo=args.demo)
+            business = create_business(
+                s, slug=args.slug, name=args.name or (profile or {}).get("name", args.slug), password=password,
+                niche=args.niche, demo=args.demo and profile is None,
+            )
         except SlugTaken:
             print(f"Логин «{args.slug}» уже занят.")
             return 1
+        if profile is not None:
+            apply_profile(s, business, profile)
         s.commit()
         print(f"Готово. Логин панели: {business.slug}")
         print(f"Код для уведомлений в Telegram: /admin {business.admin_link_code}")
         if args.demo:
             print("Добавлены демо-прайс, врачи и окна на неделю. Замените их в панели на настоящие.")
+    return 0
+
+
+def cmd_import_profile(args) -> int:
+    init_db()
+    try:
+        profile = load_profile(args.file)
+    except (OSError, ProfileError) as exc:
+        print(f"Профиль не загружен: {exc}")
+        return 1
+    with new_session() as s:
+        business = s.exec(select(Business).where(Business.slug == args.slug.strip().lower())).first()
+        if business is None:
+            print("Компания не найдена.")
+            return 1
+        apply_profile(s, business, profile, replace=not args.keep)
+        s.commit()
+    print("Профиль загружен: прайс, вопросы и правила обновлены. Проверьте их в панели.")
     return 0
 
 
@@ -156,11 +187,18 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("create-business", help="создать компанию и вход в панель")
     p.add_argument("--slug", required=True, help="логин компании латиницей, например aktish")
-    p.add_argument("--name", required=True, help="название, например «Ак-Тиш Дент»")
+    p.add_argument("--name", help="название, например «Ак-Тиш Дент» (по умолчанию из профиля)")
+    p.add_argument("--profile", help="YAML-профиль: прайс, вопросы, правила (см. business.dental.example.yaml)")
     p.add_argument("--niche", default="dental", choices=["dental", "beauty", "auto", "education", "other"])
     p.add_argument("--password", help="пароль панели (если не указать, спросит)")
     p.add_argument("--demo", action="store_true", help="добавить демо-прайс, врачей и окна")
     p.set_defaults(func=cmd_create_business)
+
+    p = sub.add_parser("import-profile", help="загрузить прайс, вопросы и правила из YAML")
+    p.add_argument("--slug", required=True)
+    p.add_argument("--file", required=True)
+    p.add_argument("--keep", action="store_true", help="не удалять текущий прайс и вопросы")
+    p.set_defaults(func=cmd_import_profile)
 
     p = sub.add_parser("set-password", help="сменить пароль панели")
     p.add_argument("--slug", required=True)
