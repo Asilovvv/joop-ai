@@ -12,32 +12,54 @@ from ..pricing import add_usage, empty_usage
 
 log = logging.getLogger(__name__)
 
-RESPONSE_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {
-        "reply": {"type": "string"},
-        "booking": {
-            "anyOf": [
-                {"type": "null"},
-                {
-                    "type": "object",
-                    "properties": {
-                        "slot_id": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
-                        "name": {"type": "string"},
-                        "phone": {"type": "string"},
-                        "service": {"type": "string"},
-                        "preferred_time": {"type": "string"},
-                    },
-                    "required": ["slot_id", "name", "phone", "service", "preferred_time"],
-                    "additionalProperties": False,
-                },
-            ]
-        },
-        "handoff": {"anyOf": [{"type": "null"}, {"type": "string"}]},
-    },
-    "required": ["reply", "booking", "handoff"],
-    "additionalProperties": False,
-}
+def _nullable(schema: dict[str, Any]) -> dict[str, Any]:
+    return {"anyOf": [{"type": "null"}, schema]}
+
+
+def _obj(props: dict[str, Any]) -> dict[str, Any]:
+    return {"type": "object", "properties": props, "required": list(props), "additionalProperties": False}
+
+
+_STR = {"type": "string"}
+BOOKING_SCHEMA = _obj(
+    {
+        "slot_id": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+        "name": _STR,
+        "phone": _STR,
+        "service": _STR,
+        "preferred_time": _STR,
+        "party_size": {"type": "integer"},
+    }
+)
+ORDER_SCHEMA = _obj(
+    {
+        "lines": {"type": "array", "items": _obj({"item_id": {"type": "integer"}, "quantity": {"type": "integer"}, "note": _STR})},
+        "mode": _STR,
+        "address": _STR,
+        "time": _STR,
+        "name": _STR,
+        "phone": _STR,
+        "comment": _STR,
+    }
+)
+LEAD_SCHEMA = _obj({"name": _STR, "phone": _STR, "details": _STR})
+
+
+def response_schema(outcomes: frozenset[str] | set[str] | None = None) -> dict[str, Any]:
+    """JSON schema of the model's answer for the outcomes a niche enables."""
+    outcomes = outcomes if outcomes is not None else {"booking", "request", "handoff"}
+    props: dict[str, Any] = {"reply": _STR}
+    if "booking" in outcomes or "request" in outcomes:
+        props["booking"] = _nullable(BOOKING_SCHEMA)
+    if "order" in outcomes:
+        props["order"] = _nullable(ORDER_SCHEMA)
+    if "lead" in outcomes:
+        props["lead"] = _nullable(LEAD_SCHEMA)
+    props["handoff"] = {"anyOf": [{"type": "null"}, _STR]}
+    return _obj(props)
+
+
+RESPONSE_SCHEMA: dict[str, Any] = response_schema()
 
 
 THINKING_MAX_TOKENS = 8000
@@ -61,12 +83,14 @@ class AgentReply:
     booking: dict | None = None
     handoff: str | None = None
     usage: dict = field(default_factory=empty_usage)
+    order: dict | None = None
+    lead: dict | None = None
 
 
 class LLMClient(Protocol):
     model: str
 
-    def respond(self, system: str, messages: list[dict]) -> AgentReply: ...
+    def respond(self, system: str, messages: list[dict], schema: dict | None = None) -> AgentReply: ...
 
     def rewrite_in_kyrgyz(self, text: str, usage: dict) -> str | None:
         """Translate a reply into Kyrgyz; add the call's tokens to `usage`. None if it failed."""
@@ -113,16 +137,41 @@ def coerce_reply(data: Any) -> AgentReply:
             "phone": str(booking.get("phone") or "").strip(),
             "service": str(booking.get("service") or "").strip(),
             "preferred_time": str(booking.get("preferred_time") or "").strip(),
+            "party_size": _int(booking.get("party_size")),
         }
     else:
         booking = None
+
+    order = data.get("order")
+    if isinstance(order, dict):
+        lines = []
+        for line in order.get("lines") or []:
+            if isinstance(line, dict):
+                lines.append({"item_id": _int(line.get("item_id")), "quantity": _int(line.get("quantity")), "note": _s(line.get("note"))})
+        order = {"lines": lines, **{k: _s(order.get(k)) for k in ("mode", "address", "time", "name", "phone", "comment")}}
+    else:
+        order = None
+
+    lead = data.get("lead")
+    lead = {k: _s(lead.get(k)) for k in ("name", "phone", "details")} if isinstance(lead, dict) else None
 
     handoff = data.get("handoff")
     handoff = str(handoff).strip() if isinstance(handoff, (str, int, float)) and str(handoff).strip() else None
 
     if not reply:
         raise LLMError("model returned an empty reply")
-    return AgentReply(reply=reply, booking=booking, handoff=handoff)
+    return AgentReply(reply=reply, booking=booking, handoff=handoff, order=order, lead=lead)
+
+
+def _int(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _s(value: Any) -> str:
+    return str(value or "").strip()
 
 
 def parse_reply(text: str) -> AgentReply:
@@ -156,7 +205,7 @@ class AnthropicLLM:
         self.max_tokens = max_tokens
         self.structured = True
 
-    def _request(self, system: str, messages: list[dict]) -> dict[str, Any]:
+    def _request(self, system: str, messages: list[dict], schema: dict | None = None) -> dict[str, Any]:
         # With thinking on (explicitly, or by model default when the setting is dropped), thinking
         # tokens count against max_tokens and can leave no room for the reply. Only output actually
         # generated is billed, so a high ceiling costs nothing extra.
@@ -173,7 +222,7 @@ class AnthropicLLM:
         if self.effort:
             output_config["effort"] = self.effort
         if self.structured:
-            output_config["format"] = {"type": "json_schema", "schema": RESPONSE_SCHEMA}
+            output_config["format"] = {"type": "json_schema", "schema": schema or RESPONSE_SCHEMA}
         if output_config:
             kwargs["output_config"] = output_config
         return kwargs
@@ -188,11 +237,11 @@ class AnthropicLLM:
             return True
         return False
 
-    def respond(self, system: str, messages: list[dict]) -> AgentReply:
+    def respond(self, system: str, messages: list[dict], schema: dict | None = None) -> AgentReply:
         usage = empty_usage()
         while True:
             try:
-                response = self.client.messages.create(**self._request(system, messages))
+                response = self.client.messages.create(**self._request(system, messages, schema))
             except Exception as exc:  # the SDK raises typed errors; status 400 means a bad parameter
                 if getattr(exc, "status_code", None) == 400 and self._degrade():
                     log.warning("Claude API rejected a request option (%s); retrying without it", type(exc).__name__)

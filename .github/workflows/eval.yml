@@ -1,5 +1,5 @@
 # Scripted evaluation against the real model, started by hand (Actions -> eval -> Run workflow).
-# Needs the repository secret ANTHROPIC_API_KEY. One run of both sets costs about $0.02.
+# Needs the repository secret ANTHROPIC_API_KEY. Runs the two profile sets and every niche pack (about 125 dialogues).
 # Results are kept on the eval-results branch under runs/ and shown in the run summary.
 name: eval
 
@@ -40,10 +40,11 @@ jobs:
           fi
           python -m eval.run_eval business.example.yaml eval/cases.yaml eval/results.json
           python -m eval.run_eval business.dental.example.yaml eval/cases_dental.yaml eval/results_dental.json
+          python -m eval.run_eval all
 
       - name: Write run summary
         if: always()
-        run: python -m eval.summary eval/results.json eval/results_dental.json >> "$GITHUB_STEP_SUMMARY"
+        run: python -m eval.summary eval/results.json eval/results_dental.json eval/results_*.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save results to the eval-results branch
         if: always()
@@ -54,7 +55,7 @@ jobs:
           set -e
           stamp=$(date -u +%Y-%m-%dT%H%MZ)
           mkdir -p "$RUNNER_TEMP/out"
-          for f in eval/results.json eval/results_dental.json; do
+          for f in eval/results*.json; do
             [ -f "$f" ] && cp "$f" "$RUNNER_TEMP/out/${stamp}_run${RUN}_$(basename "$f")"
           done
           if [ -z "$(ls -A "$RUNNER_TEMP/out")" ]; then echo "No results to save"; exit 0; fi

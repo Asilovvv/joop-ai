@@ -24,7 +24,9 @@ from ..channels.telegram import parse_update
 from ..config import Settings, get_settings
 from ..db import init_db, new_session
 from ..dispatch import admin_chat_ids, process_incoming
-from ..models import Booking, Business, Conversation, Faq, Lead, Message, Service, Slot, Staff
+from ..catalog import parse_price
+from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff
+from ..niches import all_packs, get_pack
 from ..runtime import Runtime
 from ..scheduler import Scheduler
 from ..security import hash_password, new_link_code, verify_password
@@ -40,18 +42,23 @@ templates.env.filters["local"] = lambda dt, tz: fmt_dt(utc_to_local(dt, tz)) if 
 templates.env.filters["slot"] = lambda dt: fmt_slot(dt) if dt else ""
 templates.env.filters["dt"] = fmt_dt
 
-NAV = [
-    ("/panel", "dashboard", "Сводка"),
-    ("/panel/conversations", "conversations", "Диалоги"),
-    ("/panel/bookings", "bookings", "Записи"),
-    ("/panel/slots", "slots", "Окна"),
-    ("/panel/leads", "leads", "Заявки"),
-    ("/panel/services", "services", "Прайс"),
-    ("/panel/staff", "staff", "Специалисты"),
-    ("/panel/faq", "faq", "Вопросы"),
-    ("/panel/settings", "settings", "Настройки"),
-    ("/panel/channels", "channels", "Каналы"),
-]
+def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
+    """Panel sections for this business's niche: a cafe gets orders, a wholesaler has no slots."""
+    pack = get_pack(business.niche if business else None)
+    books = pack.has("booking") or pack.has("request")
+    items = [("/panel", "dashboard", "Сводка"), ("/panel/conversations", "conversations", "Диалоги")]
+    if pack.has("order"):
+        items.append(("/panel/orders", "orders", "Заказы"))
+    if books:
+        items.append(("/panel/bookings", "bookings", "Записи"))
+    if pack.has("booking"):
+        items.append(("/panel/slots", "slots", "Окна"))
+    items.append(("/panel/leads", "leads", "Заявки"))
+    items.append(("/panel/services", "services", pack.catalog_label))
+    if books:
+        items.append(("/panel/staff", "staff", pack.resource_label))
+    items += [("/panel/faq", "faq", "Вопросы"), ("/panel/settings", "settings", "Настройки"), ("/panel/channels", "channels", "Каналы")]
+    return items
 TIMEZONES = ["Asia/Bishkek", "Asia/Almaty", "Asia/Tashkent", "Asia/Dushanbe", "Europe/Moscow"]
 CHANNEL_NAMES = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram", "console": "Тест"}
 
@@ -121,7 +128,8 @@ def _render(request: Request, template: str, active: str, business: Business | N
         business=business,
         csrf=_csrf(request),
         flashes=request.session.pop("flash", []),
-        nav=NAV,
+        nav=nav_for(business),
+        pack=get_pack(business.niche if business else None),
         active=active,
     )
     return templates.TemplateResponse(request, template, ctx)
@@ -272,7 +280,8 @@ def service_add(
         b = _business(s, request)
         if name.strip():
             last = s.exec(select(func.max(Service.sort)).where(Service.business_id == b.id)).one() or 0
-            s.add(Service(business_id=b.id, name=name.strip(), name_ky=name_ky.strip(), price=price.strip(), note=note.strip(), sort=last + 1))
+            s.add(Service(business_id=b.id, name=name.strip(), name_ky=name_ky.strip(), price=price.strip(),
+                          price_value=parse_price(price), note=note.strip(), sort=last + 1))
             s.commit()
             _flash(request, "Услуга добавлена.")
     return _back("/panel/services")
@@ -286,6 +295,7 @@ def service_update(
     name_ky: str = Form(""),
     price: str = Form(""),
     note: str = Form(""),
+    available: str = Form(""),
     csrf: str = Form(""),
 ):
     _check_csrf(request, csrf)
@@ -294,6 +304,8 @@ def service_update(
         row = _own(s, Service, item_id, b.id)
         if name.strip():
             row.name, row.name_ky, row.price, row.note = name.strip(), name_ky.strip(), price.strip(), note.strip()
+            row.price_value = parse_price(row.price)
+            row.available = bool(available)
             s.add(row)
             s.commit()
             _flash(request, "Сохранено.")
@@ -320,25 +332,30 @@ def staff_page(request: Request):
 
 
 @router.post("/panel/staff")
-def staff_add(request: Request, name: str = Form(""), role: str = Form(""), handles: str = Form(""), csrf: str = Form("")):
+def staff_add(
+    request: Request, name: str = Form(""), role: str = Form(""), handles: str = Form(""), capacity: int = Form(0), csrf: str = Form("")
+):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
         if name.strip():
-            s.add(Staff(business_id=b.id, name=name.strip(), role=role.strip(), handles=handles.strip()))
+            s.add(Staff(business_id=b.id, name=name.strip(), role=role.strip(), handles=handles.strip(), capacity=max(0, capacity)))
             s.commit()
             _flash(request, "Специалист добавлен. Теперь создайте для него окна записи.")
     return _back("/panel/staff")
 
 
 @router.post("/panel/staff/{item_id}")
-def staff_update(request: Request, item_id: int, name: str = Form(""), role: str = Form(""), handles: str = Form(""), csrf: str = Form("")):
+def staff_update(
+    request: Request, item_id: int, name: str = Form(""), role: str = Form(""), handles: str = Form(""), capacity: int = Form(0), csrf: str = Form("")
+):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
         row = _own(s, Staff, item_id, b.id)
         if name.strip():
             row.name, row.role, row.handles = name.strip(), role.strip(), handles.strip()
+            row.capacity = max(0, capacity)
             s.add(row)
             s.commit()
             _flash(request, "Сохранено.")
@@ -553,6 +570,35 @@ def booking_cancel(request: Request, item_id: int, csrf: str = Form("")):
     return _back("/panel/bookings")
 
 
+# --- orders ------------------------------------------------------------------------------------------------
+
+ORDER_STATUSES = {"new": "Новый", "accepted": "Принят", "done": "Выполнен", "cancelled": "Отменён"}
+
+
+@router.get("/panel/orders")
+def orders_page(request: Request):
+    with new_session() as s:
+        b = _business(s, request)
+        orders = s.exec(select(Order).where(Order.business_id == b.id).order_by(Order.id.desc()).limit(100)).all()
+        lines: dict[int, list[OrderLine]] = {}
+        for line in s.exec(select(OrderLine).where(OrderLine.order_id.in_([o.id for o in orders] or [0])).order_by(OrderLine.id)).all():
+            lines.setdefault(line.order_id, []).append(line)
+        return _render(request, "orders.html", "orders", b, orders=orders, lines=lines, statuses=ORDER_STATUSES, channel_names=CHANNEL_NAMES)
+
+
+@router.post("/panel/orders/{item_id}/status")
+def order_status(request: Request, item_id: int, status: str = Form(""), csrf: str = Form("")):
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        order = _own(s, Order, item_id, b.id)
+        if status in ORDER_STATUSES:
+            order.status = status
+            s.add(order)
+            s.commit()
+    return _back("/panel/orders")
+
+
 # --- leads and conversations ---------------------------------------------------------------------------
 
 
@@ -662,6 +708,7 @@ def settings_page(request: Request):
             weekdays=list(enumerate(WEEKDAYS_SHORT, start=1)),
             days_off=parse_days_off(b.days_off),
             timezones=TIMEZONES,
+            packs=all_packs(),
             admins=admin_chat_ids(b),
         )
 
@@ -693,6 +740,8 @@ async def settings_save(request: Request):
         b.days_off = ",".join(str(d) for d in range(1, 8) if form.get(f"off{d}"))
         if text("timezone") in TIMEZONES:
             b.timezone = text("timezone")
+        if text("niche") in all_packs():
+            b.niche = text("niche")
         b.extra_rules = text("extra_rules", 3000)
         b.description = text("description", 1000)
         b.tone = text("tone", 300)

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}Специалисты{% endblock %}
+{% block title %}{{ pack.resource_label }}{% endblock %}
 {% block content %}
 <section class="stack">
-  <h1>Специалисты</h1>
+  <h1>{{ pack.resource_label }}</h1>
   <p class="muted">По полю «Принимает» ИИ выбирает, к кому записать: например, «удаление зубов, импланты».</p>
 </section>
 <section class="card">
@@ -12,6 +12,7 @@
     <input name="name" value="{{ r.name }}" aria-label="Имя" required>
     <input name="role" value="{{ r.role }}" aria-label="Специализация">
     <input name="handles" value="{{ r.handles }}" aria-label="Принимает" placeholder="что принимает">
+    {% if pack.party_size %}<input name="capacity" type="number" min="0" value="{{ r.capacity }}" aria-label="Мест" title="Мест">{% endif %}
     <div class="row-tail">
       <button class="btn small ghost" type="submit">Сохранить</button>
       <button class="btn small danger" type="submit" formaction="/panel/staff/{{ r.id }}/delete">Убрать</button>
@@ -20,12 +21,13 @@
   {% else %}<p class="muted">Специалистов нет.</p>{% endfor %}
 </section>
 <section class="card">
-  <h2>Добавить специалиста</h2>
+  <h2>Добавить: {{ pack.resource_item }}</h2>
   <form class="row c3" method="post" action="/panel/staff">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <input name="name" placeholder="Имя и фамилия" required>
     <input name="role" placeholder="Специализация">
     <input name="handles" placeholder="Принимает: …">
+    {% if pack.party_size %}<input name="capacity" type="number" min="0" placeholder="Мест">{% endif %}
     <div class="row-tail"><button class="btn small" type="submit">Добавить</button></div>
   </form>
 </section>

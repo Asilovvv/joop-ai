@@ -7,7 +7,13 @@ WhatsApp and Instagram Direct, in Russian or Kyrgyz, quotes prices from the busi
 list, books customers into real free time slots, reminds them the day before, and hands anything
 it cannot handle to staff in Telegram.
 
-First niche: private dental clinics in Bishkek, where messages that arrive in the evening and at
+One core serves many niches through **niche packs** (`joop/niches/<name>/`): dental clinics, beauty
+salons, cafes and restaurants (table booking, orders with code-computed totals, stop list), real
+estate (qualified leads, viewings), car services, training centres and wholesale (orders, leads).
+A pack sets the panel labels, what a conversation can produce (booking, request, order, lead,
+handoff), niche rules, demo data and evaluation dialogues. Design: [docs/multi-niche-design.md](docs/multi-niche-design.md).
+
+First market: private dental clinics in Bishkek, where messages that arrive in the evening and at
 weekends often go unanswered until the next working day.
 
 ## What a business gets
@@ -34,7 +40,7 @@ python -m venv .venv
 source .venv/bin/activate            # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
 cp .env.example .env                 # then put ANTHROPIC_API_KEY and SESSION_SECRET into .env
-python -m joop create-business --slug demo --name "Demo Dental" --demo
+python -m joop create-business --slug demo --name "Demo Dental" --demo   # --niche restaurant | realty | ...
 python -m joop chat --slug demo      # talk to the AI in the terminal as a patient
 ```
 
@@ -123,7 +129,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 75 tests: engine, channels, scheduler, panel, webhooks, evaluation
+python -m pytest          # 100+ tests: engine, niches, channels, scheduler, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
@@ -140,6 +146,12 @@ safety and prompt-injection resistance:
 
 ```bash
 python -m eval.run_eval business.dental.example.yaml eval/cases_dental.yaml eval/results_dental.json
+```
+
+Every niche pack has its own set (12–13 dialogues, at least 4 in Kyrgyz):
+
+```bash
+python -m eval.run_eval restaurant     # or: dental, beauty, realty, auto, education, wholesale, all
 ```
 
 The run prints pass/fail per case, average and maximum reply time, cost per conversation and how

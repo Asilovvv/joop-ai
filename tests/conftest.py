@@ -40,8 +40,8 @@ class FakeLLM:
         usage["output_tokens"] += 25
         return self.rewrites.pop(0) if self.rewrites else None
 
-    def respond(self, system, messages):
-        self.calls.append({"system": system, "messages": messages})
+    def respond(self, system, messages, schema=None):
+        self.calls.append({"system": system, "messages": messages, "schema": schema})
         item = self.replies.pop(0) if self.replies else AgentReply("Здравствуйте! Чем помочь?")
         if callable(item) and not isinstance(item, AgentReply):
             item = item(system, messages)

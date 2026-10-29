@@ -13,6 +13,7 @@ from .config import get_settings
 from .db import init_db, new_session
 from .models import Business
 from .presets import SlugTaken, create_business
+from .niches import all_packs
 from .profile import ProfileError, apply_profile, load_profile
 from .security import hash_password
 
@@ -189,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--slug", required=True, help="логин компании латиницей, например aktish")
     p.add_argument("--name", help="название, например «Ак-Тиш Дент» (по умолчанию из профиля)")
     p.add_argument("--profile", help="YAML-профиль: прайс, вопросы, правила (см. business.dental.example.yaml)")
-    p.add_argument("--niche", default="dental", choices=["dental", "beauty", "auto", "education", "other"])
+    p.add_argument("--niche", default="dental", choices=sorted(all_packs()), help="ниша: пакет из joop/niches")
     p.add_argument("--password", help="пароль панели (если не указать, спросит)")
     p.add_argument("--demo", action="store_true", help="добавить демо-прайс, врачей и окна")
     p.set_defaults(func=cmd_create_business)

@@ -1,0 +1,14 @@
+# Generic demo business. Fictional data.
+niche: other
+name: "Демо Компания"
+address: "Бишкек (демо-адрес)"
+phone: "+996 555 000 007"
+hours: "Пн–Пт 09:00–18:00"
+work_start: "09:00"
+work_end: "18:00"
+days_off: [6, 7]
+services:
+  - {name: "Консультация", price: "1 000"}
+resources:
+  - {name: "Менеджер", role: "консультации"}
+slots: {days: 7, start: "10:00", end: "17:00", step: 60}

@@ -12,7 +12,8 @@
     {% for l in new %}
     <div class="item">
       <div class="main">
-        <div>{% if l.kind == 'request' %}<span class="chip ok">запись</span> {% endif %}{{ l.summary }}</div>
+        <div>{% if l.kind == 'request' %}<span class="chip ok">запись</span> {% elif l.kind == 'lead' %}<span class="chip ok">лид</span> {% endif %}{{ l.summary }}</div>
+        {% if l.details %}<div class="small">{{ l.details }}</div>{% endif %}
         <div class="muted small">{{ l.customer_name or 'без имени' }} {{ l.customer_phone }} · {{ channel_names.get(l.channel, l.channel) }} · {{ l.created_at|local(business.timezone) }}{% if l.off_hours %} · ночью{% endif %}</div>
         {% if l.conversation_id %}<a class="small" href="/panel/conversations/{{ l.conversation_id }}">Открыть диалог</a>{% endif %}
       </div>

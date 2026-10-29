@@ -10,14 +10,15 @@
   </div>
 </section>
 
-{% set ready = [counts.services > 0, counts.staff > 0, counts.free_slots > 0, channels[0][1] or channels[1][1] or channels[2][1], admins > 0] %}
+{% set books = pack.has('booking') or pack.has('request') %}
+{% set ready = [counts.services > 0, counts.staff > 0 or not books, counts.free_slots > 0 or not pack.has('booking'), channels[0][1] or channels[1][1] or channels[2][1], admins > 0] %}
 {% if not (ready[0] and ready[1] and ready[2] and ready[3] and ready[4]) %}
 <section class="card">
   <h2>Запуск</h2>
   <ol class="steps">
-    <li class="{{ 'done' if ready[0] }}"><a href="/panel/services">Заполните прайс</a></li>
-    <li class="{{ 'done' if ready[1] }}"><a href="/panel/staff">Добавьте специалистов</a></li>
-    <li class="{{ 'done' if ready[2] }}"><a href="/panel/slots">Создайте свободные окна для записи</a></li>
+    <li class="{{ 'done' if ready[0] }}"><a href="/panel/services">Заполните раздел «{{ pack.catalog_label }}»</a></li>
+    {% if pack.has('booking') or pack.has('request') %}<li class="{{ 'done' if ready[1] }}"><a href="/panel/staff">Заполните раздел «{{ pack.resource_label }}»</a></li>{% endif %}
+    {% if pack.has('booking') %}<li class="{{ 'done' if ready[2] }}"><a href="/panel/slots">Создайте свободные окна для записи</a></li>{% endif %}
     <li class="{{ 'done' if ready[3] }}"><a href="/panel/channels">Подключите канал: Telegram, WhatsApp или Instagram</a></li>
     <li class="{{ 'done' if ready[4] }}"><a href="/panel/settings">Привяжите Telegram для уведомлений о записях</a></li>
   </ol>
@@ -29,8 +30,9 @@
   <div class="stats">
     <div class="stat"><b>{{ s14.conversations }}</b><span>диалогов с клиентами</span></div>
     <div class="stat"><b>{{ s14.off_hours_conversations }}</b><span>из них в нерабочее время</span></div>
-    <div class="stat"><b>{{ s14.bookings }}</b><span>записей сделал ИИ</span></div>
-    <div class="stat"><b>{{ s14.off_hours_bookings }}</b><span>записей в нерабочее время</span></div>
+    {% if pack.has('order') %}<div class="stat"><b>{{ s14.orders }}</b><span>заказов принял ИИ</span></div>{% endif %}
+    {% if pack.has('booking') %}<div class="stat"><b>{{ s14.bookings }}</b><span>записей сделал ИИ</span></div>
+    <div class="stat"><b>{{ s14.off_hours_bookings }}</b><span>записей в нерабочее время</span></div>{% endif %}
     <div class="stat"><b>{{ s14.requests }}</b><span>заявок на запись (перезвонить)</span></div>
     <div class="stat"><b>{{ s14.leads }}</b><span>вопросов передано людям</span></div>
     <div class="stat"><b>${{ '%.2f'|format(s14.ai_cost_usd) }}</b><span>расход на ИИ, {{ s14.ai_replies }} ответов</span></div>
