@@ -150,9 +150,32 @@ def health():
     return {"ok": True}
 
 
+def _site(request: Request, template: str, **ctx: Any):
+    s = _settings(request)
+    ctx.update(
+        request=request,
+        legal_name=s.company_legal_name,
+        email=s.contact_email,
+        phone=s.contact_phone,
+        telegram=s.contact_telegram,
+        updated="29.10.2026",
+    )
+    return templates.TemplateResponse(request, template, ctx)
+
+
 @router.get("/")
-def root():
-    return _back("/panel")
+def landing(request: Request):
+    return _site(request, "site_home.html")
+
+
+@router.get("/privacy")
+def privacy(request: Request):
+    return _site(request, "site_privacy.html")
+
+
+@router.get("/data-deletion")
+def data_deletion(request: Request):
+    return _site(request, "site_deletion.html")
 
 
 @router.get("/login")
