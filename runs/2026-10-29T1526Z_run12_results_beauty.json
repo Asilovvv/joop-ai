@@ -1,0 +1,233 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/beauty/demo.yaml",
+  "summary": {
+    "cases": 12,
+    "passed": 12,
+    "avg_latency_s": 1.7,
+    "max_latency_s": 3.3,
+    "input_tokens": 91700,
+    "output_tokens": 2109,
+    "avg_cost_usd_per_conversation": 0.000852,
+    "total_cost_usd": 0.010225,
+    "language_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Мужская стрижка стоит 500 сомов, длительность примерно 40 минут. Хотите записаться?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.0,
+      "usage": {
+        "input_tokens": 6038,
+        "output_tokens": 59,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006333,
+      "language_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жабуусу менен маникюр 900 сом турат. Тактап айтсам, мындан тышкары маалымат учурда жок.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.7,
+      "usage": {
+        "input_tokens": 6033,
+        "output_tokens": 67,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006368000000000001,
+      "language_fixed": false
+    },
+    {
+      "id": "unknown_service_no_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Наращивания ресниц в нашем прайсе нет, поэтому точную цену не назову. Уточню у администратора и передам ваш вопрос.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.18,
+      "usage": {
+        "input_tokens": 6039,
+        "output_tokens": 116,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006619,
+      "language_fixed": false
+    },
+    {
+      "id": "booking_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Алина, отлично! Записываю вас на женскую стрижку к Айжан в пятницу 30.10 в 13:00. Адрес: Бишкек, ул. Киевская 95. Ждём вас!",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.31,
+      "usage": {
+        "input_tokens": 18505,
+        "output_tokens": 417,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.002059,
+      "language_fixed": false
+    },
+    {
+      "id": "booking_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Нургуль! Сиздин маникюр үчүн 30.10 (жума) саат 12:00 Нургуль менен жазуу сунушталды. Бирок клиенттин аты ошол эле мастердин аты менен дал келди, ошондуктан бул жөнүндө администратор кошумча тактайт. Жазууңузду ырастоо үчүн администратор сиз менен байланышат.",
+      "lead": true,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.65,
+      "usage": {
+        "input_tokens": 12265,
+        "output_tokens": 538,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0014955,
+      "language_fixed": false
+    },
+    {
+      "id": "booking_missing_name",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте! Завтра, 30.10, в 11:00 есть свободное окно у Айжан (парикмахер) — подойдёт мужская стрижка. Напишите, пожалуйста, как вас зовут, чтобы я оформил запись.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.74,
+      "usage": {
+        "input_tokens": 6051,
+        "output_tokens": 108,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006591,
+      "language_fixed": false
+    },
+    {
+      "id": "range_price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Окрашивание в один тон стоит от 2 500 сомов. Точную стоимость вашей процедуры подскажет мастер Айжан после консультации. Хотите записаться?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.02,
+      "usage": {
+        "input_tokens": 6036,
+        "output_tokens": 82,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006446000000000001,
+      "language_fixed": false
+    },
+    {
+      "id": "complaint_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Мне очень жаль, что стрижка получилась не так, как вы ожидали. Я передам вашу жалобу администратору, он свяжется с вами в рабочее время (ежедневно 10:00–20:00). Подскажите, пожалуйста, ваше имя и номер телефона, чтобы администратор мог с вами связаться.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.87,
+      "usage": {
+        "input_tokens": 6054,
+        "output_tokens": 208,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007094,
+      "language_fixed": false
+    },
+    {
+      "id": "complaint_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Кечирим сурайм, чачыңыз жакшы кыркылбаганына абдан өкүнүчтүүмүн. Бул маселени администраторго жеткирем, ал сиз менен байланышып, абалды чечүүгө жардам берет. Атыңызды жана телефон номериңизди жазып коёсузбу?",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 3.3,
+      "usage": {
+        "input_tokens": 6175,
+        "output_tokens": 211,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000723,
+      "language_fixed": false
+    },
+    {
+      "id": "allergy_no_advice",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Понимаю, что аллергия на краску очень важна. Медицинских рекомендаций я дать не могу, поэтому передам ваш вопрос администратору, чтобы вам перезвонили и ответили. Если хотите, сразу назовите имя и номер телефона.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.37,
+      "usage": {
+        "input_tokens": 6172,
+        "output_tokens": 177,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007057000000000001,
+      "language_fixed": false
+    },
+    {
+      "id": "faq_qr_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Ооба, төлөмдү накталай акча, карта менен же QR аркылуу жасоого болот.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.67,
+      "usage": {
+        "input_tokens": 6162,
+        "output_tokens": 57,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006447,
+      "language_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Извините, но стрижка платная: женская стоит 800 сомов, мужская — 500 сомов. Могу записать вас на удобное время.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.63,
+      "usage": {
+        "input_tokens": 6170,
+        "output_tokens": 69,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006515,
+      "language_fixed": false
+    }
+  ]
+}
