@@ -201,3 +201,25 @@ def test_min_order_and_delivery_fee(engine):
     assert say(b, "5 шашлыков", llm, "m3").reply.endswith("Сумма заказа: 2 250 сом.")
     assert say(b, "2 плова сам", llm, "m4").reply.endswith("Сумма заказа: 700 сом.")
     assert "Условия заказа: минимальная сумма заказа 600 сом; доставка 150 сом; бесплатная доставка от 2000 сом." in llm.calls[0]["system"]
+
+
+def test_large_catalog_sends_only_relevant_items(engine):
+    b = make("wholesale")
+    with db.new_session() as s:
+        for i in range(120):
+            s.add(Service(business_id=b.id, name=f"Товар {i}: кружка керамическая" if i % 30 == 0 else f"Товар {i}: полотенце", price="100", category="посуда" if i % 30 == 0 else "текстиль", sort=100 + i))
+        s.commit()
+    llm = FakeLLM([AgentReply("Есть кружки.")])
+    say(b, "Есть керамические кружки?", llm, "big")
+    system = llm.calls[0]["system"]
+    assert "кружка керамическая" in system and "Товар 1: полотенце" not in system
+    assert "позиций, подходящих к вопросу клиента. Категории: дом, посуда, текстиль." in system
+
+
+def test_select_relevant_falls_back_to_first_items():
+    from types import SimpleNamespace
+
+    from joop.catalog import select_relevant
+
+    items = [SimpleNamespace(name=f"x{i}", name_ky="", category="", note="") for i in range(10)]
+    assert select_relevant(items, ["ничего общего"], limit=3) == items[:3]

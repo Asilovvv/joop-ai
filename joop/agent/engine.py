@@ -14,6 +14,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
+from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
 from ..lang import fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff
@@ -112,7 +113,8 @@ def handle_incoming(
     if not text:
         return Outcome(skipped="empty")
 
-    services = session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort, Service.id)).all()
+    services = list(session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort, Service.id)).all())
+    services, catalog_hint = _catalog_for_prompt(session, conv, services, text)
     staff = session.exec(select(Staff).where(Staff.business_id == business.id).order_by(Staff.id)).all()
     faqs = session.exec(select(Faq).where(Faq.business_id == business.id).order_by(Faq.id)).all()
     slots = free_slots(session, business.id, now_local)
@@ -125,6 +127,7 @@ def handle_incoming(
         now_local=now_local,
         conversation=conv,
         channel=incoming.channel,
+        catalog_hint=catalog_hint,
     )
     history = _history(session, conv, now)
 
@@ -197,6 +200,24 @@ def handle_incoming(
 
 
 # --- helpers -----------------------------------------------------------------------------------
+
+
+def _catalog_for_prompt(session: Session, conv: Conversation, services: list[Service], text: str) -> tuple[list[Service], str]:
+    """Large catalogs: send only items relevant to the last customer messages, plus the category list."""
+    available = [s for s in services if s.available]
+    if len(available) <= CATALOG_PROMPT_LIMIT:
+        return services, ""
+    recent = session.exec(
+        select(Message.text).where(Message.conversation_id == conv.id, Message.role == "customer").order_by(Message.id.desc()).limit(3)
+    ).all()
+    chosen = select_relevant(available, [text, *recent])
+    categories = sorted({s.category for s in available if s.category})
+    hint = (
+        f"Показаны {len(chosen)} из {len(available)} позиций, подходящих к вопросу клиента."
+        + (" Категории: " + ", ".join(categories) + "." if categories else "")
+        + " Если нужной позиции нет в показанных, уточни у клиента название или категорию; не говори, что её нет."
+    )
+    return chosen, hint
 
 
 def _already_seen(session: Session, business_id: int, external_id: str) -> bool:
