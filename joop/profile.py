@@ -53,6 +53,9 @@ def apply_profile(
     business.hours_text = _text(data.get("hours"))
     business.booking_policy = _text(data.get("booking_policy"))
     business.tone = _text(data.get("tone"))
+    for key in ("min_order", "delivery_fee", "free_delivery_from"):
+        if key in data:
+            setattr(business, key, int(data.get(key) or 0))
     rules = data.get("rules") or []
     business.extra_rules = "\n".join(f"- {_text(r)}" for r in rules if _text(r))
     session.add(business)

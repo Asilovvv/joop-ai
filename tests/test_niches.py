@@ -183,3 +183,21 @@ def test_eval_runs_a_pack_with_orders(tmp_path):
     data = run(str(pack.demo_file), str(f), lambda: FakeLLM([scripted]), "claude-haiku-5-5")
     assert data["summary"]["passed"] == 1, data["cases"]
     assert data["cases"][0]["final_reply"].endswith("Сумма заказа: 700 сом.")
+
+
+def test_min_order_and_delivery_fee(engine):
+    b = make("restaurant")  # demo: min order 600, delivery 150, free from 2000
+    plov, shashlik = item(b, "Плов"), item(b, "Шашлык из баранины")
+    base = {"address": "Киевская 1", "time": "", "name": "Айбек", "phone": "0555123456", "comment": ""}
+    llm = FakeLLM([
+        AgentReply("Готово.", order={**base, "mode": "delivery", "lines": [{"item_id": plov.id, "quantity": 1, "note": ""}]}),
+        AgentReply("Готово.", order={**base, "mode": "delivery", "lines": [{"item_id": plov.id, "quantity": 2, "note": ""}]}),
+        AgentReply("Готово.", order={**base, "mode": "delivery", "lines": [{"item_id": shashlik.id, "quantity": 5, "note": ""}]}),
+        AgentReply("Готово.", order={**base, "mode": "pickup", "lines": [{"item_id": plov.id, "quantity": 2, "note": ""}]}),
+    ])
+    small = say(b, "1 плов", llm, "m1")
+    assert small.order_id is None and small.reply.startswith("Минимальная сумма заказа — 600 сом, сейчас в заказе на 350 сом.")
+    assert say(b, "2 плова", llm, "m2").reply.endswith("Сумма заказа: 850 сом, включая доставку 150 сом.")
+    assert say(b, "5 шашлыков", llm, "m3").reply.endswith("Сумма заказа: 2 250 сом.")
+    assert say(b, "2 плова сам", llm, "m4").reply.endswith("Сумма заказа: 700 сом.")
+    assert "Условия заказа: минимальная сумма заказа 600 сом; доставка 150 сом; бесплатная доставка от 2000 сом." in llm.calls[0]["system"]

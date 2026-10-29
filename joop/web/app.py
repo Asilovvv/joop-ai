@@ -748,6 +748,11 @@ async def settings_save(request: Request):
         b.booking_policy = text("booking_policy", 1000)
         b.greeting = text("greeting", 1000)
         b.bot_enabled = bool(form.get("bot_enabled"))
+        for key in ("min_order", "delivery_fee", "free_delivery_from"):
+            try:
+                setattr(b, key, max(0, int(str(form.get(key) or 0).replace(" ", ""))))
+            except ValueError:
+                pass
         b.reminder_hour = hour("reminder_hour", b.reminder_hour)
         b.digest_hour = hour("digest_hour", b.digest_hour)
         s.add(b)
