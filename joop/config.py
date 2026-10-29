@@ -29,6 +29,13 @@ def load_dotenv(path: str | os.PathLike[str] = ".env") -> None:
         os.environ.setdefault(key, value)
 
 
+def _int(value: str | None, default: int) -> int:
+    try:
+        return int(str(value).strip()) if value not in (None, "") else default
+    except ValueError:
+        return default
+
+
 def _flag(value: str | None, default: bool) -> bool:
     if value is None or value.strip() == "":
         return default
@@ -58,6 +65,17 @@ class Settings:
     contact_email: str = ""
     contact_phone: str = ""
     contact_telegram: str = ""
+    # SaaS: self-serve sign-up, billing, founder console
+    signup_enabled: bool = True
+    trial_days: int = 14
+    price_som: int = 0  # monthly price; 0 = not published yet, sign-up still works with a trial
+    owner_password: str = ""  # founder console password; empty = console disabled
+    billing_instructions: str = ""  # how to pay by transfer or QR, shown on the billing page
+    freedompay_merchant_id: str = ""
+    freedompay_secret_key: str = ""
+    freedompay_api_base: str = "https://api.freedompay.kg"
+    freedompay_currency: str = "KGS"
+    freedompay_testing: bool = True
 
 
 def settings_from_env() -> Settings:
@@ -92,6 +110,16 @@ def settings_from_env() -> Settings:
         contact_email=env.get("CONTACT_EMAIL", "").strip(),
         contact_phone=env.get("CONTACT_PHONE", "").strip(),
         contact_telegram=env.get("CONTACT_TELEGRAM", "").strip().lstrip("@"),
+        signup_enabled=_flag(env.get("SIGNUP_ENABLED"), True),
+        trial_days=_int(env.get("TRIAL_DAYS"), 14),
+        price_som=_int(env.get("PRICE_SOM"), 0),
+        owner_password=env.get("OWNER_PASSWORD", "").strip(),
+        billing_instructions=env.get("BILLING_INSTRUCTIONS", "").strip(),
+        freedompay_merchant_id=env.get("FREEDOMPAY_MERCHANT_ID", "").strip(),
+        freedompay_secret_key=env.get("FREEDOMPAY_SECRET_KEY", "").strip(),
+        freedompay_api_base=env.get("FREEDOMPAY_API_BASE", "https://api.freedompay.kg").strip().rstrip("/"),
+        freedompay_currency=env.get("FREEDOMPAY_CURRENCY", "KGS").strip() or "KGS",
+        freedompay_testing=_flag(env.get("FREEDOMPAY_TESTING"), True),
     )
 
 

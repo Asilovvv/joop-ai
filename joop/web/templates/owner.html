@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Компании и деньги{% endblock %}
+{% set active = 'owner' %}
+{% block content %}
+{% include "owner_nav.html" %}
+<div class="stats">
+  <div class="stat"><b>{{ '{:,}'.format(mrr).replace(',', ' ') }}</b><span>сом в месяц (оплаченные)</span></div>
+  <div class="stat"><b>{{ '{:,}'.format(paid30).replace(',', ' ') }}</b><span>сом получено за 30 дней</span></div>
+  <div class="stat"><b>{{ counts.active }}</b><span>платят</span></div>
+  <div class="stat"><b>{{ counts.trial }}</b><span>на пробном</span></div>
+  <div class="stat"><b>{{ counts.grace + counts.expired }}</b><span>ждут оплаты</span></div>
+  <div class="stat"><b>${{ '%.2f' | format(total_cost) }}</b><span>расход на ИИ за 30 дней</span></div>
+</div>
+{% if not price %}<p class="flash error">Цена не задана (PRICE_SOM). Регистрация работает, но оплатить картой нельзя. Можно задать цену каждой компании отдельно.</p>{% endif %}
+
+{% if pending %}
+<section class="card">
+  <h2>Ждут подтверждения оплаты</h2>
+  <div class="list">
+    {% for p in pending %}
+    <div class="item"><div class="main">№{{ p.id }} · {{ names.get(p.business_id, '?') }} · <b>{{ p.amount_som }} сом</b> · {{ 'карта' if p.method == 'freedompay' else 'перевод' }} · {{ p.created_at | dt }}</div>
+      <div class="actions">
+        <form method="post" action="/owner/payment/{{ p.id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small" name="action" value="confirm">Деньги пришли</button></form>
+        <form method="post" action="/owner/payment/{{ p.id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn danger small" name="action" value="reject">Отклонить</button></form>
+      </div></div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Компании ({{ rows | length }})</h2>
+  <div class="scroll"><table class="table">
+    <tr><th>Компания</th><th>Статус</th><th>Сообщений / результатов за 30 дн.</th><th>ИИ, $</th><th>Цена, сом</th><th>Действия</th></tr>
+    {% for r in rows %}
+    <tr>
+      <td><b>{{ r.b.name }}</b><br><span class="muted small">{{ r.b.slug }} · {{ r.pack }}{% if r.sub and r.sub.contact_phone %} · {{ r.sub.contact_name }} {{ r.sub.contact_phone }}{% endif %}</span>{% if r.sub and r.sub.note %}<br><span class="small">{{ r.sub.note }}</span>{% endif %}</td>
+      <td>{% if r.st %}<span class="chip {{ 'ok' if r.st.code in ('active', 'trial') else 'warn' }}">{{ r.st.label }}{% if r.st.active %} · {{ r.st.days_left }} дн.{% endif %}</span>{% else %}<span class="chip">вручную</span>{% endif %}</td>
+      <td class="mono">{{ r.msgs }} / {{ r.results }}</td>
+      <td class="mono">{{ '%.2f' | format(r.cost) }}</td>
+      <td>
+        <form method="post" action="/owner/business/{{ r.b.id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="price"><input name="price" type="number" min="0" step="100" value="{{ r.sub.price_som if r.sub and r.sub.price_som else '' }}" placeholder="{{ price or '' }}" style="width: 90px" aria-label="Цена в месяц"></form>
+      </td>
+      <td><div class="actions" style="justify-content: flex-start">
+        {% for action, label in [('login', 'Открыть панель'), ('extend', '+7 дней'), ('paid', 'Оплатил'), ('suspend', 'Пауза'), ('resume', 'Включить')] %}
+        <form method="post" action="/owner/business/{{ r.b.id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="days" value="7"><button class="btn {{ 'small' if action in ('login', 'paid') else 'ghost small' }}" name="action" value="{{ action }}">{{ label }}</button></form>
+        {% endfor %}
+      </div></td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  <p class="muted small">Новые компании регистрируются сами на <code>/signup</code> и получают {{ trial_days }} дней. «Открыть панель» — зайти в панель компании, чтобы помочь с настройкой.</p>
+</section>
+{% endblock %}
