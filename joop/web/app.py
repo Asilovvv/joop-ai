@@ -241,26 +241,36 @@ def services_page(request: Request):
 
 
 @router.post("/panel/services")
-def service_add(request: Request, name: str = Form(""), price: str = Form(""), note: str = Form(""), csrf: str = Form("")):
+def service_add(
+    request: Request, name: str = Form(""), name_ky: str = Form(""), price: str = Form(""), note: str = Form(""), csrf: str = Form("")
+):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
         if name.strip():
             last = s.exec(select(func.max(Service.sort)).where(Service.business_id == b.id)).one() or 0
-            s.add(Service(business_id=b.id, name=name.strip(), price=price.strip(), note=note.strip(), sort=last + 1))
+            s.add(Service(business_id=b.id, name=name.strip(), name_ky=name_ky.strip(), price=price.strip(), note=note.strip(), sort=last + 1))
             s.commit()
             _flash(request, "Услуга добавлена.")
     return _back("/panel/services")
 
 
 @router.post("/panel/services/{item_id}")
-def service_update(request: Request, item_id: int, name: str = Form(""), price: str = Form(""), note: str = Form(""), csrf: str = Form("")):
+def service_update(
+    request: Request,
+    item_id: int,
+    name: str = Form(""),
+    name_ky: str = Form(""),
+    price: str = Form(""),
+    note: str = Form(""),
+    csrf: str = Form(""),
+):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
         row = _own(s, Service, item_id, b.id)
         if name.strip():
-            row.name, row.price, row.note = name.strip(), price.strip(), note.strip()
+            row.name, row.name_ky, row.price, row.note = name.strip(), name_ky.strip(), price.strip(), note.strip()
             s.add(row)
             s.commit()
             _flash(request, "Сохранено.")
@@ -661,6 +671,9 @@ async def settings_save(request: Request):
         if text("timezone") in TIMEZONES:
             b.timezone = text("timezone")
         b.extra_rules = text("extra_rules", 3000)
+        b.description = text("description", 1000)
+        b.tone = text("tone", 300)
+        b.booking_policy = text("booking_policy", 1000)
         b.greeting = text("greeting", 1000)
         b.bot_enabled = bool(form.get("bot_enabled"))
         b.reminder_hour = hour("reminder_hour", b.reminder_hour)
