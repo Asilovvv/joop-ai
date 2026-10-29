@@ -50,6 +50,7 @@ def build_system_prompt(
     conversation: Conversation,
     channel: str,
     catalog_hint: str = "",
+    extra_facts: str = "",
 ) -> str:
     pack = get_pack(business.niche)
     off = is_off_hours(now_local, business.work_start, business.work_end, business.days_off)
@@ -119,6 +120,9 @@ def build_system_prompt(
         out.append("Условия заказа: " + "; ".join(terms) + ".")
     if business.booking_policy.strip():
         out.append(f"Порядок записи и заказа в компании: {business.booking_policy.strip()}")
+
+    if extra_facts:
+        out += extra_facts.split("\n")
 
     known = []
     if conversation.customer_name:

@@ -140,6 +140,12 @@ WhatsApp message fees for reminders.
   prices from the site, trial period started); once its Telegram bot is connected, the founder pastes
   the bot link into "Ссылка на запись" and the site's main button becomes "Записаться через ИИ"
   (only t.me, wa.me and Instagram links are accepted).
+- **Level test** (training centres, `/panel/tests`): the school uploads its own questions (CSV: section;
+  question; 2-6 options; right answer) and a level scale ("0-10 A1"). In a chat the AI gives the student a
+  personal link `/t/<token>`; code (not the model) grades the answers, the result goes back to that chat,
+  the school gets a Telegram note and a lead, and the AI then offers groups of that level. A shared link
+  `/test/<code>` works for the website, QR codes and Instagram. The panel shows links, finished tests,
+  bookings after the test and the conversion. The AI never guesses a level from the chat.
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
 

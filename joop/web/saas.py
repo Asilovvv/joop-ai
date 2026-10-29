@@ -32,7 +32,7 @@ from ..niches import all_packs, get_pack
 from ..presets import SlugTaken, create_business
 from ..pricing import empty_usage
 from ..timeutil import utcnow
-from .app import _back, _business, _check_csrf, _csrf, _flash, _render, _rt, _settings, templates
+from .app import _back, _base_url, _business, _check_csrf, _csrf, _flash, _render, _rt, _settings, templates
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -253,7 +253,7 @@ def try_send(request: Request, text: str = Form(""), csrf: str = Form("")):
         incoming = IncomingMessage("console", TRY_CHAT_ID, "command" if text.startswith("/") else "text", text, "Тест",
                                    f"console:{TRY_CHAT_ID}:{secrets.token_hex(6)}")
         try:
-            outcome = handle_incoming(s, b, incoming, _rt(request).get_llm)
+            outcome = handle_incoming(s, b, incoming, _rt(request).get_llm, base_url=_base_url(request))
             s.commit()
         except Exception:
             s.rollback()

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Тест на уровень{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Тест на уровень</h1>
+  <p class="muted">Студент сам проходит тест по ссылке, система считает баллы и уровень по вашей шкале. Результат приходит ему в чат, вам — сюда и в Telegram. ИИ даёт ссылку, когда спрашивают про уровень, и после теста предлагает группы этого уровня. Вопросы — ваши: ИИ их не придумывает и ответы не проверяет.</p>
+</section>
+{% for r in rows %}
+<section class="card">
+  <h2><a href="/panel/tests/{{ r.test.id }}">{{ r.test.title }}</a> {% if not r.test.active %}<span class="chip">выключен</span>{% endif %}</h2>
+  <p class="muted small">Вопросов: {{ counts[r.test.id] }}{% if not counts[r.test.id] %} — загрузите вопросы, иначе тест не работает{% endif %}.</p>
+  <div class="stats">
+    <div class="stat"><b>{{ r.links }}</b><span>ссылок выдал ИИ, ещё не открыты</span></div>
+    <div class="stat"><b>{{ r.started }}</b><span>начали и не закончили</span></div>
+    <div class="stat"><b>{{ r.finished }}</b><span>прошли тест</span></div>
+    <div class="stat"><b>{{ r.booked }}</b><span>записались после теста</span></div>
+    <div class="stat"><b>{{ r.conversion }}%</b><span>конверсия в запись</span></div>
+  </div>
+</section>
+{% endfor %}
+<section class="card">
+  <h2>Новый тест</h2>
+  <form class="row c2" method="post" action="/panel/tests">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input name="title" placeholder="Например: Английский — тест на уровень" required maxlength="120">
+    <div class="row-tail"><button class="btn small" type="submit">Создать</button></div>
+  </form>
+</section>
+<section class="card">
+  <h2>Последние результаты</h2>
+  {% if recent %}
+  <div class="scroll"><table class="table">
+    <tr><th>Когда</th><th>Студент</th><th>Тест</th><th>Баллы</th><th>Уровень</th><th>По разделам</th><th></th></tr>
+    {% for a in recent %}
+    <tr>
+      <td>{{ a.finished_at|local(business.timezone) }}</td>
+      <td>{{ a.name }}<br><span class="muted small">{{ a.phone }}</span></td>
+      <td>{{ titles.get(a.test_id, '') }}</td>
+      <td>{{ a.score }} из {{ a.max_score }}{% if a.late %} <span class="chip">после лимита</span>{% endif %}</td>
+      <td><b>{{ a.level or '—' }}</b></td>
+      <td class="small">{% for name, v in sections(a).items() %}{{ name }} {{ v[0] }}/{{ v[1] }}{% if not loop.last %}; {% endif %}{% endfor %}</td>
+      <td class="small">{% if a.conversation_id %}<a href="/panel/conversations/{{ a.conversation_id }}">Диалог</a>{% if not a.result_sent %}<br><span class="muted">в чат не ушло</span>{% endif %}{% else %}<span class="muted">по ссылке</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% else %}<p class="muted">Пока никто не прошёл тест.</p>{% endif %}
+</section>
+{% endblock %}

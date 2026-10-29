@@ -89,7 +89,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
         t0 = time.perf_counter()
         with db.new_session() as s:
             business = s.get(Business, business_id)
-            out = handle_incoming(s, business, incoming, get_llm)
+            out = handle_incoming(s, business, incoming, get_llm, base_url="https://joop.example")
             s.commit()
             if out.lead_id is not None:
                 handoff = handoff or s.get(Lead, out.lead_id).kind == "handoff"
