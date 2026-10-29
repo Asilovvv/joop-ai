@@ -152,6 +152,11 @@ WhatsApp message fees for reminders.
   its catalog (categories, prices, stop list, Russian/Kyrgyz names) with an "order" button to its bot or
   WhatsApp, and print a sheet of QR codes, one per table (`/m/<slug>?t=5` shows "Стол 5" and puts the
   table number into the WhatsApp message). Off until the company turns it on.
+- **Ratings and coming back** (`/panel/followups`, off by default): two hours after a visit the AI asks
+  for a 1-5 rating; 4-5 get a link to leave a review on 2GIS / Google Maps, 1-3 go to the staff at once
+  as a handoff. Each service can have "invite again after N days" (manicure 21, cleaning 180): the AI
+  invites the customer back unless they have already booked. Messages go only where the channel allows
+  (Telegram any time, WhatsApp / Instagram within 24 hours); the rest is listed for the staff.
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
 
