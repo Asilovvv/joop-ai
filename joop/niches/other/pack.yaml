@@ -1,0 +1,8 @@
+label: Другой бизнес
+who: компании
+catalog_label: Прайс
+catalog_item: услуга
+resource_label: Сотрудники
+resource_item: сотрудник
+outcomes: [booking, request, handoff]
+rules: []
