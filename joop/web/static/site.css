@@ -83,3 +83,9 @@ footer.site .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-conte
   .nav { gap: 12px; font-size: 13px; }
   .nav a[href^="/#"] { display: none; }
 }
+
+/* Self-serve: niches and price */
+.niches { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.niche { text-decoration: none; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px; font-weight: 600; }
+.niche:hover, .niche:focus-visible { border-color: var(--accent); color: var(--accent); }
+.big { font-family: var(--display); font-size: 28px; }
