@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Заявки{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Заявки</h1>
+  <p class="muted">Заявки на запись без выбранного окна (перезвоните и подтвердите время) и то, что ИИ передал людям: перенос и отмена, жалобы, голосовые, вопросы без ответа в прайсе.</p>
+</section>
+<section class="card">
+  <h2>Новые</h2>
+  {% if new %}
+  <div class="list">
+    {% for l in new %}
+    <div class="item">
+      <div class="main">
+        <div>{% if l.kind == 'request' %}<span class="chip ok">запись</span> {% endif %}{{ l.summary }}</div>
+        <div class="muted small">{{ l.customer_name or 'без имени' }} {{ l.customer_phone }} · {{ channel_names.get(l.channel, l.channel) }} · {{ l.created_at|local(business.timezone) }}{% if l.off_hours %} · ночью{% endif %}</div>
+        {% if l.conversation_id %}<a class="small" href="/panel/conversations/{{ l.conversation_id }}">Открыть диалог</a>{% endif %}
+      </div>
+      <form method="post" action="/panel/leads/{{ l.id }}/done" class="actions"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small ghost" type="submit">Готово</button></form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted">Новых заявок нет.</p>{% endif %}
+</section>
+{% if done %}
+<section class="card">
+  <h2>Обработанные</h2>
+  <div class="list">
+    {% for l in done %}
+    <div class="item"><div class="main"><div class="muted">{{ l.summary }}</div><div class="muted small">{{ l.customer_name }} {{ l.customer_phone }} · {{ l.created_at|local(business.timezone) }}</div></div></div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

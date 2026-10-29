@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Настройки{% endblock %}
+{% block content %}
+<section><h1>Настройки</h1></section>
+
+<form method="post" action="/panel/settings" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <section class="card stack">
+    <h2>Компания</h2>
+    <label class="check"><input type="checkbox" name="bot_enabled" value="1" {{ 'checked' if business.bot_enabled }}> ИИ отвечает клиентам</label>
+    <div class="grid2">
+      <label for="s-name">Название<input id="s-name" name="name" value="{{ business.name }}" required></label>
+      <label for="s-phone">Телефон для клиентов<input id="s-phone" name="phone" value="{{ business.phone }}"></label>
+    </div>
+    <label for="s-address">Адрес<input id="s-address" name="address" value="{{ business.address }}"></label>
+    <label for="s-hours">Часы работы для клиентов<input id="s-hours" name="hours_text" value="{{ business.hours_text }}" placeholder="Пн–Сб 09:00–19:00, воскресенье — выходной"></label>
+  </section>
+
+  <section class="card stack">
+    <h2>Рабочее время</h2>
+    <p class="muted small">По нему считается, сколько обращений пришло в нерабочее время, и выбирается время напоминаний.</p>
+    <div class="grid2">
+      <label for="s-ws">Начало<input id="s-ws" name="work_start" value="{{ business.work_start }}"></label>
+      <label for="s-we">Конец<input id="s-we" name="work_end" value="{{ business.work_end }}"></label>
+      <label for="s-tz">Часовой пояс
+        <select id="s-tz" name="timezone">{% for tz in timezones %}<option value="{{ tz }}" {{ 'selected' if tz == business.timezone }}>{{ tz }}</option>{% endfor %}</select>
+      </label>
+    </div>
+    <div>
+      <span class="muted small">Выходные</span>
+      <div class="days">{% for num, label in weekdays %}<label class="check"><input type="checkbox" name="off{{ num }}" value="1" {{ 'checked' if num in days_off }}> {{ label }}</label>{% endfor %}</div>
+    </div>
+    <div class="grid2">
+      <label for="s-rem">Напоминания на завтра отправлять в, час<input id="s-rem" type="number" min="0" max="23" name="reminder_hour" value="{{ business.reminder_hour }}"></label>
+      <label for="s-dig">Утренняя сводка в, час<input id="s-dig" type="number" min="0" max="23" name="digest_hour" value="{{ business.digest_hour }}"></label>
+    </div>
+  </section>
+
+  <section class="card stack">
+    <h2>Поведение ИИ</h2>
+    <label for="s-desc">О компании, одной-двумя фразами<textarea id="s-desc" name="description">{{ business.description }}</textarea></label>
+    <label for="s-policy">Порядок записи (например: администратор перезванивает и подтверждает время)<textarea id="s-policy" name="booking_policy">{{ business.booking_policy }}</textarea></label>
+    <label for="s-tone">Тон общения<input id="s-tone" name="tone" value="{{ business.tone }}" placeholder="Спокойно, вежливо, коротко, на «вы»"></label>
+    <label for="s-greet">Приветствие в Telegram по команде /start (пусто — стандартное)<textarea id="s-greet" name="greeting">{{ business.greeting }}</textarea></label>
+    <label for="s-rules">Дополнительные правила для ИИ<textarea id="s-rules" name="extra_rules" placeholder="Например: детей до 3 лет не принимаем; рассрочка только на импланты.">{{ business.extra_rules }}</textarea></label>
+  </section>
+  <div><button class="btn" type="submit">Сохранить настройки</button></div>
+</form>
+
+<section class="card stack">
+  <h2>Уведомления в Telegram</h2>
+  <p>О новых записях и заявках ИИ пишет в Telegram — вам лично или в общий чат клиники.</p>
+  <ol class="steps">
+    <li>Подключите бота на странице <a href="/panel/channels">«Каналы»</a>.</li>
+    <li>Откройте бота в Telegram (или добавьте его в чат администраторов) и отправьте: <code>/admin {{ business.admin_link_code }}</code></li>
+  </ol>
+  <p class="muted small">Привязано чатов: {{ admins|length }}.</p>
+  <div class="chips">
+    <form method="post" action="/panel/settings/link-code" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small ghost" type="submit">Новый код</button></form>
+    {% if admins %}<form method="post" action="/panel/settings/unlink" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small danger" type="submit">Отвязать все чаты</button></form>{% endif %}
+  </div>
+</section>
+
+<section class="card stack">
+  <h2>Пароль</h2>
+  <form method="post" action="/panel/settings/password" class="grid2">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="p-cur">Текущий<input id="p-cur" type="password" name="current" autocomplete="current-password" required></label>
+    <label for="p-new">Новый, от 8 символов<input id="p-new" type="password" name="new" autocomplete="new-password" minlength="8" required></label>
+    <div><button class="btn ghost" type="submit">Сменить пароль</button></div>
+  </form>
+</section>
+{% endblock %}

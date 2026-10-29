@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Сводка{% endblock %}
+{% block content %}
+<section class="head">
+  <h1>Сводка</h1>
+  <div class="chips">
+    <span class="chip {{ 'ok' if business.bot_enabled else 'warn' }}">ИИ {{ 'отвечает' if business.bot_enabled else 'выключен' }}</span>
+    {% for name, on in channels %}<span class="chip {{ 'ok' if on else '' }}">{{ name }}: {{ 'подключён' if on else 'нет' }}</span>{% endfor %}
+    <span class="chip {{ 'ok' if admins else 'warn' }}">Уведомления: {{ admins }}</span>
+  </div>
+</section>
+
+{% set ready = [counts.services > 0, counts.staff > 0, counts.free_slots > 0, channels[0][1] or channels[1][1] or channels[2][1], admins > 0] %}
+{% if not (ready[0] and ready[1] and ready[2] and ready[3] and ready[4]) %}
+<section class="card">
+  <h2>Запуск</h2>
+  <ol class="steps">
+    <li class="{{ 'done' if ready[0] }}"><a href="/panel/services">Заполните прайс</a></li>
+    <li class="{{ 'done' if ready[1] }}"><a href="/panel/staff">Добавьте специалистов</a></li>
+    <li class="{{ 'done' if ready[2] }}"><a href="/panel/slots">Создайте свободные окна для записи</a></li>
+    <li class="{{ 'done' if ready[3] }}"><a href="/panel/channels">Подключите канал: Telegram, WhatsApp или Instagram</a></li>
+    <li class="{{ 'done' if ready[4] }}"><a href="/panel/settings">Привяжите Telegram для уведомлений о записях</a></li>
+  </ol>
+</section>
+{% endif %}
+
+<section>
+  <h2>Последние 14 дней</h2>
+  <div class="stats">
+    <div class="stat"><b>{{ s14.conversations }}</b><span>диалогов с клиентами</span></div>
+    <div class="stat"><b>{{ s14.off_hours_conversations }}</b><span>из них в нерабочее время</span></div>
+    <div class="stat"><b>{{ s14.bookings }}</b><span>записей сделал ИИ</span></div>
+    <div class="stat"><b>{{ s14.off_hours_bookings }}</b><span>записей в нерабочее время</span></div>
+    <div class="stat"><b>{{ s14.requests }}</b><span>заявок на запись (перезвонить)</span></div>
+    <div class="stat"><b>{{ s14.leads }}</b><span>вопросов передано людям</span></div>
+    <div class="stat"><b>${{ '%.2f'|format(s14.ai_cost_usd) }}</b><span>расход на ИИ, {{ s14.ai_replies }} ответов</span></div>
+  </div>
+</section>
+
+<div class="cols">
+  <section class="card">
+    <h2>Ближайшие записи</h2>
+    {% if upcoming %}
+    <div class="list">
+      {% for b in upcoming %}
+      <div class="item">
+        <div class="main">
+          <div><span class="mono">{{ b.start|slot }}</span> · {{ b.customer_name }}</div>
+          <div class="muted small">{{ b.service or 'приём' }} · {{ b.staff_name }} · {{ b.customer_phone }}</div>
+        </div>
+        <span class="chip">{{ channel_names.get(b.channel, 'вручную') }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="muted">Записей пока нет. Когда ИИ запишет клиента, запись появится здесь и придёт в Telegram.</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>Новые заявки</h2>
+    {% if leads %}
+    <div class="list">
+      {% for l in leads %}
+      <div class="item">
+        <div class="main">
+          <div>{{ l.summary }}</div>
+          <div class="muted small">{{ l.customer_name or 'без имени' }} {{ l.customer_phone }} · {{ l.created_at|local(business.timezone) }}</div>
+        </div>
+        {% if l.off_hours %}<span class="chip warn">ночью</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <p class="small"><a href="/panel/leads">Все заявки</a></p>
+    {% else %}<p class="muted">Новых заявок нет.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

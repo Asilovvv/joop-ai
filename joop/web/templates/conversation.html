@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Диалог{% endblock %}
+{% block content %}
+<section class="head">
+  <div>
+    <h1>{{ conv.customer_name or conv.display_name or 'Клиент' }}</h1>
+    <p class="muted small">{{ channel_names.get(conv.channel, conv.channel) }}{% if conv.customer_phone %} · <span class="mono">{{ conv.customer_phone }}</span>{% endif %}</p>
+  </div>
+  {% if paused %}
+  <form method="post" action="/panel/conversations/{{ conv.id }}/resume"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn" type="submit">Включить ИИ</button></form>
+  {% else %}
+  <form method="post" action="/panel/conversations/{{ conv.id }}/pause"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="hours" value="24"><button class="btn ghost" type="submit">Выключить ИИ на 24 часа</button></form>
+  {% endif %}
+</section>
+{% if paused %}<p class="flash error">ИИ не отвечает в этом диалоге до {{ conv.ai_paused_until|local(business.timezone) }}. Ответьте клиенту сами в {{ channel_names.get(conv.channel, conv.channel) }}.</p>{% endif %}
+<section class="card msgs">
+  {% for m in messages %}
+  <div class="msg {{ m.role }}">{{ m.text }}<span class="meta">{{ {'customer': 'Клиент', 'ai': 'ИИ', 'staff': 'Администратор'}.get(m.role, m.role) }} · {{ m.created_at|local(business.timezone) }}{% if m.off_hours and m.role == 'customer' %} · нерабочее время{% endif %}</span></div>
+  {% else %}<p class="muted">Сообщений нет.</p>{% endfor %}
+</section>
+<p><a href="/panel/conversations">← Все диалоги</a></p>
+{% endblock %}

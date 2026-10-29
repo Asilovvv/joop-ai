@@ -1,3 +1,3 @@
-"""Joop AI - AI customer-service operator for small businesses (Kyrgyz/Russian)."""
+"""Joop AI: an AI administrator for small businesses."""
 
 __version__ = "0.1.0"

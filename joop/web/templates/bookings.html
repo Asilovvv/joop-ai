@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Записи{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Записи</h1>
+  <p class="muted">Отмена освобождает время для других клиентов. Самого клиента об отмене предупредите сами.</p>
+</section>
+<section class="card">
+  <h2>Предстоящие</h2>
+  {% if upcoming %}
+  <div class="scroll">
+    <table class="table">
+      <thead><tr><th>Когда</th><th>Клиент</th><th>Услуга</th><th>Специалист</th><th>Канал</th><th>Напоминание</th><th></th></tr></thead>
+      <tbody>
+      {% for b in upcoming %}
+      <tr class="{{ 'cancelled' if b.status == 'cancelled' else '' }}">
+        <td class="mono">{{ b.start|slot }}</td>
+        <td>{{ b.customer_name }}<br><span class="muted small mono">{{ b.customer_phone }}</span></td>
+        <td>{{ b.service or 'приём' }}</td>
+        <td>{{ b.staff_name }}</td>
+        <td>{{ channel_names.get(b.channel, 'вручную') }}{% if b.created_off_hours %} <span class="chip warn">ночью</span>{% endif %}</td>
+        <td>{{ {'sent': 'отправлено', 'manual': 'вручную', 'failed': 'ошибка'}.get(b.reminder_status, '—') }}</td>
+        <td>{% if b.status == 'booked' %}
+          <form method="post" action="/panel/bookings/{{ b.id }}/cancel" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small danger" type="submit">Отменить</button></form>
+        {% else %}<span class="muted small">отменена</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="muted">Предстоящих записей нет.</p>{% endif %}
+</section>
+<section class="card">
+  <h2>Прошедшие 30 дней</h2>
+  {% if past %}
+  <div class="scroll">
+    <table class="table">
+      <thead><tr><th>Когда</th><th>Клиент</th><th>Услуга</th><th>Специалист</th><th>Канал</th></tr></thead>
+      <tbody>
+      {% for b in past %}
+      <tr class="{{ 'cancelled' if b.status == 'cancelled' else '' }}">
+        <td class="mono">{{ b.start|slot }}</td><td>{{ b.customer_name }} <span class="muted small mono">{{ b.customer_phone }}</span></td>
+        <td>{{ b.service or 'приём' }}</td><td>{{ b.staff_name }}</td><td>{{ channel_names.get(b.channel, 'вручную') }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="muted">Пока пусто.</p>{% endif %}
+</section>
+{% endblock %}

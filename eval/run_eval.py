@@ -1,36 +1,43 @@
-"""Run the scripted evaluation set against the real model and print metrics.
+"""Run a scripted evaluation set against the real model and print metrics.
 
-Usage (needs ANTHROPIC_API_KEY):
-    python -m eval.run_eval [business.example.yaml] [eval/cases.yaml]
-Writes eval/results.json for the thesis.
+Usage (needs ANTHROPIC_API_KEY in the environment or .env):
+    python -m eval.run_eval [business.example.yaml] [eval/cases.yaml] [eval/results.json]
+
+Every case is a fresh conversation with a business loaded from the YAML profile. The profiles have
+no time slots, so bookings are taken as requests (name, phone, service, preferred time).
+Writes the results file used in the thesis and by the CI summary (eval/summary.py).
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
 import re
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 import yaml
+from sqlmodel import select
 
-from joop.agent import FALLBACK_TEXT, Agent
-from joop.business import BusinessProfile
-from joop.lang import KY_REPLY_MARKERS as KY_MARKERS, looks_kyrgyz  # noqa: F401  (re-exported for tests)
+from joop import db
+from joop.agent.engine import ERROR_REPLY, handle_incoming
+from joop.channels.base import IncomingMessage
+from joop.lang import looks_kyrgyz
+from joop.models import Business, Lead
+from joop.presets import create_business
 from joop.pricing import cost_usd, empty_usage
-from joop.storage import Storage
+from joop.profile import apply_profile, load_profile
 
 
 def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool) -> list[str]:
     """Return a list of failure reasons (empty = pass)."""
     fails = []
     low = final_text.lower()
-    if final_text.strip() == FALLBACK_TEXT:
+    if final_text.strip() == ERROR_REPLY:
         fails.append("no answer: the bot sent the generic fallback")
     if "**" in final_text or re.search(r"(?m)^#{1,6} ", final_text):
-        fails.append("markdown in reply (Telegram shows it as raw symbols)")
+        fails.append("markdown in reply (messengers show it as raw symbols)")
     if case.get("expect_lang") == "ky" and not looks_kyrgyz(final_text):
         fails.append("reply is not in Kyrgyz")
     if "expect_lead" in case and bool(case["expect_lead"]) != lead_saved:
@@ -46,23 +53,34 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool) -> 
     return fails
 
 
-async def run_case(llm, business, model, case) -> dict:
-    agent = Agent(llm=llm, business=business, storage=Storage(":memory:"), model=model)
-    lead = handoff = False
+def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict:
+    """One case = one new business and one conversation. A 'lead' is a booking or a booking request."""
+    with db.new_session() as s:
+        business = create_business(s, slug=f"eval{index}", name=profile["name"], password="eval-only-password")
+        apply_profile(s, business, profile)
+        s.commit()
+        business_id = business.id
+
+    lead = handoff = language_fixed = False
     final = ""
-    latencies = []
+    latencies: list[float] = []
     usage = empty_usage()
-    language_fixed = False
-    for turn in case["turns"]:
+    for turn_no, turn in enumerate(case["turns"]):
+        incoming = IncomingMessage("telegram", "eval", "text", turn, "eval", f"eval:{index}:{turn_no}")
         t0 = time.perf_counter()
-        r = await agent.reply(1, turn, "eval")
+        with db.new_session() as s:
+            business = s.get(Business, business_id)
+            out = handle_incoming(s, business, incoming, get_llm)
+            s.commit()
+            if out.lead_id is not None:
+                handoff = handoff or s.get(Lead, out.lead_id).kind == "handoff"
         latencies.append(time.perf_counter() - t0)
-        lead = lead or r.lead is not None
-        handoff = handoff or r.handoff
-        final = r.text
-        language_fixed = language_fixed or r.language_fixed
+        lead = lead or out.booking_id is not None or out.request_id is not None
+        language_fixed = language_fixed or out.language_fixed
+        final = out.reply or ""
         for k in usage:
-            usage[k] += r.usage.get(k, 0)
+            usage[k] += out.usage.get(k, 0)
+
     fails = check_case(case, final, lead, handoff)
     return {
         "id": case["id"],
@@ -95,34 +113,47 @@ def summarize(results: list[dict]) -> dict:
     }
 
 
-async def main() -> None:
-    from anthropic import AsyncAnthropic
+def run(profile_path: str, cases_path: str, get_llm, model: str) -> dict:
+    """Run every case in a throwaway database; returns the results document."""
+    profile = load_profile(profile_path)
+    cases = yaml.safe_load(Path(cases_path).read_text("utf-8"))
+    with tempfile.TemporaryDirectory() as tmp:
+        engine = db.make_engine(f"sqlite:///{Path(tmp) / 'eval.db'}")
+        db.set_engine(engine)
+        db.init_db()
+        try:
+            results = [run_case(get_llm, profile, case, model, i) for i, case in enumerate(cases)]
+        finally:
+            engine.dispose()
+            db.set_engine(None)
+    return {"model": model, "business_file": profile_path, "summary": summarize(results), "cases": results}
 
-    from joop.config import Settings
 
-    settings = Settings.from_env(require_telegram=False)
-    business = BusinessProfile.from_yaml(sys.argv[1] if len(sys.argv) > 1 else "business.example.yaml")
-    cases = yaml.safe_load(Path(sys.argv[2] if len(sys.argv) > 2 else "eval/cases.yaml").read_text("utf-8"))
-    llm = AsyncAnthropic(api_key=settings.anthropic_api_key)
+def main() -> None:
+    from joop.config import get_settings
+    from joop.runtime import Runtime
 
-    results = [await run_case(llm, business, settings.model, c) for c in cases]
-    for r in results:
+    settings = get_settings()
+    if not settings.anthropic_api_key:
+        sys.exit("ANTHROPIC_API_KEY is not set (environment or .env)")
+    profile_path = sys.argv[1] if len(sys.argv) > 1 else "business.example.yaml"
+    cases_path = sys.argv[2] if len(sys.argv) > 2 else "eval/cases.yaml"
+    out = Path(sys.argv[3]) if len(sys.argv) > 3 else Path("eval/results.json")
+
+    rt = Runtime(settings)
+    data = run(profile_path, cases_path, rt.get_llm, settings.model)
+    for r in data["cases"]:
         mark = "PASS" if r["passed"] else "FAIL"
-        print(f"{mark} {r['id']:<30} {r['avg_latency_s']}s  {'; '.join(r['fails'])}")
-    summary = summarize(results)
+        print(f"{mark} {r['id']:<34} {r['avg_latency_s']}s  {'; '.join(r['fails'])}")
+    summary = data["summary"]
     print(f"\n{summary['passed']}/{summary['cases']} passed, model {settings.model}")
     print(f"Language guard rewrote replies in {summary['language_guard_fired']} case(s)")
     if summary["avg_cost_usd_per_conversation"] is not None:
         print(f"Average cost per conversation: ${summary['avg_cost_usd_per_conversation']:.6f}; "
               f"total ${summary['total_cost_usd']:.6f}")
-    out = Path(sys.argv[3]) if len(sys.argv) > 3 else Path("eval/results.json")
-    out.write_text(
-        json.dumps({"model": settings.model, "business_file": str(sys.argv[1] if len(sys.argv) > 1 else "business.example.yaml"),
-                    "summary": summary, "cases": results}, ensure_ascii=False, indent=2),
-        "utf-8",
-    )
+    out.write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
     print(f"Saved to {out}")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

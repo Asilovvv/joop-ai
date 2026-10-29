@@ -1,49 +1,93 @@
-"""Settings from environment variables (.env supported)."""
+"""Runtime settings, read from environment variables and an optional .env file."""
 
 from __future__ import annotations
 
+import logging
 import os
+import secrets
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
+log = logging.getLogger(__name__)
 
-def load_dotenv(path: str = ".env") -> None:
-    """Minimal .env loader: KEY=VALUE lines, no overriding of real env vars."""
+
+def load_dotenv(path: str | os.PathLike[str] = ".env") -> None:
+    """Load KEY=VALUE lines from a .env file. Variables already set in the environment win."""
     p = Path(path)
-    if not p.exists():
+    if not p.is_file():
         return
-    for line in p.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
+    for raw in p.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        os.environ.setdefault(key, value)
 
 
-@dataclass
+def _flag(value: str | None, default: bool) -> bool:
+    if value is None or value.strip() == "":
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+@dataclass(frozen=True)
 class Settings:
-    telegram_token: str
+    database_url: str
     anthropic_api_key: str
-    owner_chat_id: int | None
     model: str
-    business_file: str
-    db_path: str
+    thinking: str
+    effort: str
+    session_secret: str
+    secure_cookies: bool
+    public_base_url: str
+    meta_verify_token: str
+    meta_app_secret: str
+    instagram_app_secret: str
+    graph_api_version: str
+    whatsapp_api_base: str
+    instagram_api_base: str
+    telegram_api_base: str
+    scheduler_enabled: bool
+    scheduler_interval: int
 
-    @classmethod
-    def from_env(cls, require_telegram: bool = True) -> "Settings":
-        load_dotenv()
-        token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-        api_key = os.getenv("ANTHROPIC_API_KEY", "")
-        if require_telegram and not token:
-            raise SystemExit("TELEGRAM_BOT_TOKEN is not set (see .env.example)")
-        if not api_key:
-            raise SystemExit("ANTHROPIC_API_KEY is not set (see .env.example)")
-        owner = os.getenv("OWNER_CHAT_ID", "").strip()
-        return cls(
-            telegram_token=token,
-            anthropic_api_key=api_key,
-            owner_chat_id=int(owner) if owner else None,
-            model=os.getenv("JOOP_MODEL", "claude-haiku-5-5"),
-            business_file=os.getenv("BUSINESS_FILE", "business.yaml"),
-            db_path=os.getenv("DB_PATH", "joop.db"),
-        )
+
+def settings_from_env() -> Settings:
+    env = os.environ
+    secret = env.get("SESSION_SECRET", "").strip()
+    if not secret:
+        secret = secrets.token_hex(32)
+        log.warning("SESSION_SECRET is not set: using a random value, panel logins reset on restart.")
+    try:
+        interval = max(30, int(env.get("SCHEDULER_INTERVAL_SECONDS", "300")))
+    except ValueError:
+        interval = 300
+    return Settings(
+        database_url=env.get("DATABASE_URL", "sqlite:///./joop.db"),
+        anthropic_api_key=env.get("ANTHROPIC_API_KEY", "").strip(),
+        model=env.get("JOOP_MODEL", "claude-haiku-5-5").strip() or "claude-haiku-5-5",
+        thinking=env.get("JOOP_THINKING", "disabled").strip().lower(),
+        effort=env.get("JOOP_EFFORT", "").strip().lower(),
+        session_secret=secret,
+        secure_cookies=_flag(env.get("SECURE_COOKIES"), False),
+        public_base_url=env.get("PUBLIC_BASE_URL", "").strip().rstrip("/"),
+        meta_verify_token=env.get("META_VERIFY_TOKEN", "").strip(),
+        meta_app_secret=env.get("META_APP_SECRET", "").strip(),
+        instagram_app_secret=env.get("INSTAGRAM_APP_SECRET", "").strip(),
+        graph_api_version=env.get("GRAPH_API_VERSION", "v26.0").strip() or "v26.0",
+        whatsapp_api_base=env.get("WHATSAPP_API_BASE", "https://graph.facebook.com").rstrip("/"),
+        instagram_api_base=env.get("INSTAGRAM_API_BASE", "https://graph.instagram.com").rstrip("/"),
+        telegram_api_base=env.get("TELEGRAM_API_BASE", "https://api.telegram.org").rstrip("/"),
+        scheduler_enabled=_flag(env.get("SCHEDULER_ENABLED"), True),
+        scheduler_interval=interval,
+    )
+
+
+@lru_cache
+def get_settings() -> Settings:
+    load_dotenv(os.environ.get("JOOP_ENV_FILE", ".env"))
+    return settings_from_env()
