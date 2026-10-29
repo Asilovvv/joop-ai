@@ -49,6 +49,7 @@ def build_system_prompt(
     now_local: datetime,
     conversation: Conversation,
     channel: str,
+    catalog_hint: str = "",
 ) -> str:
     pack = get_pack(business.niche)
     off = is_off_hours(now_local, business.work_start, business.work_end, business.days_off)
@@ -80,6 +81,8 @@ def build_system_prompt(
         out.append("- список не заполнен, цены уточняет администратор")
     if missing:
         out.append("Сейчас нет в наличии (не предлагай): " + ", ".join(s.name for s in missing) + ".")
+    if catalog_hint:
+        out.append(catalog_hint)
 
     active_staff = [m for m in staff if m.active]
     if takes_bookings:
