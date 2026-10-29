@@ -59,6 +59,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     if business is not None and business.niche in PLACEMENT_NICHES:
         items.append(("/panel/tests", "tests", "Тест на уровень"))
     items.append(("/panel/services", "services", pack.catalog_label))
+    items.append(("/panel/menu", "menu", "QR-меню" if pack.has("order") else "Прайс онлайн"))
     if books:
         items.append(("/panel/staff", "staff", pack.resource_label))
     items += [("/panel/faq", "faq", "Вопросы"), ("/panel/settings", "settings", "Настройки"), ("/panel/channels", "channels", "Каналы")]
@@ -1010,6 +1011,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .placement import router as placement_router
 
     app.include_router(placement_router)
+    from .menu import router as menu_router
+
+    app.include_router(menu_router)
 
     @app.exception_handler(OwnerRequired)
     async def _owner_required(_request: Request, _exc: OwnerRequired):

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}{{ 'QR-меню' if pack.has('order') else 'Прайс онлайн' }}{% endblock %}
+{% block content %}
+<style>svg.qr { width: 100%; height: auto; display: block; }</style>
+<section class="stack">
+  <h1>{{ 'QR-меню' if pack.has('order') else 'Прайс онлайн' }}</h1>
+  <p class="muted">Страница с вашим разделом «{{ pack.catalog_label }}» для телефона: цены, наличие, кнопка заказа в мессенджер. Распечатайте QR-коды на столы, витрину или визитки. Меняете цену или ставите позицию в стоп-лист — страница обновляется сама.</p>
+</section>
+<section class="card">
+  <div class="cols" style="align-items: flex-start; gap: 24px; flex-wrap: wrap">
+    <div style="background: #fff; padding: 8px; border-radius: 10px; line-height: 0; flex: none; width: 176px">{{ qr }}</div>
+    <form class="stack" method="post" action="/panel/menu" style="flex: 1; min-width: 240px">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label class="inline"><input type="checkbox" name="enabled" value="1" {{ 'checked' if business.menu_enabled }}> Страница открыта</label>
+      <p class="small">Ссылка: {% if business.menu_enabled %}<a class="mono" href="{{ url }}" target="_blank" rel="noopener">{{ url }}</a>{% else %}<span class="mono muted">{{ url }}</span>{% endif %}</p>
+      <label>Куда ведёт кнопка «{{ 'Заказать' if pack.has('order') else 'Задать вопрос' }}» (t.me, wa.me или Instagram)
+        <input name="chat_url" value="{{ business.menu_chat_url }}" placeholder="https://t.me/ваш_бот"></label>
+      <p class="muted small">Лучше ссылка на вашего Telegram-бота или WhatsApp — там ответит ИИ. Пусто — кнопка ведёт в WhatsApp на телефон компании{% if not business.phone %} (сейчас телефон не указан в настройках){% endif %}. В WhatsApp к сообщению добавится номер стола.</p>
+      <div class="actions" style="justify-content: flex-start"><button class="btn small" type="submit">Сохранить</button></div>
+    </form>
+  </div>
+  {% if not count %}<p class="flash error">Раздел «{{ pack.catalog_label }}» пуст — заполните его, иначе страница будет пустой.</p>{% endif %}
+</section>
+{% if business.menu_enabled %}
+<section class="card">
+  <h2>Печать QR-кодов</h2>
+  <form class="row c2" method="get" action="/panel/menu/print" target="_blank">
+    <label>Столов (0 — один общий код)<input name="tables" type="number" min="0" max="60" value="{{ 10 if pack.has('order') else 0 }}"></label>
+    <div class="row-tail"><button class="btn small" type="submit">Открыть лист для печати</button></div>
+  </form>
+  <p class="muted small">У каждого стола свой код: на странице будет «Стол 5», и в WhatsApp-сообщение подставится номер стола. Файл для дизайнера: <a href="/m/{{ business.slug }}/qr.svg" target="_blank" rel="noopener">QR в SVG</a>.</p>
+</section>
+{% endif %}
+{% endblock %}
