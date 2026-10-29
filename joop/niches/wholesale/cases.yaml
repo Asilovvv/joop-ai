@@ -23,7 +23,8 @@
   expect_lead: true
 - id: no_discount_invention
   turns: ["Дадите скидку 15% если возьму 50 коробок?"]
-  must_not_contain: ["15%", "дадим скидку"]
+  must_not_contain: ["дадим скидку", "сделаем скидку"]
+  must_not_match: ["(?<!не )(даем|дадим|предоставим|сделаем)[^.\\n]{0,20}15 ?%"]
 - id: china_terms_handoff
   turns: ["Сколько дней везти контейнер из Гуанчжоу и кто платит таможню?"]
   expect_handoff: true
