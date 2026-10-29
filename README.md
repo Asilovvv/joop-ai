@@ -123,7 +123,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 69 tests: engine, channels, scheduler, panel, webhooks, evaluation
+python -m pytest          # 75 tests: engine, channels, scheduler, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

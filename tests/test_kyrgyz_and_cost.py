@@ -9,8 +9,9 @@ from joop import db
 from joop.agent.engine import ASK_CONTACTS_REPLY, handle_incoming
 from joop.agent.llm import AgentReply
 from joop.channels.base import IncomingMessage
-from joop.lang import is_kyrgyz_message, looks_kyrgyz
-from joop.models import Business, Lead, Message, Slot
+from joop.lang import fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
+from joop.models import Business, Lead, Message, Service, Slot
+from joop.profile import load_profile
 from joop.pricing import add_usage, cost_usd, empty_usage
 
 from .conftest import NOW_UTC, FakeLLM
@@ -142,3 +143,41 @@ def test_cost_uses_published_haiku_rates():
     add_usage(total, None)
     add_usage(total, SimpleNamespace(input_tokens=10, output_tokens=5))
     assert total["input_tokens"] == 10 and total["cache_read_input_tokens"] == 0
+
+
+# --- deterministic text fixes (ported from the bot, 29 Oct 2026) ----------------------------------------
+
+
+def test_mixed_script_words_are_fixed_but_latin_words_kept():
+    assert fix_mixed_script("Бааsы 300 сом") == "Баасы 300 сом"
+    assert fix_mixed_script("Мен алbаймын") == "Мен албаймын"
+    assert fix_mixed_script("Оплата по QR, Demo Beauty Studio") == "Оплата по QR, Demo Beauty Studio"
+
+
+def test_russian_service_names_in_kyrgyz_reply_are_replaced():
+    names = {"Прицельный рентген-снимок": "Тиштин рентген сүрөтү"}
+    reply = "Ооба, клиникада прицельный рентген-снимок жасалат. Баасы 300 сом."
+    assert use_kyrgyz_names(reply, names) == "Ооба, клиникада тиштин рентген сүрөтү жасалат. Баасы 300 сом."
+
+
+def test_engine_applies_text_fixes_to_kyrgyz_reply(business):
+    with db.new_session() as s:
+        s.exec(select(Service).where(Service.name == "Удаление зуба простое")).one().name_ky = "Тиш жулуу"
+        s.commit()
+    llm = FakeLLM([AgentReply("Ооба, удаление зуба простое бизде бар, бааsы 2 000 сом. Сизди жазып коёлубу?")])
+    out = say(business, "Тиш жулуу барбы?", llm, "f1")
+    assert out.reply == "Ооба, тиш жулуу бизде бар, баасы 2 000 сом. Сизди жазып коёлубу?"
+    assert llm.rewrite_calls == []
+
+
+def test_russian_reply_keeps_russian_service_names(business):
+    with db.new_session() as s:
+        s.exec(select(Service).where(Service.name == "Удаление зуба простое")).one().name_ky = "Тиш жулуу"
+        s.commit()
+    llm = FakeLLM([AgentReply("Удаление зуба простое стоит 2 000 сом.")])
+    assert say(business, "Сколько стоит удаление зуба?", llm, "f2").reply == "Удаление зуба простое стоит 2 000 сом."
+
+
+@pytest.mark.parametrize("name", ["business.example.yaml", "business.dental.example.yaml"])
+def test_demo_profiles_have_kyrgyz_names(name):
+    assert all(s.get("name_ky") for s in load_profile(ROOT / name)["services"])
