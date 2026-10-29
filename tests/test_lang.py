@@ -94,3 +94,33 @@ def test_kyrgyz_service_names_are_rendered():
     for f in ["business.example.yaml", "business.dental.example.yaml"]:
         profile = BusinessProfile.from_yaml(ROOT / f)
         assert all(s.name_ky for s in profile.services), f
+
+
+def test_mixed_script_words_are_fixed_but_latin_words_kept():
+    from joop.lang import fix_mixed_script
+
+    # Recorded 29 Oct 2026
+    assert fix_mixed_script("Бааsы 300 сом") == "Баасы 300 сом"
+    assert fix_mixed_script("Мен алbаймын") == "Мен албаймын"
+    assert fix_mixed_script("Оплата по QR, Demo Beauty Studio") == "Оплата по QR, Demo Beauty Studio"
+
+
+def test_russian_service_names_in_kyrgyz_reply_are_replaced():
+    from joop.lang import use_kyrgyz_names
+
+    names = {"Прицельный рентген-снимок": "Тиштин рентген сүрөтү"}
+    reply = "Ооба, клиникада прицельный рентген-снимок жасалат. Баасы 300 сом."
+    assert use_kyrgyz_names(reply, names) == "Ооба, клиникада тиштин рентген сүрөтү жасалат. Баасы 300 сом."
+
+
+async def test_agent_applies_text_fixes_to_kyrgyz_reply():
+    llm = FakeLLM([response(text("Ооба, удаление зуба бизде бар, бааsы 1500 сом. Сизди жазып коёлубу?"))])
+    r = await make_agent(llm).reply(1, "Тиш жулуу барбы?")
+    assert r.text == "Ооба, тиш жулуу бизде бар, баасы 1500 сом. Сизди жазып коёлубу?"
+    assert len(llm.calls) == 1
+
+
+async def test_russian_reply_to_russian_message_keeps_service_names():
+    llm = FakeLLM([response(text(RU_DRAFT))])
+    r = await make_agent(llm).reply(1, "Сколько стоит удаление зуба?")
+    assert r.text == RU_DRAFT
