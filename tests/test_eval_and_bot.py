@@ -66,3 +66,33 @@ def test_language_and_markdown_checks():
     assert check_case(ky_case, "Да, рентген есть.", False, False) == ["reply is not in Kyrgyz"]
     assert check_case({}, "Баасы **2500 сом**", False, False) == ["markdown in reply (Telegram shows it as raw symbols)"]
     assert check_case(ky_case, "Ооба, биздин клиникада рентген бар.", False, False) == []
+
+
+def test_fallback_and_early_confirmation_are_failures():
+    from joop.agent import FALLBACK_TEXT
+
+    # A fallback is never a correct answer, even when every keyword check passes
+    assert check_case({"must_not_contain": ["аспирин"]}, FALLBACK_TEXT, False, False) == [
+        "no answer: the bot sent the generic fallback"
+    ]
+    # Recorded 29 Oct 2026: "accepted" said before the phone number was given
+    case = {"expect_lead": False, "must_not_contain": ["принята", "кабыл алдым"]}
+    reply = "Бермет, маникюр жазуусун кабыл алдым: эртең саат 14:00. Телефон номериңизди жазыңызчы."
+    assert check_case(case, reply, False, False) == ["contains forbidden 'кабыл алдым'"]
+
+
+def test_summary_renders_results(tmp_path):
+    import json
+
+    from eval.summary import render
+
+    f = tmp_path / "r.json"
+    f.write_text(json.dumps({
+        "business_file": "business.example.yaml",
+        "summary": {"cases": 2, "passed": 1, "avg_latency_s": 2.0, "max_latency_s": 3.0,
+                    "avg_cost_usd_per_conversation": 0.0004, "language_guard_fired": 0},
+        "cases": [{"id": "a", "passed": True, "fails": []}, {"id": "b", "passed": False, "fails": ["x"]}],
+    }), "utf-8")
+    out = render([str(f), str(tmp_path / "missing.json")])
+    assert "| business.example.yaml | 1/2 | 2.0 / 3.0 | 0.0004 | 0 |" in out
+    assert "- `b`: x" in out and "missing.json | no results" in out

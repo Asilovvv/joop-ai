@@ -1,0 +1,73 @@
+# Scripted evaluation against the real model, started by hand (Actions -> eval -> Run workflow).
+# Needs the repository secret ANTHROPIC_API_KEY. One run of both sets costs about $0.02.
+# Results are kept on the eval-results branch under runs/ and shown in the run summary.
+name: eval
+
+on:
+  workflow_dispatch:
+    inputs:
+      note:
+        description: "Why this run (shown in the commit message)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write  # only to push result files to the eval-results branch
+
+concurrency:
+  group: eval
+  cancel-in-progress: false
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Run both evaluation sets
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::Add the repository secret ANTHROPIC_API_KEY (Settings -> Secrets and variables -> Actions)"
+            exit 1
+          fi
+          python -m eval.run_eval business.example.yaml eval/cases.yaml eval/results.json
+          python -m eval.run_eval business.dental.example.yaml eval/cases_dental.yaml eval/results_dental.json
+
+      - name: Write run summary
+        if: always()
+        run: python -m eval.summary eval/results.json eval/results_dental.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save results to the eval-results branch
+        if: always()
+        env:
+          RUN: ${{ github.run_number }}
+          NOTE: ${{ inputs.note }}
+        run: |
+          set -e
+          stamp=$(date -u +%Y-%m-%dT%H%MZ)
+          mkdir -p "$RUNNER_TEMP/out"
+          for f in eval/results.json eval/results_dental.json; do
+            [ -f "$f" ] && cp "$f" "$RUNNER_TEMP/out/${stamp}_run${RUN}_$(basename "$f")"
+          done
+          if [ -z "$(ls -A "$RUNNER_TEMP/out")" ]; then echo "No results to save"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin eval-results; then
+            git checkout -B eval-results FETCH_HEAD
+          else
+            git checkout --orphan eval-results
+            git rm -rfq .
+          fi
+          mkdir -p runs
+          cp "$RUNNER_TEMP/out/"* runs/
+          git add runs
+          git commit -qm "Eval run ${RUN} on ${GITHUB_SHA::7} ${NOTE}"
+          git push origin eval-results
