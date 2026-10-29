@@ -250,3 +250,55 @@ def test_test_chat_has_a_daily_limit(app_client, monkeypatch):
     app_client.post("/panel/try", data={"text": "Привет", "csrf": token})
     r = app_client.post("/panel/try", data={"text": "Ещё раз", "csrf": token})
     assert "не больше 1 сообщений" in r.text
+
+
+def test_partner_referral_commission_and_payout(app_client, saas_settings, rt):
+    from joop.models import Partner, PartnerPayout, Referral
+
+    token = owner_login(app_client)
+    r = app_client.post("/owner/partners", data={"name": "Айбек SMM", "percent": "20", "csrf": token})
+    assert "Партнёр добавлен" in r.text
+    with db.new_session() as s:
+        partner = s.exec(select(Partner)).one()
+    assert partner.code == "aybek-smm"
+
+    with TestClient(create_app(saas_settings, rt, init=False)) as visitor:
+        assert visitor.get(f"/r/{partner.code}", follow_redirects=False).headers["location"] == "/"
+        signup(visitor, name="Дент Плюс")
+    with TestClient(create_app(saas_settings, rt, init=False)) as stranger:
+        stranger.get("/r/unknown-code")
+        signup(stranger, name="Без партнёра")
+    with db.new_session() as s:
+        refs = s.exec(select(Referral)).all()
+        assert len(refs) == 1 and s.get(Business, refs[0].business_id).name == "Дент Плюс"
+        bid = refs[0].business_id
+
+    app_client.post(f"/owner/business/{bid}", data={"action": "paid", "csrf": token})  # 3000 som
+    page = app_client.get(f"/partner/{partner.secret}").text
+    assert "Дент Плюс" in page and "600" in page  # 20% of 3000
+    app_client.post(f"/owner/partners/{partner.id}", data={"action": "payout", "amount": "600", "csrf": token})
+    with db.new_session() as s:
+        from joop import partners
+
+        st = partners.stats(s, s.get(Partner, partner.id), NOW_UTC + timedelta(days=365))
+        assert st.earned_som == 600 and st.owed_som == 0 and len(s.exec(select(PartnerPayout)).all()) == 1
+    assert app_client.get("/partner/short").status_code == 404
+
+
+def test_weekly_report_counts_what_the_ai_did(engine, business):
+    from joop.models import Booking, Conversation, Message
+    from joop.scheduler import weekly_report_text
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        assert weekly_report_text(s, b, NOW_UTC) is None  # quiet week: nothing to send
+        conv = Conversation(business_id=b.id, channel="telegram", chat_id="1")
+        s.add(conv)
+        s.flush()
+        s.add(Message(business_id=b.id, conversation_id=conv.id, role="customer", text="Можно завтра?",
+                      created_at=NOW_UTC - timedelta(days=1), off_hours=True))
+        s.add(Booking(business_id=b.id, conversation_id=conv.id, start=NOW_UTC, source="ai",
+                      created_at=NOW_UTC - timedelta(days=1), created_off_hours=True))
+        s.commit()
+        text = weekly_report_text(s, b, NOW_UTC)
+    assert "Ответил 1 клиентам, из них 1 — в нерабочее время" in text and "записей 1" in text

@@ -248,3 +248,31 @@ class Prospect(SQLModel, table=True):
     next_step_at: Optional[NaiveDatetime] = None
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     updated_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class Partner(SQLModel, table=True):
+    """Someone who brings businesses (an SMM specialist, an agency) and earns a share of their payments."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    phone: str = ""
+    code: str = Field(index=True, unique=True)  # public: goes into the sign-up link ?ref=code
+    secret: str = Field(index=True, unique=True)  # private: the partner's own stats page /partner/<secret>
+    percent: int = 20  # share of every payment by a referred business
+    active: bool = True
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class Referral(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", unique=True, index=True)
+    partner_id: int = Field(foreign_key="partner.id", index=True)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class PartnerPayout(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    partner_id: int = Field(foreign_key="partner.id", index=True)
+    amount_som: int
+    note: str = ""
+    created_at: NaiveDatetime = Field(default_factory=utcnow)

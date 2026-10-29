@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Партнёр Joop AI{% endblock %}
+{% block content %}
+<div class="head"><h1>{{ st.partner.name }}, ваш кабинет партнёра</h1></div>
+<section class="card stack">
+  <p>Делитесь ссылкой. Каждый бизнес, который зарегистрируется по ней, закрепляется за вами, и вы получаете <b>{{ st.partner.percent }}%</b> с каждой его оплаты{% if price %} (подписка — {{ price }} сом в месяц){% endif %}, пока он платит.</p>
+  <label>Ваша ссылка<input value="{{ link }}" readonly onclick="this.select()"></label>
+</section>
+<div class="stats">
+  <div class="stat"><b>{{ st.businesses | length }}</b><span>бизнесов пришло</span></div>
+  <div class="stat"><b>{{ st.paying }}</b><span>платят сейчас</span></div>
+  <div class="stat"><b>{{ st.earned_som }}</b><span>сом заработано</span></div>
+  <div class="stat"><b>{{ st.owed_som }}</b><span>сом к выплате</span></div>
+</div>
+<section class="card">
+  <h2>Ваши бизнесы</h2>
+  <div class="list">
+    {% for b in st.businesses %}<div class="item"><div class="main"><b>{{ b.name }}</b> <span class="muted small">с {{ b.created_at | dt }}</span></div><span class="chip">{{ b.state }}</span></div>
+    {% else %}<p class="muted">Пока никого. Отправьте ссылку знакомым владельцам клиник, салонов, кафе.</p>{% endfor %}
+  </div>
+</section>
+{% endblock %}
