@@ -1,0 +1,265 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/tours/demo.yaml",
+  "summary": {
+    "cases": 13,
+    "passed": 13,
+    "avg_latency_s": 2.16,
+    "max_latency_s": 4.78,
+    "input_tokens": 39415,
+    "output_tokens": 2603,
+    "avg_cost_usd_per_conversation": 0.000403,
+    "total_cost_usd": 0.005243,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 2
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Тур на Сон-Куль, 2 дня, стоит 9 500 сомов с человека. В стоимость входят транспорт, ночь в юрте и питание.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.15,
+      "usage": {
+        "input_tokens": 2552,
+        "output_tokens": 83,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00029670000000000006,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Ала-Арчага бир күндүк тур. Баасы — 2 500 сом адамга, транспорт жана гид кирет. Чыгуу ишемби күнү саат 08:00да.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.65,
+      "usage": {
+        "input_tokens": 2549,
+        "output_tokens": 93,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00030139999999999995,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "request_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Айдана! Записала вас на однодневный тур в Ала-Арчу на троих, в эту субботу. Администратор перезвонит по номеру 0555 778 899 и подтвердит время выезда.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.37,
+      "usage": {
+        "input_tokens": 5251,
+        "output_tokens": 319,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006846,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Бакыт! Ысык-Көл түштүк жээгине 3 күндүк турга 2 адамга, август айынын башына жазуу кабыл алынды. Администратор сиз менен байланышып, датаны жана убакытты тастыктайт.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.87,
+      "usage": {
+        "input_tokens": 5253,
+        "output_tokens": 322,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006863,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "includes_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "В тур «Иссык-Куль, южный берег, 3 дня» входит транспорт, проживание в гостевом доме, завтраки и гид. Стоимость — 18 000 сом с человека.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.27,
+      "usage": {
+        "input_tokens": 2551,
+        "output_tokens": 94,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003021,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "kids_discount",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Да, детям до 7 лет предоставляется скидка 50% от цены тура. Ваш ребёнок пяти лет подпадает под эту скидку.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.98,
+      "usage": {
+        "input_tokens": 2552,
+        "output_tokens": 80,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002952,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "visa_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Раджа, спасибо за обращение. Вопросы по визам и требованиям к документам я не консультирую, поэтому передам ваш вопрос администратору, и он свяжется с вами по номеру +91 98 7654 3210. Сейчас нерабочее время, ответ будет в рабочее время (Пн–Сб, 09:00–19:00).",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.89,
+      "usage": {
+        "input_tokens": 2572,
+        "output_tokens": 224,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003692,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "what_to_bring_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Удобную обувь, тёплую куртку, головной убор и солнцезащитный крем. Башка суроолоруңуз болсо, жазыңыз.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.37,
+      "usage": {
+        "input_tokens": 2548,
+        "output_tokens": 80,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002948,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "unknown_tour_no_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Тура в Каракол на 5 дней в нашем списке нет. Доступны: однодневный тур в Ала-Арчу (2 500 сом с человека), 2-дневный тур на Сон-Куль (9 500 сом с человека), 3-дневный тур на южный берег Иссык-Куля (18 000 сом с человека) и конная прогулка (1 500 сом за час). Уточню у администратора, есть ли возможность организовать поездку в Каракол на 5 дней, и он свяжется с вами.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.16,
+      "usage": {
+        "input_tokens": 2555,
+        "output_tokens": 249,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00038,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте, Денис! Ваша заявка на конную прогулку в субботу принята и передана администратору, но время пока не подтверждено. Чтобы администратор мог его согласовать, оставьте, пожалуйста, ваш номер телефона. Сейчас нерабочее время, поэтому администратор свяжется с вами и подтвердит время позже.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.43,
+      "usage": {
+        "input_tokens": 2824,
+        "output_tokens": 255,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00040990000000000004,
+      "language_fixed": false,
+      "confirmation_fixed": true
+    },
+    {
+      "id": "complaint_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Кечирим сурайбыз, кечээки турдагы кечикчилик үчүн нааразы болгонуңузду түшүндүм. Бул арызыңызды администраторго жеткиребиз, ал жакынкы убакта сиз менен байланышып, маселени чечет. Аты-жөнүңүздү жана телефон номериңизди жазып коюңузчу.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 4.7,
+      "usage": {
+        "input_tokens": 2558,
+        "output_tokens": 215,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003633,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жакын арада байланышабыз. Иш убактысы: Дш–Шй 09:00–19:00. Учурда администратор жок, ошондуктан суранычыңыз жеткирилгенден кийин иш убактысында байланышабыз.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 4.78,
+      "usage": {
+        "input_tokens": 3096,
+        "output_tokens": 419,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005191,
+      "language_fixed": false,
+      "confirmation_fixed": true
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Извините, скидок выше тех, что указаны в наших условиях, я предоставить не могу. Детям до 7 лет действует скидка 50% от цены тура. Передам ваш вопрос администратору, он свяжется с вами в рабочее время (Пн–Сб, 09:00–19:00).",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.52,
+      "usage": {
+        "input_tokens": 2554,
+        "output_tokens": 170,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003404,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}
