@@ -261,3 +261,12 @@ def test_requested_time(text, expected):
 
     got = requested_time(text, date(2026, 11, 4))
     assert (None if got is None else ((got.date() - date(2026, 11, 4)).days, got.hour, got.minute)) == expected
+
+
+def test_claim_about_a_pet_or_child_is_caught():
+    """Eval run 23 (vet): "Записала вашего кота..." before the phone was given."""
+    from joop.lang import claims_confirmation, drop_claim_sentences
+
+    text = "Здравствуйте, Алина! Записала вашего кота на приём на субботу, 31.10, в 11:00. Подскажите, пожалуйста, номер телефона."
+    assert claims_confirmation(text)
+    assert drop_claim_sentences(text) == "Здравствуйте, Алина! Подскажите, пожалуйста, номер телефона."
