@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Каналы{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Каналы</h1>
+  <p class="muted">Токены хранятся на сервере и здесь не показываются. Чтобы заменить токен, вставьте новый.</p>
+</section>
+
+<form method="post" action="/panel/channels" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+
+  <section class="card stack">
+    <h2>Telegram</h2>
+    <p class="small muted">Создайте бота у @BotFather и вставьте его токен.</p>
+    <label for="c-tg">Токен бота {% if business.telegram_bot_token %}<span class="chip ok">задан</span>{% endif %}
+      <input id="c-tg" name="telegram_bot_token" type="password" autocomplete="off" placeholder="{{ 'оставьте пустым, чтобы не менять' if business.telegram_bot_token else '123456:ABC…' }}">
+    </label>
+    {% if business.telegram_bot_token %}<label class="check"><input type="checkbox" name="clear_telegram_bot_token" value="1"> Удалить токен</label>{% endif %}
+  </section>
+
+  <section class="card stack">
+    <h2>WhatsApp (Cloud API)</h2>
+    <div class="grid2">
+      <label for="c-wa-id">Phone number ID<input id="c-wa-id" name="wa_phone_number_id" value="{{ business.wa_phone_number_id }}" autocomplete="off"></label>
+      <label for="c-wa-tok">Токен доступа {% if business.wa_access_token %}<span class="chip ok">задан</span>{% endif %}
+        <input id="c-wa-tok" name="wa_access_token" type="password" autocomplete="off" placeholder="{{ 'оставьте пустым, чтобы не менять' if business.wa_access_token else 'системный токен' }}">
+      </label>
+      <label for="c-wa-tpl">Шаблон напоминания<input id="c-wa-tpl" name="wa_reminder_template" value="{{ business.wa_reminder_template }}" placeholder="appointment_reminder"></label>
+      <label for="c-wa-lang">Язык шаблона<input id="c-wa-lang" name="wa_template_lang" value="{{ business.wa_template_lang }}"></label>
+    </div>
+    {% if business.wa_access_token %}<label class="check"><input type="checkbox" name="clear_wa_access_token" value="1"> Удалить токен WhatsApp</label>{% endif %}
+  </section>
+
+  <section class="card stack">
+    <h2>Instagram Direct</h2>
+    <div class="grid2">
+      <label for="c-ig-id">ID аккаунта Instagram<input id="c-ig-id" name="ig_account_id" value="{{ business.ig_account_id }}" autocomplete="off"></label>
+      <label for="c-ig-tok">Токен доступа {% if business.ig_access_token %}<span class="chip ok">задан</span>{% endif %}
+        <input id="c-ig-tok" name="ig_access_token" type="password" autocomplete="off" placeholder="{{ 'оставьте пустым, чтобы не менять' if business.ig_access_token else 'токен Instagram' }}">
+      </label>
+    </div>
+    {% if business.ig_access_token %}<label class="check"><input type="checkbox" name="clear_ig_access_token" value="1"> Удалить токен Instagram</label>{% endif %}
+  </section>
+
+  <div><button class="btn" type="submit">Сохранить каналы</button></div>
+</form>
+
+<section class="card stack">
+  <h2>Адреса для подключения</h2>
+  {% if public_base %}
+  <p>Telegram подключается кнопкой ниже. Адрес бота: <code>{{ telegram_url }}</code></p>
+  <form method="post" action="/panel/channels/telegram/webhook" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn ghost" type="submit">Подключить Telegram</button></form>
+  <p>В приложении Meta (WhatsApp и Instagram) укажите адрес вебхука <code>{{ meta_url }}</code> и проверочный токен из файла настроек сервера (META_VERIFY_TOKEN).</p>
+  {% if not meta_ready %}<p class="flash error">На сервере не заданы META_VERIFY_TOKEN и META_APP_SECRET — WhatsApp и Instagram работать не будут.</p>{% endif %}
+  {% else %}
+  <p class="muted">Сервер запущен без публичного адреса (PUBLIC_BASE_URL). Для теста на компьютере Telegram работает в режиме опроса: <code>python -m joop dev --slug {{ business.slug }}</code>.</p>
+  {% endif %}
+</section>
+{% endblock %}
