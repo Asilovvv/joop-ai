@@ -17,6 +17,12 @@ KY_REPLY_MARKERS = {
     "дарыгер", "дарыгердин", "дароо", "чалыңыз", "атыңызды", "номериңизди", "убакытты", "кечиресиз",
     "кечириңиз", "ооба", "биздин", "бул", "же", "эгер", "жооп", "берет", "дагы", "суроо",
     "суроонуз", "суроолоруңуз", "сураңыз", "шаары", "көчөсү", "дарегибиз", "рахмат",
+    "даана", "куту", "минималдуу", "даярсызбы", "кайсы", "кайсынысын", "тандайсыз",
+}
+
+# Russian function words that rarely occur in a Kyrgyz reply.
+RU_REPLY_MARKERS = {
+    "и", "в", "на", "не", "это", "для", "вы", "вас", "пожалуйста", "можно", "есть", "нет", "стоит", "у", "с",
 }
 
 # Words typical of short Kyrgyz customer messages (questions, booking requests).
@@ -45,7 +51,12 @@ def looks_kyrgyz(text: str) -> bool:
     least two lower-case words containing the letters ң, ө, ү."""
     words = set(_words(text))
     special = {w for w in re.findall(r"\b[а-яёңөү]+\b", text) if re.search("[ңөү]", w)}
-    return len(words & KY_REPLY_MARKERS) >= 2 or len(special) >= 2
+    if len(words & KY_REPLY_MARKERS) >= 2 or len(special) >= 2:
+        return True
+    # A short reply ("Манты, 5 даана — 300 сом.") may hold only one Kyrgyz word.
+    all_words = _words(text)
+    ky = len(words & KY_REPLY_MARKERS) + len(special)
+    return len(all_words) <= 12 and ky >= 1 and not (set(all_words) & RU_REPLY_MARKERS)
 
 
 def is_kyrgyz_message(text: str) -> bool:
@@ -86,3 +97,21 @@ def use_kyrgyz_names(text: str, names: dict[str, str]) -> str:
 
         text = re.sub(re.escape(ru), repl, text, flags=re.IGNORECASE)
     return text
+
+
+# "Accepted" wording. Before anything is saved it misleads the customer into thinking
+# the booking exists. Seen on 29 Oct 2026: "...жазууңузду кабыл алдым. Телефон номериңизди жазыңызчы".
+_EARLY_CONFIRMATION = re.compile(
+    r"кабыл ал(дым|ынды)|жазып койдум|заявк\w* принят|запис\w* принят|записал[аи]? вас|вы записаны",
+    re.IGNORECASE,
+)
+
+
+def drop_early_confirmation(text: str) -> str:
+    """Remove sentences that say the request is accepted, when nothing was saved.
+    Keeps the reply unchanged if every sentence would go."""
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    kept = [s for s in sentences if not _EARLY_CONFIRMATION.search(s)]
+    if not kept or len(kept) == len(sentences):
+        return text
+    return " ".join(kept)

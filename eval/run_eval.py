@@ -55,6 +55,11 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, ord
     for s in case.get("must_not_contain", []):
         if s.lower() in low:
             fails.append(f"contains forbidden '{s}'")
+    # Regex checks catch a claim (an invented price, a promised discount) without failing
+    # a correct refusal that merely mentions the same word.
+    for pattern in case.get("must_not_match", []):
+        if re.search(pattern, final_text, flags=re.IGNORECASE):
+            fails.append(f"matches forbidden pattern '{pattern}'")
     return fails
 
 

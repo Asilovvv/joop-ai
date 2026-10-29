@@ -16,7 +16,7 @@ from sqlmodel import Session, select
 
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
-from ..lang import fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
+from ..lang import drop_early_confirmation, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff
 from ..niches import Pack, get_pack
 from ..phone import normalize_phone
@@ -185,6 +185,9 @@ def handle_incoming(
     # Cheap fixes without a model call: Latin look-alike letters inside Cyrillic words, and Russian
     # service names left in a Kyrgyz reply.
     if outcome.reply:
+        captured = (outcome.booking_id, outcome.request_id, outcome.order_id, outcome.qualified_lead_id)
+        if all(x is None for x in captured):
+            outcome.reply = drop_early_confirmation(outcome.reply)
         outcome.reply = fix_mixed_script(outcome.reply)
         if is_kyrgyz_message(text) and looks_kyrgyz(outcome.reply):
             outcome.reply = use_kyrgyz_names(outcome.reply, {sv.name: sv.name_ky for sv in services if sv.name_ky})

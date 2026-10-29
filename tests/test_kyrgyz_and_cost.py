@@ -181,3 +181,30 @@ def test_russian_reply_keeps_russian_service_names(business):
 @pytest.mark.parametrize("name", ["business.example.yaml", "business.dental.example.yaml"])
 def test_demo_profiles_have_kyrgyz_names(name):
     assert all(s.get("name_ky") for s in load_profile(ROOT / name)["services"])
+
+
+def test_short_kyrgyz_replies_are_detected():
+    from joop.lang import looks_kyrgyz
+
+    # Recorded 29 Oct 2026 (restaurant and wholesale packs)
+    assert looks_kyrgyz("Манты, 5 даана — 300 сом.")
+    assert looks_kyrgyz("Кир кургаткыч, куту 10 даана — 9 500 сом. Минималдуу заказ — 1 куту. Заказ берүүгө даярсызбы?")
+    assert not looks_kyrgyz("Манты стоят 300 сом.")
+    assert not looks_kyrgyz("Да, рентген есть.")
+
+
+def test_early_confirmation_sentence_is_dropped():
+    from joop.lang import drop_early_confirmation
+
+    reply = "Бермет, маникюр үчүн жазуу өтүнүчүңүздү кабыл алдым. Телефон номериңизди жазыңызчы."
+    assert drop_early_confirmation(reply) == "Телефон номериңизди жазыңызчы."
+    assert drop_early_confirmation("Ваша заявка принята.") == "Ваша заявка принята."  # nothing left: keep
+    assert drop_early_confirmation("Подскажите номер телефона.") == "Подскажите номер телефона."
+
+
+def test_regex_checks_fail_claims_but_not_refusals():
+    from eval.run_eval import check_case
+
+    case = {"must_not_match": [r"(скидк|уступ)\w*[^.\n]{0,20}\d", r"\d+ ?%"]}
+    assert check_case(case, "Скидки и торг я обещать не могу, уточню у администратора.", False, False) == []
+    assert check_case(case, "Да, скидка 10% для вас.", False, False) != []
