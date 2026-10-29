@@ -556,12 +556,25 @@ Rules:
 - Mention that they can try a demo bot first if a demo link is given.
 Output only the message text."""
 
+SITE_OFFER_WRITER = """You write the first message from Bektur of Joop Studio to a small business in Kyrgyzstan
+that may not have a website. Joop Studio makes a one-page website, an online menu or price list, or slides in 1-2 days
+from what the owner sends, and can add a booking button handled by the Joop AI administrator.
+Rules:
+- Language: {language}. Kyrgyz must be natural Kyrgyz in Cyrillic; Russian plain and polite.
+- 3-5 short sentences, like a real person writing in WhatsApp. No markdown, no emoji.
+- Open with one specific detail from the notes, if there is one. Never invent facts, prices, numbers or results,
+  and do not claim they have no website unless the notes say so.
+- One concrete benefit for this kind of business ({niche}), e.g. customers find prices and address without calling.
+- Offer to send a free draft first, and end with one easy question.
+Output only the message text."""
 
-def draft_message(llm: Any, p: Prospect, trial_days: int, demo_link: str = "") -> str | None:
+
+def draft_message(llm: Any, p: Prospect, trial_days: int, demo_link: str = "", offer: str = "agent") -> str | None:
     writer = getattr(llm, "write", None)
     if writer is None:
         return None
-    instruction = SALES_WRITER.format(
+    template = SITE_OFFER_WRITER if offer == "site" else SALES_WRITER
+    instruction = template.format(
         language="Kyrgyz" if p.language == "ky" else "Russian", niche=get_pack(p.niche).label, trial_days=trial_days
     )
     facts = "\n".join(f"{k}: {v}" for k, v in (
@@ -652,12 +665,13 @@ def prospect_action(request: Request, pid: int, action: str = Form(""), status: 
                 _flash(request, f"Демо создано. Логин: {b.slug}, пароль: {password} (покажется один раз).")
             else:
                 _flash(request, "Демо уже есть.", "error")
-        elif action == "draft":
+        elif action in {"draft", "draft_site"}:
             demo_link = ""
             if p.demo_business_id and settings.public_base_url:
                 demo_link = f"{settings.public_base_url}/login"
             try:
-                text = draft_message(_rt(request).get_llm(), p, settings.trial_days, demo_link)
+                text = draft_message(_rt(request).get_llm(), p, settings.trial_days, demo_link,
+                                     offer="site" if action == "draft_site" else "agent")
             except Exception:
                 log.exception("Sales draft failed")
                 text = None

@@ -1,0 +1,39 @@
+{% extends "site_base.html" %}
+{% block title %}Сайт под ключ — Joop Studio{% endblock %}
+{% block content %}
+<div class="wrap hero">
+  <div>
+    <h1>Нет сайта? Сделаем за 1–2 дня.</h1>
+    <p class="lead">Сайт-визитка, меню, прайс или презентация для вашего бизнеса. Опишите, что нужно, — ИИ подготовит черновик, а мы проверим каждое слово и пришлём вам на согласование. На сайт можно сразу поставить кнопку записи через ИИ-администратора Joop.</p>
+    <a class="cta" href="#form">Оставить заявку</a>
+  </div>
+</div>
+<section class="block" id="what">
+  <div class="wrap">
+    <h2>Что делаем</h2>
+    <div class="grid3">
+      <div><h3>Сайт-визитка</h3><p>Одна страница: услуги и цены, адрес, часы работы, кнопка WhatsApp. Работает на телефоне.</p></div>
+      <div><h3>Меню или прайс</h3><p>Онлайн-меню для кафе или прайс для салона и клиники — по ссылке или QR-коду.</p></div>
+      <div><h3>Презентация</h3><p>Слайды для инвестора, партнёра или тендера по вашим материалам.</p></div>
+    </div>
+  </div>
+</section>
+<section class="block" id="form">
+  <div class="wrap">
+    <h2>Заявка</h2>
+    {% for kind, text in flashes %}<p class="flash {{ kind }}" role="status">{{ text }}</p>{% endfor %}
+    <form method="post" action="/studio" class="contact studio-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label>Что нужно<select name="kind">{% for key, label in kinds.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
+      <label>Название бизнеса<input name="business_name" required maxlength="120"></label>
+      <label>Сфера<select name="niche">{% for key, p in packs.items() %}<option value="{{ key }}" {{ 'selected' if key == 'dental' }}>{{ p.label }}</option>{% endfor %}</select></label>
+      <label>Ваше имя<input name="contact_name" maxlength="80" autocomplete="name"></label>
+      <label>Телефон или WhatsApp<input name="phone" required inputmode="tel" autocomplete="tel"></label>
+      <label>Опишите: услуги и цены, адрес, часы работы, что важно показать<textarea name="description" rows="6" required minlength="20"></textarea></label>
+      <label class="hp" aria-hidden="true">Сайт<input name="website" tabindex="-1" autocomplete="off"></label>
+      <button class="cta" type="submit">Отправить заявку</button>
+      <p class="muted small">Отправляя заявку, вы соглашаетесь с <a href="/privacy">политикой конфиденциальности</a>.</p>
+    </form>
+  </div>
+</section>
+{% endblock %}
