@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Отзывы и возврат{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Отзывы и возврат клиентов</h1>
+  <p class="muted">Через пару часов после визита ИИ просит оценить его от 1 до 5. Оценка 4–5 — благодарит и даёт ссылку на отзыв в 2ГИС или Google. Оценка 1–3 — извиняется и сразу сообщает вам, чтобы вы успели всё исправить, пока клиент не написал плохой отзыв. А когда подходит время повторить услугу (маникюр через 3 недели, чистка зубов через полгода), ИИ сам приглашает клиента снова.</p>
+</section>
+<section class="card">
+  <h2>За 30 дней</h2>
+  <div class="stats">
+    <div class="stat"><b>{{ st.average if st.average is not none else '—' }}</b><span>средняя оценка, {{ st.rated }} оценок</span></div>
+    <div class="stat"><b>{{ st.low }}</b><span>оценок 1–3 (переданы вам)</span></div>
+    <div class="stat"><b>{{ st.asked }}</b><span>клиентов попросили оценить</span></div>
+    <div class="stat"><b>{{ st.invited }}</b><span>пригласили снова</span></div>
+    <div class="stat"><b>{{ st.returned }}</b><span>из них записались опять</span></div>
+  </div>
+</section>
+<form method="post" action="/panel/followups">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <section class="card stack">
+    <h2>Оценка после визита</h2>
+    <label class="inline"><input type="checkbox" name="review_requests" value="1" {{ 'checked' if business.review_requests }}> Просить оценку после визита (с 10:00 до 21:00)</label>
+    <label>Ссылка, где оставить отзыв (2ГИС, Google Карты, Яндекс Карты)
+      <input name="review_url" value="{{ business.review_url }}" placeholder="https://2gis.kg/bishkek/firm/..."></label>
+  </section>
+  <section class="card stack">
+    <h2>Пригласить снова</h2>
+    <label class="inline"><input type="checkbox" name="return_invites" value="1" {{ 'checked' if business.return_invites }}> Приглашать клиентов повторить услугу</label>
+    <p class="muted small">Через сколько дней после визита пригласить снова (0 — не приглашать). Если клиент уже записался сам, приглашения не будет.</p>
+    {% if services %}
+    <div class="scroll"><table class="table">
+      <tr><th>{{ pack.catalog_item|capitalize }}</th><th>Через, дней</th></tr>
+      {% for sv in services %}
+      <tr><td>{{ sv.name }}</td><td><input name="repeat_{{ sv.id }}" type="number" min="0" max="365" value="{{ sv.repeat_days }}" style="width: 90px" aria-label="Дней до приглашения: {{ sv.name }}"></td></tr>
+      {% endfor %}
+    </table></div>
+    {% else %}<p class="muted">Сначала заполните раздел «{{ pack.catalog_label }}».</p>{% endif %}
+  </section>
+  <div class="actions" style="justify-content: flex-start; margin-top: 12px"><button class="btn" type="submit">Сохранить</button></div>
+</form>
+<section class="card">
+  <h2>Последние оценки</h2>
+  {% if recent %}
+  <div class="list">{% for b in recent %}
+    <div class="item"><div class="main"><div><b>{{ b.rating }}/5</b> — {{ b.customer_name or 'клиент' }} {{ b.customer_phone }}</div>
+    <div class="muted small">{{ b.start|slot }}{% if b.service %} · {{ b.service }}{% endif %}{% if b.staff_name %} · {{ b.staff_name }}{% endif %}{% if b.conversation_id %} · <a href="/panel/conversations/{{ b.conversation_id }}">диалог</a>{% endif %}</div></div></div>
+  {% endfor %}</div>
+  {% else %}<p class="muted">Оценок пока нет.</p>{% endif %}
+  <p class="muted small">Сообщения уходят там, где это разрешено: в Telegram — всегда, в WhatsApp и Instagram — только в течение суток после последнего сообщения клиента. Кого не получилось пригласить, ИИ присылает вам списком.</p>
+</section>
+{% endblock %}

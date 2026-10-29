@@ -55,6 +55,11 @@ class Business(SQLModel, table=True):
     ig_access_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
     ig_token_refreshed_at: Optional[NaiveDatetime] = None
 
+    # After-visit follow-ups (joop/followups.py): ask for a rating, invite back when it is time again
+    review_requests: bool = False
+    review_url: str = ""  # 2GIS / Google Maps page where happy customers leave a review
+    return_invites: bool = False
+
     # Public menu / price list /m/<slug> with QR codes (joop/web/menu.py)
     menu_enabled: bool = False
     menu_chat_url: str = ""  # where "Заказать" leads: t.me / wa.me / instagram link
@@ -75,6 +80,7 @@ class Service(SQLModel, table=True):
     category: str = ""
     available: bool = True  # False = stop list / sold out: the AI does not offer it
     sort: int = 0
+    repeat_days: int = 0  # invite the customer back this many days after the visit (0 = never)
 
 
 class Staff(SQLModel, table=True):
@@ -154,6 +160,10 @@ class Booking(SQLModel, table=True):
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     created_off_hours: bool = False
     reminder_status: str = ""  # "" | sent | manual | failed
+    review_status: str = ""  # "" | asked | rated | skipped
+    review_asked_at: Optional[NaiveDatetime] = None
+    rating: Optional[int] = None  # 1-5 from the customer after the visit
+    return_status: str = ""  # "" | sent | manual: invitation to come again
 
 
 class Lead(SQLModel, table=True):

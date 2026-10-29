@@ -10,6 +10,7 @@ from sqlmodel import Session, select
 
 from .db import new_session
 from .dispatch import notify_admins
+from .followups import send_return_invites, send_review_requests
 from .models import Booking, Business, Conversation, Message
 from .runtime import Runtime
 from .stats import activity
@@ -167,6 +168,7 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
     if _due(now_local.hour, business.reminder_hour) and business.last_reminder_date != today:
         business.last_reminder_date = today
         report["reminders"] = send_reminders(session, rt, business, now_utc)
+        report["returns"] = send_return_invites(session, rt, business, now_utc)
     if _due(now_local.hour, business.digest_hour) and business.last_digest_date != today:
         business.last_digest_date = today
         texts = [t for t in [digest_text(session, business, now_utc)] if t]
@@ -176,6 +178,9 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
                 texts.append(weekly)
                 report["weekly"] = True
         report["digest"] = bool(texts) and notify_admins(rt, business, texts) > 0
+    asked = send_review_requests(session, rt, business, now_utc)
+    if asked:
+        report["reviews"] = asked
     refreshed = refresh_instagram_token(rt, business, now_utc)
     if refreshed is not None:
         report["instagram_token"] = refreshed
