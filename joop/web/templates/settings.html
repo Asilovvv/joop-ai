@@ -8,6 +8,9 @@
   <section class="card stack">
     <h2>Компания</h2>
     <label class="check"><input type="checkbox" name="bot_enabled" value="1" {{ 'checked' if business.bot_enabled }}> ИИ отвечает клиентам</label>
+    <label for="s-niche">Ниша
+      <select id="s-niche" name="niche">{% for key, p in packs.items() %}<option value="{{ key }}" {{ 'selected' if key == business.niche }}>{{ p.label }}</option>{% endfor %}</select>
+    </label>
     <div class="grid2">
       <label for="s-name">Название<input id="s-name" name="name" value="{{ business.name }}" required></label>
       <label for="s-phone">Телефон для клиентов<input id="s-phone" name="phone" value="{{ business.phone }}"></label>

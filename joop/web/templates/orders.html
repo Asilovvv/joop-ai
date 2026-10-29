@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Заказы{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Заказы</h1>
+  <p class="muted">Сумму считает система по ценам из раздела «{{ pack.catalog_label }}». Если у позиции цена «от …», сумму подтвердите клиенту сами.</p>
+</section>
+<section class="card">
+  {% if orders %}
+  <div class="list">
+    {% for o in orders %}
+    <div class="item">
+      <div class="main">
+        <div><b>#{{ o.id }}</b> · {{ o.customer_name }} <span class="mono small">{{ o.customer_phone }}</span> · {{ 'доставка' if o.mode == 'delivery' else 'самовывоз' }}{% if o.wanted_time %} к {{ o.wanted_time }}{% endif %}</div>
+        <div class="small">{% for l in lines.get(o.id, []) %}{{ l.quantity }} × {{ l.name }}{% if l.note %} ({{ l.note }}){% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</div>
+        {% if o.address %}<div class="small">Адрес: {{ o.address }}</div>{% endif %}
+        {% if o.comment %}<div class="small muted">{{ o.comment }}</div>{% endif %}
+        <div class="muted small">{{ channel_names.get(o.channel, o.channel) }} · {{ o.created_at|local(business.timezone) }}{% if o.created_off_hours %} · ночью{% endif %}</div>
+      </div>
+      <div class="actions">
+        <span class="chip {{ 'ok' if o.status in ('accepted', 'done') else ('warn' if o.status == 'new' else '') }}">{{ statuses[o.status] }}</span>
+        <b class="mono">{{ '%s сом'|format(o.total) if o.total is not none else 'сумма ?' }}</b>
+        {% for key, label in [('accepted', 'Принять'), ('done', 'Выполнен'), ('cancelled', 'Отменить')] if key != o.status and o.status not in ('done', 'cancelled') %}
+        <form method="post" action="/panel/orders/{{ o.id }}/status" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ key }}"><button class="btn small {{ 'danger' if key == 'cancelled' else 'ghost' }}" type="submit">{{ label }}</button></form>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted">Заказов пока нет. Когда ИИ оформит заказ, он появится здесь и придёт в Telegram.</p>{% endif %}
+</section>
+{% endblock %}
