@@ -21,11 +21,24 @@ NOW_UTC = datetime(2026, 11, 4, 17, 14)
 
 
 class FakeLLM:
-    """Returns scripted replies. An item may be an AgentReply, an exception, or a callable(system, messages)."""
+    """Returns scripted replies. An item may be an AgentReply, an exception, or a callable(system, messages).
 
-    def __init__(self, replies=None):
+    `rewrites` scripts the Kyrgyz language guard: strings to return, or None for a failed call.
+    """
+
+    model = "claude-haiku-5-5"
+
+    def __init__(self, replies=None, rewrites=None):
         self.replies = list(replies or [])
+        self.rewrites = list(rewrites or [])
         self.calls: list[dict] = []
+        self.rewrite_calls: list[str] = []
+
+    def rewrite_in_kyrgyz(self, text, usage):
+        self.rewrite_calls.append(text)
+        usage["input_tokens"] += 30
+        usage["output_tokens"] += 25
+        return self.rewrites.pop(0) if self.rewrites else None
 
     def respond(self, system, messages):
         self.calls.append({"system": system, "messages": messages})

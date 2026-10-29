@@ -20,6 +20,9 @@ class Business(SQLModel, table=True):
     slug: str = Field(index=True, unique=True)
     name: str
     niche: str = "dental"
+    description: str = ""
+    tone: str = ""
+    booking_policy: str = ""
     address: str = ""
     phone: str = ""
     hours_text: str = ""
@@ -56,6 +59,7 @@ class Service(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     business_id: int = Field(foreign_key="business.id", index=True)
     name: str
+    name_ky: str = ""  # Kyrgyz name, so the model does not translate service names on the fly
     price: str = ""  # free text, e.g. "от 3 500"
     note: str = ""
     sort: int = 0
@@ -111,6 +115,11 @@ class Message(SQLModel, table=True):
     created_at: NaiveDatetime = Field(default_factory=utcnow, index=True)
     off_hours: bool = False
     external_id: str = Field(default="", index=True)
+    # Claude usage for AI replies (thinking tokens count as output)
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost_usd: float = 0.0
+    language_fixed: bool = False
 
 
 class Booking(SQLModel, table=True):
@@ -137,7 +146,7 @@ class Lead(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     business_id: int = Field(foreign_key="business.id", index=True)
     conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.id")
-    kind: str = "handoff"  # handoff | media | error
+    kind: str = "handoff"  # handoff | request (booking request without a slot) | media | error
     summary: str = ""
     customer_name: str = ""
     customer_phone: str = ""
