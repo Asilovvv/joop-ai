@@ -57,6 +57,20 @@ def is_kyrgyz_message(text: str) -> bool:
     return ky >= 1 and ky > ru
 
 
+# A reply that claims something was booked, recorded or accepted.
+_CLAIMS = re.compile(
+    r"вы записаны|записал[аи]? вас|запись (?:принята|оформлена|подтвержден\w*|создана)|"
+    r"заявк\w* (?:принята|оформлена)|заказ (?:принят|оформлен|подтвержд\w*)|бронь (?:оформлена|подтвержден\w*)|"
+    r"забронировал[аи]?|кабыл ал(?:ынды|дым|дык)|жазып (?:койдум|коюлду)|катталды|жазылдыңыз",
+    re.IGNORECASE,
+)
+
+
+def claims_confirmation(text: str) -> bool:
+    """Does the reply say a booking, request or order is already made?"""
+    return bool(_CLAIMS.search(text or ""))
+
+
 # Latin letters that look like Cyrillic ones. The model sometimes puts one inside
 # a Cyrillic word ("Бааsы", "алbаймын"); readers see a typo, search breaks.
 _LATIN_TO_CYRILLIC = str.maketrans({

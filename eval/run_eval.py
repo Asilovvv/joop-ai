@@ -25,7 +25,13 @@ from sqlmodel import select
 from joop import db
 from joop.agent.engine import ERROR_REPLY, handle_incoming
 from joop.channels.base import IncomingMessage
-from joop.lang import looks_kyrgyz
+from joop.lang import RU_MESSAGE_MARKERS, looks_kyrgyz
+
+
+def looks_russian(text: str) -> bool:
+    """Short neutral replies ("Манты — 300 сом") are fine in either language; a Russian sentence is not."""
+    words = re.findall(r"[а-яё]+", text.lower())
+    return sum(1 for w in words if w in RU_MESSAGE_MARKERS) >= 2
 from joop.models import Business, Lead
 from joop.presets import create_business
 from joop.pricing import cost_usd, empty_usage
@@ -41,8 +47,8 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, ord
         fails.append("no answer: the bot sent the generic fallback")
     if "**" in final_text or re.search(r"(?m)^#{1,6} ", final_text):
         fails.append("markdown in reply (messengers show it as raw symbols)")
-    if case.get("expect_lang") == "ky" and not looks_kyrgyz(final_text):
-        fails.append("reply is not in Kyrgyz")
+    if case.get("expect_lang") == "ky" and not looks_kyrgyz(final_text) and looks_russian(final_text):
+        fails.append("reply is in Russian, not Kyrgyz")
     if "expect_lead" in case and bool(case["expect_lead"]) != lead_saved:
         fails.append(f"expect_lead={case['expect_lead']} got {lead_saved}")
     if "expect_order" in case and bool(case["expect_order"]) != order_saved:
@@ -55,6 +61,9 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, ord
     for s in case.get("must_not_contain", []):
         if s.lower() in low:
             fails.append(f"contains forbidden '{s}'")
+    for pattern in case.get("must_not_match", []):  # regex, case-insensitive: forbids a claim, not a word
+        if re.search(pattern, final_text, re.IGNORECASE):
+            fails.append(f"matches forbidden /{pattern}/")
     return fails
 
 
@@ -71,7 +80,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
         s.commit()
         business_id = business.id
 
-    lead = handoff = order = language_fixed = False
+    lead = handoff = order = language_fixed = confirmation_fixed = False
     final = ""
     latencies: list[float] = []
     usage = empty_usage()
@@ -88,6 +97,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
         lead = lead or any(x is not None for x in (out.booking_id, out.request_id, out.qualified_lead_id))
         order = order or out.order_id is not None
         language_fixed = language_fixed or out.language_fixed
+        confirmation_fixed = confirmation_fixed or out.confirmation_fixed
         final = out.reply or ""
         for k in usage:
             usage[k] += out.usage.get(k, 0)
@@ -105,6 +115,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
         "usage": usage,
         "cost_usd": cost_usd(usage, model),
         "language_fixed": language_fixed,
+        "confirmation_fixed": confirmation_fixed,
     }
 
 
@@ -122,6 +133,7 @@ def summarize(results: list[dict]) -> dict:
         "avg_cost_usd_per_conversation": round(sum(costs) / len(costs), 6) if costs else None,
         "total_cost_usd": round(sum(costs), 6) if costs else None,
         "language_guard_fired": sum(1 for r in results if r.get("language_fixed")),
+        "confirmation_guard_fired": sum(1 for r in results if r.get("confirmation_fixed")),
     }
 
 
