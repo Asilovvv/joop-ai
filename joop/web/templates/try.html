@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Проверить ИИ{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>Проверьте ИИ как клиент</h1>
+  <form method="post" action="/panel/try/reset" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn ghost small" type="submit">Новый диалог</button>
+  </form>
+</div>
+<p class="muted">Это тестовый чат: ИИ отвечает так же, как клиентам в мессенджерах, и по вашим данным. Записи и заявки из теста видны в панели.</p>
+<section class="card stack">
+  <div class="msgs">
+    {% for m in messages %}<div class="msg {{ m.role }}">{{ m.text }}<span class="meta">{{ 'вы' if m.role == 'customer' else 'ИИ' if m.role == 'ai' else 'администратор' }}</span></div>
+    {% else %}<p class="muted">Напишите, например: «Сколько стоит консультация?» или «Эртең жазылсам болобу?»</p>{% endfor %}
+  </div>
+  <form method="post" action="/panel/try" class="row c2" id="end">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="text">Сообщение клиента<input id="text" name="text" autocomplete="off" required maxlength="1000" autofocus></label>
+    <span></span>
+    <button class="btn" type="submit">Отправить</button>
+  </form>
+</section>
+{% endblock %}

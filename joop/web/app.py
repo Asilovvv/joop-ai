@@ -58,6 +58,8 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     if books:
         items.append(("/panel/staff", "staff", pack.resource_label))
     items += [("/panel/faq", "faq", "Вопросы"), ("/panel/settings", "settings", "Настройки"), ("/panel/channels", "channels", "Каналы")]
+    items[1:1] = [("/panel/setup", "setup", "Запуск"), ("/panel/try", "try", "Проверить ИИ")]
+    items.append(("/panel/billing", "billing", "Оплата"))
     return items
 TIMEZONES = ["Asia/Bishkek", "Asia/Almaty", "Asia/Tashkent", "Asia/Dushanbe", "Europe/Moscow"]
 CHANNEL_NAMES = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram", "console": "Тест"}
@@ -961,6 +963,13 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     )
     app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
     app.include_router(router)
+    from .saas import OwnerRequired, router as saas_router  # imported here: saas uses this module's helpers
+
+    app.include_router(saas_router)
+
+    @app.exception_handler(OwnerRequired)
+    async def _owner_required(_request: Request, _exc: OwnerRequired):
+        return RedirectResponse("/owner/login", status_code=303)
 
     @app.exception_handler(LoginRequired)
     async def _login_required(_request: Request, _exc: LoginRequired):

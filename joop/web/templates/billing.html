@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Оплата{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>Подписка</h1>
+  {% if st %}<span class="chip {{ 'ok' if st.code in ('trial', 'active') else 'warn' }}">{{ st.label }}{% if st.active %} · осталось {{ st.days_left }} дн.{% endif %}</span>{% endif %}
+</div>
+<section class="card stack">
+  {% if not sub %}
+  <p>Ваш аккаунт подключён вручную, оплата идёт по договору.</p>
+  {% else %}
+  <div class="stats">
+    <div class="stat"><b>{{ price if price else '—' }}</b><span>сом в месяц</span></div>
+    <div class="stat"><b>{{ sub.trial_ends_at.strftime('%d.%m') if sub.trial_ends_at else '—' }}</b><span>конец пробного периода</span></div>
+    <div class="stat"><b>{{ sub.paid_until.strftime('%d.%m.%Y') if sub.paid_until else '—' }}</b><span>оплачено до</span></div>
+  </div>
+  {% if st and not st.active %}<p class="flash error">ИИ сейчас не отвечает клиентам: сообщения приходят в панель, отвечайте вручную или оплатите подписку.</p>{% endif %}
+  <form method="post" action="/panel/billing/pay" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% if card %}<button class="btn" type="submit" name="method" value="card">Оплатить картой {{ price }} сом</button>{% endif %}
+    <button class="btn {{ 'ghost' if card }}" type="submit" name="method" value="manual">Оплатить переводом или QR</button>
+  </form>
+  {% if instructions %}<div class="card"><h2>Реквизиты</h2><p style="white-space: pre-wrap">{{ instructions }}</p><p class="muted small">В назначении укажите номер заявки. Подписка продлится после подтверждения, обычно в тот же день.</p></div>{% endif %}
+  {% endif %}
+</section>
+{% if payments %}
+<section class="card">
+  <h2>Платежи</h2>
+  <div class="scroll"><table class="table">
+    <tr><th>№</th><th>Дата</th><th>Сумма</th><th>Способ</th><th>Статус</th></tr>
+    {% for p in payments %}<tr><td>{{ p.id }}</td><td>{{ p.created_at | dt }}</td><td>{{ p.amount_som }} сом</td><td>{{ 'карта' if p.method == 'freedompay' else 'перевод' }}</td><td>{{ {'pending': 'ждёт', 'paid': 'оплачен', 'failed': 'не прошёл'}[p.status] }}</td></tr>{% endfor %}
+  </table></div>
+</section>
+{% endif %}
+{% endblock %}

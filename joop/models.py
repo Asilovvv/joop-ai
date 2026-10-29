@@ -196,3 +196,55 @@ class OrderLine(SQLModel, table=True):
     quantity: int = 1
     unit_price: Optional[int] = None
     note: str = ""
+
+
+# --- SaaS: self-serve sign-up, billing and the founder's sales pipeline --------------------------
+
+
+class Subscription(SQLModel, table=True):
+    """One per business that signed up by itself or was created from the owner console.
+    A business without a row (created from the command line) is never blocked."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", unique=True, index=True)
+    status: str = "trial"  # trial | active | suspended
+    price_som: int = 0  # monthly price agreed with this business; 0 = the default price from settings
+    trial_ends_at: Optional[NaiveDatetime] = None
+    paid_until: Optional[NaiveDatetime] = None
+    contact_name: str = ""
+    contact_phone: str = ""
+    source: str = "signup"  # signup | owner | prospect
+    note: str = ""  # the founder's private note
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class Payment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    amount_som: int
+    method: str = "manual"  # manual | freedompay
+    status: str = "pending"  # pending | paid | failed
+    period_days: int = 30
+    provider_payment_id: str = Field(default="", index=True)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+    paid_at: Optional[NaiveDatetime] = None
+
+
+class Prospect(SQLModel, table=True):
+    """A business the founder wants to sell to. Not tenant data: only the owner console sees it."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    niche: str = "other"
+    city: str = "Бишкек"
+    contact_name: str = ""
+    phone: str = ""
+    instagram: str = ""
+    notes: str = ""
+    language: str = "ru"  # ru | ky: language of the first message
+    status: str = "new"  # new | contacted | replied | demo | trial | paid | lost
+    message: str = ""  # AI draft of the first message; the founder edits and sends it himself
+    demo_business_id: Optional[int] = Field(default=None, foreign_key="business.id")
+    next_step_at: Optional[NaiveDatetime] = None
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+    updated_at: NaiveDatetime = Field(default_factory=utcnow)

@@ -111,6 +111,24 @@ See [docs/pilot-economics.md](docs/pilot-economics.md). In short: the AI itself 
 100 som per clinic per month at current Claude Haiku 5.5 prices. The main costs are the server and
 WhatsApp message fees for reminders.
 
+## Self-serve sign-up, billing and the founder console
+
+- **Sign-up** at `/signup`: a business picks its niche, gets a sample price list for it and a
+  `TRIAL_DAYS` trial. The **launch checklist** (`/panel/setup`) walks it through contacts, price
+  list, a **test chat** with its own AI (`/panel/try`), Telegram in one step (paste the BotFather
+  token; the webhook is set automatically) and payment.
+- **Billing** (`/panel/billing`): `PRICE_SOM` a month by card through FreedomPay Kyrgyzstan, or
+  by transfer / QR that the founder confirms. When the trial or the paid month ends (plus 3
+  days), the AI stops answering; messages still reach the panel. Businesses created from the
+  command line are never blocked.
+- **Founder console** (`/owner`, password `OWNER_PASSWORD`): every business with status, usage,
+  AI cost and price; monthly revenue; payments waiting for confirmation; actions: open the
+  business's panel, +7 days, mark paid, pause, resume, set an individual price.
+- **Sales pipeline** (`/owner/prospects`): add businesses or paste a CSV list, let the AI draft a
+  personal first message in Russian or Kyrgyz, create a demo account for a prospect in one
+  click, and move it through new → contacted → replied → demo → trial → paid. Messages are
+  sent by the founder himself: no automatic mass messaging or calls.
+
 ## Database migrations
 
 The schema is managed with Alembic (`joop/migrations`). The server applies pending migrations on
