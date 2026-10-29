@@ -337,3 +337,17 @@ def test_wholesale_panel_hides_booking_sections(settings, rt, engine):
         c.post("/login", data={"slug": "opt", "password": "secret-pass", "csrf": token})
         nav = c.get("/panel").text.split("</nav>")[0]
         assert "Каталог" in nav and "Заказы" in nav and "Окна" not in nav and "Записи" not in nav
+
+
+def test_login_is_locked_after_repeated_failures(client):
+    from joop.web import app as web_app
+
+    web_app._login_fails.clear()
+    token = csrf_of(client.get("/login").text)
+    for _ in range(web_app.LOGIN_MAX_FAILS):
+        client.post("/login", data={"slug": "aktish", "password": "wrong", "csrf": token})
+    r = client.post("/login", data={"slug": "aktish", "password": "secret-pass", "csrf": token}, follow_redirects=False)
+    assert r.headers["location"] == "/login"  # correct password is refused while locked
+    assert "Слишком много" in client.get("/login").text
+    web_app._login_fails.clear()
+    login(client)
