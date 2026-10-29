@@ -1,6 +1,16 @@
 # Multi-niche design (proposal, not implemented)
 
-Status: draft for the owner's approval, 29 Oct 2026. Nothing in this document is built yet.
+Status: approved 29 Oct 2026 (all niches, start now). Implemented in the same week, with these
+differences from the proposal below:
+
+- Tables were extended instead of renamed: `Service` is the catalog (plus `available`, `price_value`,
+  `category`), `Staff` is the resource (plus `capacity`). No live database existed, so no migration
+  tool was added; add Alembic before the first schema change after a pilot starts.
+- Packs live in `joop/niches/<name>/` (pack.yaml, demo.yaml, cases.yaml) for dental, beauty, restaurant,
+  realty, auto, education, wholesale and a generic `other`.
+- Not built yet: the `search_catalog` tool for large catalogs (section 4), minimum order and delivery
+  fee in code (today they are text in the booking policy, so the order total excludes delivery),
+  per-pack JSON schemas for catalog attributes (attributes are free text in the item name and note).
 
 Goal: one Joop AI core for every niche. A niche is a **pack** of configuration, demo data and
 evaluation cases. Adding a niche must not require changes to the core.
