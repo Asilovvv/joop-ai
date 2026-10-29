@@ -12,6 +12,7 @@ from pydantic import NaiveDatetime
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
+from .crypto import EncryptedString
 from .timeutil import utcnow
 
 
@@ -44,14 +45,14 @@ class Business(SQLModel, table=True):
     admin_link_code: str = ""
     admin_chat_ids: str = ""  # Telegram chat ids that receive notifications, comma separated
 
-    telegram_bot_token: str = ""
+    telegram_bot_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
     telegram_secret: str = ""
     wa_phone_number_id: str = Field(default="", index=True)
-    wa_access_token: str = ""
+    wa_access_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
     wa_reminder_template: str = ""
     wa_template_lang: str = "ru"
     ig_account_id: str = Field(default="", index=True)
-    ig_access_token: str = ""
+    ig_access_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
     ig_token_refreshed_at: Optional[NaiveDatetime] = None
 
     last_reminder_date: str = ""
