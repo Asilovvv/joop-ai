@@ -55,3 +55,34 @@ def is_kyrgyz_message(text: str) -> bool:
     ky = sum(1 for w in words if w in KY_MESSAGE_MARKERS or re.search("[ңөү]", w))
     ru = sum(1 for w in words if w in RU_MESSAGE_MARKERS)
     return ky >= 1 and ky > ru
+
+
+# Latin letters that look like Cyrillic ones. The model sometimes puts one inside
+# a Cyrillic word ("Бааsы", "алbаймын"); readers see a typo, search breaks.
+_LATIN_TO_CYRILLIC = str.maketrans({
+    "a": "а", "b": "б", "c": "с", "e": "е", "k": "к", "m": "м", "o": "о", "p": "р",
+    "s": "с", "t": "т", "x": "х", "y": "у",
+    "A": "А", "B": "В", "C": "С", "E": "Е", "K": "К", "M": "М", "O": "О", "P": "Р",
+    "T": "Т", "X": "Х", "Y": "У",
+})
+_MIXED_WORD = re.compile(r"\b(?=\w*[А-Яа-яЁёҢңӨөҮү])(?=\w*[A-Za-z])\w+\b")
+
+
+def fix_mixed_script(text: str) -> str:
+    """Replace Latin look-alike letters inside words that are mostly Cyrillic.
+    Pure Latin words (brand names, "QR") are left alone."""
+    return _MIXED_WORD.sub(lambda m: m.group(0).translate(_LATIN_TO_CYRILLIC), text)
+
+
+def use_kyrgyz_names(text: str, names: dict[str, str]) -> str:
+    """Swap Russian service names left in a Kyrgyz reply for their Kyrgyz names
+    from the profile (case-insensitive; keeps a capital first letter)."""
+    for ru, ky in sorted(names.items(), key=lambda kv: -len(kv[0])):
+        if not ru or not ky:
+            continue
+
+        def repl(m: re.Match, ky: str = ky) -> str:
+            return ky[0].upper() + ky[1:] if m.group(0)[0].isupper() else ky[0].lower() + ky[1:]
+
+        text = re.sub(re.escape(ru), repl, text, flags=re.IGNORECASE)
+    return text

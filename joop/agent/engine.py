@@ -15,7 +15,7 @@ from typing import Callable
 from sqlmodel import Session, select
 
 from ..channels.base import IncomingMessage
-from ..lang import is_kyrgyz_message, looks_kyrgyz
+from ..lang import fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Service, Slot, Staff
 from ..phone import normalize_phone
 from ..pricing import cost_usd, empty_usage
@@ -160,6 +160,12 @@ def handle_incoming(
         if rewritten and looks_kyrgyz(rewritten):
             outcome.reply = rewritten
             outcome.language_fixed = True
+    # Cheap fixes without a model call: Latin look-alike letters inside Cyrillic words, and Russian
+    # service names left in a Kyrgyz reply.
+    if outcome.reply:
+        outcome.reply = fix_mixed_script(outcome.reply)
+        if is_kyrgyz_message(text) and looks_kyrgyz(outcome.reply):
+            outcome.reply = use_kyrgyz_names(outcome.reply, {sv.name: sv.name_ky for sv in services if sv.name_ky})
 
     outcome.cost_usd = cost_usd(outcome.usage, getattr(llm, "model", ""))
     if outcome.reply:
