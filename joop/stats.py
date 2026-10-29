@@ -7,7 +7,7 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .models import Booking, Lead, Message
+from .models import Booking, Lead, Message, Order
 
 
 def activity(session: Session, business_id: int, since_utc: datetime) -> dict:
@@ -43,6 +43,9 @@ def activity(session: Session, business_id: int, since_utc: datetime) -> dict:
             select(func.count()).select_from(Lead).where(
                 Lead.business_id == business_id, Lead.kind != "request", Lead.created_at >= since_utc
             )
+        ),
+        "orders": scalar(
+            select(func.count()).select_from(Order).where(Order.business_id == business_id, Order.created_at >= since_utc)
         ),
         "ai_replies": scalar(
             select(func.count()).select_from(Message).where(

@@ -1,0 +1,30 @@
+# Demo cafe. Fictional menu and prices.
+niche: restaurant
+name: "Демо Кафе Ала-Тоо"
+description: "Кафе национальной и европейской кухни (демо)"
+address: "Бишкек, проспект Чуй 150 (демо-адрес)"
+phone: "+996 555 000 002"
+hours: "Ежедневно 10:00–23:00, доставка 11:00–22:00"
+work_start: "10:00"
+work_end: "23:00"
+days_off: []
+booking_policy: "Стол держим 15 минут после времени брони. Доставка по центру города, минимальный заказ 800 сом, доставка 150 сом."
+services:
+  - {name: "Плов", name_ky: "Палоо", price: "350", note: "порция 400 г", category: "горячее"}
+  - {name: "Лагман", name_ky: "Лагман", price: "320", note: "порция 450 г", category: "горячее"}
+  - {name: "Манты, 5 шт.", name_ky: "Манты, 5 даана", price: "300", category: "горячее"}
+  - {name: "Шашлык из баранины", name_ky: "Кой этинен шашлык", price: "450", note: "1 шампур, 200 г", category: "горячее"}
+  - {name: "Салат Ачичук", name_ky: "Ачичук салаты", price: "180", category: "салаты"}
+  - {name: "Борщ", name_ky: "Борщ", price: "250", category: "супы", available: false}
+  - {name: "Лепёшка", name_ky: "Нан", price: "40", category: "хлеб"}
+  - {name: "Чай чёрный, чайник", name_ky: "Кара чай, чайнек", price: "120", category: "напитки"}
+  - {name: "Компот, 1 л", name_ky: "Компот, 1 л", price: "200", category: "напитки"}
+resources:
+  - {name: "Стол 1", role: "у окна", capacity: 2}
+  - {name: "Стол 2", role: "зал", capacity: 4}
+  - {name: "Стол 3", role: "зал", capacity: 6}
+  - {name: "Топчан", role: "терраса", capacity: 10}
+faq:
+  - {q: "Есть ли детское меню?", a: "Отдельного детского меню нет, можно заказать половину порции плова или лагмана."}
+  - {q: "Можно прийти со своим тортом?", a: "Да, без доплаты."}
+slots: {days: 7, start: "12:00", end: "22:00", step: 120}

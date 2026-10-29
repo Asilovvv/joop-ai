@@ -28,7 +28,7 @@ dev = ["pytest>=8"]
 include = ["joop*"]
 
 [tool.setuptools.package-data]
-joop = ["web/templates/*.html", "web/static/*"]
+joop = ["web/templates/*.html", "web/static/*", "niches/*/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
