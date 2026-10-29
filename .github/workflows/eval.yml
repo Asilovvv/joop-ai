@@ -1,5 +1,5 @@
 # Scripted evaluation against the real model, started by hand (Actions -> eval -> Run workflow).
-# Needs the repository secret ANTHROPIC_API_KEY. Runs the two profile sets and every niche pack (about 125 dialogues).
+# Needs the repository secret ANTHROPIC_API_KEY. Runs the two profile sets and every niche pack (about 240 dialogues).
 # Results are kept on the eval-results branch under runs/ and shown in the run summary.
 name: eval
 
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   eval:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
