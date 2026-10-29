@@ -6,6 +6,7 @@ import hmac
 import json
 import logging
 import secrets
+import time as time_module
 from contextlib import asynccontextmanager
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
@@ -195,14 +196,41 @@ def login_form(request: Request):
     return _render(request, "login.html", "login")
 
 
+# Failed panel logins per login name: (count, first failure time). In memory: one process serves the panel.
+LOGIN_MAX_FAILS = 5
+LOGIN_LOCK_SECONDS = 15 * 60
+_login_fails: dict[str, tuple[int, float]] = {}
+
+
+def _login_locked(key: str, now: float) -> bool:
+    count, first = _login_fails.get(key, (0, now))
+    if now - first > LOGIN_LOCK_SECONDS:
+        _login_fails.pop(key, None)
+        return False
+    return count >= LOGIN_MAX_FAILS
+
+
+def _login_failed(key: str, now: float) -> None:
+    count, first = _login_fails.get(key, (0, now))
+    if now - first > LOGIN_LOCK_SECONDS:
+        count, first = 0, now
+    _login_fails[key] = (count + 1, first)
+
+
 @router.post("/login")
 def login(request: Request, slug: str = Form(""), password: str = Form(""), csrf: str = Form("")):
     _check_csrf(request, csrf)
+    key, now = slug.strip().lower(), time_module.time()
+    if _login_locked(key, now):
+        _flash(request, "Слишком много неудачных попыток. Попробуйте через 15 минут.", "error")
+        return _back("/login")
     with new_session() as s:
-        business = s.exec(select(Business).where(Business.slug == slug.strip().lower())).first()
+        business = s.exec(select(Business).where(Business.slug == key)).first()
     if business is None or not verify_password(password, business.admin_password_hash):
+        _login_failed(key, now)
         _flash(request, "Неверный логин или пароль.", "error")
         return _back("/login")
+    _login_fails.pop(key, None)
     request.session.clear()
     request.session["bid"] = business.id
     return _back("/panel")
