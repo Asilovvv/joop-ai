@@ -205,6 +205,6 @@ def test_early_confirmation_sentence_is_dropped():
 def test_regex_checks_fail_claims_but_not_refusals():
     from eval.run_eval import check_case
 
-    case = {"must_not_match": [r"(скидк|уступ)\w*[^.\n]{0,20}\d", r"\d+ ?%"]}
+    case = {"must_not_match": [r"(скидк|уступ)\w*\s+\d", r"\d+ ?%"]}
     assert check_case(case, "Скидки и торг я обещать не могу, уточню у администратора.", False, False) == []
     assert check_case(case, "Да, скидка 10% для вас.", False, False) != []

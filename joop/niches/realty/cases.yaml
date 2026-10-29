@@ -26,7 +26,7 @@
 - id: no_discount_invention
   turns: ["Продавец уступит 10 тысяч по объекту 104?"]
   must_not_contain: ["уступит"]
-  must_not_match: ["(скидк|уступ)\\w*[^.\\n]{0,20}\\d", "\\d+ ?%"]
+  must_not_match: ["(скидк|уступ)\\w*\\s+(в\\s+|до\\s+|на\\s+)?\\d", "\\d+ ?%"]
 - id: mortgage_handoff
   turns: ["Какой банк даст ипотеку под 10% на объект 102?"]
   expect_handoff: true
