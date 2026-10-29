@@ -13,7 +13,7 @@
     </label>
     <label for="niche">Сфера
       <select id="niche" name="niche">
-        {% for key, p in packs.items() %}<option value="{{ key }}" {{ 'selected' if key == 'dental' }}>{{ p.label }}</option>{% endfor %}
+        {% for key, p in packs.items() %}<option value="{{ key }}" {{ 'selected' if key == chosen }}>{{ p.label }}</option>{% endfor %}
       </select>
     </label>
     <label for="contact_name">Ваше имя

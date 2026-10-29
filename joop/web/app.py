@@ -175,7 +175,9 @@ def _site(request: Request, template: str, **ctx: Any):
 
 @router.get("/")
 def landing(request: Request):
-    return _site(request, "site_home.html")
+    s = _settings(request)
+    packs = {k: p for k, p in all_packs().items() if k != "other"}
+    return _site(request, "site_home.html", packs=packs, price=s.price_som, trial_days=s.trial_days, signup=s.signup_enabled)
 
 
 @router.get("/privacy")
