@@ -196,7 +196,8 @@ def setup_telegram(request: Request, token: str = Form(""), csrf: str = Form("")
     settings = _settings(request)
     with new_session() as s:
         b = _business(s, request)
-        if s.exec(select(Business.id).where(Business.telegram_bot_token == token, Business.id != b.id)).first():
+        others = s.exec(select(Business).where(Business.id != b.id, Business.telegram_bot_token != "")).all()
+        if any(o.telegram_bot_token == token for o in others):  # tokens are encrypted: compare after decryption
             _flash(request, "Этот бот уже подключён к другой компании.", "error")
             return _back("/panel/setup#telegram")
         b.telegram_bot_token = token
