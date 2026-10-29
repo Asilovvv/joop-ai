@@ -14,6 +14,7 @@ import yaml
 
 PACKS_DIR = Path(__file__).parent
 OUTCOMES = {"booking", "request", "order", "lead", "handoff"}
+FEATURES = {"level_test"}  # optional modules a pack switches on (level_test: joop/placement.py)
 
 
 @dataclass(frozen=True)
@@ -30,9 +31,13 @@ class Pack:
     lead_fields: tuple[str, ...] = ()  # what to ask before a qualified lead
     order_modes: tuple[str, ...] = ("pickup", "delivery")
     rules: tuple[str, ...] = field(default_factory=tuple)
+    features: frozenset[str] = frozenset()
 
     def has(self, outcome: str) -> bool:
         return outcome in self.outcomes
+
+    def offers(self, feature: str) -> bool:
+        return feature in self.features
 
     @property
     def dir(self) -> Path:
@@ -53,6 +58,9 @@ def _load(name: str) -> Pack:
     unknown = outcomes - OUTCOMES
     if unknown:
         raise ValueError(f"Pack {name}: unknown outcomes {sorted(unknown)}")
+    features = frozenset(data.get("features") or [])
+    if features - FEATURES:
+        raise ValueError(f"Pack {name}: unknown features {sorted(features - FEATURES)}")
     return Pack(
         name=name,
         label=data["label"],
@@ -66,6 +74,7 @@ def _load(name: str) -> Pack:
         lead_fields=tuple(data.get("lead_fields") or ()),
         order_modes=tuple(data.get("order_modes") or ("pickup", "delivery")),
         rules=tuple(data.get("rules") or ()),
+        features=features,
     )
 
 
