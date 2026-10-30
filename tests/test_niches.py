@@ -110,7 +110,7 @@ def test_table_booking_checks_party_size(engine):
         AgentReply("Забронировала!", booking={**booking, "party_size": 5}),
         AgentReply("Забронировала стол на двоих.", booking={**booking, "party_size": 2}),
     ])
-    assert say(b, "стол", llm, "t1").reply.startswith("Сколько будет гостей?")
+    assert say(b, "стол, Айбек 0555123456", llm, "t1").reply.startswith("Сколько будет гостей?")
     big = say(b, "нас пятеро", llm, "t2")
     assert big.booking_id is None and big.reply.startswith("Этот стол рассчитан на 2 гостей. Подойдут:")
     assert "Стол 1" not in big.reply.split("Подойдут:")[1]
@@ -123,7 +123,7 @@ def test_table_booking_checks_party_size(engine):
 def test_realty_qualified_lead(engine):
     b = make("realty")
     llm = FakeLLM([AgentReply("Спасибо! Агент свяжется с вами сегодня.", lead={"name": "Жылдыз", "phone": "0700 111 222", "details": "Покупка; бюджет: до 80 000 $; район: Джал; комнат: 2"})])
-    out = say(b, "Ищу двушку в Джале до 80 тысяч", llm, "l1")
+    out = say(b, "Ищу двушку в Джале до 80 тысяч, я Жылдыз, 0700 111 222", llm, "l1")
     assert out.qualified_lead_id and out.admin_notes[0].startswith("Новый лид")
     assert "район: Джал" in out.admin_notes[0]
     with db.new_session() as s:

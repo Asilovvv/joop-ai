@@ -64,14 +64,14 @@ def test_ai_books_group_class_and_respects_seats(engine):
         s.commit()
     data = lambda n, name, phone: {"slot_id": slot.id, "name": name, "phone": phone, "service": "йога", "preferred_time": "", "party_size": n}  # noqa: E731
     llm = FakeLLM([AgentReply("Записала вас двоих на йогу.", booking=data(2, "Сауле", "0555171819"))])
-    out = say(b.id, "Запишите двоих на йогу", llm, "y1")
+    out = say(b.id, "Запишите двоих на йогу, я Сауле, 0555171819", llm, "y1")
     assert out.booking_id
     assert "групповое занятие: свободно мест 3 из 3" in llm.calls[0]["system"]
     llm2 = FakeLLM([AgentReply("Записала вас двоих.", booking=data(2, "Айдай", "0555000111"))])
-    out = say(b.id, "Нас тоже двое на это же время", llm2, "y2", chat="g2")
+    out = say(b.id, "Нас тоже двое на это же время, Айдай 0555000111", llm2, "y2", chat="g2")
     assert out.booking_id is None and "осталось мест: 1" in out.reply
     llm3 = FakeLLM([AgentReply("Записала вас.", booking=data(1, "Нурай", "0555000222"))])
-    assert say(b.id, "Запишите одну меня", llm3, "y3", chat="g3").booking_id
+    assert say(b.id, "Запишите одну меня, Нурай 0555000222", llm3, "y3", chat="g3").booking_id
     with db.new_session() as s:
         row = s.get(Slot, slot.id)
         assert (row.taken, row.status) == (3, "booked")
@@ -87,7 +87,7 @@ def test_cancel_frees_the_right_number_of_seats(engine, settings, rt):
 
     b, yoga, slot = gym()
     llm = FakeLLM([AgentReply("Записала.", booking={"slot_id": slot.id, "name": "Сауле", "phone": "0555171819", "service": "йога", "preferred_time": "", "party_size": 2})])
-    out = say(b.id, "Двоих на йогу", llm, "c1")
+    out = say(b.id, "Двоих на йогу, Сауле 0555171819", llm, "c1")
     with TestClient(create_app(settings, rt, init=False)) as c:
         token = csrf_of(c.get("/login").text)
         c.post("/login", data={"slug": "gym", "password": "gym-pass-1", "csrf": token})
