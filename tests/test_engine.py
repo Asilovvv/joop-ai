@@ -183,3 +183,23 @@ def test_dispatch_delivers_reply_and_admin_notes(business, rt):
     assert outcome.booking_id
     assert rt.tg.sent[0] == ("1001", "Записала!")
     assert {chat for chat, _ in rt.tg.sent[1:]} == {"-5001", "777"}
+
+
+def test_booking_needs_a_name_the_customer_gave(business):
+    """Eval run 25: "Запишите на стрижку, 0555 123 456, завтра в 11" was booked under an invented name."""
+    from joop.agent.engine import ASK_CONTACTS_REPLY, _fold
+
+    slot = first_free_slot(business.id)
+    llm = FakeLLM([
+        AgentReply("Вы записаны.", booking={"slot_id": slot.id, "name": "Клиент", "phone": "0555123456", "service": "чистка"}),
+        AgentReply("Вы записаны.", booking={"slot_id": slot.id, "name": "Айгерим", "phone": "0555123456", "service": "чистка"}),
+    ])
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        out = handle_incoming(s, b, IncomingMessage("telegram", "n1", "text", "Запишите, 0555 123 456", "", "n1"), lambda: llm, NOW_UTC)
+        s.commit()
+        assert out.booking_id is None and out.reply == ASK_CONTACTS_REPLY
+        out = handle_incoming(s, b, IncomingMessage("telegram", "n1", "text", "Aigerim", "", "n2"), lambda: llm, NOW_UTC)
+        s.commit()
+        assert out.booking_id  # Latin spelling of the same name counts
+    assert _fold("Жаңыл") == _fold("Zhanyl")
