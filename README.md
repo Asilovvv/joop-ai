@@ -174,6 +174,10 @@ WhatsApp message fees for reminders.
   panel "Заказы в работе"): staff record what was left, with a receipt number and phone, and change the
   status. The AI answers "готово?" only for a job tied to the customer — the WhatsApp number itself, or the
   receipt number together with the phone given at drop-off. Marking a job ready messages the customer.
+- **Questions before a visit and loyalty** (panel "Отзывы и возврат"): right after booking the AI asks
+  the company's questions (up to 5); the customer's next message is saved with the booking and sent to
+  staff, and still reaches the AI. "Every N-th visit — reward": code counts earlier visits by phone and the
+  confirmation says "Это будет ваш 5-й визит — скидка 20%".
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
 
