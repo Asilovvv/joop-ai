@@ -44,6 +44,7 @@
         <label>Первое сообщение (отправляете вы сами)<textarea name="message" rows="5">{{ p.message }}</textarea></label>
         <div class="actions" style="justify-content: flex-start">
           <button class="btn small" name="action" value="draft">{{ 'Переписать ИИ' if p.message else 'Написать ИИ' }}</button>
+          <button class="btn ghost small" name="action" value="draft_site">Предложить сайт</button>
           <button class="btn ghost small" name="action" value="save">Сохранить</button>
           {% if not p.demo_business_id %}<button class="btn ghost small" name="action" value="demo">Создать демо</button>{% else %}<span class="chip ok">демо создано</span>{% endif %}
           {% if p.phone %}<a class="btn ghost small" href="https://wa.me/{{ p.phone | replace(' ', '') | replace('+', '') | replace('-', '') }}" target="_blank" rel="noopener">Открыть WhatsApp</a>{% endif %}
