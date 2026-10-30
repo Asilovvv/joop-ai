@@ -1,0 +1,265 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/auto/demo.yaml",
+  "summary": {
+    "cases": 13,
+    "passed": 13,
+    "avg_latency_s": 1.66,
+    "max_latency_s": 3.22,
+    "input_tokens": 105643,
+    "output_tokens": 2469,
+    "avg_cost_usd_per_conversation": 0.000908,
+    "total_cost_usd": 0.011799,
+    "language_guard_fired": 1,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Компьютерная диагностика стоит 1 000 сомов. Хотите записаться на диагностику?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.7,
+      "usage": {
+        "input_tokens": 6505,
+        "output_tokens": 56,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006785,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Тиркелген үчүн жокко тартуу: Тегерек-тегеректин (развал-схождение) баасы 1 800 сом. Жазылгыңыз келсе, унааңыздын маркасын, моделин жана чыккан жылын, ошондой эле атыңызды жана телефон номериңизди жазыңыз.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 3.22,
+      "usage": {
+        "input_tokens": 6747,
+        "output_tokens": 190,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007697,
+      "language_fixed": true,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "unknown_service_no_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Покраска бампера в нашем прайсе не указана, поэтому точную стоимость назвать не могу. Передам вопрос администратору, и он уточнит цену. Могу также записать вас на компьютерную диагностику за 1 000 сом, если нужно.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.33,
+      "usage": {
+        "input_tokens": 6502,
+        "output_tokens": 159,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007297,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "booking_asks_car",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте! Запишем вас на замену масла и фильтра. Подскажите, пожалуйста, марку, модель и год вашего автомобиля, а также имя и номер телефона. Какое время вам удобно? Могу предложить, например, сб 31.10 в 09:00, 10:00 или 11:00, либо пн 02.11 в 09:00 и 10:00.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.13,
+      "usage": {
+        "input_tokens": 6500,
+        "output_tokens": 150,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000725,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "booking_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Отлично, Эмиль! Вы записаны на субботу 31.10 в 09:00 в Боксе 2 на замену тормозных колодок Toyota Camry 2018. Адрес: Бишкек, ул. Жибек Жолу 500. Если что-то изменится, звоните +996 555 000 004.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.7,
+      "usage": {
+        "input_tokens": 19968,
+        "output_tokens": 595,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0022943,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "booking_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Нурбек! Ишемби, 31.10 саат 10:00 үчүн Honda Fit 2010 компьютердик диагностикаға жазып койдум. Дарек: Бишкек, Жибек Жолу 500. Суроолоруңуз болсо +996 555 000 004 номерине жазыңыз.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.76,
+      "usage": {
+        "input_tokens": 13310,
+        "output_tokens": 374,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.001518,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_repair_price_guess",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Точную стоимость ремонта по описанию назвать не могу — нужна диагностика. Компьютерная диагностика стоит 1 000 сом. Подскажите марку, модель и год автомобиля, и я подберу время для записи.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.25,
+      "usage": {
+        "input_tokens": 6510,
+        "output_tokens": 100,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000701,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "brakes_safety_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Понимаю, это серьёзно. Не садитесь за руль в таком состоянии, включите аварийку и по возможности отгоните машину с проезжей части. Я передаю ваш вопрос администратору, он свяжется с вами. Если нужна срочная помощь, напишите, где вы находитесь.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.68,
+      "usage": {
+        "input_tokens": 6506,
+        "output_tokens": 180,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007406,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Азыр мастер менен байланыштыруу мүмкүн эмес, бирок сиздин суроо-талабыңызды администраторго жеткиребиз. Билдирүү үчүн аты-жөнүңүздү жана телефон номериңизди жазып коюңузчу.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.15,
+      "usage": {
+        "input_tokens": 6505,
+        "output_tokens": 160,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007305,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "range_price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Шиномонтаж на 4 колеса стоит от 1 600 сомов, точная цена зависит от радиуса колёс. Если хотите записаться, подскажите марку, модель и год автомобиля, удобное время, а также имя и номер телефона.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.61,
+      "usage": {
+        "input_tokens": 6584,
+        "output_tokens": 107,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007119000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте, Канат! Развал-схождение для Lada Vesta 2020 можно записать на суббота 31.10 в 15:00. Подскажите, пожалуйста, ваш номер телефона, и я оформлю запись.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.27,
+      "usage": {
+        "input_tokens": 6751,
+        "output_tokens": 102,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007261,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Извините, но компьютерная диагностика у нас платная и стоит 1 000 сомов. Если хотите, могу записать вас на диагностику — подскажите, пожалуйста, марку, модель и год автомобиля, а также ваше имя и телефон.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.04,
+      "usage": {
+        "input_tokens": 6621,
+        "output_tokens": 108,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007161,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жакшы, Улан. Toyota Corolla 2015 үчүн майды жана чыпканы алмаштырууга жазабыз. Эртең, ишемби, бош убакыттар: 09:00, 10:00 же 11:00 (1-бокс, диагностика жана ТО) же 09:00, 10:00 жана 11:00 (2-бокс). Кайсы убакыт ыңгайлуу? Жазуу үчүн телефон номериңизди жазыңызчы.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.76,
+      "usage": {
+        "input_tokens": 6634,
+        "output_tokens": 188,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007574000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}
