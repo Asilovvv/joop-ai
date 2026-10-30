@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Callable
@@ -444,7 +445,7 @@ def _try_booking(
 ) -> tuple[str, Booking | None]:
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
-    if not name or not phone:
+    if not name or not phone or not _name_given(session, conv, name):
         return ASK_CONTACTS_REPLY, None
 
     slot_id = data.get("slot_id")
@@ -498,6 +499,27 @@ def _try_booking(
     session.flush()
     return reply, booking
 
+_TO_CYRILLIC = [("sh", "ш"), ("ch", "ч"), ("zh", "ж"), ("kh", "х"), ("ya", "я"), ("yu", "ю"), ("ts", "ц")]
+_LATIN = str.maketrans(dict(zip("abcdefghijklmnopqrstuvwxyz", "абкдефгхижклмнопкрстуввхиз")))
+_FOLD = str.maketrans({"й": "и", "ы": "и", "ё": "е", "ң": "н", "ө": "о", "ү": "у", "ъ": None, "ь": None})
+
+
+def _fold(text: str) -> str:
+    text = text.lower()
+    for latin, cyr in _TO_CYRILLIC:
+        text = text.replace(latin, cyr)
+    return text.translate(_LATIN).translate(_FOLD)
+
+
+def _name_given(session: Session, conv: Conversation, name: str) -> bool:
+    """Did the customer give this name (in a message or as their messenger name)? The model sometimes fills in
+    a name nobody gave (eval run 25: booked "без имени" after "Запишите на стрижку, 0555 ..., завтра в 11")."""
+    if conv.customer_name and _fold(name) == _fold(conv.customer_name):
+        return True
+    texts = session.exec(select(Message.text).where(Message.conversation_id == conv.id, Message.role == "customer")).all()
+    hay = _fold(" ".join([*texts, conv.display_name]))  # the messenger profile name counts too
+    return any(token[:4] in hay for token in re.findall(r"[^\W\d_]{2,}", _fold(name)))
+
 
 def _booking_request(
     session: Session, business: Business, conv: Conversation, data: dict, reply: str, now: datetime, off: bool
@@ -505,7 +527,7 @@ def _booking_request(
     """The customer wants an appointment but no slot was chosen: staff call back to confirm the time."""
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
-    if not name or not phone:
+    if not name or not phone or not _name_given(session, conv, name):
         return ASK_CONTACTS_REPLY, None
     conv.customer_name, conv.customer_phone = name, phone
     session.add(conv)
@@ -607,7 +629,7 @@ def _qualified_lead(
 ) -> tuple[str, Lead | None]:
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
-    if not name or not phone:
+    if not name or not phone or not _name_given(session, conv, name):
         return ASK_CONTACTS_REPLY, None
     conv.customer_name, conv.customer_phone = name, phone
     session.add(conv)
