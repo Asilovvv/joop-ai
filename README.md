@@ -11,7 +11,8 @@ One core serves many niches through **niche packs** (`joop/niches/<name>/`): den
 salons, cafes and restaurants (table booking, orders with code-computed totals, stop list), real
 estate (qualified leads, viewings), car services, training centres, wholesale (orders, leads),
 fitness clubs, massage and spa, medical centres and labs, veterinary clinics and grooming, driving
-schools, hotels and guest houses, tours, photo studios, and quest rooms / karaoke / bowling.
+schools, hotels and guest houses, tours, photo studios, quest rooms / karaoke / bowling, and dry
+cleaning / repair / tailoring.
 A pack sets the panel labels, what a conversation can produce (booking, request, order, lead,
 handoff), niche rules, optional modules (`features: [level_test]`), demo data and evaluation dialogues. Design: [docs/multi-niche-design.md](docs/multi-niche-design.md).
 
@@ -169,6 +170,10 @@ WhatsApp message fees for reminders.
   "Абонементы"): staff record "10 занятий" with the customer's phone and mark each visit. The AI answers
   "осталось 3 из 10, действует до 30.11" only to a chat it can trust with that phone (the WhatsApp number
   itself, or a chat with a past visit); otherwise it names no numbers and hands over to staff.
+- **Order status** (`features: [jobs]`: dry cleaning / repair / tailoring pack `repair`, car services;
+  panel "Заказы в работе"): staff record what was left, with a receipt number and phone, and change the
+  status. The AI answers "готово?" only for a job tied to the customer — the WhatsApp number itself, or the
+  receipt number together with the phone given at drop-off. Marking a job ready messages the customer.
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
 

@@ -64,6 +64,8 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
         items.append(("/panel/followups", "followups", "Отзывы и возврат"))
     if pack.offers("memberships"):
         items.append(("/panel/memberships", "memberships", "Абонементы"))
+    if pack.offers("jobs"):
+        items.append(("/panel/jobs", "jobs", "Заказы в работе"))
     if books:
         items.append(("/panel/staff", "staff", pack.resource_label))
     items += [("/panel/faq", "faq", "Вопросы"), ("/panel/settings", "settings", "Настройки"), ("/panel/channels", "channels", "Каналы")]
@@ -1059,6 +1061,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .memberships import router as memberships_router
 
     app.include_router(memberships_router)
+    from .jobs import router as jobs_router
+
+    app.include_router(jobs_router)
 
     @app.exception_handler(OwnerRequired)
     async def _owner_required(_request: Request, _exc: OwnerRequired):

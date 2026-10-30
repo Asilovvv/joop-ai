@@ -398,3 +398,24 @@ class Membership(SQLModel, table=True):
     valid_until: Optional[date_type] = None
     active: bool = True
     created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class Job(SQLModel, table=True):
+    """An item left for work: dry cleaning, a phone repair, tailoring, a car at the service station.
+    The customer asks "готово?" in a chat and the AI answers from here."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    number: str = Field(index=True)  # receipt number the customer was given
+    customer_name: str = ""
+    customer_phone: str = ""
+    phone_key: str = Field(default="", index=True)  # last 9 digits
+    item: str  # what was left and what to do: "Пальто, химчистка"
+    status: str = "accepted"  # accepted | in_progress | ready | issued | cancelled
+    price: str = ""
+    ready_by: Optional[date_type] = None
+    note: str = ""  # shown to the customer, e.g. "ждём запчасть"
+    conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.id")
+    ready_notified: bool = False
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+    updated_at: NaiveDatetime = Field(default_factory=utcnow)
