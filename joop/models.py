@@ -425,3 +425,38 @@ class Job(SQLModel, table=True):
     ready_notified: bool = False
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     updated_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class Stay(SQLModel, table=True):
+    """A hotel booking for nights [check_in, check_out) in one room of a room type (a Staff row whose
+    group_size is the number of such rooms and capacity the guests per room)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    staff_id: int = Field(foreign_key="staff.id", index=True)
+    room_name: str = ""
+    check_in: date_type = Field(index=True)
+    check_out: date_type
+    guests: int = 1
+    customer_name: str = ""
+    customer_phone: str = ""
+    conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.id")
+    channel: str = ""
+    chat_id: str = ""
+    status: str = "booked"  # booked | cancelled
+    source: str = "ai"
+    created_off_hours: bool = False
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class RoomNight(SQLModel, table=True):
+    """One room unit taken for one night. The unique key makes double booking impossible."""
+
+    __table_args__ = (UniqueConstraint("staff_id", "night", "unit"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    staff_id: int = Field(foreign_key="staff.id", index=True)
+    stay_id: int = Field(foreign_key="stay.id", index=True)
+    night: date_type = Field(index=True)
+    unit: int = 0
