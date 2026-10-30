@@ -165,6 +165,10 @@ WhatsApp message fees for reminders.
   the customer on the waitlist with the day they named. When staff cancel a booking or reopen a slot, the
   first three customers waiting for that day are told in their chat; whoever answers first is booked by
   the AI as usual, so a slot is never promised twice. The list is on the "Записи" page.
+- **Passes and packages** (`features: [memberships]`: fitness, spa, beauty, training centres; panel
+  "Абонементы"): staff record "10 занятий" with the customer's phone and mark each visit. The AI answers
+  "осталось 3 из 10, действует до 30.11" only to a chat it can trust with that phone (the WhatsApp number
+  itself, or a chat with a past visit); otherwise it names no numbers and hands over to staff.
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
 
