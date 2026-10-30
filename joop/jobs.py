@@ -8,6 +8,7 @@ customer gets a message in the chat that asked about it (or in their WhatsApp ch
 from __future__ import annotations
 
 import re
+import secrets
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -28,9 +29,16 @@ _NUMBER = re.compile(r"(?<![\d+])\d{3,6}(?!\d)")
 _PHONE = re.compile(r"(?:\+?996|0)[\s\-()]*\d(?:[\s\-()]*\d){8}")
 
 
+MAX_CANDIDATES = 2  # more receipt numbers than this in one chat looks like guessing: look nothing up
+
+
 def next_number(session: Session, business_id: int) -> str:
-    numbers = [int(n) for n in session.exec(select(Job.number).where(Job.business_id == business_id)).all() if n.isdigit()]
-    return str(max(numbers, default=1000) + 1)
+    """A random 5-digit receipt number: sequential numbers could be guessed one after another."""
+    used = set(session.exec(select(Job.number).where(Job.business_id == business_id)).all())
+    while True:
+        number = str(secrets.randbelow(90000) + 10000)
+        if number not in used:
+            return number
 
 
 def _recent_customer_texts(session: Session, conv: Conversation, now_utc: datetime) -> list[str]:
@@ -41,16 +49,22 @@ def _recent_customer_texts(session: Session, conv: Conversation, now_utc: dateti
 
 def for_chat(session: Session, business: Business, conv: Conversation, now_utc: datetime, latest: str = "") -> list[Job]:
     texts = [latest] + _recent_customer_texts(session, conv, now_utc)
-    numbers = {n for t in texts for n in _NUMBER.findall(t or "")}
     typed = {phone_key(m) for t in texts for m in _PHONE.findall(t or "")} | {phone_key(conv.customer_phone)}
     typed.discard("")
+    phone_parts = {d for t in texts for m in _PHONE.findall(t or "") for d in _NUMBER.findall(m)}
+    numbers = {n for t in texts for n in _NUMBER.findall(t or "")} - phone_parts
+    if len(numbers) > MAX_CANDIDATES:
+        numbers = set()
     trusted = phone_key(conv.chat_id) if conv.channel == "whatsapp" else ""
     jobs = session.exec(select(Job).where(Job.business_id == business.id, Job.status != "cancelled",
                                           Job.created_at >= now_utc - KEEP).order_by(Job.created_at.desc())).all()
     found = [j for j in jobs if (trusted and j.phone_key == trusted) or (j.number in numbers and j.phone_key in typed)]
     for j in found:
-        if j.conversation_id != conv.id and j.status not in {"issued"}:
-            j.conversation_id = conv.id  # ready notices go to the chat that asked
+        # Ready notices go to the chat that asked: the customer's own WhatsApp always, another chat only if
+        # no chat was tied to the job yet, so nobody can redirect someone else's notice later.
+        if j.status != "issued" and j.conversation_id != conv.id and (
+                (trusted and j.phone_key == trusted) or j.conversation_id is None):
+            j.conversation_id = conv.id
             session.add(j)
     return found[:5]
 

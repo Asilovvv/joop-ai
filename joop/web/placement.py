@@ -179,6 +179,12 @@ def public_begin(request: Request, code: str, name: str = Form(""), phone: str =
     if error:
         _flash(request, error, "error")
         return _back(f"/test/{code}")
+    from .app import _login_failed, _login_locked, client_ip
+
+    now_s, key = time.time(), f"test-start|{client_ip(request)}"
+    if _login_locked(key, now_s):  # at most 5 new tests per address in 15 minutes
+        _flash(request, "Слишком много попыток с этого устройства. Попробуйте через 15 минут.", "error")
+        return _back(f"/test/{code}")
     if time.time() - float(request.session.get("test_at", 0) or 0) < 20:
         _flash(request, "Тест уже начат. Подождите немного, если хотите начать заново.", "error")
         return _back(f"/test/{code}")
@@ -190,6 +196,7 @@ def public_begin(request: Request, code: str, name: str = Form(""), phone: str =
         s.commit()
         token = a.token
     request.session["test_at"] = time.time()
+    _login_failed(key, now_s)  # counts a started test, not a failure
     return _back(f"/t/{token}")
 
 
@@ -249,7 +256,8 @@ async def attempt_submit(request: Request, token: str):
             value = str(form.get(f"q{q.id}", ""))
             if value.isdigit() and int(value) < len(placement.options(q)):
                 answers[q.id] = int(value)
-        placement.finish(s, t, a, answers, now)
+        if not placement.finish(s, t, a, answers, now):
+            return _back(f"/t/{token}")  # submitted twice at once: the other request handled it
         conv = s.get(Conversation, a.conversation_id) if a.conversation_id else None
         kyrgyz = placement.wants_kyrgyz(s, a)
         note = placement.admin_note(t, a)

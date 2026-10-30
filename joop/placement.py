@@ -14,6 +14,7 @@ import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from sqlalchemy import update
 from sqlmodel import Session, select
 
 from .lang import is_kyrgyz_message
@@ -156,6 +157,12 @@ def grade(questions: list[PlacementQuestion], answers: dict[int, int]) -> tuple[
 def finish(session: Session, test: PlacementTest, attempt: PlacementAttempt, answers: dict[int, int], now: datetime) -> bool:
     """Grade and close the attempt. Returns False when it was already finished (a repeated submit)."""
     if attempt.status == "finished":
+        return False
+    # Claim the attempt in one conditional UPDATE: of two submits at the same moment only one grades it.
+    claimed = session.exec(update(PlacementAttempt).where(PlacementAttempt.id == attempt.id,
+                                                          PlacementAttempt.status == attempt.status)
+                           .values(status="finished"))
+    if claimed.rowcount != 1:
         return False
     questions = questions_of(session, test.id)
     attempt.score, attempt.max_score, sections = grade(questions, answers)
