@@ -116,6 +116,10 @@ def capture_rating(session: Session, business: Business, conv: Conversation, tex
     ).order_by(Booking.review_asked_at.desc())).first()
     if booking is None:
         return None
+    last_ai = session.exec(select(Message.created_at).where(Message.conversation_id == conv.id, Message.role == "ai")
+                           .order_by(Message.id.desc())).first()
+    if last_ai is not None and last_ai > booking.review_asked_at:
+        return None  # the AI asked something else since ("1, 2 или 3 человека?"): this digit answers that
     rating = int(m.group(1))
     booking.rating, booking.review_status = rating, "rated"
     session.add(booking)

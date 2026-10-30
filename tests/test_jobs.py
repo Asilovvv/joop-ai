@@ -1,3 +1,5 @@
+import re
+
 from fastapi.testclient import TestClient
 from sqlmodel import select
 
@@ -33,7 +35,8 @@ def test_demo_jobs_and_numbers(engine):
     b = shop()
     with db.new_session() as s:
         assert {j.number for j in s.exec(select(Job).where(Job.business_id == b.id)).all()} == {"1042", "1043"}
-        assert jobs.next_number(s, b.id) == "1044"
+        n = jobs.next_number(s, b.id)
+        assert len(n) == 5 and n.isdigit() and n not in {"1042", "1043"}
 
 
 def test_receipt_and_phone_unlock_the_status(engine):
@@ -67,9 +70,9 @@ def test_ready_notice_goes_to_the_chat_that_asked(engine, settings, rt):
         assert rt.tg.sent[-1][0] == "t9" and "№1043 готов" in rt.tg.sent[-1][1] and "Московская 150" in rt.tg.sent[-1][1]
         # A job of a customer who never wrote: staff are told to call.
         r = c.post("/panel/jobs", data={"customer_phone": "0555 404 404", "item": "Куртка, химчистка", "csrf": token})
-        assert "№1044 принят" in r.text
+        assert re.search(r"№\d{5} принят", r.text)
         with db.new_session() as s:
-            new = s.exec(select(Job).where(Job.business_id == b.id, Job.number == "1044")).one()
+            new = s.exec(select(Job).where(Job.business_id == b.id, Job.item == "Куртка, химчистка")).one()
         r = c.post(f"/panel/jobs/{new.id}", data={"status": "ready", "csrf": token})
         assert "позвоните" in r.text
 
@@ -79,3 +82,22 @@ def test_jobs_panel_only_for_packs_with_jobs(engine, settings, rt, business):
         token = csrf_of(c.get("/login").text)
         c.post("/login", data={"slug": "aktish", "password": "secret-pass", "csrf": token})
         assert c.get("/panel/jobs").status_code == 404
+
+
+def test_guessing_many_receipt_numbers_finds_nothing(engine):
+    """Security review: one message with many numbers and the victim's phone must not unlock the job."""
+    b = shop()
+    guesses = " ".join(str(n) for n in range(1030, 1050))
+    system = ask(b.id, "telegram", "x1", f"{guesses} телефон 0555 121 212", "g1")
+    assert "№1042" not in system
+
+
+def test_a_second_chat_cannot_take_over_the_ready_notice(engine):
+    b = shop()
+    ask(b.id, "telegram", "owner-chat", "Квитанция 1043, мой номер 0700 343 434", "o1")
+    ask(b.id, "telegram", "other-chat", "Квитанция 1043, номер 0700 343 434", "o2")
+    with db.new_session() as s:
+        from joop.models import Conversation
+
+        job = s.exec(select(Job).where(Job.business_id == b.id, Job.number == "1043")).one()
+        assert s.get(Conversation, job.conversation_id).chat_id == "owner-chat"

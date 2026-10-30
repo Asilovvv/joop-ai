@@ -37,9 +37,11 @@ def trusted_phone(session: Session, conv: Conversation, now_local: datetime) -> 
     key = phone_key(conv.customer_phone)
     if not key:
         return ""
-    visited = session.exec(select(Booking.id).where(Booking.conversation_id == conv.id, Booking.status == "booked",
-                                                    Booking.start < now_local)).first()
-    return key if visited else ""
+    # The phone must be the one of a visit that already took place, booked from this chat: the chat's
+    # current phone can be changed by anyone typing a new one.
+    visits = session.exec(select(Booking.customer_phone).where(Booking.conversation_id == conv.id, Booking.status == "booked",
+                                                               Booking.start < now_local)).all()
+    return key if any(phone_key(p) == key for p in visits) else ""
 
 
 def for_chat(session: Session, business: Business, conv: Conversation, now_local: datetime) -> list[Membership]:
