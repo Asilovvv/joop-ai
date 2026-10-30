@@ -14,6 +14,7 @@
     <input name="handles" value="{{ r.handles }}" aria-label="Принимает" placeholder="что принимает">
     {% if pack.party_size %}<input name="capacity" type="number" min="0" value="{{ r.capacity }}" aria-label="Мест" title="Мест">{% endif %}
     {% if pack.offers('group_classes') %}<input name="group_size" type="number" min="0" max="500" value="{{ r.group_size }}" aria-label="Мест в группе" title="Мест в группе: 0 — индивидуально">{% endif %}
+    {% if pack.has('stay') %}<input name="group_size" type="number" min="1" max="500" value="{{ r.group_size or 1 }}" aria-label="Номеров этого типа" title="Номеров этого типа">{% endif %}
     <div class="row-tail">
       <button class="btn small ghost" type="submit">Сохранить</button>
       <button class="btn small danger" type="submit" formaction="/panel/staff/{{ r.id }}/delete">Убрать</button>
@@ -30,6 +31,7 @@
     <input name="handles" placeholder="Принимает: …">
     {% if pack.party_size %}<input name="capacity" type="number" min="0" placeholder="Мест">{% endif %}
     {% if pack.offers('group_classes') %}<input name="group_size" type="number" min="0" max="500" placeholder="Мест в группе" title="0 — индивидуально">{% endif %}
+    {% if pack.has('stay') %}<input name="group_size" type="number" min="1" max="500" placeholder="Номеров этого типа">{% endif %}
     <div class="row-tail"><button class="btn small" type="submit">Добавить</button></div>
   </form>
 </section>

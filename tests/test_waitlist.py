@@ -96,9 +96,9 @@ def test_kyrgyz_customer_and_reopened_slot(client, business, rt):
 
 def test_request_only_niches_have_no_waitlist(engine):
     with db.new_session() as s:
-        b = create_business(s, slug="hotel", name="Гостевой дом", password="hotel-pass", niche="hotel", demo=True, now_utc=NOW_UTC)
+        b = create_business(s, slug="tours", name="Туры", password="tours-pass", niche="tours", demo=True, now_utc=NOW_UTC)
         s.commit()
-    out = say(b.id, "Номер на 10–12 июля, Алмаз, 0555 667 788", FakeLLM([request("Алмаз", "0555667788", "10–12 июля")]), "h1")
+    out = say(b.id, "Тур в Ала-Арчу 10 июля, Алмаз, 0555 667 788", FakeLLM([request("Алмаз", "0555667788", "10 июля")]), "h1")
     assert out.request_id and "освободится" not in out.reply
     with db.new_session() as s:
         assert not s.exec(select(WaitlistEntry)).all()

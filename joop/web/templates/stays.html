@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Брони номеров{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Брони номеров</h1>
+  <p class="muted">ИИ бронирует номера по датам сам: проверяет, сколько номеров каждого типа свободно на каждую ночь, и не продаст последний номер дважды. Типы номеров и их количество задаются в разделе «{{ pack.resource_label }}».</p>
+</section>
+<section class="card">
+  <h2>Загрузка на 2 недели</h2>
+  <div class="scroll"><table class="table">
+    <tr><th>Номер</th>{% for d in days %}<th class="mono small">{{ d.strftime('%d.%m') }}</th>{% endfor %}</tr>
+    {% for room, cells in grid %}
+    <tr><td>{{ room.name }}</td>{% for night, taken, total in cells %}<td class="mono small" style="{{ 'background: var(--warn-bg, #f9eeda)' if taken >= total else '' }}">{{ taken }}/{{ total }}</td>{% endfor %}</tr>
+    {% endfor %}
+  </table></div>
+</section>
+<section class="card">
+  <h2>Предстоящие брони</h2>
+  {% if upcoming %}
+  <div class="list">{% for st in upcoming %}
+    <div class="item">
+      <div class="main">
+        <div><b>{{ st.check_in.strftime('%d.%m') }} – {{ st.check_out.strftime('%d.%m') }}</b> · {{ st.room_name }} · гостей: {{ st.guests }}{% if st.status == 'cancelled' %} <span class="chip">отменена</span>{% endif %}</div>
+        <div class="muted small">{{ st.customer_name }} {{ st.customer_phone }}{% if st.conversation_id %} · <a href="/panel/conversations/{{ st.conversation_id }}">диалог</a>{% endif %}</div>
+      </div>
+      {% if st.status == 'booked' %}<form method="post" action="/panel/stays/{{ st.id }}/cancel" class="actions"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small danger" type="submit">Отменить</button></form>{% endif %}
+    </div>
+  {% endfor %}</div>
+  {% else %}<p class="muted">Броней пока нет.</p>{% endif %}
+</section>
+{% endblock %}

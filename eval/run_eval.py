@@ -94,7 +94,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
             if out.lead_id is not None:
                 handoff = handoff or s.get(Lead, out.lead_id).kind == "handoff"
         latencies.append(time.perf_counter() - t0)
-        lead = lead or any(x is not None for x in (out.booking_id, out.request_id, out.qualified_lead_id))
+        lead = lead or any(x is not None for x in (out.booking_id, out.request_id, out.qualified_lead_id, out.stay_id))
         order = order or out.order_id is not None
         language_fixed = language_fixed or out.language_fixed
         confirmation_fixed = confirmation_fixed or out.confirmation_fixed

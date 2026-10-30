@@ -19,7 +19,7 @@ from ..billing import access_ok
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
 from ..lang import claims_confirmation, drop_claim_sentences, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
-from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff
+from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, Stay
 from ..niches import Pack, get_pack
 from ..phone import normalize_phone
 from ..pricing import cost_usd, empty_usage
@@ -28,7 +28,7 @@ from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
 from ..followups import capture_rating
-from .. import intake, jobs, memberships, waitlist
+from .. import intake, jobs, memberships, stays, waitlist
 from .prompt import CHANNEL_LABELS, build_history, build_system_prompt
 
 log = logging.getLogger(__name__)
@@ -65,6 +65,7 @@ class Outcome:
     lead_id: int | None = None  # handoff, media or error lead
     order_id: int | None = None
     qualified_lead_id: int | None = None  # Lead of kind "lead"
+    stay_id: int | None = None  # hotel nights (joop/stays.py)
     skipped: str = ""  # why nothing was sent, for logs and tests
     language_fixed: bool = False
     confirmation_fixed: bool = False  # the reply claimed a booking that was not made and was rewritten
@@ -144,6 +145,7 @@ def handle_incoming(
         channel=incoming.channel,
         catalog_hint=catalog_hint,
         extra_facts=(intake.ANSWERED_HINT if answered else "")
+        + ("\n".join(stays.prompt_lines(session, business, now_local.date()) + [stays.STAY_RULE]) if pack_has(business, "stay") else "")
         + _requested_slot_hint(session, conv, slots, now_local, now)
         + placement.prompt_hint(session, business, conv, base_url)
         + (memberships.prompt_hint(session, business, conv, now_local) if pack_offers(business, "memberships") else "")
@@ -177,6 +179,20 @@ def handle_incoming(
         if qualified is not None:
             outcome.qualified_lead_id = qualified.id
             outcome.admin_notes.append(_lead_note(business, conv, qualified, off))
+    if result.stay and pack.has("stay"):
+        name = (result.stay.get("name") or "").strip()[:120]
+        phone = normalize_phone(result.stay.get("phone"))
+        if not name or not phone or not _name_given(session, conv, name):
+            outcome.reply = ASK_CONTACTS_REPLY
+        else:
+            done = stays.book(session, business, conv, result.stay, outcome.reply, now_local.date(), now, off,
+                              incoming.channel, name, phone)
+            outcome.reply = done.reply
+            if done.stay is not None:
+                outcome.stay_id = done.stay.id
+                conv.customer_name, conv.customer_phone = name, phone
+                session.add(conv)
+                outcome.admin_notes.append(_stay_note(done.stay, off))
     booked: Booking | None = None
     if result.booking:
         if result.booking.get("slot_id") is None:
@@ -204,7 +220,8 @@ def handle_incoming(
 
     # Confirmation guard: the model sometimes says "вы записаны" / "кабыл алдым" while it is still asking
     # for a phone number or a time. Nothing was captured, so rewrite the reply once without the claim.
-    captured = any(x is not None for x in (outcome.booking_id, outcome.request_id, outcome.order_id, outcome.qualified_lead_id))
+    captured = any(x is not None for x in (outcome.booking_id, outcome.request_id, outcome.order_id, outcome.qualified_lead_id,
+                                           outcome.stay_id))
     if outcome.reply and not captured and claims_confirmation(outcome.reply) and not _has_capture(session, conv):
         fixed = llm.remove_false_confirmation(outcome.reply, outcome.usage)
         if not fixed or claims_confirmation(fixed):
@@ -254,6 +271,8 @@ def _has_capture(session: Session, conv: Conversation) -> bool:
     if session.exec(select(Booking.id).where(Booking.conversation_id == conv.id, Booking.status == "booked")).first():
         return True
     if session.exec(select(Order.id).where(Order.conversation_id == conv.id)).first():
+        return True
+    if session.exec(select(Stay.id).where(Stay.conversation_id == conv.id, Stay.status == "booked")).first():
         return True
     return session.exec(select(Lead.id).where(Lead.conversation_id == conv.id, Lead.kind.in_(["request", "lead"]))).first() is not None
 
@@ -417,6 +436,20 @@ def _handle_command(
 
 def pack_offers(business: Business, feature: str) -> bool:
     return get_pack(business.niche).offers(feature)
+
+
+def pack_has(business: Business, outcome: str) -> bool:
+    return get_pack(business.niche).has(outcome)
+
+
+def _stay_note(stay: Stay, off: bool) -> str:
+    when = " (в нерабочее время)" if off else ""
+    return "\n".join([
+        f"Новая бронь номера через ИИ{when}",
+        f"{stay.customer_name}, {stay.customer_phone}",
+        f"{stay.room_name}: {stay.check_in:%d.%m} – {stay.check_out:%d.%m}, гостей: {stay.guests}",
+        "Свяжитесь с гостем насчёт оплаты.",
+    ])
 
 
 def _requested_slot_hint(
