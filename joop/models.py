@@ -382,3 +382,19 @@ class WaitlistEntry(SQLModel, table=True):
     status: str = "waiting"  # waiting | notified | booked | cancelled
     notified_at: Optional[NaiveDatetime] = None
     created_at: NaiveDatetime = Field(default_factory=utcnow, index=True)
+
+
+class Membership(SQLModel, table=True):
+    """A pass or a package of visits ("10 занятий", "5 массажей") that staff sold to a customer."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    customer_name: str = ""
+    phone_key: str = Field(default="", index=True)  # last 9 digits of the phone, to match chats
+    customer_phone: str = ""
+    title: str
+    visits_total: int = 0  # 0 = unlimited for the period
+    visits_used: int = 0
+    valid_until: Optional[date_type] = None
+    active: bool = True
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
