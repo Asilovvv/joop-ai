@@ -138,3 +138,16 @@ def apply_profile(
             questions = [{"section": _text(q[0]), "text": _text(q[1]), "options": [_text(o) for o in q[2]], "correct": int(q[3]) - 1}
                          for q in test.get("questions") or []]
             placement.replace_questions(session, t, questions)
+
+    for item in data.get("jobs") or []:  # demo order statuses (repair, dry cleaning, car service)
+        from .memberships import phone_key
+        from .models import Job
+
+        number = _text(item.get("number"))
+        if number and not session.exec(select(Job).where(Job.business_id == business.id, Job.number == number)).first():
+            days = item.get("ready_in_days")
+            session.add(Job(business_id=business.id, number=number, customer_name=_text(item.get("name")),
+                            customer_phone=_text(item.get("phone")), phone_key=phone_key(_text(item.get("phone"))),
+                            item=_text(item.get("item")), status=_text(item.get("status")) or "accepted",
+                            price=_text(item.get("price")), note=_text(item.get("note")),
+                            ready_by=(local_now(business.timezone, now_utc).date() + timedelta(days=int(days))) if days else None))

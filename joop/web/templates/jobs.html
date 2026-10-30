@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Заказы в работе{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Заказы в работе</h1>
+  <p class="muted">Принимаете вещь, телефон или машину — запишите здесь. Клиент спрашивает в чате «готово?», ИИ отвечает по статусу: с номера WhatsApp из квитанции сразу, в Telegram и Instagram — по номеру квитанции и телефону. Ставите «готов» — клиенту сразу приходит сообщение «можно забирать».</p>
+</section>
+<section class="card">
+  <h2>Принять заказ</h2>
+  <form class="stack" method="post" action="/panel/jobs">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid2">
+      <label>Номер квитанции<input name="number" value="{{ next_number }}" maxlength="20"></label>
+      <label>Телефон клиента<input name="customer_phone" required placeholder="0555 123 456"></label>
+      <label>Имя<input name="customer_name" maxlength="120"></label>
+      <label>Что сдали и что сделать<input name="item" required maxlength="300" placeholder="Пальто, химчистка"></label>
+      <label>Стоимость<input name="price" maxlength="60" placeholder="600 сом"></label>
+      <label>Готово к<input name="ready_by" type="date"></label>
+    </div>
+    <label>Заметка для клиента<input name="note" maxlength="300" placeholder="например: ждём запчасть"></label>
+    <div class="actions" style="justify-content: flex-start"><button class="btn small" type="submit">Принять</button></div>
+  </form>
+</section>
+<section class="card">
+  <form method="get" action="/panel/jobs" class="row c2" style="margin-bottom: 12px">
+    <input name="q" value="{{ q }}" placeholder="Поиск: номер, телефон, имя" aria-label="Поиск">
+    <div class="row-tail"><button class="btn small ghost" type="submit">Найти</button></div>
+  </form>
+  <h2>В работе ({{ open_rows|length }})</h2>
+  {% if open_rows %}
+  <div class="list">{% for j in open_rows %}
+    <form class="item" method="post" action="/panel/jobs/{{ j.id }}">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="main">
+        <div><b>№{{ j.number }}</b> · {{ j.item }} {% if j.status == 'ready' %}<span class="chip ok">готов{% if j.ready_notified %}, клиенту написали{% endif %}</span>{% endif %}</div>
+        <div class="muted small">{{ j.customer_name }} {{ j.customer_phone }} · принят {{ j.created_at|local(business.timezone) }}{% if j.ready_by %} · срок {{ j.ready_by.strftime('%d.%m') }}{% endif %}{% if j.conversation_id %} · <a href="/panel/conversations/{{ j.conversation_id }}">диалог</a>{% endif %}</div>
+        <div class="grid2" style="margin-top: 6px">
+          <input name="note" value="{{ j.note }}" placeholder="Заметка для клиента" aria-label="Заметка">
+          <input name="price" value="{{ j.price }}" placeholder="Стоимость" aria-label="Стоимость">
+          <input name="ready_by" type="date" value="{{ j.ready_by.isoformat() if j.ready_by else '' }}" aria-label="Срок">
+        </div>
+      </div>
+      <div class="actions">
+        <select name="status" aria-label="Статус" style="width: auto">{% for key, label in statuses.items() %}<option value="{{ key }}" {{ 'selected' if key == j.status }}>{{ label }}</option>{% endfor %}</select>
+        <button class="btn small" type="submit">Сохранить</button>
+      </div>
+    </form>
+  {% endfor %}</div>
+  {% else %}<p class="muted">Нет заказов в работе.</p>{% endif %}
+</section>
+{% if done_rows %}
+<section class="card">
+  <h2>Выданные и отменённые</h2>
+  <div class="list">{% for j in done_rows %}
+    <div class="item"><div class="main"><div class="muted">№{{ j.number }} · {{ j.item }} — {{ statuses[j.status] }}</div><div class="muted small">{{ j.customer_name }} {{ j.customer_phone }}</div></div></div>
+  {% endfor %}</div>
+</section>
+{% endif %}
+{% endblock %}
