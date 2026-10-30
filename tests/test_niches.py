@@ -52,6 +52,7 @@ def test_every_pack_has_demo_and_cases(niche, engine):
         ({"booking"} if pack.has("booking") or pack.has("request") else set())
         | ({"order"} if pack.has("order") else set())
         | ({"lead"} if pack.has("lead") else set())
+        | ({"stay"} if pack.has("stay") else set())
     )
     for rule in pack.rules:
         assert rule in system

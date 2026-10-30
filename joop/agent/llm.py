@@ -31,6 +31,16 @@ BOOKING_SCHEMA = _obj(
         "party_size": {"type": "integer"},
     }
 )
+STAY_SCHEMA = _obj(
+    {
+        "room_id": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+        "check_in": _STR,
+        "check_out": _STR,
+        "guests": {"type": "integer"},
+        "name": _STR,
+        "phone": _STR,
+    }
+)
 ORDER_SCHEMA = _obj(
     {
         "lines": {"type": "array", "items": _obj({"item_id": {"type": "integer"}, "quantity": {"type": "integer"}, "note": _STR})},
@@ -51,6 +61,8 @@ def response_schema(outcomes: frozenset[str] | set[str] | None = None) -> dict[s
     props: dict[str, Any] = {"reply": _STR}
     if "booking" in outcomes or "request" in outcomes:
         props["booking"] = _nullable(BOOKING_SCHEMA)
+    if "stay" in outcomes:
+        props["stay"] = _nullable(STAY_SCHEMA)
     if "order" in outcomes:
         props["order"] = _nullable(ORDER_SCHEMA)
     if "lead" in outcomes:
@@ -85,6 +97,7 @@ class AgentReply:
     usage: dict = field(default_factory=empty_usage)
     order: dict | None = None
     lead: dict | None = None
+    stay: dict | None = None
 
 
 class LLMClient(Protocol):
@@ -159,12 +172,23 @@ def coerce_reply(data: Any) -> AgentReply:
     lead = data.get("lead")
     lead = {k: _s(lead.get(k)) for k in ("name", "phone", "details")} if isinstance(lead, dict) else None
 
+    stay = data.get("stay")
+    if isinstance(stay, dict):
+        try:
+            room_id: int | None = int(stay.get("room_id"))
+        except (TypeError, ValueError):
+            room_id = None
+        stay = {"room_id": room_id, "guests": _int(stay.get("guests")),
+                **{k: _s(stay.get(k)) for k in ("check_in", "check_out", "name", "phone")}}
+    else:
+        stay = None
+
     handoff = data.get("handoff")
     handoff = str(handoff).strip() if isinstance(handoff, (str, int, float)) and str(handoff).strip() else None
 
     if not reply:
         raise LLMError("model returned an empty reply")
-    return AgentReply(reply=reply, booking=booking, handoff=handoff, order=order, lead=lead)
+    return AgentReply(reply=reply, booking=booking, handoff=handoff, order=order, lead=lead, stay=stay)
 
 
 def _int(value: Any) -> int:
