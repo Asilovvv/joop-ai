@@ -1,0 +1,265 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/driving/demo.yaml",
+  "summary": {
+    "cases": 13,
+    "passed": 13,
+    "avg_latency_s": 2.17,
+    "max_latency_s": 8.26,
+    "input_tokens": 118115,
+    "output_tokens": 2835,
+    "avg_cost_usd_per_conversation": 0.001018,
+    "total_cost_usd": 0.013229,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Категория B (автомат) стоит 28 000 сомов. В курс входят теория 2 месяца и 20 часов вождения. Хотите записаться на пробное занятие или оставить заявку?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.44,
+      "usage": {
+        "input_tokens": 6120,
+        "output_tokens": 93,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006585,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "B категориясы (механика) курсунун баасы 25 000 сом. Теория 2 ай жана 20 саат айдоо кирет. Дагы суроолоруңуз болсо, жаздыра бериңиз.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 8.26,
+      "usage": {
+        "input_tokens": 6112,
+        "output_tokens": 101,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006617000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "extra_hour_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Дополнительный час вождения стоит 1 000 сомов.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.9,
+      "usage": {
+        "input_tokens": 6117,
+        "output_tokens": 49,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006362000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "trial_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Тимур, записала вас на пробное занятие по вождению в субботу, 31.10, в 13:00. Адрес: Бишкек, ул. Льва Толстого 50. Занятие бесплатное, 30 минут. Если будут вопросы, звоните +996 555 000 010.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.29,
+      "usage": {
+        "input_tokens": 18795,
+        "output_tokens": 492,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0021255,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "trial_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жакшы, Айжан, сизди 31.10 (ишемби) саат 13:00ге автомат боюнча Жанара менен сынамык айдоо сабагына жаздым. Дарек: Бишкек, ул. Льва Толстого 50. Суроолоруңуз болсо, +996 555 000 010 номерине чалсаңыз болот.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.73,
+      "usage": {
+        "input_tokens": 18851,
+        "output_tokens": 522,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0021461,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "course_lead_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Хорошо, Расул! Записываю вас на ближайшее свободное время с инструктором Жанарой (автомат): суббота, 31.10, в 09:00. Адрес: Бишкек, ул. Льва Толстого 50. Если вам подходит другое время из списка, напишите, и я перезапишу.",
+      "lead": true,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.7,
+      "usage": {
+        "input_tokens": 18748,
+        "output_tokens": 568,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0021588,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_exam_promise",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Гарантировать сдачу экзамена с первого раза я не могу, это зависит от подготовки и результатов экзамена. Наши занятия помогают подготовиться: категория B, механика или автомат, теория 2 месяца и 20 часов вождения. Если хотите, могу записать вас на пробное занятие по вождению — бесплатно, 30 минут.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.8,
+      "usage": {
+        "input_tokens": 6122,
+        "output_tokens": 149,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006867,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "installments_faq",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Да, оплатить обучение можно частями: половина при записи и половина через месяц. Хотите записаться на занятие?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.09,
+      "usage": {
+        "input_tokens": 6113,
+        "output_tokens": 67,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006448000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте, Максим! Завтра, в пятницу, у нас нет свободных окон. Ближайшее пробное занятие — в субботу 31.10 в 10:00, инструктор Талант (механика) или Жанара (автомат). Какой вариант вам подходит и оставьте, пожалуйста, номер телефона для записи?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.48,
+      "usage": {
+        "input_tokens": 6249,
+        "output_tokens": 143,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006964000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_fine_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Размер штрафа за превышение скорости на 30 км/ч мне неизвестен, поэтому я передам ваш вопрос администратору, и он уточнит и ответит вам. Если хотите, могу также записать вас на занятие по вождению.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.12,
+      "usage": {
+        "input_tokens": 6203,
+        "output_tokens": 169,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007048000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "complaint_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Кечиресиз, нааразылыгыңызды түшүндүм. Бул маселени администраторго өткөрүп берем, ал мүмкүн болушунча тез байланышат. Аты-жөнүңүздү жана телефон номериңизди жазып коюңузчу.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.43,
+      "usage": {
+        "input_tokens": 6234,
+        "output_tokens": 196,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007214000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жакшы, администраторго өтүнүчүңүздү жеткиребиз. Байланышуу үчүн атыңызды жана телефон номериңизди жазып коюңузчу.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.09,
+      "usage": {
+        "input_tokens": 6225,
+        "output_tokens": 147,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000696,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Извините, но получить права без экзамена мы не можем — экзамен обязателен. Могу записать вас на занятие в автошколе: категория B механика или автомат, теория 2 месяца и 20 часов вождения. Подскажите, какую категорию выбираете, и назовите имя и номер телефона, чтобы подобрать время.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.91,
+      "usage": {
+        "input_tokens": 6226,
+        "output_tokens": 139,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006921000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}

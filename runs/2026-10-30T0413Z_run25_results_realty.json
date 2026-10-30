@@ -1,0 +1,265 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/realty/demo.yaml",
+  "summary": {
+    "cases": 13,
+    "passed": 13,
+    "avg_latency_s": 1.69,
+    "max_latency_s": 2.96,
+    "input_tokens": 79595,
+    "output_tokens": 2947,
+    "avg_cost_usd_per_conversation": 0.000726,
+    "total_cost_usd": 0.009433,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "listing_price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Двухкомнатная квартира в Джале (Объект 101): 64 м², 7/12 этаж, с ремонтом. Цена 78 000 $. Могу записать вас на показ к агенту, если интересно.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.66,
+      "usage": {
+        "input_tokens": 4360,
+        "output_tokens": 100,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000486,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "rent_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Ооба, ижарада бир бөлмөлүү батир бар: объект 103, 42 м², Асанбай, 5/10 кабат, эмерек менен, айына 450 $. Көрүү үчүн агент Жылдыз менен убакытты жазууга болот. Кайсы күнү ыңгайлуу?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.69,
+      "usage": {
+        "input_tokens": 4366,
+        "output_tokens": 137,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005051,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_invented_listing",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Сейчас в наших объектах квартир в Арча-Бешике нет. Из доступных: 2-комнатная в Джале (объект 101), 3-комнатная на Магистрали (объект 102), 1-комнатная в Асанбае (объект 103) и дом в Кок-Жаре (объект 104). Уточню у администратора, появятся ли варианты в Арча-Бешике.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.37,
+      "usage": {
+        "input_tokens": 4362,
+        "output_tokens": 223,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005477,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "qualification_lead_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Тимур! Передам ваши данные специалисту, он свяжется с вами по номеру 0555 101 202 и поможет с подбором и показом квартиры. Если хотите записаться на показ, назовите удобное время.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.5,
+      "usage": {
+        "input_tokens": 13513,
+        "output_tokens": 521,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0016118000000000003,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "qualification_lead_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Айбек. Накталай төлөөнү белгиледим. Эми каалаган районуңузду жана канча бөлмөлүү үй керектигин жазсаңыз болот. Адистер жакында сиз менен байланышат.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.66,
+      "usage": {
+        "input_tokens": 8902,
+        "output_tokens": 358,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0010692,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "viewing_booking_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Динара. Вы записаны на показ объекта 101 в субботу 31.10 в 12:00 к агенту Бакыту. Адрес объекта сообщим после подтверждения записи. Если понадобится перенос, напишите нам.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.47,
+      "usage": {
+        "input_tokens": 13539,
+        "output_tokens": 498,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0016029,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте, Марат! Сейчас пятница, поэтому завтра суббота, 31.10. Для показа объекта 102 (3-комнатная квартира, Магистраль) могу предложить агента Бакыта на 10:00, 12:00, 14:00 или 16:00. Какое время вам удобно и оставьте, пожалуйста, номер телефона для подтверждения.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.2,
+      "usage": {
+        "input_tokens": 4366,
+        "output_tokens": 159,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005161,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_discount_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "По скидкам и торгу сказать не могу, это нужно уточнить у администратора. Передам ваш вопрос по объекту 104, он свяжется с вами.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.27,
+      "usage": {
+        "input_tokens": 4366,
+        "output_tokens": 179,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005261,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "mortgage_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "По ипотеке и условиям кредитования под конкретный процент я не консультирую, этот вопрос передам администратору, он уточнит и свяжется с вами. Также могу записать вас на показ объекта 102: 3-комнатная квартира, 92 м², Магистраль, 3/9 этаж, ПСО, 95 000 $.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.49,
+      "usage": {
+        "input_tokens": 4367,
+        "output_tokens": 229,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005512000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "commission_faq_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "При аренде комиссия агентства составляет 50% от месячной платы.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.48,
+      "usage": {
+        "input_tokens": 4360,
+        "output_tokens": 51,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004615,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Албетте, агент менен байланышуу үчүн администраторго өтүнүч жөнөтүп коям. Кызматкер сиз менен жакында байланышат. Ошондой эле ысымыңызды жана телефон номериңизди жазып коюңузчу.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.96,
+      "usage": {
+        "input_tokens": 4361,
+        "output_tokens": 174,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005231,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Юридические документы, включая договоры купли-продажи, я не составляю — этим займётся наш агент. Передам вашу просьбу администратору, он свяжется с вами. Подскажите, пожалуйста, ваше имя и номер телефона.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.52,
+      "usage": {
+        "input_tokens": 4366,
+        "output_tokens": 169,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005211,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Марат, сизге рахмат! Объект 101 үчүн көрүү уктуңузду жазып алыш үчүн телефон номериңизди жазып коюңузчу. Ошондой эле кайсы убакыт ыңгайлуу: 31.10 саат 10:00, 12:00, 14:00 же 16:00, же 02.11 күнү?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.7,
+      "usage": {
+        "input_tokens": 4367,
+        "output_tokens": 149,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005112000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}
