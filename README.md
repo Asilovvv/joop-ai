@@ -146,6 +146,10 @@ WhatsApp message fees for reminders.
   the school gets a Telegram note and a lead, and the AI then offers groups of that level. A shared link
   `/test/<code>` works for the website, QR codes and Instagram. The panel shows links, finished tests,
   bookings after the test and the conversion. The AI never guesses a level from the chat.
+- **QR menu / price list online** (`/panel/menu`): any company can open a phone page `/m/<slug>` built from
+  its catalog (categories, prices, stop list, Russian/Kyrgyz names) with an "order" button to its bot or
+  WhatsApp, and print a sheet of QR codes, one per table (`/m/<slug>?t=5` shows "Стол 5" and puts the
+  table number into the WhatsApp message). Off until the company turns it on.
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
 

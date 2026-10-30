@@ -55,6 +55,10 @@ class Business(SQLModel, table=True):
     ig_access_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
     ig_token_refreshed_at: Optional[NaiveDatetime] = None
 
+    # Public menu / price list /m/<slug> with QR codes (joop/web/menu.py)
+    menu_enabled: bool = False
+    menu_chat_url: str = ""  # where "Заказать" leads: t.me / wa.me / instagram link
+
     last_reminder_date: str = ""
     last_digest_date: str = ""
     created_at: NaiveDatetime = Field(default_factory=utcnow)
