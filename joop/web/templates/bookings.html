@@ -48,4 +48,21 @@
   </div>
   {% else %}<p class="muted">Пока пусто.</p>{% endif %}
 </section>
+{% if pack.has('booking') %}
+<section class="card" id="waitlist">
+  <h2>Лист ожидания</h2>
+  <p class="muted small">Клиенты, которым не подошло свободное время. Когда вы отменяете запись или освобождаете окно, ИИ сам предлагает это время первым трём ожидающим на этот день; кто первым ответит, того и запишет.</p>
+  {% if waiting %}
+  <div class="list">{% for w in waiting %}
+    <div class="item">
+      <div class="main">
+        <div>{{ w.customer_name or 'клиент' }} <span class="muted small mono">{{ w.customer_phone }}</span>{% if w.status == 'notified' %} <span class="chip ok">время предложено</span>{% endif %}</div>
+        <div class="muted small">{{ w.service or 'запись' }} · {{ w.day.strftime('%d.%m') if w.day else 'любой день' }} · {{ channel_names.get(w.channel, w.channel) }}{% if w.conversation_id %} · <a href="/panel/conversations/{{ w.conversation_id }}">диалог</a>{% endif %}</div>
+      </div>
+      <form method="post" action="/panel/waitlist/{{ w.id }}/remove" class="actions"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small ghost" type="submit">Убрать</button></form>
+    </div>
+  {% endfor %}</div>
+  {% else %}<p class="muted">Никто не ждёт.</p>{% endif %}
+</section>
+{% endif %}
 {% endblock %}

@@ -46,20 +46,26 @@ def _kyrgyz(session: Session, conversation_id: int | None) -> bool:
     return bool(m) and is_kyrgyz_message(m)
 
 
-def _deliver(session: Session, rt: "Runtime", business: Business, booking: Booking, text: str, now_utc: datetime) -> bool:
-    conv = session.get(Conversation, booking.conversation_id) if booking.conversation_id else None
-    if conv is None or not booking.chat_id:
+def deliver_to_chat(session: Session, rt: "Runtime", business: Business, conv: Conversation | None, text: str,
+                    now_utc: datetime) -> bool:
+    """Send a message the business starts, where the channel allows it, and keep it in the dialogue."""
+    if conv is None or not conv.chat_id:
         return False
     in_window = bool(conv.last_customer_at and now_utc - conv.last_customer_at < SERVICE_WINDOW)
-    if booking.channel != "telegram" and not (booking.channel in {"whatsapp", "instagram"} and in_window):
+    if conv.channel != "telegram" and not (conv.channel in {"whatsapp", "instagram"} and in_window):
         return False
-    client = rt.channel_client(business, booking.channel)
-    if not (client and client.send_text(booking.chat_id, text)):
+    client = rt.channel_client(business, conv.channel)
+    if not (client and client.send_text(conv.chat_id, text)):
         return False
     session.add(Message(business_id=business.id, conversation_id=conv.id, role="ai", text=text, created_at=now_utc))
     conv.last_message_at = now_utc
     session.add(conv)
     return True
+
+
+def _deliver(session: Session, rt: "Runtime", business: Business, booking: Booking, text: str, now_utc: datetime) -> bool:
+    conv = session.get(Conversation, booking.conversation_id) if booking.conversation_id else None
+    return deliver_to_chat(session, rt, business, conv, text, now_utc)
 
 
 # --- ratings -----------------------------------------------------------------------------------
