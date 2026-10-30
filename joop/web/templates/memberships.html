@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Абонементы{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Абонементы и пакеты</h1>
+  <p class="muted">Записывайте проданные абонементы: «10 занятий», «5 массажей», «безлимит на месяц». Отмечайте каждое посещение — и ИИ ответит клиенту «у вас осталось 3 занятия, действует до 30.11», а когда занятия закончатся, предложит продлить. Остаток ИИ называет только тому, кто пишет с номера абонемента в WhatsApp или уже был у вас по записи из этого чата.</p>
+</section>
+<section class="card">
+  <h2>Новый абонемент</h2>
+  <form class="stack" method="post" action="/panel/memberships">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid2">
+      <label>Телефон клиента<input name="customer_phone" required placeholder="0555 123 456"></label>
+      <label>Имя<input name="customer_name" maxlength="120"></label>
+      <label>Абонемент<input name="title" required maxlength="120" placeholder="10 занятий йоги"></label>
+      <label>Посещений (0 — безлимит)<input name="visits_total" type="number" min="0" max="1000" value="10"></label>
+      <label>Действует до<input name="valid_until" type="date"></label>
+    </div>
+    <div class="actions" style="justify-content: flex-start"><button class="btn small" type="submit">Добавить</button></div>
+  </form>
+</section>
+<section class="card">
+  <form method="get" action="/panel/memberships" class="row c2" style="margin-bottom: 12px">
+    <input name="q" value="{{ q }}" placeholder="Поиск: телефон, имя или абонемент" aria-label="Поиск">
+    <div class="row-tail"><button class="btn small ghost" type="submit">Найти</button></div>
+  </form>
+  {% if rows %}
+  <div class="scroll"><table class="table">
+    <tr><th>Клиент</th><th>Абонемент</th><th>Осталось</th><th>До</th><th></th></tr>
+    {% for m in rows %}
+    {% set n = left(m) %}
+    <tr class="{{ '' if usable(m, today) else 'cancelled' }}">
+      <td>{{ m.customer_name }}<br><span class="muted small mono">{{ m.customer_phone }}</span></td>
+      <td>{{ m.title }}</td>
+      <td><b>{{ 'безлимит' if n is none else n ~ ' из ' ~ m.visits_total }}</b></td>
+      <td class="mono small">{{ m.valid_until.strftime('%d.%m.%Y') if m.valid_until else '—' }}</td>
+      <td><form method="post" action="/panel/memberships/{{ m.id }}" class="actions"><input type="hidden" name="csrf" value="{{ csrf }}">
+        {% if m.active %}{% if m.visits_total %}<button class="btn small" name="action" value="visit">−1 посещение</button>
+        <button class="btn small ghost" name="action" value="undo" title="Отменить последнюю отметку">↶</button>{% endif %}
+        <button class="btn small ghost" name="action" value="close">Закрыть</button>
+        {% else %}<button class="btn small ghost" name="action" value="open">Вернуть</button>{% endif %}
+      </form></td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% else %}<p class="muted">Абонементов пока нет.</p>{% endif %}
+</section>
+{% endblock %}
