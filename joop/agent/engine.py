@@ -28,7 +28,7 @@ from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
 from ..followups import capture_rating
-from .. import jobs, memberships, waitlist
+from .. import intake, jobs, memberships, waitlist
 from .prompt import CHANNEL_LABELS, build_history, build_system_prompt
 
 log = logging.getLogger(__name__)
@@ -127,6 +127,7 @@ def handle_incoming(
         _add_message(session, business, conv, "ai", rated.reply, now, off)
         return Outcome(reply=rated.reply, admin_notes=[rated.admin_note] if rated.admin_note else [], lead_id=rated.lead_id)
 
+    answered = intake.capture(session, conv, text, now)
     services = list(session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort, Service.id)).all())
     services, catalog_hint = _catalog_for_prompt(session, conv, services, text)
     staff = session.exec(select(Staff).where(Staff.business_id == business.id).order_by(Staff.id)).all()
@@ -142,7 +143,8 @@ def handle_incoming(
         conversation=conv,
         channel=incoming.channel,
         catalog_hint=catalog_hint,
-        extra_facts=_requested_slot_hint(session, conv, slots, now_local, now)
+        extra_facts=(intake.ANSWERED_HINT if answered else "")
+        + _requested_slot_hint(session, conv, slots, now_local, now)
         + placement.prompt_hint(session, business, conv, base_url)
         + (memberships.prompt_hint(session, business, conv, now_local) if pack_offers(business, "memberships") else "")
         + (jobs.prompt_hint(session, business, conv, now, text) if pack_offers(business, "jobs") else ""),
@@ -175,6 +177,7 @@ def handle_incoming(
         if qualified is not None:
             outcome.qualified_lead_id = qualified.id
             outcome.admin_notes.append(_lead_note(business, conv, qualified, off))
+    booked: Booking | None = None
     if result.booking:
         if result.booking.get("slot_id") is None:
             outcome.reply, request = _booking_request(session, business, conv, result.booking, result.reply, now, off)
@@ -190,7 +193,10 @@ def handle_incoming(
             if booking is not None:
                 outcome.booking_id = booking.id
                 waitlist.mark_booked(session, conv.id)
+                booked = booking
                 outcome.admin_notes.append(_booking_note(business, booking, off))
+    if answered is not None:
+        outcome.admin_notes.append(intake.answers_note(answered))
     if result.handoff:
         lead = _add_lead(session, business, conv, "handoff", result.handoff, now, off)
         outcome.lead_id = lead.id
@@ -220,6 +226,15 @@ def handle_incoming(
         outcome.reply = fix_mixed_script(outcome.reply)
         if is_kyrgyz_message(text) and looks_kyrgyz(outcome.reply):
             outcome.reply = use_kyrgyz_names(outcome.reply, {sv.name: sv.name_ky for sv in services if sv.name_ky})
+
+    if booked is not None and outcome.reply:  # added after the guards so they cannot reword them
+        kyrgyz = is_kyrgyz_message(text)
+        loyalty = intake.loyalty_line(session, business, booked, kyrgyz)
+        outcome.reply += loyalty + intake.after_booking(business, booked, kyrgyz)
+        if loyalty:
+            outcome.admin_notes.append(f"Бонус: у {booked.customer_name} {booked.loyalty_visit}-й визит "
+                                       f"({fmt_slot(booked.start)}) — {business.loyalty_reward.strip()}")
+        session.add(booked)
 
     outcome.cost_usd = cost_usd(outcome.usage, getattr(llm, "model", ""))
     if outcome.reply:

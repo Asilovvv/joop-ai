@@ -16,7 +16,7 @@
       <tr class="{{ 'cancelled' if b.status == 'cancelled' else '' }}">
         <td class="mono">{{ b.start|slot }}</td>
         <td>{{ b.customer_name }}<br><span class="muted small mono">{{ b.customer_phone }}</span></td>
-        <td>{{ b.service or 'приём' }}</td>
+        <td>{{ b.service or 'приём' }}{% if b.loyalty_visit %} <span class="chip ok">{{ b.loyalty_visit }}-й визит: {{ business.loyalty_reward }}</span>{% endif %}{% if b.intake_answers %}<br><span class="small" style="white-space: pre-wrap">{{ b.intake_answers }}</span>{% elif b.intake_status == 'asked' %}<br><span class="muted small">ждём ответы на вопросы</span>{% endif %}</td>
         <td>{{ b.staff_name }}</td>
         <td>{{ channel_names.get(b.channel, 'вручную') }}{% if b.created_off_hours %} <span class="chip warn">ночью</span>{% endif %}</td>
         <td>{{ {'sent': 'отправлено', 'manual': 'вручную', 'failed': 'ошибка'}.get(b.reminder_status, '—') }}</td>
