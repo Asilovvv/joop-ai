@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -215,3 +216,57 @@ def test_claims_confirmation_patterns():
         assert claims_confirmation(t), t
     for t in ["Какое время удобно?", "Чтобы записать вас, нужен телефон", "Скидку обещать не могу"]:
         assert not claims_confirmation(t), t
+
+
+def test_failed_rewrite_drops_the_claim_sentence(business):
+    """Eval run 19: the rewrite kept "кабыл алдым"; code removes the sentence itself."""
+    bad = "Бермет, маникюр үчүн жазууну кабыл алдым. Телефон номериңизди жазып коюңузчу."
+    llm = FakeLLM([AgentReply(bad)])
+    llm.unconfirm = ["Бермет, жазууну кабыл алдым, номериңизди жазыңыз."]  # still claims
+    out = say(business, "Мени маникюрга жазып коюңузчу, атым Бермет", llm, "u4")
+    assert out.reply == "Телефон номериңизди жазып коюңузчу." and out.confirmation_fixed
+
+
+def test_named_free_time_is_pointed_out_to_the_model(business):
+    """Eval run 19: "Завтра в 18:00" was free, the model still asked "подтверждаете?"."""
+    from joop.timeutil import fmt_slot, utc_to_local
+
+    tomorrow = utc_to_local(NOW_UTC, "Asia/Bishkek").date() + timedelta(days=1)
+    with db.new_session() as s:
+        slot = s.exec(select(Slot).where(Slot.business_id == business.id, Slot.status == "free")
+                      .order_by(Slot.start)).all()
+        slot = next(x for x in slot if x.start.date() == tomorrow)
+    llm = FakeLLM()
+    say(business, f"Завтра в {slot.start:%H:%M} можно? Айбек, 0555 123 456", llm, "u5")
+    system = llm.calls[-1]["system"]
+    assert f"Клиент сам назвал время {fmt_slot(slot.start)}, и оно свободно" in system and f"окно {slot.id}" in system
+    say(business, "А послезавтра в 03:00?", llm, "u6")  # not a working hour: no hint for 03:00
+    assert "Клиент назвал время" not in llm.calls[-1]["system"] or "03:00" not in llm.calls[-1]["system"]
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("Завтра в 18:00, Айгуль, 0555 777 888", (1, 18, 0)),
+    ("Атым Нурбек, 0700 515 616, эртең саат 10до", (1, 10, 0)),
+    ("эртең саат 12де", (1, 12, 0)),
+    ("Эртең кечинде 6 кишиге стол керек", None),
+    ("послезавтра к 9.30", (2, 9, 30)),
+    ("завтра в 7 вечера", (1, 19, 0)),
+    ("Хочу стол на 4 человека", None),
+    ("в 18:00", None),
+])
+def test_requested_time(text, expected):
+    from datetime import date
+
+    from joop.slots import requested_time
+
+    got = requested_time(text, date(2026, 11, 4))
+    assert (None if got is None else ((got.date() - date(2026, 11, 4)).days, got.hour, got.minute)) == expected
+
+
+def test_claim_about_a_pet_or_child_is_caught():
+    """Eval run 23 (vet): "Записала вашего кота..." before the phone was given."""
+    from joop.lang import claims_confirmation, drop_claim_sentences
+
+    text = "Здравствуйте, Алина! Записала вашего кота на приём на субботу, 31.10, в 11:00. Подскажите, пожалуйста, номер телефона."
+    assert claims_confirmation(text)
+    assert drop_claim_sentences(text) == "Здравствуйте, Алина! Подскажите, пожалуйста, номер телефона."
