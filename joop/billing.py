@@ -53,16 +53,21 @@ class State:
     label: str
 
 
+def _days(left: timedelta) -> int:
+    """Whole days left, rounded up: a 14-day trial shows 14 on the day it starts, not 13."""
+    return max(0, -(-int(left.total_seconds()) // 86400))
+
+
 def state(sub: Subscription, now: datetime) -> State:
     if sub.status == "suspended":
         return State("suspended", False, 0, "Приостановлено")
     if sub.paid_until and now <= sub.paid_until:
-        return State("active", True, (sub.paid_until - now).days, "Оплачено")
+        return State("active", True, _days(sub.paid_until - now), "Оплачено")
     if sub.status == "trial" and sub.trial_ends_at and now <= sub.trial_ends_at:
-        return State("trial", True, (sub.trial_ends_at - now).days, "Пробный период")
+        return State("trial", True, _days(sub.trial_ends_at - now), "Пробный период")
     end = sub.paid_until or sub.trial_ends_at
     if end and now <= end + timedelta(days=GRACE_DAYS):
-        return State("grace", True, (end + timedelta(days=GRACE_DAYS) - now).days, "Ожидает оплаты")
+        return State("grace", True, _days(end + timedelta(days=GRACE_DAYS) - now), "Ожидает оплаты")
     return State("expired", False, 0, "Не оплачено")
 
 

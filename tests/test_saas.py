@@ -309,3 +309,12 @@ def test_landing_shows_price_niches_and_signup_preselects_niche(app_client):
     assert "3 000 сом" in page and "/signup?niche=restaurant" in page and 'href="/signup"' in page
     form = app_client.get("/signup?niche=restaurant").text
     assert 'value="restaurant" selected' in form
+
+
+def test_days_left_rounds_up():
+    from datetime import timedelta
+
+    from joop.billing import _days
+
+    assert _days(timedelta(days=13, hours=23)) == 14 and _days(timedelta(hours=1)) == 1
+    assert _days(timedelta(0)) == 0 and _days(timedelta(hours=-5)) == 0
