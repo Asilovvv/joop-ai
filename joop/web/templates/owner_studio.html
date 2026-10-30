@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Студия{% endblock %}
+{% block content %}
+{% include "owner_nav.html" %}
+<div class="chips">
+  <a class="chip {{ 'ok' if not current }}" href="/owner/studio">Все</a>
+  {% for key, label in statuses.items() %}<a class="chip {{ 'ok' if current == key }}" href="/owner/studio?status={{ key }}">{{ label }}</a>{% endfor %}
+</div>
+<p class="muted small">Заявки приходят с публичной страницы <code>{{ base }}/studio</code>. ИИ пишет текст сайта только по описанию клиента; проверьте его перед публикацией.</p>
+<section class="card">
+  <h2>Заявки ({{ rows | length }})</h2>
+  <div class="list">
+    {% for row in rows %}{% set r = row.r %}
+    <div class="item" id="r{{ r.id }}"><div class="main stack">
+      <div><b>{{ r.business_name }}</b> <span class="chip">{{ kinds.get(r.kind, r.kind) }}</span> <span class="chip {{ 'ok' if r.status in ('paid', 'done') else '' }}">{{ statuses[r.status] }}</span>
+        <span class="muted small">{{ r.contact_name }} · {{ r.phone }} · {{ r.created_at | dt }}</span></div>
+      <p class="small" style="white-space: pre-wrap">{{ r.description }}</p>
+      <form method="post" action="/owner/studio/{{ r.id }}" class="stack">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        {% if row.site %}
+        <div class="grid2">
+          {% for key, label in [('headline', 'Заголовок'), ('subheadline', 'Подзаголовок'), ('cta', 'Кнопка'), ('phone', 'Телефон'), ('address', 'Адрес'), ('hours', 'Часы'), ('instagram', 'Instagram'), ('booking_url', 'Ссылка на запись (t.me/…)')] %}
+          <label>{{ label }}<input name="{{ key }}" value="{{ row.site.get(key, '') }}"></label>
+          {% endfor %}
+          <label style="grid-column: 1 / -1">О компании<textarea name="about" rows="3">{{ row.site.about }}</textarea></label>
+        </div>
+        <p class="small muted">Услуг в черновике: {{ row.site.services | length }}.{% if r.published %} Сайт: <a href="/site/{{ r.public_slug }}" target="_blank" rel="noopener">/site/{{ r.public_slug }}</a>{% endif %}</p>
+        {% endif %}
+        <div class="actions" style="justify-content: flex-start">
+          {% if r.kind in ('site', 'menu') %}<button class="btn small" name="action" value="draft">{{ 'Переписать ИИ' if row.site else 'Сделать черновик ИИ' }}</button>{% endif %}
+          {% if row.site %}<button class="btn ghost small" name="action" value="save">Сохранить текст</button>
+          <button class="btn ghost small" name="action" value="{{ 'unpublish' if r.published else 'publish' }}">{{ 'Снять с публикации' if r.published else 'Опубликовать' }}</button>
+          <a class="btn ghost small" href="/site/{{ r.public_slug }}" target="_blank" rel="noopener">Посмотреть</a>
+          {% if r.business_id %}<span class="chip ok">ИИ-администратор: компания #{{ r.business_id }}</span>
+          {% else %}<button class="btn ghost small" name="action" value="create_business" title="Создать компанию Joop AI с услугами и ценами из сайта, с пробным периодом">Подключить ИИ-администратора</button>{% endif %}{% endif %}
+          <select name="status" aria-label="Статус" style="width: auto">{% for key, label in statuses.items() %}<option value="{{ key }}" {{ 'selected' if key == r.status }}>{{ label }}</option>{% endfor %}</select>
+          <input name="price_som" type="number" min="0" step="500" value="{{ r.price_som or '' }}" placeholder="Цена, сом" style="width: 110px" aria-label="Цена">
+          <button class="btn ghost small" name="action" value="status">Сохранить статус</button>
+        </div>
+      </form>
+    </div></div>
+    {% else %}<p class="muted">Пока заявок нет.</p>{% endfor %}
+  </div>
+</section>
+{% endblock %}
