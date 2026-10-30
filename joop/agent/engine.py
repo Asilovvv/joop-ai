@@ -27,6 +27,7 @@ from ..slots import claim_slot, free_slots, requested_time
 from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
+from ..followups import capture_rating
 from .prompt import CHANNEL_LABELS, build_history, build_system_prompt
 
 log = logging.getLogger(__name__)
@@ -119,6 +120,11 @@ def handle_incoming(
 
     if not text:
         return Outcome(skipped="empty")
+
+    rated = capture_rating(session, business, conv, text, now, off)
+    if rated is not None:  # "5" right after "оцените визит от 1 до 5"
+        _add_message(session, business, conv, "ai", rated.reply, now, off)
+        return Outcome(reply=rated.reply, admin_notes=[rated.admin_note] if rated.admin_note else [], lead_id=rated.lead_id)
 
     services = list(session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort, Service.id)).all())
     services, catalog_hint = _catalog_for_prompt(session, conv, services, text)
