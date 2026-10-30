@@ -406,13 +406,14 @@ def owner_login(request: Request, password: str = Form(""), csrf: str = Form("")
     if not expected:
         raise HTTPException(status_code=404)
     _check_csrf(request, csrf)
-    fails = int(request.session.get("owner_fails", 0))
-    if fails >= 5 and time.time() - float(request.session.get("owner_fail_at", 0)) < 600:
-        _flash(request, "Слишком много попыток. Подождите 10 минут.", "error")
+    from .app import record_failure, throttled  # counted in memory, not in the cookie a guesser can drop
+
+    now = time.time()
+    if throttled("owner!", request, now):
+        _flash(request, "Слишком много попыток. Подождите 15 минут.", "error")
         return _back("/owner/login")
     if not hmac.compare_digest(password.encode(), expected.encode()):
-        request.session["owner_fails"] = fails + 1
-        request.session["owner_fail_at"] = time.time()
+        record_failure("owner!", request, now)
         _flash(request, "Неверный пароль.", "error")
         return _back("/owner/login")
     request.session.clear()
