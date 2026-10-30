@@ -1,0 +1,14 @@
+{% extends "test_base.html" %}
+{% block content %}
+<h1>{{ t.title }}</h1>
+<p class="muted">{{ count }} вопросов{% if t.minutes %}, {{ t.minutes }} минут{% endif %}. Результат и уровень вы увидите сразу после теста{% if action.startswith('/t/') %}, он также придёт вам в чат{% endif %}.</p>
+<form class="card" method="post" action="{{ action }}">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+  <label>Имя<input type="text" name="name" value="{{ name }}" required maxlength="80" autocomplete="name"></label>
+  <label>Телефон<input type="tel" name="phone" value="{{ phone }}" required maxlength="40" autocomplete="tel" placeholder="0555 123 456"></label>
+  <label class="check"><input type="checkbox" name="consent" value="1" required><span class="small">Согласен(на) на обработку имени, телефона и результата теста «{{ b.name }}», чтобы со мной связались по поводу обучения.</span></label>
+  <button class="btn" type="submit">Начать тест</button>
+  {% if t.minutes %}<p class="muted small">Время пойдёт после нажатия.</p>{% endif %}
+</form>
+{% endblock %}

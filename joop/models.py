@@ -298,3 +298,51 @@ class StudioRequest(SQLModel, table=True):
     business_id: Optional[int] = Field(default=None, foreign_key="business.id")  # Joop AI company made from this order
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     updated_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class PlacementTest(SQLModel, table=True):
+    """A training centre's level test. Questions come from the school; answers are graded by code."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    code: str = Field(index=True, unique=True)  # public link /test/<code>
+    title: str
+    scale_text: str = ""  # one band per line: "0-10 A1"
+    minutes: int = 20  # time limit, 0 = none
+    active: bool = True
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class PlacementQuestion(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    test_id: int = Field(foreign_key="placementtest.id", index=True)
+    section: str = ""
+    text: str
+    options_json: str = "[]"  # list of answer options
+    correct: int = 0  # index of the right option
+    sort: int = 0
+
+
+class PlacementAttempt(SQLModel, table=True):
+    """One person's test. 'invited' = the AI gave a personal link in a chat; the result goes back to that chat."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    test_id: int = Field(foreign_key="placementtest.id", index=True)
+    token: str = Field(index=True, unique=True)  # personal link /t/<token>
+    conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.id", index=True)
+    status: str = "invited"  # invited | started | finished
+    name: str = ""
+    phone: str = ""
+    consent: bool = False
+    answers_json: str = ""
+    sections_json: str = ""  # {"Грамматика": [right, total], ...}
+    score: int = 0
+    max_score: int = 0
+    level: str = ""
+    late: bool = False  # submitted after the time limit
+    result_sent: bool = False  # the result reached the customer's chat
+    started_at: Optional[NaiveDatetime] = None
+    finished_at: Optional[NaiveDatetime] = None
+    created_at: NaiveDatetime = Field(default_factory=utcnow)

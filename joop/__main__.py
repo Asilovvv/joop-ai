@@ -211,7 +211,7 @@ def cmd_chat(args) -> int:
         incoming = IncomingMessage("console", args.chat_id, "command" if text.startswith("/") else "text", text, "Тест", f"console:{args.chat_id}:{n}:{text[:20]}")
         with new_session() as s:
             b = s.get(Business, business.id)
-            outcome = handle_incoming(s, b, incoming, rt.get_llm)
+            outcome = handle_incoming(s, b, incoming, rt.get_llm, base_url=rt.settings.public_base_url)
             s.commit()
         if outcome.reply:
             print(f"ИИ: {outcome.reply}")

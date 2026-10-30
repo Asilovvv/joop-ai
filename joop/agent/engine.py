@@ -25,6 +25,7 @@ from ..pricing import cost_usd, empty_usage
 from ..slots import claim_slot, free_slots
 from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
+from .. import placement
 from .prompt import CHANNEL_LABELS, build_history, build_system_prompt
 
 log = logging.getLogger(__name__)
@@ -74,6 +75,7 @@ def handle_incoming(
     incoming: IncomingMessage,
     get_llm: Callable[[], LLMClient],
     now_utc: datetime | None = None,
+    base_url: str = "",
 ) -> Outcome:
     now = now_utc or utcnow()
     now_local = utc_to_local(now, business.timezone)
@@ -132,6 +134,7 @@ def handle_incoming(
         conversation=conv,
         channel=incoming.channel,
         catalog_hint=catalog_hint,
+        extra_facts=placement.prompt_hint(session, business, conv, base_url),
     )
     history = _history(session, conv, now)
 
