@@ -36,6 +36,19 @@
     </table></div>
     {% else %}<p class="muted">Сначала заполните раздел «{{ pack.catalog_label }}».</p>{% endif %}
   </section>
+  <section class="card stack">
+    <h2>Вопросы перед визитом</h2>
+    <p class="muted small">Сразу после записи ИИ задаст эти вопросы (до 5, каждый с новой строки), а ответ клиента сохранит в записи и пришлёт вам. Например: «Что беспокоит?», «Вид, кличка и вес питомца?», «Длина волос?».</p>
+    <textarea name="intake_questions" rows="4" placeholder="Что беспокоит и как давно?">{{ business.intake_questions }}</textarea>
+  </section>
+  <section class="card stack">
+    <h2>Бонус за повторные визиты</h2>
+    <p class="muted small">Каждый N-й визит клиента (считаем по телефону и записям в системе) — с бонусом. ИИ сообщит о нём при записи, вам придёт отметка.</p>
+    <div class="grid2">
+      <label>Каждый какой визит (0 — выключено)<input name="loyalty_every" type="number" min="0" max="100" value="{{ business.loyalty_every }}"></label>
+      <label>Бонус<input name="loyalty_reward" value="{{ business.loyalty_reward }}" maxlength="120" placeholder="скидка 20%"></label>
+    </div>
+  </section>
   <div class="actions" style="justify-content: flex-start; margin-top: 12px"><button class="btn" type="submit">Сохранить</button></div>
 </form>
 <section class="card">

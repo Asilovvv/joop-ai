@@ -60,6 +60,9 @@ class Business(SQLModel, table=True):
     review_requests: bool = False
     review_url: str = ""  # 2GIS / Google Maps page where happy customers leave a review
     return_invites: bool = False
+    intake_questions: str = ""  # asked right after a booking, one per line (joop/intake.py)
+    loyalty_every: int = 0  # every N-th visit gets loyalty_reward (0 = off)
+    loyalty_reward: str = ""
 
     # Public menu / price list /m/<slug> with QR codes (joop/web/menu.py)
     menu_enabled: bool = False
@@ -168,6 +171,9 @@ class Booking(SQLModel, table=True):
     review_asked_at: Optional[NaiveDatetime] = None
     rating: Optional[int] = None  # 1-5 from the customer after the visit
     return_status: str = ""  # "" | sent | manual: invitation to come again
+    intake_status: str = ""  # "" | asked | answered
+    intake_answers: str = ""
+    loyalty_visit: int = 0  # this was the customer's N-th visit and earned the reward
 
 
 class Lead(SQLModel, table=True):
