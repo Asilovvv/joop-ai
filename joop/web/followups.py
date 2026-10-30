@@ -38,6 +38,13 @@ async def followups_save(request: Request):
         b = _business(s, request)
         b.review_requests = bool(form.get("review_requests"))
         b.return_invites = bool(form.get("return_invites"))
+        b.intake_questions = "\n".join(line.strip()[:200] for line in str(form.get("intake_questions", "")).splitlines()
+                                        if line.strip())[:1100]
+        try:
+            b.loyalty_every = max(0, min(int(str(form.get("loyalty_every") or 0)), 100))
+        except ValueError:
+            pass
+        b.loyalty_reward = str(form.get("loyalty_reward", "")).strip()[:120]
         url = str(form.get("review_url", "")).strip()[:300]
         if url and not url.startswith(URL_PREFIXES):
             _flash(request, "Ссылка на отзывы должна вести на 2ГИС, Google Карты, Яндекс Карты или Instagram — она не сохранена.", "error")
