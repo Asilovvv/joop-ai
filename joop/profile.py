@@ -108,6 +108,7 @@ def apply_profile(
                     role=_text(item.get("role")),
                     handles=_text(item.get("handles")),
                     capacity=int(item.get("capacity") or 0),
+                    group_size=int(item.get("group_size") or 0),
                 )
             )
             existing.add(name)

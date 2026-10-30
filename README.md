@@ -157,6 +157,10 @@ WhatsApp message fees for reminders.
   as a handoff. Each service can have "invite again after N days" (manicure 21, cleaning 180): the AI
   invites the customer back unless they have already booked. Messages go only where the channel allows
   (Telegram any time, WhatsApp / Instagram within 24 hours); the rest is listed for the staff.
+- **Group classes** (packs with `features: [group_classes]`: fitness, training centres): a resource with
+  "Мест в группе" = 12 gets slots that take up to 12 bookings; a claim takes one seat per person atomically
+  (`claim_slot(slot, count)`), the slot closes when full, cancelling frees the same seats. The AI sees
+  "свободно мест 5 из 12" and offers another class when there are not enough seats.
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
 

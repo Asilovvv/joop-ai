@@ -51,6 +51,11 @@
       <div class="muted small">{{ name }}</div>
       <div class="slots">
         {% for slot, booking in items %}
+        {% if slot.seats > 1 %}
+        <span class="slot {{ 'taken' if slot.taken >= slot.seats else ('busy' if slot.status != 'free' else '') }}" title="Групповое занятие: записано {{ slot.taken }} из {{ slot.seats }}">
+          {{ slot.start.strftime('%H:%M') }} · {{ slot.taken }}/{{ slot.seats }}
+        </span>
+        {% else %}
         <span class="slot {{ 'taken' if booking else ('busy' if slot.status != 'free' else '') }}">
           {{ slot.start.strftime('%H:%M') }}{% if booking %} · {{ booking.customer_name }}{% elif slot.status != 'free' %} · занято{% endif %}
           {% if not booking %}
@@ -58,6 +63,7 @@
           <form method="post" action="/panel/slots/{{ slot.id }}/delete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit" title="Удалить окно" aria-label="Удалить окно">×</button></form>
           {% endif %}
         </span>
+        {% endif %}
         {% endfor %}
       </div>
     </div>
