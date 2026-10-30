@@ -17,9 +17,9 @@ from datetime import datetime, timedelta
 from sqlmodel import Session, select
 
 from .lang import is_kyrgyz_message
+from .niches import get_pack
 from .models import Booking, Business, Conversation, Message, PlacementAttempt, PlacementQuestion, PlacementTest
 
-NICHES = {"education"}  # niches whose panel shows level tests
 GRACE = timedelta(minutes=2)  # slow networks: a submission this late is still on time
 MAX_QUESTIONS = 200
 MAX_OPTIONS = 6
@@ -29,7 +29,8 @@ _DIGITS = re.compile(r"\D")
 
 
 def enabled(business: Business) -> bool:
-    return business.niche in NICHES
+    """Packs switch the module on with `features: [level_test]` (training centres, driving schools)."""
+    return get_pack(business.niche).offers("level_test")
 
 
 def new_code() -> str:

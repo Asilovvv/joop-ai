@@ -28,7 +28,6 @@ from ..dispatch import admin_chat_ids, process_incoming
 from ..catalog import parse_price
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff
 from ..niches import all_packs, get_pack
-from ..placement import NICHES as PLACEMENT_NICHES
 from ..runtime import Runtime
 from ..scheduler import Scheduler
 from ..security import hash_password, new_link_code, verify_password
@@ -56,7 +55,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     if pack.has("booking"):
         items.append(("/panel/slots", "slots", "Окна"))
     items.append(("/panel/leads", "leads", "Заявки"))
-    if business is not None and business.niche in PLACEMENT_NICHES:
+    if pack.offers("level_test"):
         items.append(("/panel/tests", "tests", "Тест на уровень"))
     items.append(("/panel/services", "services", pack.catalog_label))
     items.append(("/panel/menu", "menu", "QR-меню" if pack.has("order") else "Прайс онлайн"))
