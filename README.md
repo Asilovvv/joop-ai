@@ -9,9 +9,11 @@ it cannot handle to staff in Telegram.
 
 One core serves many niches through **niche packs** (`joop/niches/<name>/`): dental clinics, beauty
 salons, cafes and restaurants (table booking, orders with code-computed totals, stop list), real
-estate (qualified leads, viewings), car services, training centres and wholesale (orders, leads).
+estate (qualified leads, viewings), car services, training centres, wholesale (orders, leads),
+fitness clubs, massage and spa, medical centres and labs, veterinary clinics and grooming, driving
+schools, hotels and guest houses, tours, photo studios, and quest rooms / karaoke / bowling.
 A pack sets the panel labels, what a conversation can produce (booking, request, order, lead,
-handoff), niche rules, demo data and evaluation dialogues. Design: [docs/multi-niche-design.md](docs/multi-niche-design.md).
+handoff), niche rules, optional modules (`features: [level_test]`), demo data and evaluation dialogues. Design: [docs/multi-niche-design.md](docs/multi-niche-design.md).
 
 First market: private dental clinics in Bishkek, where messages that arrive in the evening and at
 weekends often go unanswered until the next working day.
