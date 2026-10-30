@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import update
+from sqlalchemy import case, update
 from sqlmodel import Session, select
 
 from .models import Business, Slot, Staff
@@ -37,14 +37,21 @@ def _existing_starts(session: Session, business_id: int, staff_id: int, day_from
     return set(rows)
 
 
+def seats_for(session: Session, staff_id: int) -> int:
+    """Seats in each slot of this resource: its group size for group classes, otherwise one booking."""
+    member = session.get(Staff, staff_id)
+    return max(1, member.group_size) if member else 1
+
+
 def add_slots(session: Session, business: Business, staff_id: int, day: date, times: list[time], duration_min: int = 60) -> int:
+    seats = seats_for(session, staff_id)
     existing = _existing_starts(session, business.id, staff_id, day, day)
     created = 0
     for t in times:
         start = datetime.combine(day, t)
         if start in existing:
             continue
-        session.add(Slot(business_id=business.id, staff_id=staff_id, start=start, duration_min=duration_min))
+        session.add(Slot(business_id=business.id, staff_id=staff_id, start=start, duration_min=duration_min, seats=seats))
         created += 1
     return created
 
@@ -66,6 +73,7 @@ def generate_slots(
     date_to = min(date_to, date_from + timedelta(days=MAX_GENERATE_DAYS))
     days_off = parse_days_off(business.days_off) if skip_days_off else set()
     existing = _existing_starts(session, business.id, staff_id, date_from, date_to)
+    seats = seats_for(session, staff_id)
     created = 0
     day = date_from
     while day <= date_to:
@@ -74,7 +82,7 @@ def generate_slots(
             day_end = datetime.combine(day, end)
             while current + timedelta(minutes=step_min) <= day_end:
                 if current not in existing:
-                    session.add(Slot(business_id=business.id, staff_id=staff_id, start=current, duration_min=step_min))
+                    session.add(Slot(business_id=business.id, staff_id=staff_id, start=current, duration_min=step_min, seats=seats))
                     created += 1
                 current += timedelta(minutes=step_min)
         day += timedelta(days=1)
@@ -105,16 +113,45 @@ def free_slots(
     return list(session.exec(query.order_by(Slot.start, Slot.id).limit(limit)).all())
 
 
-def claim_slot(session: Session, slot_id: int) -> bool:
-    """Atomically mark a free slot as booked. False if someone took it first."""
-    result = session.exec(update(Slot).where(Slot.id == slot_id, Slot.status == "free").values(status="booked"))
+def claim_slot(session: Session, slot_id: int, count: int = 1) -> bool:
+    """Atomically take `count` seats of a free slot. False if someone took them first.
+    The slot turns "booked" when it is full (always, for a one-seat slot)."""
+    count = max(1, count)
+    result = session.exec(
+        update(Slot)
+        .where(Slot.id == slot_id, Slot.status == "free", Slot.taken + count <= Slot.seats)
+        .values(taken=Slot.taken + count, status=case((Slot.taken + count >= Slot.seats, "booked"), else_="free"))
+    )
     return result.rowcount == 1
 
 
-def release_slot(session: Session, slot_id: int | None) -> None:
+def release_slot(session: Session, slot_id: int | None, count: int = 1) -> None:
     if slot_id is None:
         return
-    session.exec(update(Slot).where(Slot.id == slot_id).values(status="free"))
+    session.exec(update(Slot).where(Slot.id == slot_id)
+                 .values(taken=case((Slot.taken > count, Slot.taken - count), else_=0), status="free"))
+
+
+def seats_needed(slot: Slot, party_size: int) -> int:
+    """A group class takes one seat per person; a one-seat slot (doctor, table) is taken whole."""
+    return max(1, party_size) if slot.seats > 1 else 1
+
+
+def seats_left(slot: Slot) -> int:
+    return max(0, slot.seats - slot.taken)
+
+
+def resize_group(session: Session, staff_id: int, group_size: int, now_local: datetime) -> int:
+    """Apply a new group size to the future slots of this resource. Returns slots changed."""
+    seats = max(1, group_size)
+    changed = 0
+    for slot in session.exec(select(Slot).where(Slot.staff_id == staff_id, Slot.start > now_local)).all():
+        if slot.seats != seats and (slot.status == "free" or slot.taken):
+            slot.seats = max(seats, slot.taken)
+            slot.status = "booked" if slot.taken >= slot.seats else "free"
+            session.add(slot)
+            changed += 1
+    return changed
 
 
 # --- the time a customer named in their own words ------------------------------------------------

@@ -106,6 +106,8 @@ def build_system_prompt(
             out += ["", f"Свободное время для записи (номер окна: день и время — {pack.resource_item}):"]
             for slot, member in slots:
                 extra = f" ({member.capacity} мест)" if pack.party_size and member.capacity else (f" ({member.role})" if member.role else "")
+                if slot.seats > 1:
+                    extra += f", групповое занятие: свободно мест {slot.seats - slot.taken} из {slot.seats}"
                 out.append(f"- {slot.id}: {fmt_slot(slot.start)} — {member.name}{extra}")
         else:
             out += ["", "Свободного времени в системе нет: записывай заявкой, время подтвердит администратор."]
@@ -160,6 +162,10 @@ def build_system_prompt(
             "со slot_id = null и скажи, что администратор перезвонит и подтвердит время. "
             "Сам время не подтверждай."
         )
+    if takes_bookings and any(slot.seats > 1 for slot, _ in slots):
+        rules.append("Групповые занятия: в одно окно записываются несколько человек, пока есть свободные места. "
+                     "В booking.party_size укажи, сколько человек записать (обычно 1). Если мест не хватает, предложи "
+                     "другое занятие из списка.")
     if takes_bookings and pack.party_size:
         rules.append("Для брони узнай число гостей и укажи его в booking.party_size; выбирай окно, где мест не меньше.")
     if pack.has("order"):
