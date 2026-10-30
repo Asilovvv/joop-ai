@@ -28,7 +28,7 @@ from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
 from ..followups import capture_rating
-from .. import waitlist
+from .. import memberships, waitlist
 from .prompt import CHANNEL_LABELS, build_history, build_system_prompt
 
 log = logging.getLogger(__name__)
@@ -143,7 +143,8 @@ def handle_incoming(
         channel=incoming.channel,
         catalog_hint=catalog_hint,
         extra_facts=_requested_slot_hint(session, conv, slots, now_local, now)
-        + placement.prompt_hint(session, business, conv, base_url),
+        + placement.prompt_hint(session, business, conv, base_url)
+        + (memberships.prompt_hint(session, business, conv, now_local) if pack_offers(business, "memberships") else ""),
     )
     history = _history(session, conv, now)
 
@@ -396,6 +397,10 @@ def _handle_command(
             return Outcome(reply="Готово. Сюда будут приходить уведомления о новых записях и заявках.")
         return Outcome(reply="Код не подошёл. Код есть в панели управления: «Настройки» → «Уведомления в Telegram».")
     return None  # other slash-texts are answered like normal messages
+
+
+def pack_offers(business: Business, feature: str) -> bool:
+    return get_pack(business.niche).offers(feature)
 
 
 def _requested_slot_hint(
