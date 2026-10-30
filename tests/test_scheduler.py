@@ -24,7 +24,7 @@ def _book(business, channel, chat_id, minutes_ago_customer=10, name="Айбек"
         ).first()
         llm = FakeLLM([AgentReply("Записала", booking={"slot_id": slot.id, "name": name, "phone": "0555123456", "service": "чистка"})])
         when = EVENING_UTC - timedelta(minutes=minutes_ago_customer)
-        handle_incoming(s, b, IncomingMessage(channel, chat_id, "text", "запишите", "", f"{channel}:{chat_id}"), lambda: llm, when)
+        handle_incoming(s, b, IncomingMessage(channel, chat_id, "text", f"запишите, {name}", "", f"{channel}:{chat_id}"), lambda: llm, when)
         s.commit()
 
 
