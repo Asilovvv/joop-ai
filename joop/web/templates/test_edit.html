@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ t.title }}{% endblock %}
+{% block content %}
+<section class="stack">
+  <p class="small"><a href="/panel/tests">← Все тесты</a></p>
+  <h1>{{ t.title }}</h1>
+  <p class="muted">Общая ссылка (для сайта, QR-кода, Instagram): <a class="mono" href="{{ link }}" target="_blank" rel="noopener">{{ link }}</a>. В чатах ИИ даёт личную ссылку — тогда результат сам придёт студенту в переписку.</p>
+</section>
+<section class="card">
+  <h2>Настройки</h2>
+  <form class="stack" method="post" action="/panel/tests/{{ t.id }}">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid2">
+      <label>Название<input name="title" value="{{ t.title }}" maxlength="120" required></label>
+      <label>Лимит времени, минут (0 — без лимита)<input name="minutes" type="number" min="0" max="180" value="{{ t.minutes }}"></label>
+    </div>
+    <label>Шкала уровней: баллы и уровень, одна строка — один уровень
+      <textarea name="scale_text" rows="5" class="mono">{{ t.scale_text }}</textarea></label>
+    <p class="muted small">Например «0-10 A1», «11-20 A2». Баллы — число правильных ответов. Чтобы ИИ предлагал нужные группы, укажите уровень в названии или описании группы в разделе «{{ pack.resource_label }}»: «Английский B1, вечер».</p>
+    <label class="inline"><input type="checkbox" name="active" value="1" {{ 'checked' if t.active }}> Тест включён: ИИ даёт ссылку, страница открыта</label>
+    <div class="actions" style="justify-content: flex-start"><button class="btn small" type="submit">Сохранить</button></div>
+  </form>
+</section>
+<section class="card" id="import">
+  <h2>Вопросы ({{ questions|length }})</h2>
+  <p class="muted small">Таблица Excel или Google Sheets → «Скачать как CSV» или просто скопируйте строки сюда. Колонки: раздел; вопрос; от 2 до 6 вариантов; правильный ответ (номер варианта, буква A/Б или текст варианта). Новая загрузка заменяет все вопросы.</p>
+  <form class="stack" method="post" action="/panel/tests/{{ t.id }}/questions" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Файл CSV<input type="file" name="file" accept=".csv,text/csv,text/plain"></label>
+    <label>или вставьте строки<textarea name="csv" rows="6" class="mono" placeholder="{{ sample }}"></textarea></label>
+    <div class="actions" style="justify-content: flex-start"><button class="btn small" type="submit">Загрузить вопросы</button></div>
+  </form>
+  {% if questions %}
+  <div class="list">
+    {% for q in questions %}
+    <div class="item"><div class="main">
+      <div><span class="muted small">{{ loop.index }}. {{ q.section }}</span><br>{{ q.text }}</div>
+      <div class="small">{% for o in options(q) %}{% if loop.index0 == q.correct %}<b>{{ o }}</b>{% else %}{{ o }}{% endif %}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+    </div></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "test_base.html" %}
+{% block content %}
+<h1>{{ t.title }}</h1>
+<p class="muted small">{{ questions|length }} вопросов{% if left is not none %} · осталось <span class="timer" id="timer" data-left="{{ left }}"></span>{% endif %}</p>
+<form method="post" action="/t/{{ a.token }}" id="test">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% for q in questions %}
+  <fieldset class="card q" style="border: 1px solid var(--line)">
+    <legend class="muted small">{{ loop.index }} из {{ questions|length }}{% if q.section %} · {{ q.section }}{% endif %}</legend>
+    <p style="margin-top: 0; white-space: pre-wrap">{{ q.text }}</p>
+    {% for o in options(q) %}
+    <label class="opt"><input type="radio" name="q{{ q.id }}" value="{{ loop.index0 }}"> {{ o }}</label>
+    {% endfor %}
+  </fieldset>
+  {% endfor %}
+  <div class="bar">
+    <button class="btn ghost" type="button" id="prev" hidden>Назад</button>
+    <button class="btn ghost" type="button" id="next" hidden>Дальше</button>
+    <button class="btn" type="submit" id="send">Завершить тест</button>
+  </div>
+</form>
+<script>
+(function () {
+  var form = document.getElementById("test"), qs = form.querySelectorAll(".q"), i = 0, sent = false;
+  var prev = document.getElementById("prev"), next = document.getElementById("next"), send = document.getElementById("send");
+  document.body.classList.add("js");
+  function show() {
+    qs.forEach(function (q, n) { q.classList.toggle("on", n === i); });
+    prev.hidden = i === 0; next.hidden = i === qs.length - 1; send.hidden = i !== qs.length - 1;
+  }
+  prev.onclick = function () { if (i > 0) { i--; show(); } };
+  next.onclick = function () { if (i < qs.length - 1) { i++; show(); window.scrollTo(0, 0); } };
+  form.addEventListener("change", function () { if (i < qs.length - 1) { setTimeout(function () { i++; show(); }, 250); } });
+  form.addEventListener("submit", function (e) { if (sent) { e.preventDefault(); return; } sent = true; send.disabled = true; });
+  show();
+  var t = document.getElementById("timer");
+  if (t) {
+    var left = parseInt(t.dataset.left, 10);
+    var tick = function () {
+      t.textContent = Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0");
+      if (left <= 0) { if (!sent) { sent = true; form.submit(); } return; }
+      left--; setTimeout(tick, 1000);
+    };
+    tick();
+  }
+})();
+</script>
+{% endblock %}

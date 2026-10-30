@@ -43,6 +43,8 @@ def apply_profile(
 
     Optional keys: `resources` (staff, tables, agents; added when no active one has the same name) and
     `slots` ({days, start, end, step}) to generate free time for every resource from tomorrow on.
+    `placement_test` ({title, minutes, scale, questions: [[section, text, [options], right option number]]})
+    adds a level test (training centres) when the business has none with that title.
     """
     business.name = _text(data.get("name")) or business.name
     if _text(data.get("niche")) in all_packs():
@@ -120,3 +122,18 @@ def apply_profile(
         today = local_now(business.timezone, now_utc).date()
         for member in session.exec(select(Staff).where(Staff.business_id == business.id, Staff.active == True)).all():  # noqa: E712
             generate_slots(session, business, member.id, today + timedelta(days=1), today + timedelta(days=days), start, end, step)
+
+    test = data.get("placement_test")
+    if isinstance(test, dict) and _text(test.get("title")):
+        from . import placement
+        from .models import PlacementTest
+
+        title = _text(test.get("title"))
+        if not session.exec(select(PlacementTest).where(PlacementTest.business_id == business.id, PlacementTest.title == title)).first():
+            t = PlacementTest(business_id=business.id, code=placement.new_code(), title=title,
+                              scale_text=str(test.get("scale") or "").strip(), minutes=int(test.get("minutes") or 0))
+            session.add(t)
+            session.flush()
+            questions = [{"section": _text(q[0]), "text": _text(q[1]), "options": [_text(o) for o in q[2]], "correct": int(q[3]) - 1}
+                         for q in test.get("questions") or []]
+            placement.replace_questions(session, t, questions)

@@ -89,7 +89,7 @@ def test_database_created_before_migrations_is_stamped(tmp_path):
         SQLModel.metadata.create_all(eng)  # how databases were created before migrations
         migrate.upgrade()
         with eng.connect() as conn:
-            assert conn.execute(text("select version_num from alembic_version")).scalar() == "0004"
+            assert conn.execute(text("select version_num from alembic_version")).scalar() == "0005"
             assert "business" in inspect(conn).get_table_names()
     finally:
         eng.dispose()
