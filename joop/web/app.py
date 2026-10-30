@@ -213,7 +213,8 @@ def login_form(request: Request):
     return _render(request, "login.html", "login")
 
 
-# Failed panel logins per login name: (count, first failure time). In memory: one process serves the panel.
+# Failed logins: (count, first failure time) per "name|address" and per "name|*". In memory: one process
+# serves the panel. Keyed by address too, so a stranger cannot lock a company out by mistyping its login.
 LOGIN_MAX_FAILS = 5
 LOGIN_LOCK_SECONDS = 15 * 60
 _login_fails: dict[str, tuple[int, float]] = {}
@@ -234,20 +235,44 @@ def _login_failed(key: str, now: float) -> None:
     _login_fails[key] = (count + 1, first)
 
 
+LOGIN_MAX_FAILS_PER_NAME = 50  # from all addresses together: bounds guessing spread over many addresses
+
+
+def client_ip(request: Request) -> str:
+    """The visitor's address. Behind Caddy it is the last X-Forwarded-For entry (added by Caddy itself)."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[-1].strip()
+    return request.client.host if request.client else ""
+
+
+def throttled(name: str, request: Request, now: float) -> bool:
+    """Too many failures for this name from this address, or for this name overall."""
+    count, first = _login_fails.get(f"{name}|*", (0, now))
+    if now - first <= LOGIN_LOCK_SECONDS and count >= LOGIN_MAX_FAILS_PER_NAME:
+        return True
+    return _login_locked(f"{name}|{client_ip(request)}", now)
+
+
+def record_failure(name: str, request: Request, now: float) -> None:
+    _login_failed(f"{name}|{client_ip(request)}", now)
+    _login_failed(f"{name}|*", now)
+
+
 @router.post("/login")
 def login(request: Request, slug: str = Form(""), password: str = Form(""), csrf: str = Form("")):
     _check_csrf(request, csrf)
     key, now = slug.strip().lower(), time_module.time()
-    if _login_locked(key, now):
+    if throttled(key, request, now):
         _flash(request, "Слишком много неудачных попыток. Попробуйте через 15 минут.", "error")
         return _back("/login")
     with new_session() as s:
         business = s.exec(select(Business).where(Business.slug == key)).first()
     if business is None or not verify_password(password, business.admin_password_hash):
-        _login_failed(key, now)
+        record_failure(key, request, now)
         _flash(request, "Неверный логин или пароль.", "error")
         return _back("/login")
-    _login_fails.pop(key, None)
+    _login_fails.pop(f"{key}|{client_ip(request)}", None)
     request.session.clear()
     request.session["bid"] = business.id
     return _back("/panel")
@@ -426,7 +451,7 @@ def staff_delete(request: Request, item_id: int, csrf: str = Form("")):
         row = _own(s, Staff, item_id, b.id)
         row.active = False  # kept for booking history
         s.add(row)
-        for slot in s.exec(select(Slot).where(Slot.staff_id == row.id, Slot.status == "free")).all():
+        for slot in s.exec(select(Slot).where(Slot.staff_id == row.id, Slot.status == "free", Slot.taken == 0)).all():
             s.delete(slot)
         s.commit()
         _flash(request, "Специалист убран, его свободные окна удалены. Существующие записи остались.")

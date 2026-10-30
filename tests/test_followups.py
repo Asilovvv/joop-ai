@@ -143,3 +143,17 @@ def test_panel_saves_settings_and_rejects_foreign_links(client, business):
         b = s.get(Business, business.id)
         assert b.review_requests and b.return_invites and b.review_url.startswith("https://2gis.kg/")
         assert s.get(Service, sid).repeat_days == 180
+
+
+def test_digit_answering_another_question_is_not_a_rating(business, rt):
+    """Security review: after the rating request the AI asked "1, 2 или 3 человека?" — "2" answers that."""
+    enable(business.id, review_requests=True)
+    _, conv = visit(business.id, utc_to_local(DAY_UTC, business.timezone) - timedelta(hours=3), chat="777")
+    with db.new_session() as s:
+        run_due_jobs(s, rt, s.get(Business, business.id), DAY_UTC)
+        s.add(Message(business_id=business.id, conversation_id=conv, role="ai", text="Сколько будет человек: 1, 2 или 3?",
+                      created_at=DAY_UTC + timedelta(minutes=5)))
+        s.commit()
+    llm = FakeLLM()
+    out = say(business.id, "777", "2", llm, "q1", when=DAY_UTC + timedelta(minutes=6))
+    assert llm.calls and not out.admin_notes

@@ -118,3 +118,24 @@ def test_changing_group_size_updates_future_slots(engine):
                            now_local.time().replace(hour=10, minute=0), 60)
         s.commit()
         assert n == 2 and all(x.seats == 1 for x in s.exec(select(Slot).where(Slot.staff_id == tr.id)).all())
+
+
+def test_removing_a_group_with_bookings_keeps_booked_slots(engine, settings, rt):
+    """Security review: deleting a resource whose group slot is partly booked crashed with 500."""
+    from fastapi.testclient import TestClient
+
+    from joop.web.app import create_app
+
+    from .test_web import csrf_of
+
+    b, yoga, slot = gym()
+    llm = FakeLLM([AgentReply("Записала.", booking={"slot_id": slot.id, "name": "Сауле", "phone": "0555171819", "service": "йога", "preferred_time": "", "party_size": 1})])
+    say(b.id, "На йогу, Сауле 0555171819", llm, "d1")
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        token = csrf_of(c.get("/login").text)
+        c.post("/login", data={"slug": "gym", "password": "gym-pass-1", "csrf": token})
+        token = csrf_of(c.get("/panel/staff").text)
+        assert c.post(f"/panel/staff/{yoga.id}/delete", data={"csrf": token}).status_code == 200
+    with db.new_session() as s:
+        assert s.get(Slot, slot.id) is not None
+        assert not s.exec(select(Slot).where(Slot.staff_id == yoga.id, Slot.taken == 0, Slot.status == "free")).all()

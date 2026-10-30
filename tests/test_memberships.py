@@ -91,3 +91,18 @@ def test_panel_hidden_for_dental(engine, settings, rt, business):
         token = csrf_of(c.get("/login").text)
         c.post("/login", data={"slug": "aktish", "password": "secret-pass", "csrf": token})
         assert c.get("/panel/memberships").status_code == 404
+
+
+def test_phone_swap_does_not_unlock_someone_elses_pass(engine):
+    """Security review: a chat with a past visit under its own phone types another phone."""
+    b = gym()
+    with db.new_session() as s:
+        conv = Conversation(business_id=b.id, channel="telegram", chat_id="t7", customer_phone="0700 999 888")
+        s.add(conv)
+        s.flush()
+        s.add(Booking(business_id=b.id, conversation_id=conv.id, start=utc_to_local(NOW_UTC, b.timezone) - timedelta(days=2),
+                      customer_phone="0700 999 888", channel="telegram", chat_id="t7"))
+        conv.customer_phone = "0555 123 456"  # e.g. changed by a booking request with the victim's phone
+        s.add(conv)
+        s.commit()
+    assert "7 из 10" not in ask(b.id, "telegram", "t7", "Сколько осталось?", "m9")
