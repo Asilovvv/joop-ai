@@ -55,6 +55,8 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
         items.append(("/panel/bookings", "bookings", "Записи"))
     if pack.has("booking"):
         items.append(("/panel/slots", "slots", "Окна"))
+    if pack.has("stay"):
+        items.append(("/panel/stays", "stays", "Брони номеров"))
     items.append(("/panel/leads", "leads", "Заявки"))
     if pack.offers("level_test"):
         items.append(("/panel/tests", "tests", "Тест на уровень"))
@@ -66,7 +68,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
         items.append(("/panel/memberships", "memberships", "Абонементы"))
     if pack.offers("jobs"):
         items.append(("/panel/jobs", "jobs", "Заказы в работе"))
-    if books:
+    if books or pack.has("stay"):
         items.append(("/panel/staff", "staff", pack.resource_label))
     items += [("/panel/faq", "faq", "Вопросы"), ("/panel/settings", "settings", "Настройки"), ("/panel/channels", "channels", "Каналы")]
     items[1:1] = [("/panel/setup", "setup", "Запуск"), ("/panel/try", "try", "Проверить ИИ")]
@@ -1064,6 +1066,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .jobs import router as jobs_router
 
     app.include_router(jobs_router)
+    from .stays import router as stays_router
+
+    app.include_router(stays_router)
 
     @app.exception_handler(OwnerRequired)
     async def _owner_required(_request: Request, _exc: OwnerRequired):

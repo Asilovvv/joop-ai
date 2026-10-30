@@ -178,6 +178,10 @@ WhatsApp message fees for reminders.
   the company's questions (up to 5); the customer's next message is saved with the booking and sent to
   staff, and still reaches the AI. "Every N-th visit — reward": code counts earlier visits by phone and the
   confirmation says "Это будет ваш 5-й визит — скидка 20%".
+- **Hotel room calendar** (outcome `stay`, hotel pack): room types are resources with "Номеров этого
+  типа" and guests per room. The AI fills `stay` (room, dates, guests, contacts); code checks every night,
+  stores one `RoomNight` per room per night under a unique key, so the last room cannot be sold twice, and
+  offers other free room types when needed. Panel "Брони номеров": two-week occupancy grid and cancel.
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
 

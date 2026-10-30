@@ -13,7 +13,7 @@ from pathlib import Path
 import yaml
 
 PACKS_DIR = Path(__file__).parent
-OUTCOMES = {"booking", "request", "order", "lead", "handoff"}
+OUTCOMES = {"booking", "request", "order", "lead", "handoff", "stay"}  # stay: hotel nights, joop/stays.py
 # Optional modules a pack switches on: level_test (joop/placement.py), group_classes (slots with several
 # seats), memberships (passes and packages of visits, joop/memberships.py), jobs (order status for items
 # left for work, joop/jobs.py).
