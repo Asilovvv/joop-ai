@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Callable
@@ -17,12 +18,12 @@ from sqlmodel import Session, select
 from ..billing import access_ok
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
-from ..lang import claims_confirmation, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
+from ..lang import claims_confirmation, drop_claim_sentences, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff
 from ..niches import Pack, get_pack
 from ..phone import normalize_phone
 from ..pricing import cost_usd, empty_usage
-from ..slots import claim_slot, free_slots
+from ..slots import claim_slot, free_slots, requested_time
 from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
@@ -134,7 +135,8 @@ def handle_incoming(
         conversation=conv,
         channel=incoming.channel,
         catalog_hint=catalog_hint,
-        extra_facts=placement.prompt_hint(session, business, conv, base_url),
+        extra_facts=_requested_slot_hint(session, conv, slots, now_local, now)
+        + placement.prompt_hint(session, business, conv, base_url),
     )
     history = _history(session, conv, now)
 
@@ -187,6 +189,8 @@ def handle_incoming(
     captured = any(x is not None for x in (outcome.booking_id, outcome.request_id, outcome.order_id, outcome.qualified_lead_id))
     if outcome.reply and not captured and claims_confirmation(outcome.reply) and not _has_capture(session, conv):
         fixed = llm.remove_false_confirmation(outcome.reply, outcome.usage)
+        if not fixed or claims_confirmation(fixed):
+            fixed = drop_claim_sentences(fixed or "") or drop_claim_sentences(outcome.reply)
         if fixed and not claims_confirmation(fixed):
             outcome.reply = fixed
             outcome.confirmation_fixed = True
@@ -384,6 +388,32 @@ def _handle_command(
     return None  # other slash-texts are answered like normal messages
 
 
+def _requested_slot_hint(
+    session: Session, conv: Conversation, slots: list[tuple[Slot, Staff]], now_local: datetime, now: datetime
+) -> str:
+    """Point the model at the slot the customer already named ("завтра в 18:00"), so it books it instead of
+    asking "подтверждаете?" again or offering other times."""
+    if not slots:
+        return ""
+    texts = session.exec(
+        select(Message.text)
+        .where(Message.conversation_id == conv.id, Message.role == "customer", Message.created_at >= now - HISTORY_WINDOW)
+        .order_by(Message.id.desc())
+        .limit(4)
+    ).all()
+    wanted = next((t for t in (requested_time(x, now_local.date()) for x in texts) if t), None)
+    if wanted is None:
+        return ""
+    matches = [(slot, m) for slot, m in slots if slot.start == wanted]
+    if not matches:
+        return (f"\nКлиент назвал время {fmt_slot(wanted)}, но такого свободного окна нет: предложи ближайшие окна из "
+                "списка или прими заявку на это время.")
+    options = "; ".join(f"окно {slot.id} — {m.name}" for slot, m in matches[:4])
+    return (f"\nКлиент сам назвал время {fmt_slot(wanted)}, и оно свободно ({options}). Это и есть выбор клиента: "
+            "не переспрашивай «подтверждаете?» и не предлагай другое время. Как только есть имя и телефон, "
+            "сразу заполни booking с этим slot_id.")
+
+
 def _alternatives(
     session: Session, business: Business, now_local: datetime, staff_id: int | None, min_capacity: int = 0
 ) -> list[str]:
@@ -409,7 +439,7 @@ def _try_booking(
 ) -> tuple[str, Booking | None]:
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
-    if not name or not phone:
+    if not name or not phone or not _name_given(session, conv, name):
         return ASK_CONTACTS_REPLY, None
 
     slot_id = data.get("slot_id")
@@ -463,6 +493,27 @@ def _try_booking(
     session.flush()
     return reply, booking
 
+_TO_CYRILLIC = [("sh", "ш"), ("ch", "ч"), ("zh", "ж"), ("kh", "х"), ("ya", "я"), ("yu", "ю"), ("ts", "ц")]
+_LATIN = str.maketrans(dict(zip("abcdefghijklmnopqrstuvwxyz", "абкдефгхижклмнопкрстуввхиз")))
+_FOLD = str.maketrans({"й": "и", "ы": "и", "ё": "е", "ң": "н", "ө": "о", "ү": "у", "ъ": None, "ь": None})
+
+
+def _fold(text: str) -> str:
+    text = text.lower()
+    for latin, cyr in _TO_CYRILLIC:
+        text = text.replace(latin, cyr)
+    return text.translate(_LATIN).translate(_FOLD)
+
+
+def _name_given(session: Session, conv: Conversation, name: str) -> bool:
+    """Did the customer give this name (in a message or as their messenger name)? The model sometimes fills in
+    a name nobody gave (eval run 25: booked "без имени" after "Запишите на стрижку, 0555 ..., завтра в 11")."""
+    if conv.customer_name and _fold(name) == _fold(conv.customer_name):
+        return True
+    texts = session.exec(select(Message.text).where(Message.conversation_id == conv.id, Message.role == "customer")).all()
+    hay = _fold(" ".join([*texts, conv.display_name]))  # the messenger profile name counts too
+    return any(token[:4] in hay for token in re.findall(r"[^\W\d_]{2,}", _fold(name)))
+
 
 def _booking_request(
     session: Session, business: Business, conv: Conversation, data: dict, reply: str, now: datetime, off: bool
@@ -470,7 +521,7 @@ def _booking_request(
     """The customer wants an appointment but no slot was chosen: staff call back to confirm the time."""
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
-    if not name or not phone:
+    if not name or not phone or not _name_given(session, conv, name):
         return ASK_CONTACTS_REPLY, None
     conv.customer_name, conv.customer_phone = name, phone
     session.add(conv)
@@ -572,7 +623,7 @@ def _qualified_lead(
 ) -> tuple[str, Lead | None]:
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
-    if not name or not phone:
+    if not name or not phone or not _name_given(session, conv, name):
         return ASK_CONTACTS_REPLY, None
     conv.customer_name, conv.customer_phone = name, phone
     session.add(conv)

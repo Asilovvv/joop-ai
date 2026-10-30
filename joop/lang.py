@@ -59,7 +59,7 @@ def is_kyrgyz_message(text: str) -> bool:
 
 # A reply that claims something was booked, recorded or accepted.
 _CLAIMS = re.compile(
-    r"вы записаны|записал[аи]? вас|запись (?:принята|оформлена|подтвержден\w*|создана)|"
+    r"вы записаны|записал[аи]? (?:вас|ваш\w*)|запись (?:принята|оформлена|подтвержден\w*|создана)|"
     r"заявк\w* (?:принята|оформлена)|заказ (?:принят|оформлен|подтвержд\w*)|бронь (?:оформлена|подтвержден\w*)|"
     r"забронировал[аи]?|кабыл ал(?:ынды|дым|дык)|жазып (?:койдум|коюлду)|катталды|жазылдыңыз",
     re.IGNORECASE,
@@ -69,6 +69,16 @@ _CLAIMS = re.compile(
 def claims_confirmation(text: str) -> bool:
     """Does the reply say a booking, request or order is already made?"""
     return bool(_CLAIMS.search(text or ""))
+
+
+_SENTENCE = re.compile(r".+?(?:[.!?]+(?=\s|$)|$)\s*", re.S)
+
+
+def drop_claim_sentences(text: str) -> str:
+    """Last resort when the rewrite failed: remove the sentences that claim a booking was made.
+    Returns "" when nothing useful (a question or other text) would be left."""
+    kept = "".join(part for part in _SENTENCE.findall(text or "") if not claims_confirmation(part)).strip()
+    return kept if len(kept) >= 15 else ""
 
 
 # Latin letters that look like Cyrillic ones. The model sometimes puts one inside
