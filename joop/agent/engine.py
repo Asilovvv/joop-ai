@@ -23,7 +23,7 @@ from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order,
 from ..niches import Pack, get_pack
 from ..phone import normalize_phone
 from ..pricing import cost_usd, empty_usage
-from ..slots import claim_slot, free_slots, requested_time
+from ..slots import claim_slot, free_slots, requested_time, seats_left, seats_needed
 from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
@@ -421,11 +421,13 @@ def _requested_slot_hint(
 
 
 def _alternatives(
-    session: Session, business: Business, now_local: datetime, staff_id: int | None, min_capacity: int = 0
+    session: Session, business: Business, now_local: datetime, staff_id: int | None, min_capacity: int = 0,
+    min_seats: int = 1,
 ) -> list[str]:
-    rows = free_slots(session, business.id, now_local, staff_id=staff_id, limit=3) if staff_id else []
+    rows = free_slots(session, business.id, now_local, staff_id=staff_id, limit=50) if staff_id else []
+    rows = [(slot, m) for slot, m in rows if seats_left(slot) >= min_seats][:3]
     if not rows:
-        rows = free_slots(session, business.id, now_local, limit=200)
+        rows = [(slot, m) for slot, m in free_slots(session, business.id, now_local, limit=200) if seats_left(slot) >= min_seats]
     if min_capacity:
         rows = [(slot, m) for slot, m in rows if not m.capacity or m.capacity >= min_capacity]
     return [f"{fmt_slot(slot.start)} ({member.name})" for slot, member in rows[:3]]
@@ -468,7 +470,13 @@ def _try_booking(
             text = f"Этот стол рассчитан на {member.capacity} гостей."
             text += (" Подойдут: " + "; ".join(options) + ". Какое время удобно?") if options else " Оставьте телефон — администратор подберёт стол."
             return text, None
-    if not usable or not claim_slot(session, slot.id):
+    if usable and slot.seats > 1 and seats_needed(slot, party) > seats_left(slot):
+        left = seats_left(slot)
+        options = _alternatives(session, business, now_local, slot.staff_id, min_seats=seats_needed(slot, party))
+        text = f"На это занятие осталось мест: {left}."
+        text += (" Есть места: " + "; ".join(options) + ". Какое время удобно?") if options else " Оставьте телефон — администратор подберёт время."
+        return text, None
+    if not usable or not claim_slot(session, slot.id, seats_needed(slot, party)):
         options = _alternatives(session, business, now_local, slot.staff_id if slot else None)
         if options:
             text = "Извините, это время уже занято. Свободно: " + "; ".join(options) + ". Какое удобно?"

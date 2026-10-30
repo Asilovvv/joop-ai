@@ -14,7 +14,7 @@ import yaml
 
 PACKS_DIR = Path(__file__).parent
 OUTCOMES = {"booking", "request", "order", "lead", "handoff"}
-FEATURES = {"level_test"}  # optional modules a pack switches on (level_test: joop/placement.py)
+FEATURES = {"level_test", "group_classes"}  # optional modules a pack switches on (level_test: joop/placement.py; group_classes: slots with several seats)
 
 
 @dataclass(frozen=True)

@@ -31,7 +31,7 @@ from ..niches import all_packs, get_pack
 from ..runtime import Runtime
 from ..scheduler import Scheduler
 from ..security import hash_password, new_link_code, verify_password
-from ..slots import add_slots, generate_slots, parse_times, release_slot
+from ..slots import add_slots, generate_slots, parse_times, release_slot, resize_group, seats_needed
 from ..stats import activity
 from ..timeutil import WEEKDAYS_SHORT, fmt_date_long, fmt_dt, fmt_slot, parse_days_off, parse_hhmm, utc_to_local, utcnow
 
@@ -375,13 +375,15 @@ def staff_page(request: Request):
 
 @router.post("/panel/staff")
 def staff_add(
-    request: Request, name: str = Form(""), role: str = Form(""), handles: str = Form(""), capacity: int = Form(0), csrf: str = Form("")
+    request: Request, name: str = Form(""), role: str = Form(""), handles: str = Form(""), capacity: int = Form(0),
+    group_size: int = Form(0), csrf: str = Form("")
 ):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
         if name.strip():
-            s.add(Staff(business_id=b.id, name=name.strip(), role=role.strip(), handles=handles.strip(), capacity=max(0, capacity)))
+            s.add(Staff(business_id=b.id, name=name.strip(), role=role.strip(), handles=handles.strip(), capacity=max(0, capacity),
+                        group_size=max(0, min(group_size, 500))))
             s.commit()
             _flash(request, "Специалист добавлен. Теперь создайте для него окна записи.")
     return _back("/panel/staff")
@@ -389,7 +391,8 @@ def staff_add(
 
 @router.post("/panel/staff/{item_id}")
 def staff_update(
-    request: Request, item_id: int, name: str = Form(""), role: str = Form(""), handles: str = Form(""), capacity: int = Form(0), csrf: str = Form("")
+    request: Request, item_id: int, name: str = Form(""), role: str = Form(""), handles: str = Form(""), capacity: int = Form(0),
+    group_size: int = Form(0), csrf: str = Form("")
 ):
     _check_csrf(request, csrf)
     with new_session() as s:
@@ -398,6 +401,10 @@ def staff_update(
         if name.strip():
             row.name, row.role, row.handles = name.strip(), role.strip(), handles.strip()
             row.capacity = max(0, capacity)
+            group_size = max(0, min(group_size, 500))
+            if group_size != row.group_size:
+                row.group_size = group_size
+                resize_group(s, row.id, group_size, _now_local(b))
             s.add(row)
             s.commit()
             _flash(request, "Сохранено.")
@@ -606,7 +613,8 @@ def booking_cancel(request: Request, item_id: int, csrf: str = Form("")):
         if booking.status == "booked":
             booking.status = "cancelled"
             s.add(booking)
-            release_slot(s, booking.slot_id)
+            slot = s.get(Slot, booking.slot_id) if booking.slot_id else None
+            release_slot(s, booking.slot_id, seats_needed(slot, booking.party_size) if slot else 1)
             s.commit()
             _flash(request, "Запись отменена, время снова свободно. Клиенту сообщите сами.")
     return _back("/panel/bookings")
