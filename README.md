@@ -161,6 +161,10 @@ WhatsApp message fees for reminders.
   "Мест в группе" = 12 gets slots that take up to 12 bookings; a claim takes one seat per person atomically
   (`claim_slot(slot, count)`), the slot closes when full, cancelling frees the same seats. The AI sees
   "свободно мест 5 из 12" and offers another class when there are not enough seats.
+- **Waitlist**: when the AI takes a booking request without a slot (the wanted time was busy), code puts
+  the customer on the waitlist with the day they named. When staff cancel a booking or reopen a slot, the
+  first three customers waiting for that day are told in their chat; whoever answers first is booked by
+  the AI as usual, so a slot is never promised twice. The list is on the "Записи" page.
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
 

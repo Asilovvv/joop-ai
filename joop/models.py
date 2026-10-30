@@ -6,6 +6,7 @@ time of the business. Every row belongs to one business (multi-tenant from day o
 
 from __future__ import annotations
 
+from datetime import date as date_type
 from typing import Optional
 
 from pydantic import NaiveDatetime
@@ -363,3 +364,21 @@ class PlacementAttempt(SQLModel, table=True):
     started_at: Optional[NaiveDatetime] = None
     finished_at: Optional[NaiveDatetime] = None
     created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class WaitlistEntry(SQLModel, table=True):
+    """A customer who wanted a time that was not free. Told first when a slot on that day frees up."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.id")
+    lead_id: Optional[int] = Field(default=None, foreign_key="lead.id")
+    day: Optional[date_type] = None  # the day the customer wanted; None = any day soon
+    service: str = ""
+    customer_name: str = ""
+    customer_phone: str = ""
+    channel: str = ""
+    chat_id: str = ""
+    status: str = "waiting"  # waiting | notified | booked | cancelled
+    notified_at: Optional[NaiveDatetime] = None
+    created_at: NaiveDatetime = Field(default_factory=utcnow, index=True)

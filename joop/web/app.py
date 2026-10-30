@@ -26,8 +26,9 @@ from ..config import Settings, get_settings
 from ..db import init_db, new_session
 from ..dispatch import admin_chat_ids, process_incoming
 from ..catalog import parse_price
-from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff
+from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, WaitlistEntry
 from ..niches import all_packs, get_pack
+from .. import waitlist
 from ..runtime import Runtime
 from ..scheduler import Scheduler
 from ..security import hash_password, new_link_code, verify_password
@@ -570,7 +571,11 @@ def slot_toggle(request: Request, item_id: int, csrf: str = Form("")):
         else:
             slot.status = "booked" if slot.status == "free" else "free"
             s.add(slot)
+            s.flush()
+            told = waitlist.offer_freed_slot(s, _rt(request), b, slot, utcnow()) if slot.status == "free" else 0
             s.commit()
+            if told:
+                _flash(request, f"Время предложено клиентам из листа ожидания: {told}.")
     return _back("/panel/slots")
 
 
@@ -601,7 +606,24 @@ def bookings_page(request: Request):
             .where(Booking.business_id == b.id, Booking.start < today, Booking.start >= today - timedelta(days=30))
             .order_by(Booking.start.desc())
         ).all()
-        return _render(request, "bookings.html", "bookings", b, upcoming=upcoming, past=past, channel_names=CHANNEL_NAMES)
+        waiting = s.exec(select(WaitlistEntry).where(WaitlistEntry.business_id == b.id,
+                                                     WaitlistEntry.status.in_(["waiting", "notified"]),
+                                                     WaitlistEntry.created_at >= utcnow() - waitlist.KEEP)
+                         .order_by(WaitlistEntry.created_at)).all()
+        return _render(request, "bookings.html", "bookings", b, upcoming=upcoming, past=past, channel_names=CHANNEL_NAMES,
+                       waiting=waiting)
+
+
+@router.post("/panel/waitlist/{item_id}/remove")
+def waitlist_remove(request: Request, item_id: int, csrf: str = Form("")):
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        entry = _own(s, WaitlistEntry, item_id, b.id)
+        entry.status = "cancelled"
+        s.add(entry)
+        s.commit()
+    return _back("/panel/bookings#waitlist")
 
 
 @router.post("/panel/bookings/{item_id}/cancel")
@@ -615,8 +637,14 @@ def booking_cancel(request: Request, item_id: int, csrf: str = Form("")):
             s.add(booking)
             slot = s.get(Slot, booking.slot_id) if booking.slot_id else None
             release_slot(s, booking.slot_id, seats_needed(slot, booking.party_size) if slot else 1)
+            s.flush()
+            told = 0
+            if slot is not None:
+                s.refresh(slot)
+                told = waitlist.offer_freed_slot(s, _rt(request), b, slot, utcnow())
             s.commit()
-            _flash(request, "Запись отменена, время снова свободно. Клиенту сообщите сами.")
+            _flash(request, "Запись отменена, время снова свободно. Клиенту сообщите сами."
+                   + (f" Время предложено клиентам из листа ожидания: {told}." if told else ""))
     return _back("/panel/bookings")
 
 

@@ -28,6 +28,7 @@ from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
 from ..followups import capture_rating
+from .. import waitlist
 from .prompt import CHANNEL_LABELS, build_history, build_system_prompt
 
 log = logging.getLogger(__name__)
@@ -177,6 +178,8 @@ def handle_incoming(
             outcome.reply, request = _booking_request(session, business, conv, result.booking, result.reply, now, off)
             if request is not None:
                 outcome.request_id = request.id
+                if waitlist.add_entry(session, business, conv, request, result.booking, now, text) is not None:
+                    outcome.reply += waitlist.waiting_line(is_kyrgyz_message(text))
                 outcome.admin_notes.append(_request_note(conv, request, off))
         else:
             outcome.reply, booking = _try_booking(
@@ -184,6 +187,7 @@ def handle_incoming(
             )
             if booking is not None:
                 outcome.booking_id = booking.id
+                waitlist.mark_booked(session, conv.id)
                 outcome.admin_notes.append(_booking_note(business, booking, off))
     if result.handoff:
         lead = _add_lead(session, business, conv, "handoff", result.handoff, now, off)
