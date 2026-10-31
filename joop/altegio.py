@@ -34,7 +34,7 @@ from typing import Any
 import httpx
 from sqlmodel import Session, select
 
-from .models import Business, Service, Slot, Staff
+from .models import Booking, Business, Service, Slot, Staff
 from .timeutil import get_tz, utc_to_local
 
 log = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ log = logging.getLogger(__name__)
 ACCEPT = "application/vnd.api.v2+json"
 SYNC_DAYS = 7  # free times copied ahead; matches the week of slots the prompt shows
 SYNC_EVERY = timedelta(minutes=10)
+SETTLE = timedelta(minutes=2)  # a booking younger than this may be missing from the times a sync just read
 MIN_INTERVAL = 0.25  # seconds between calls: Altegio allows 5 a second per IP
 MAX_CALLS = 120  # one sync never takes more than this (200 a minute is the documented limit)
 TAKEN_CODES = {433, 436, 437, 438}  # the time or the service is no longer available (book_check, book_record)
@@ -139,6 +140,7 @@ class SyncResult:
     staff: int = 0
     slots_added: int = 0
     slots_removed: int = 0
+    released: int = 0  # Joop bookings cancelled or moved in Altegio: their time is free there again
 
 
 def _price(item: dict) -> tuple[str, int | None]:
@@ -245,9 +247,10 @@ def sync(session: Session, business: Business, client: AltegioClient, now_utc: d
                 start = _local(t.get("datetime") or "", business.timezone)
                 if start is not None and start > now_local:
                     wanted[start] = max(5, int(t.get("seance_length") or 3600) // 60)
-        added, removed = _reconcile(session, business, member, wanted, now_local, last_day)
+        added, removed, released = _reconcile(session, business, member, wanted, now_local, last_day, now_utc)
         res.slots_added += added
         res.slots_removed += removed
+        res.released += released
 
     business.altegio_synced_at = now_utc
     business.altegio_error = ""
@@ -256,8 +259,13 @@ def sync(session: Session, business: Business, client: AltegioClient, now_utc: d
 
 
 def _reconcile(session: Session, business: Business, member: Staff, wanted: dict[datetime, int], now_local: datetime,
-               last_day: date) -> tuple[int, int]:
-    """Make Joop's free slots of one team member equal to Altegio's free times; booked slots stay as they are."""
+               last_day: date, now_utc: datetime) -> tuple[int, int, int]:
+    """Make Joop's slots of one team member follow Altegio's free times; Altegio owns the schedule.
+
+    A time Joop holds as booked but Altegio lists as free means the visit was cancelled or moved in Altegio
+    (by staff, or by the client in the widget): the Joop booking is closed, so Joop never reminds anyone of a
+    visit that is gone, and the time is offered again. Bookings younger than SETTLE are left alone: the times
+    this sync read may predate them."""
     rows = session.exec(select(Slot).where(
         Slot.business_id == business.id, Slot.staff_id == member.id, Slot.start > now_local,
         Slot.start < datetime.combine(last_day + timedelta(days=1), datetime.min.time()))).all()
@@ -267,7 +275,7 @@ def _reconcile(session: Session, business: Business, member: Staff, wanted: dict
         if start not in wanted and row.status == "free" and row.taken == 0:
             session.delete(row)
             removed += 1
-    added = 0
+    added = released = 0
     for start, minutes in wanted.items():
         if start not in have:
             session.add(Slot(business_id=business.id, staff_id=member.id, start=start, duration_min=minutes))
@@ -275,7 +283,18 @@ def _reconcile(session: Session, business: Business, member: Staff, wanted: dict
         elif have[start].status == "free":
             have[start].duration_min = minutes
             session.add(have[start])
-    return added, removed
+        else:
+            row = have[start]
+            active = session.exec(select(Booking).where(Booking.slot_id == row.id, Booking.status == "booked")).all()
+            if any(b.created_at > now_utc - SETTLE for b in active):
+                continue
+            for b in active:
+                b.status = "cancelled"
+                session.add(b)
+                released += 1
+            row.status, row.taken, row.duration_min = "free", 0, minutes
+            session.add(row)
+    return added, removed, released
 
 
 def due(business: Business, now_utc: datetime) -> bool:

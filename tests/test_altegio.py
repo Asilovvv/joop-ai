@@ -242,3 +242,35 @@ def test_panel_connects_altegio_and_never_shows_the_key(client, business, rt, ke
     client.post("/panel/altegio", data={"location_id": str(LOC), "action": "disconnect", "csrf": csrf_of(page)})
     with db.new_session() as s:
         assert s.get(Business, business.id).altegio_location_id == 0
+
+
+def test_a_visit_cancelled_in_altegio_is_closed_in_joop_and_its_time_offered_again(business, fake):
+    synced(business, fake)
+    slot = altegio_slot(business)
+    out = book(business, fake, slot.id)  # booked at NOW_UTC; Altegio now lists only 12:00 as free
+    fake.times[7] = [f"{fake.day}T12:00:00+06:00"]
+    with db.new_session() as s:
+        res = altegio.sync(s, s.get(Business, business.id), make_client(fake), NOW_UTC + timedelta(minutes=10))
+        s.commit()
+    assert res.released == 0 and s.get(Booking, out.booking_id).status == "booked"
+    # Staff cancelled the visit in Altegio: 10:00 is free there again.
+    fake.times[7] = [f"{fake.day}T10:00:00+06:00", f"{fake.day}T12:00:00+06:00"]
+    with db.new_session() as s:
+        res = altegio.sync(s, s.get(Business, business.id), make_client(fake), NOW_UTC + timedelta(minutes=20))
+        s.commit()
+    assert res.released == 1
+    with db.new_session() as s:
+        assert s.get(Booking, out.booking_id).status == "cancelled"
+        assert (s.get(Slot, slot.id).status, s.get(Slot, slot.id).taken) == ("free", 0)
+
+
+def test_a_booking_newer_than_the_times_read_is_not_released(business, fake):
+    synced(business, fake)
+    slot = altegio_slot(business)
+    out = book(business, fake, slot.id)  # created at NOW_UTC
+    with db.new_session() as s:  # a sync that read the times just before the booking was recorded
+        res = altegio.sync(s, s.get(Business, business.id), make_client(fake), NOW_UTC + timedelta(seconds=30))
+        s.commit()
+    assert res.released == 0
+    with db.new_session() as s:
+        assert s.get(Booking, out.booking_id).status == "booked" and s.get(Slot, slot.id).status == "booked"
