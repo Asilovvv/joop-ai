@@ -35,6 +35,14 @@
           <div class="bubble out">Эртең 16:30га жазып койдум. Күтөбүз!<time>23:15</time></div>
         </div>
         <div class="phone-note" data-note>Администратор утром видит запись в панели и в Telegram</div>
+        {% if live_demo %}
+        <form class="composer" data-composer autocomplete="off">
+          <label class="sr" for="demo-text">Ваше сообщение демо-бизнесу</label>
+          <input id="demo-text" name="text" maxlength="500" placeholder="Напишите сами — ответит настоящий ИИ" required>
+          <button type="submit" aria-label="Отправить"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+        </form>
+        <div class="hints" data-hints></div>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -207,8 +215,46 @@
       timers.push(setTimeout(function () { var ty = chat.querySelector('.typing'); if (ty) ty.remove(); chat.appendChild(bubble(m)); }, i * 1100));
     });
   }
-  tabs.forEach(function (t) { t.addEventListener('click', function () { show(t.dataset.k); }); });
-  show('salon');
+  /* Live mode: the visitor writes, the real AI of a demo business answers (joop/web/demo.py). */
+  var form = root.querySelector('[data-composer]'), hints = root.querySelector('[data-hints]');
+  var live = {}, current = 'salon', busy = false;
+  var H = {
+    salon: ['Сколько стоит маникюр?', 'Эртең чач кырктырсам болобу?'],
+    clinic: ['Сколько стоит чистка зубов?', 'Тишим ооруп жатат, бүгүн кабыл аласызбы?'],
+    cafe: ['Что есть из горячего?', 'Эки палоо жеткирип бересизби?'],
+    school: ['Хочу на английский, какой у вас тест?', 'Англис тили канча турат?'],
+    hotel: ['Есть номер на выходные для двоих?', 'Коттедж канча турат?']
+  };
+  function now() { var d = new Date(); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  function sys(text) { var d = document.createElement('div'); d.className = 'sys'; d.textContent = text; return d; }
+  function renderLive(k) { chat.innerHTML = ''; live[k].forEach(function (el) { chat.appendChild(el); }); chat.scrollTop = chat.scrollHeight; }
+  function push(k, el) { live[k].push(el); if (k === current) { chat.appendChild(el); chat.scrollTop = chat.scrollHeight; } }
+  function fillHints(k) {
+    if (!hints) return; hints.innerHTML = '';
+    H[k].forEach(function (h) { var b = document.createElement('button'); b.type = 'button'; b.textContent = h; b.addEventListener('click', function () { send(h); }); hints.appendChild(b); });
+  }
+  function send(text) {
+    text = (text || '').trim(); if (!text || busy) return;
+    var k = current;
+    if (!live[k]) { timers.forEach(clearTimeout); timers = []; live[k] = [sys('Живой чат: отвечает настоящий ИИ демо-бизнеса. Данные вымышленные.')]; renderLive(k); }
+    push(k, bubble(['in', text, now()]));
+    var ty = document.createElement('div'); ty.className = 'bubble out typing'; ty.innerHTML = '<i></i><i></i><i></i>'; push(k, ty);
+    busy = true; form.querySelector('input').value = '';
+    var csrf = document.querySelector('meta[name=csrf]').content;
+    fetch('/demo/chat', {method: 'POST', headers: {'Content-Type': 'application/json'}, credentials: 'same-origin', body: JSON.stringify({key: k, text: text, csrf: csrf})})
+      .then(function (r) { return r.json().catch(function () { return {error: 'Не получилось. Обновите страницу.'}; }); })
+      .then(function (d) {
+        live[k].splice(live[k].indexOf(ty), 1); ty.remove();
+        if (d.error) { push(k, sys(d.error)); return; }
+        if (d.reply) push(k, bubble(['out', d.reply, now()]));
+        (d.notes || []).forEach(function (n) { push(k, sys('Администратору: ' + n)); });
+      })
+      .catch(function () { ty.remove(); push(k, sys('Нет связи. Попробуйте ещё раз.')); })
+      .then(function () { busy = false; });
+  }
+  if (form) form.addEventListener('submit', function (e) { e.preventDefault(); send(form.querySelector('input').value); });
+  tabs.forEach(function (t) { t.addEventListener('click', function () { current = t.dataset.k; fillHints(current); if (live[current]) { timers.forEach(clearTimeout); timers = []; var c = D[current]; who.textContent = c[0]; note.textContent = c[1]; tabs.forEach(function (x) { x.setAttribute('aria-selected', x === t ? 'true' : 'false'); }); renderLive(current); } else show(current); }); });
+  show('salon'); fillHints('salon');
 })();
 </script>
 {% endblock %}

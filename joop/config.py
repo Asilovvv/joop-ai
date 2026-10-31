@@ -70,6 +70,7 @@ class Settings:
     trial_days: int = 14
     price_som: int = 0  # monthly price; 0 = not published yet, sign-up still works with a trial
     owner_password: str = ""  # founder console password; empty = console disabled
+    site_demo_daily_limit: int = 300  # visitor messages a day to the live demo on the site; 0 = demo off
     billing_instructions: str = ""  # how to pay by transfer or QR, shown on the billing page
     freedompay_merchant_id: str = ""
     freedompay_secret_key: str = ""
@@ -114,6 +115,7 @@ def settings_from_env() -> Settings:
         trial_days=_int(env.get("TRIAL_DAYS"), 14),
         price_som=_int(env.get("PRICE_SOM"), 0),
         owner_password=env.get("OWNER_PASSWORD", "").strip(),
+        site_demo_daily_limit=_int(env.get("SITE_DEMO_DAILY_LIMIT"), 300),
         billing_instructions=env.get("BILLING_INSTRUCTIONS", "").strip(),
         freedompay_merchant_id=env.get("FREEDOMPAY_MERCHANT_ID", "").strip(),
         freedompay_secret_key=env.get("FREEDOMPAY_SECRET_KEY", "").strip(),
