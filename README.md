@@ -95,8 +95,11 @@ docker compose run --rm app python -m joop create-business --slug aktish --name 
 Caddy obtains the HTTPS certificate automatically. The panel is at `https://<DOMAIN>/login`. In
 "Каналы", the "Подключить Telegram" button registers the bot's webhook.
 
-Backups: the database is one file in the `joop-data` volume:
-`docker compose cp app:/data/joop.db ./joop-$(date +%F).db`.
+Before going live, `docker compose run --rm app python -m joop check --live` lists what is missing.
+Step by step, with backups and updates: [docs/deploy.md](docs/deploy.md).
+
+Backups: the server makes one consistent copy of the database a day into `/data/backups` (SQLite's backup
+API; copying the live file in WAL mode can give a broken copy). `python -m joop backup` makes one now.
 
 ## Connecting WhatsApp and Instagram
 
