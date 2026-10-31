@@ -56,28 +56,38 @@ def clean(source: str, suggestion: Any) -> str:
     """The suggestion if it looks like a usable Kyrgyz wording of `source`, else an empty string."""
     if not isinstance(suggestion, str):
         return ""
-    text = " ".join(suggestion.split()).strip(" \"'«»")
+    text = " ".join(suggestion.split())
+    if len(text) > 1 and text[0] in "\"'«" and text[-1] in "\"'»" and source.strip()[:1] not in "\"'«":
+        text = text[1:-1].strip()  # quotes around the whole answer, not part of a name like «Лофт»
     if not text or len(text) > MAX_LEN or _KAZAKH.search(text) or not _CYRILLIC.search(text):
         return ""
-    if text.lower() == source.strip().lower():
-        return ""  # an untranslated copy
+    if text.lower() == source.strip().lower() and len(source.split()) > 3:
+        return ""  # an untranslated sentence; short names (Лагман, Педикюр, ЭКГ) are the same in Kyrgyz
     allowed = {w.lower() for w in _LATIN_WORD.findall(source)}
     if any(w.lower() not in allowed for w in _LATIN_WORD.findall(text)):
         return ""  # Latin words the source did not have: not Kyrgyz Cyrillic
     return text
 
 
-def suggest(llm: Any, texts: list[str], usage: dict | None = None) -> list[str] | None:
-    """Kyrgyz wordings for `texts` ("" where a suggestion was unusable); None if the call failed."""
+def suggest(llm: Any, texts: list[str], usage: dict | None = None, raw_answers: list | None = None) -> list[str] | None:
+    """Kyrgyz wordings for `texts` ("" where a suggestion was unusable); None if both tries failed.
+
+    A second try covers an answer that is not a JSON list of the right length. `raw_answers`, when given,
+    collects the model's raw answers (for the evaluation report).
+    """
     writer = getattr(llm, "write", None)
     if writer is None or not texts:
         return None
-    raw = writer(INSTRUCTION, json.dumps(texts, ensure_ascii=False), usage if usage is not None else empty_usage())
-    data = _parse_list(raw or "")
-    if data is None or len(data) != len(texts):
+    usage = usage if usage is not None else empty_usage()
+    for _ in range(2):
+        raw = writer(INSTRUCTION, json.dumps(texts, ensure_ascii=False), usage)
+        if raw_answers is not None:
+            raw_answers.append(raw)
+        data = _parse_list(raw or "")
+        if data is not None and len(data) == len(texts):
+            return [clean(src, s) for src, s in zip(texts, data)]
         log.warning("Kyrgyz suggestions: unusable answer for %d items", len(texts))
-        return None
-    return [clean(src, s) for src, s in zip(texts, data)]
+    return None
 
 
 @dataclass

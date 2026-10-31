@@ -9,7 +9,10 @@ from .test_web import client, csrf_of, login  # noqa: F401 (client is a fixture)
 
 
 def test_clean_keeps_kyrgyz_and_drops_bad_suggestions():
-    assert kyrgyz.clean("Маникюр", "Маникюр ") == ""  # untranslated copy
+    assert kyrgyz.clean("Лагман", "Лагман") == "Лагман"  # the same word in both languages
+    assert kyrgyz.clean("Можно ли прийти со своим тортом?", "Можно ли прийти со своим тортом?") == ""  # untranslated
+    assert kyrgyz.clean("Аренда зала «Лофт»", "«Лофт» залын ижарага алуу") == "«Лофт» залын ижарага алуу"
+    assert kyrgyz.clean("Стрижка", "«Чач кыркуу»") == "Чач кыркуу"
     assert kyrgyz.clean("Есть Wi-Fi?", "Wi-Fi барбы?") == "Wi-Fi барбы?"
     assert kyrgyz.clean("Стрижка", "Шаш қию") == ""  # Kazakh letter
     assert kyrgyz.clean("Стрижка", "Chach kyrkuu") == ""  # Latin instead of Cyrillic
@@ -20,6 +23,9 @@ def test_clean_keeps_kyrgyz_and_drops_bad_suggestions():
 def test_suggest_needs_a_list_of_the_same_length(llm):
     llm.write = lambda instruction, text, usage: '```json\n["Чач кыркуу"]\n```'
     assert kyrgyz.suggest(llm, ["Стрижка"]) == ["Чач кыркуу"]
+    answers = iter(['["Чач кыркуу"]', '["Чач кыркуу", "Маникюр"]'])  # wrong length first, then right
+    llm.write = lambda instruction, text, usage: next(answers)
+    assert kyrgyz.suggest(llm, ["Стрижка", "Маникюр"]) == ["Чач кыркуу", "Маникюр"]
     llm.write = lambda instruction, text, usage: '["Чач кыркуу"]'
     assert kyrgyz.suggest(llm, ["Стрижка", "Маникюр"]) is None
     llm.write = lambda instruction, text, usage: None
@@ -38,7 +44,7 @@ def test_panel_button_fills_only_empty_fields(client, business, llm):
 
     def write(instruction, text, usage):
         seen["items"] = json.loads(text)
-        return json.dumps(["Агартуу" if t == "Отбеливание" else ("Wi-Fi барбы?" if t == "Есть Wi-Fi?" else t) for t in seen["items"]],
+        return json.dumps(["Агартуу" if t == "Отбеливание" else ("Wi-Fi барбы?" if t == "Есть Wi-Fi?" else "") for t in seen["items"]],
                           ensure_ascii=False)
 
     llm.write = write
