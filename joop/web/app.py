@@ -29,6 +29,7 @@ from ..catalog import parse_price
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, WaitlistEntry
 from ..niches import all_packs, get_pack
 from .. import waitlist
+from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
 from ..security import hash_password, new_link_code, verify_password
@@ -484,17 +485,21 @@ def faq_page(request: Request):
     with new_session() as s:
         b = _business(s, request)
         rows = s.exec(select(Faq).where(Faq.business_id == b.id).order_by(Faq.id)).all()
-        return _render(request, "faq.html", "faq", b, rows=rows)
+        gaps = open_gaps(s, b, utcnow())
+        return _render(request, "faq.html", "faq", b, rows=rows, gaps=gaps)
 
 
 @router.post("/panel/faq")
 def faq_add(request: Request, question: str = Form(""), question_ky: str = Form(""), answer: str = Form(""),
-            csrf: str = Form("")):
+            lead_id: int = Form(0), csrf: str = Form("")):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
         if question.strip() and answer.strip():
-            s.add(Faq(business_id=b.id, question=question.strip(), question_ky=question_ky.strip()[:300], answer=answer.strip()))
+            lead = s.get(Lead, lead_id) if lead_id else None
+            source = lead.id if lead is not None and lead.business_id == b.id else None
+            s.add(Faq(business_id=b.id, question=question.strip(), question_ky=question_ky.strip()[:300], answer=answer.strip(),
+                      source_lead_id=source))
             s.commit()
             _flash(request, "Вопрос добавлен.")
     return _back("/panel/faq")
