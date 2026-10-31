@@ -16,6 +16,8 @@
   --warn-soft: #fbeadf;
   --err: #b3261e;
   --err-soft: #fbe3e1;
+  --bar-on: #0e8a72;  /* chart: working hours (validated with dataviz/validate_palette.js, light) */
+  --bar-off: #c9771d; /* chart: off hours */
   --side: #0f1c20;
   --side-ink: #c9d6d3;
   --side-dim: #6f8783;
@@ -45,6 +47,8 @@
     --warn-soft: #3a2617;
     --err: #f28b82;
     --err-soft: #3b1d1b;
+    --bar-on: #1f9a81;
+    --bar-off: #c98034;
     --side: #081012;
     --side-on: #14292a;
     --shadow: 0 1px 2px rgba(0,0,0,.3);
@@ -221,3 +225,23 @@ form.row.chat-input > span:empty { display: none; }
 .ky-fill-form { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .ky-fill-form > div { flex: 1 1 320px; min-width: 0; }
 .ky-fill-form p { margin-top: 4px; }
+
+/* "When customers write": messages by hour, off hours stacked on top */
+.hours-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.hours-head h2 { margin: 0; }
+.legend { display: flex; gap: 14px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.sw-on { background: var(--bar-on); } .sw-off { background: var(--bar-off); }
+.hours-lead { margin: 10px 0 14px; color: var(--muted); max-width: 70ch; }
+.hours-lead b { color: var(--ink); font-family: var(--display); font-weight: 500; font-size: 18px; }
+.hours-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.hours-chart .axis { stroke: var(--line); stroke-width: 1; }
+.hours-chart .on { fill: var(--bar-on); }
+.hours-chart .off { fill: var(--bar-off); }
+.hours-chart .hit { fill: transparent; }
+.hours-chart .bar:hover .hit { fill: color-mix(in srgb, var(--ink) 6%, transparent); }
+.hours-chart .tick { font-size: 11px; fill: var(--muted); font-family: var(--font); font-variant-numeric: tabular-nums; }
+.hours-table { margin-top: 10px; font-size: 14px; }
+.hours-table summary { font-size: 13px; }
+@media (max-width: 560px) { .hours-chart .tick { font-size: 24px; } .hours-chart .tick.minor { display: none; } }  /* the SVG scales down ~2x on phones */
