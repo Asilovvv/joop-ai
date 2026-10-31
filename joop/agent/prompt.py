@@ -101,9 +101,10 @@ def build_system_prompt(
             out.append("- список не заполнен")
 
     if faqs:
-        out += ["", "Частые вопросы:"]
+        out += ["", "Частые вопросы (ищи ответ по смыслу: клиент может спросить другими словами или по-кыргызски):"]
         for f in faqs:
-            out.append(f"- Вопрос: {f.question} Ответ: {f.answer}")
+            ky = f" (по-кыргызски: {f.question_ky})" if f.question_ky else ""
+            out.append(f"- Вопрос: {f.question}{ky} Ответ: {f.answer}")
 
     if takes_bookings:
         if slots:

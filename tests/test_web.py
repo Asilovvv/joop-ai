@@ -351,3 +351,16 @@ def test_login_is_locked_after_repeated_failures(client):
     assert "Слишком много" in client.get("/login").text
     web_app._login_fails.clear()
     login(client)
+
+
+def test_faq_keeps_the_kyrgyz_wording(client, business):
+    from joop.models import Faq
+
+    token = login(client)
+    client.post("/panel/faq", data={"question": "Есть Wi-Fi?", "question_ky": "Wi-Fi барбы?", "answer": "Да, бесплатный.", "csrf": token})
+    with db.new_session() as s:
+        row = s.exec(select(Faq).where(Faq.question == "Есть Wi-Fi?")).one()
+    assert row.question_ky == "Wi-Fi барбы?" and 'value="Wi-Fi барбы?"' in client.get("/panel/faq").text
+    client.post(f"/panel/faq/{row.id}", data={"question": "Есть Wi-Fi?", "question_ky": "", "answer": "Да.", "csrf": token})
+    with db.new_session() as s:
+        assert s.get(Faq, row.id).question_ky == ""

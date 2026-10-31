@@ -486,25 +486,27 @@ def faq_page(request: Request):
 
 
 @router.post("/panel/faq")
-def faq_add(request: Request, question: str = Form(""), answer: str = Form(""), csrf: str = Form("")):
+def faq_add(request: Request, question: str = Form(""), question_ky: str = Form(""), answer: str = Form(""),
+            csrf: str = Form("")):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
         if question.strip() and answer.strip():
-            s.add(Faq(business_id=b.id, question=question.strip(), answer=answer.strip()))
+            s.add(Faq(business_id=b.id, question=question.strip(), question_ky=question_ky.strip()[:300], answer=answer.strip()))
             s.commit()
             _flash(request, "Вопрос добавлен.")
     return _back("/panel/faq")
 
 
 @router.post("/panel/faq/{item_id}")
-def faq_update(request: Request, item_id: int, question: str = Form(""), answer: str = Form(""), csrf: str = Form("")):
+def faq_update(request: Request, item_id: int, question: str = Form(""), question_ky: str = Form(""), answer: str = Form(""),
+               csrf: str = Form("")):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
         row = _own(s, Faq, item_id, b.id)
         if question.strip() and answer.strip():
-            row.question, row.answer = question.strip(), answer.strip()
+            row.question, row.question_ky, row.answer = question.strip(), question_ky.strip()[:300], answer.strip()
             s.add(row)
             s.commit()
             _flash(request, "Сохранено.")

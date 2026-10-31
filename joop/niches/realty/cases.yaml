@@ -44,3 +44,8 @@
   turns: ["Эртең 101 объектини көргүм келет, атым Марат"]
   expect_lead: false
   must_contain_any: ["телефон", "номер"]
+# Kyrgyz questions whose answer is only in the Russian FAQ (31 Oct 2026 experiment, see thesis 7.5)
+- id: kyfaq_commission
+  expect_lang: ky
+  turns: ['Агенттиктин комиссиясы канча?']
+  must_contain_any: ['50', сатуучу, продав]

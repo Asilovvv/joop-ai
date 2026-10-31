@@ -10,6 +10,14 @@ on:
         description: "Why this run (shown in the commit message)"
         required: false
         default: ""
+      packs:
+        description: "Only these niche packs, space-separated (empty = the full run)"
+        required: false
+        default: ""
+      repeat:
+        description: "How many times to run the chosen packs (model answers vary between runs)"
+        required: false
+        default: "1"
 
 permissions:
   contents: write  # only to push result files to the eval-results branch
@@ -33,18 +41,30 @@ jobs:
       - name: Run both evaluation sets
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PACKS: ${{ inputs.packs }}
+          REPEAT: ${{ inputs.repeat }}
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "::error::Add the repository secret ANTHROPIC_API_KEY (Settings -> Secrets and variables -> Actions)"
             exit 1
           fi
+          if [ -n "$PACKS" ]; then
+            for i in $(seq 1 "${REPEAT:-1}"); do
+              for p in $PACKS; do
+                python -m eval.run_eval "$p"
+                mv "eval/results_$p.json" "eval/results_${p}_r$i.json"
+              done
+            done
+            exit 0
+          fi
           python -m eval.run_eval business.example.yaml eval/cases.yaml eval/results.json
-          python -m eval.run_eval business.dental.example.yaml eval/cases_dental.yaml eval/results_dental.json
+          # not results_dental.json: the dental niche pack writes that file below
+          python -m eval.run_eval business.dental.example.yaml eval/cases_dental.yaml eval/results_dental_profile.json
           python -m eval.run_eval all
 
       - name: Write run summary
         if: always()
-        run: python -m eval.summary eval/results.json eval/results_dental.json eval/results_*.json >> "$GITHUB_STEP_SUMMARY"
+        run: python -m eval.summary eval/results*.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save results to the eval-results branch
         if: always()

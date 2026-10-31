@@ -54,3 +54,9 @@
   turns: ["Сколько у меня осталось занятий по абонементу?"]
   must_not_match: ["осталось\\s+\\d", "\\d+\\s+(заняти|посещени|тренировк)\\w*\\s+остал"]
   expect_handoff: true
+# Kyrgyz questions whose answer is only in the Russian FAQ (31 Oct 2026 experiment, see thesis 7.5)
+- id: kyfaq_freeze
+  expect_lang: ky
+  turns: ['Абонементти бир аз убакытка токтотуп турсам болобу?']
+  # the pack rule sends freezing to the administrator: a handoff is a correct answer (runs 34-35)
+  expect_handoff: true
