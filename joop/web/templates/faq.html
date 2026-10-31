@@ -27,6 +27,25 @@
   </form>
   {% else %}<p class="muted">Вопросов нет.</p>{% endfor %}
 </section>
+{% if gaps %}
+<section class="card gaps">
+  <h2>Что ИИ передал вам за 30 дней</h2>
+  <p class="muted small">На эти сообщения у ИИ не нашлось ответа в ваших данных. Если вопрос может повториться, впишите ответ — в следующий раз ИИ ответит сам. Жалобы и личные просьбы просто пропускайте.</p>
+  {% for g in gaps %}
+  <div class="gap">
+    <p class="small"><span class="muted">{{ g.at.strftime('%d.%m %H:%M') }} · клиент написал:</span> <span{% if g.kyrgyz %} lang="ky"{% endif %}>«{{ g.text }}»</span>{% if g.note %} <span class="muted">· ИИ передал: {{ g.note }}</span>{% endif %}</p>
+    <form class="row c3" method="post" action="/panel/faq">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="lead_id" value="{{ g.lead_id }}">
+      <input name="question" value="{{ '' if g.kyrgyz else g.text }}" placeholder="Вопрос по-русски" aria-label="Вопрос" required>
+      <input name="question_ky" value="{{ g.text if g.kyrgyz else '' }}" placeholder="По-кыргызски" aria-label="Вопрос по-кыргызски">
+      <input name="answer" placeholder="Ваш ответ" aria-label="Ответ" required>
+      <div class="row-tail"><button class="btn small" type="submit">В частые вопросы</button></div>
+    </form>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
 <section class="card">
   <h2>Добавить вопрос</h2>
   <form class="row c3" method="post" action="/panel/faq">

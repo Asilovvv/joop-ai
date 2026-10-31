@@ -104,6 +104,7 @@ class Faq(SQLModel, table=True):
     question: str
     question_ky: str = ""  # the same question in Kyrgyz: helps the AI match Kyrgyz customers' wording
     answer: str
+    source_lead_id: Optional[int] = None  # the handoff this entry answers (joop/faq_gaps.py), so it leaves the list
 
 
 class Slot(SQLModel, table=True):
