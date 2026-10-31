@@ -1,94 +1,214 @@
 {% extends "site_base.html" %}
-{% block title %}Joop AI — ИИ-администратор для клиник{% endblock %}
+{% block title %}Joop AI — ИИ-администратор для бизнеса Бишкека{% endblock %}
 {% block content %}
-<div class="wrap hero">
-  <div>
-    <h1>Пациент написал в 23:14. Ему ответили в 23:14.</h1>
-    <p class="lead">Joop AI — ИИ-администратор для стоматологий и клиник Бишкека. Отвечает в WhatsApp, Instagram и Telegram на русском и кыргызском, называет цены из вашего прайса, записывает на свободное время и сразу пишет вашему администратору.</p>
-    {% if signup %}<a class="cta" href="/signup">Попробовать {{ trial_days }} дней бесплатно</a><a class="cta ghost" href="#niches">Не клиника?</a>{% else %}<a class="cta" href="#contact">Попробовать {{ trial_days }} дней бесплатно</a>{% endif %}
-  </div>
-  <div class="phone" aria-label="Пример переписки">
-    <div class="bar"><span>Ак-Тиш Дент · пример</span><span>23:14</span></div>
-    <div class="bubble in">Здравствуйте, болит зуб справа внизу. Можно завтра?<time>23:14</time></div>
-    <div class="bubble out">Здравствуйте! Завтра свободно у терапевта: 09:00, 11:00 или 14:00. Какое время удобно?<time>23:14</time></div>
-    <div class="bubble in">11:00. Айбек, 0555 123 456<time>23:15</time></div>
-    <div class="bubble out">Записала вас на завтра в 11:00. Если планы изменятся, напишите сюда.<time>23:15</time></div>
-    <div class="note">Администратор утром видит запись в Telegram и в панели</div>
-  </div>
-</div>
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="eyebrow">ИИ-администратор · WhatsApp · Instagram · Telegram</p>
+      <h1>Клиент написал в <span class="clock">23:14</span>. Ему ответили в <span class="clock">23:14</span>.</h1>
+      <p class="lead">Joop AI отвечает вашим клиентам днём и ночью на русском и кыргызском: называет цены из вашего прайса, записывает на свободное время, принимает заказы и сразу пишет администратору. Сложное и спорное — передаёт людям.</p>
+      <div class="ctas">
+        {% if signup %}<a class="cta" href="/signup">Попробовать {{ trial_days }} дней бесплатно</a>{% else %}<a class="cta" href="#contact">Попробовать {{ trial_days }} дней бесплатно</a>{% endif %}
+        <a class="cta ghost" href="#how">Как это работает</a>
+      </div>
+      <ul class="facts">
+        <li><b>RU · KG</b><span>отвечает на языке клиента</span></li>
+        <li><b>{{ packs|length }}</b><span>сфер бизнеса</span></li>
+        <li><b>24/7</b><span>без выходных и обеда</span></li>
+      </ul>
+    </div>
 
-<section class="block" id="how">
-  <div class="wrap">
-    <h2>Что делает ИИ-администратор</h2>
-    <div class="grid3">
-      <div><h3>Отвечает сразу, днём и ночью</h3><p>Вечером и в выходные сообщения не ждут до утра: пациент получает ответ за секунды.</p></div>
-      <div><h3>Записывает только на свободное время</h3><p>Время берётся из вашего графика. Если окон нет, ИИ принимает заявку, а администратор перезванивает.</p></div>
-      <div><h3>Не выдумывает и не лечит</h3><p>Цены и услуги — только из вашего прайса. Диагнозы и советы по лечению не даёт, срочные случаи сразу передаёт людям.</p></div>
-      <div><h3>Пишет администратору</h3><p>О каждой записи и каждом сложном вопросе — сообщение в Telegram вашей клиники.</p></div>
-      <div><h3>Напоминает о приёме</h3><p>Накануне визита пациент получает напоминание, утром администратор — сводку на день.</p></div>
-      <div><h3>Отдаёт диалог человеку</h3><p>Если администратор ответил сам, ИИ не вмешивается в этот разговор.</p></div>
+    <div class="demo" data-demo>
+      <div class="tabs" role="tablist" aria-label="Пример переписки">
+        <button role="tab" aria-selected="true" data-k="salon">Салон</button>
+        <button role="tab" aria-selected="false" data-k="clinic">Клиника</button>
+        <button role="tab" aria-selected="false" data-k="cafe">Кафе</button>
+        <button role="tab" aria-selected="false" data-k="school">Курсы</button>
+        <button role="tab" aria-selected="false" data-k="hotel">Отель</button>
+      </div>
+      <div class="phone" aria-live="polite">
+        <div class="phone-bar"><span class="who" data-who>Салон «Айгерим» · пример</span><span class="online">онлайн</span></div>
+        <div class="chat" data-chat>
+          <div class="bubble in">Саламатсызбы! Эртең маникюрга жазылса болобу?<time>23:14</time></div>
+          <div class="bubble out">Саламатсызбы! Эртең Нургүл чеберде 15:00 же 16:30 бош. Кайсы убакыт ыңгайлуу?<time>23:14</time></div>
+          <div class="bubble in">16:30. Айпери, 0555 112 233<time>23:15</time></div>
+          <div class="bubble out">Эртең 16:30га жазып койдум. Күтөбүз!<time>23:15</time></div>
+        </div>
+        <div class="phone-note" data-note>Администратор утром видит запись в панели и в Telegram</div>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="block" id="pilot">
+<section class="band" aria-label="Каналы">
+  <div class="wrap band-in">
+    <span>Работает там, где пишут ваши клиенты:</span>
+    <span class="ch">WhatsApp</span><span class="ch">Instagram</span><span class="ch">Telegram</span><span class="ch">QR-код на столе</span>
+  </div>
+</section>
+
+<section class="block" id="how">
+  <div class="wrap split">
+    <div>
+      <p class="eyebrow dark">Почему ему можно доверить клиентов</p>
+      <h2>ИИ предлагает — система проверяет</h2>
+      <p class="lead">Языковая модель хорошо понимает людей, но может ошибиться. Поэтому всё, что касается денег и времени, решает не она, а программа по вашим данным.</p>
+      <ul class="checks">
+        <li><b>Цены только из вашего прайса.</b> Нет услуги в прайсе — ИИ так и скажет, а не придумает.</li>
+        <li><b>Запись только на свободное окно.</b> Двое клиентов не попадут на одно время, даже если пишут в одну секунду.</li>
+        <li><b>Не лечит и не обещает.</b> Медицинские вопросы, жалобы и всё нестандартное сразу уходят администратору.</li>
+        <li><b>Вы видите каждый диалог.</b> Ответили сами — ИИ не вмешивается в этот разговор.</li>
+      </ul>
+    </div>
+    <div class="log" aria-label="Как система проверяет запись">
+      <div class="log-head"><span>Что происходит за 1–2 секунды</span><span class="dot"></span></div>
+      <ol>
+        <li><span class="t">23:14:02</span><span>Клиент: «Эртең 16:30, Айпери, 0555 112 233»</span></li>
+        <li><span class="t">23:14:03</span><span>ИИ предлагает: окно 16:30, мастер Нургүл</span></li>
+        <li class="ok"><span class="t">✓</span><span>Окно существует и в будущем</span></li>
+        <li class="ok"><span class="t">✓</span><span>Окно ещё свободно — занято за клиентом</span></li>
+        <li class="ok"><span class="t">✓</span><span>Имя и телефон дал сам клиент</span></li>
+        <li class="ok"><span class="t">✓</span><span>Ответ на языке клиента — кыргызском</span></li>
+        <li class="out"><span class="t">→</span><span>Запись в панели и сообщение администратору</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="block alt">
   <div class="wrap">
-    <h2>Как начать — за 5 минут, без звонков и договоров</h2>
-    <ol class="steps">
-      <li><div><h3>Регистрируетесь</h3><p>Выбираете сферу — сразу появляется пример прайса. Меняете цены на свои.</p></div></li>
-      <li><div><h3>Проверяете ИИ сами</h3><p>В панели есть тестовый чат: пишете как клиент, по-русски и по-кыргызски, и видите ответы по вашим данным.</p></div></li>
-      <li><div><h3>Подключаете Telegram одним действием</h3><p>Вставляете токен бота — готово. WhatsApp и Instagram подключаем после одобрения Meta.</p></div></li>
-      <li><div><h3>{{ trial_days }} дней бесплатно, потом решаете по цифрам</h3><p>В панели видно, сколько клиентов ИИ обслужил ночью и в выходные. Каждый понедельник — итоги недели в Telegram.</p></div></li>
-    </ol>
+    <h2>Что делает ИИ-администратор</h2>
+    <div class="features">
+      <article><span class="n">01</span><h3>Отвечает сразу, днём и ночью</h3><p>Вечером и в выходные сообщения не ждут до утра: клиент получает ответ за секунды.</p></article>
+      <article><span class="n">02</span><h3>Записывает и принимает заказы</h3><p>Свободное время берётся из вашего графика, заказ — из меню с адресом и временем.</p></article>
+      <article><span class="n">03</span><h3>Говорит по-кыргызски</h3><p>Отвечает на языке клиента, знает кыргызские названия ваших услуг.</p></article>
+      <article><span class="n">04</span><h3>Пишет администратору</h3><p>О каждой записи, заказе и сложном вопросе — сообщение в Telegram вашей команды.</p></article>
+      <article><span class="n">05</span><h3>Напоминает и возвращает</h3><p>Накануне визита — напоминание, после — просьба оценить, через месяц — приглашение снова.</p></article>
+      <article><span class="n">06</span><h3>Считает пользу</h3><p>В панели видно, сколько клиентов обслужено ночью и в выходные. По понедельникам — итоги недели.</p></article>
+    </div>
   </div>
 </section>
 
 <section class="block" id="niches">
   <div class="wrap">
-    <h2>Не только клиники</h2>
-    <p class="lead">{{ packs|length }} сфер, у каждой свои правила: столики и заказы для кафе, показы для недвижимости, тест на уровень для курсов, брони номеров для гостиниц.</p>
+    <p class="eyebrow dark">{{ packs|length }} сфер, у каждой свои правила</p>
+    <h2>Настроен под ваш бизнес с первой минуты</h2>
+    <p class="lead">Выберите сферу — появится пример прайса, мастеров и частых вопросов. Останется поменять цены на свои.</p>
     <div class="niches">
       {% for key, p in packs.items() %}<a class="niche" href="{{ '/signup?niche=' ~ key if signup else '#contact' }}">{{ p.label }}</a>{% endfor %}
     </div>
-    <div class="grid3" style="margin-top: 32px">
-      <div><h3>Тест на уровень</h3><p>Языковые курсы и автошколы: студент сам проходит ваш тест по ссылке, результат приходит ему в чат, ИИ записывает в группу его уровня.</p></div>
-      <div><h3>Группы и абонементы</h3><p>Фитнес, йога, курсы: на занятие записывается ровно столько человек, сколько мест вы задали; ИИ отвечает «у вас осталось 3 занятия».</p></div>
-      <div><h3>QR-меню и прайс онлайн</h3><p>Страница с ценами и стоп-листом, свой QR-код на каждый стол, заказ в WhatsApp с номером стола.</p></div>
-      <div><h3>Отзывы и возврат клиентов</h3><p>После визита ИИ просит оценку: довольных ведёт в 2ГИС, недовольных сразу передаёт вам. Через 3 недели сам зовёт на маникюр снова.</p></div>
-      <div><h3>Лист ожидания</h3><p>Кто-то отменил запись — ИИ сразу предлагает время тем, кто ждал этот день.</p></div>
-      <div><h3>Статус заказа и брони номеров</h3><p>Химчистки и ремонт: «готово?» — ИИ отвечает по квитанции. Гостиницы: бронь по датам без двойных продаж.</p></div>
+    <div class="modules">
+      <article><h3>Тест на уровень</h3><p>Курсы и автошколы: студент проходит ваш тест по ссылке, результат приходит ему в чат, ИИ записывает в группу его уровня.</p></article>
+      <article><h3>Группы и абонементы</h3><p>Фитнес, йога, детские центры: на занятие записывается ровно столько, сколько мест; ИИ знает, сколько занятий осталось.</p></article>
+      <article><h3>QR-меню и прайс онлайн</h3><p>Страница с ценами и стоп-листом, свой QR-код на каждый стол, заказ в WhatsApp с номером стола.</p></article>
+      <article><h3>Отзывы и возврат клиентов</h3><p>Довольных — в 2ГИС, недовольных — сразу вам. Через нужный срок ИИ сам зовёт клиента снова.</p></article>
+      <article><h3>Лист ожидания</h3><p>Кто-то отменил запись — ИИ сразу предлагает время тем, кто ждал этот день.</p></article>
+      <article><h3>Статус заказа и брони номеров</h3><p>Химчистки и ремонт: «готово?» — ответ по квитанции. Гостиницы: брони по датам без двойных продаж.</p></article>
     </div>
+  </div>
+</section>
+
+<section class="block alt" id="pilot">
+  <div class="wrap">
+    <h2>Как начать — за 5 минут, без звонков и договоров</h2>
+    <ol class="steps">
+      <li><h3>Регистрируетесь</h3><p>Выбираете сферу — сразу появляется пример прайса. Меняете цены на свои.</p></li>
+      <li><h3>Проверяете ИИ сами</h3><p>В панели есть тестовый чат: пишете как клиент, по-русски и по-кыргызски.</p></li>
+      <li><h3>Подключаете Telegram</h3><p>Вставляете токен бота — готово. WhatsApp и Instagram — после одобрения Meta.</p></li>
+      <li><h3>{{ trial_days }} дней бесплатно</h3><p>Решаете по цифрам: сколько клиентов ИИ обслужил, пока никого не было на месте.</p></li>
+    </ol>
   </div>
 </section>
 
 <section class="block" id="price">
-  <div class="wrap">
-    <h2>Цена</h2>
-    <div class="contact">
-      {% if price %}<p><b class="big">{{ '{:,}'.format(price).replace(',', ' ') }} сом</b> в месяц за компанию</p>{% endif %}
-      <p>{{ trial_days }} дней бесплатно, карта не нужна. Оплата картой или переводом. Отменить можно в любой момент — просто не продлевайте.</p>
-      <p class="muted">Расходы на ИИ уже включены.</p>
+  <div class="wrap price-grid">
+    <div>
+      <h2>Цена</h2>
+      <p class="lead">Дешевле, чем второй администратор на вечер и выходные. Расходы на ИИ уже включены.</p>
+    </div>
+    <div class="price-card">
+      {% if price %}<p class="amount"><b>{{ '{:,}'.format(price).replace(',', ' ') }} сом</b> / месяц</p><p class="muted">за компанию, все каналы и модули</p>{% else %}<p class="amount"><b>{{ trial_days }}</b> дней бесплатно</p>{% endif %}
+      <ul>
+        <li>{{ trial_days }} дней бесплатно, карта не нужна</li>
+        <li>Оплата картой или переводом</li>
+        <li>Отменить можно в любой момент</li>
+      </ul>
+      {% if signup %}<a class="cta" href="/signup">Начать бесплатно</a>{% else %}<a class="cta" href="#contact">Начать бесплатно</a>{% endif %}
     </div>
   </div>
 </section>
 
-<section class="block" id="partners">
-  <div class="wrap">
-    <h2>Знаете владельцев бизнеса?</h2>
-    <p class="lead">SMM-специалисты, маркетологи, агентства: рекомендуйте Joop AI и получайте процент с каждой оплаты клиента, пока он пользуется сервисом. Напишите нам — пришлём вашу ссылку.</p>
-  </div>
-</section>
-
-<section class="block" id="contact">
-  <div class="wrap">
-    <h2>Связаться</h2>
-    <div class="contact">
+<section class="block alt" id="partners">
+  <div class="wrap split narrow">
+    <div>
+      <h2>Знаете владельцев бизнеса?</h2>
+      <p class="lead">SMM-специалисты, маркетологи, агентства: рекомендуйте Joop AI и получайте процент с каждой оплаты клиента, пока он пользуется сервисом.</p>
+    </div>
+    <div class="contact" id="contact">
+      <h3>Связаться</h3>
       {% if phone %}<p>Телефон и WhatsApp: <b>{{ phone }}</b></p>{% endif %}
       {% if telegram %}<p>Telegram: <a href="https://t.me/{{ telegram }}">@{{ telegram }}</a></p>{% endif %}
       {% if email %}<p>Почта: <a href="mailto:{{ email }}">{{ email }}</a></p>{% endif %}
       {% if not (phone or telegram or email) %}<p class="muted">Контакты появятся здесь в ближайшее время.</p>{% endif %}
-      <p>Бишкек, Кыргызстан</p>
+      <p class="muted">Бишкек, Кыргызстан</p>
     </div>
   </div>
 </section>
+
+<section class="final">
+  <div class="wrap final-in">
+    <h2>Пусть следующий клиент в 23:14 получит ответ.</h2>
+    {% if signup %}<a class="cta" href="/signup">Попробовать бесплатно</a>{% else %}<a class="cta" href="#contact">Попробовать бесплатно</a>{% endif %}
+  </div>
+</section>
+
+<script>
+/* Hero demo: the same moment in five kinds of business. Fictional examples. */
+(function () {
+  var root = document.querySelector('[data-demo]'); if (!root) return;
+  var D = {
+    salon: ['Салон «Айгерим» · пример', 'Администратор утром видит запись в панели и в Telegram', [
+      ['in', 'Саламатсызбы! Эртең маникюрга жазылса болобу?', '23:14'],
+      ['out', 'Саламатсызбы! Эртең Нургүл чеберде 15:00 же 16:30 бош. Кайсы убакыт ыңгайлуу?', '23:14'],
+      ['in', '16:30. Айпери, 0555 112 233', '23:15'],
+      ['out', 'Эртең 16:30га жазып койдум. Күтөбүз!', '23:15']]],
+    clinic: ['Стоматология · пример', 'Срочные случаи и вопросы о лечении — сразу врачу', [
+      ['in', 'Здравствуйте, болит зуб справа внизу. Можно завтра?', '23:14'],
+      ['out', 'Здравствуйте! Завтра свободно у терапевта: 09:00, 11:00 или 14:00. Если боль сильная или есть отёк — сообщу дежурному врачу.', '23:14'],
+      ['in', '11:00. Айбек, 0555 123 456', '23:15'],
+      ['out', 'Записала вас на завтра в 11:00 к терапевту. Если планы изменятся, напишите сюда.', '23:15']]],
+    cafe: ['Кафе «Ала-Тоо» · пример', 'Заказ сразу приходит на кухню и администратору', [
+      ['in', 'Два плова и чайник чая с доставкой на Киевскую 95', '23:14'],
+      ['out', 'Два плова — 700 сом, чайник чая — 120 сом, доставка — 150 сом. Итого 970 сом. На какое имя и телефон оформить?', '23:14'],
+      ['in', 'Нурлан, 0700 222 333', '23:15'],
+      ['out', 'Заказ принят: 970 сом, Киевская 95. Курьер позвонит перед приездом.', '23:15']]],
+    school: ['Языковая школа · пример', 'Результат теста приходит и студенту, и школе', [
+      ['in', 'Хочу на английский, но не знаю свой уровень', '23:14'],
+      ['out', 'Пройдите наш тест по ссылке — 20 минут, с телефона. Результат придёт сюда, и я подберу группу вашего уровня.', '23:14'],
+      ['in', 'Прошла! Что дальше?', '23:41'],
+      ['out', 'Ваш уровень — B1. В группе B1 по вечерам вт/чт в 19:00 есть 3 места. Записать?', '23:41']]],
+    hotel: ['Гостевой дом · пример', 'Номер не продастся дважды на одни даты', [
+      ['in', 'Есть коттедж на 5 человек с 1 по 4 августа?', '23:14'],
+      ['out', 'Да, коттедж на 1–4 августа свободен: 3 ночи, до 6 гостей. Оформить бронь? Нужны имя и телефон.', '23:14'],
+      ['in', 'Нурлан, 0700 889 900', '23:15'],
+      ['out', 'Забронировала коттедж на 01.08–04.08. Администратор свяжется насчёт оплаты.', '23:15']]]
+  };
+  var chat = root.querySelector('[data-chat]'), who = root.querySelector('[data-who]'), note = root.querySelector('[data-note]');
+  var tabs = root.querySelectorAll('[role=tab]'), timers = [];
+  var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function bubble(m) { var d = document.createElement('div'); d.className = 'bubble ' + m[0]; d.textContent = m[1]; var t = document.createElement('time'); t.textContent = m[2]; d.appendChild(t); return d; }
+  function show(k) {
+    timers.forEach(clearTimeout); timers = [];
+    var c = D[k]; who.textContent = c[0]; note.textContent = c[1]; chat.innerHTML = '';
+    tabs.forEach(function (t) { t.setAttribute('aria-selected', t.dataset.k === k ? 'true' : 'false'); });
+    c[2].forEach(function (m, i) {
+      if (still) { chat.appendChild(bubble(m)); return; }
+      if (m[0] === 'out') timers.push(setTimeout(function () { var ty = document.createElement('div'); ty.className = 'bubble out typing'; ty.innerHTML = '<i></i><i></i><i></i>'; chat.appendChild(ty); }, i * 1100 - 650));
+      timers.push(setTimeout(function () { var ty = chat.querySelector('.typing'); if (ty) ty.remove(); chat.appendChild(bubble(m)); }, i * 1100));
+    });
+  }
+  tabs.forEach(function (t) { t.addEventListener('click', function () { show(t.dataset.k); }); });
+  show('salon');
+})();
+</script>
 {% endblock %}

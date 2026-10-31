@@ -335,7 +335,7 @@ def test_wholesale_panel_hides_booking_sections(settings, rt, engine):
     with TestClient(create_app(settings, rt, init=False)) as c:
         token = csrf_of(c.get("/login").text)
         c.post("/login", data={"slug": "opt", "password": "secret-pass", "csrf": token})
-        nav = c.get("/panel").text.split("</nav>")[0]
+        nav = c.get("/panel").text.split("</aside>")[0]  # the sidebar
         assert "Каталог" in nav and "Заказы" in nav and "Окна" not in nav and "Записи" not in nav
 
 

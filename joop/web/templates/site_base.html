@@ -3,31 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1719">
 <title>{% block title %}Joop AI{% endblock %}</title>
-<meta name="description" content="ИИ-администратор для клиник и сервисов Бишкека: отвечает пациентам в WhatsApp, Instagram и Telegram, записывает на приём и напоминает о визите.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<meta name="description" content="Joop AI — ИИ-администратор для бизнеса Бишкека: отвечает клиентам в WhatsApp, Instagram и Telegram на русском и кыргызском, записывает на свободное время и передаёт сложное людям.">
+<meta property="og:title" content="Joop AI — клиент написал в 23:14, ему ответили в 23:14">
+<meta property="og:description" content="ИИ-администратор для салонов, клиник, кафе, курсов и ещё 15 сфер. Русский и кыргызский.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b7563'/%3E%3Ctext x='16' y='22.5' font-family='Arial' font-weight='700' font-size='18' text-anchor='middle' fill='%23e8fff8'%3EJ%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/fonts/fonts.css">
 <link rel="stylesheet" href="/static/site.css">
 </head>
 <body>
 <header class="site">
   <div class="wrap">
-    <a class="brand" href="/">Joop AI<small>жооп — ответ</small></a>
+    <a class="brand" href="/"><span class="mark" aria-hidden="true">J</span>Joop AI<small>жооп — ответ</small></a>
     <nav class="nav" aria-label="Сайт">
       <a href="/#how">Как работает</a>
-      <a href="/#pilot">Как начать</a>
+      <a href="/#niches">Сферы</a>
       <a href="/#price">Цена</a>
       <a href="/studio">Сайт под ключ</a>
-      <a href="/#contact">Контакты</a>
-      <a href="/signup">Попробовать</a>
-      <a href="/login">Вход</a>
+      <a href="/login" class="nav-login">Вход</a>
+      <a href="/signup" class="nav-cta">Попробовать</a>
     </nav>
   </div>
 </header>
 <main>{% block content %}{% endblock %}</main>
 <footer class="site">
   <div class="wrap">
-    <span>© 2026 {{ legal_name or 'Joop AI' }}, Бишкек</span>
+    <span><span class="mark small-mark" aria-hidden="true">J</span>© 2026 {{ legal_name or 'Joop AI' }}, Бишкек</span>
     <span><a href="/privacy">Политика конфиденциальности</a> · <a href="/data-deletion">Удаление данных</a></span>
   </div>
 </footer>
