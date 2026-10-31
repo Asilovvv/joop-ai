@@ -30,6 +30,9 @@ def test_suggest_needs_a_list_of_the_same_length(llm):
     assert kyrgyz.suggest(llm, ["Стрижка", "Маникюр"]) is None
     llm.write = lambda instruction, text, usage: None
     assert kyrgyz.suggest(llm, ["Стрижка"]) is None
+    # Seen in run 37: a first array, then a correction. The last array of the right length wins.
+    llm.write = lambda instruction, text, usage: '["Категория B"]\n\nWait, here is the translation:\n\n["B категориясы"]'
+    assert kyrgyz.suggest(llm, ["Категория B"]) == ["B категориясы"]
 
 
 def test_panel_button_fills_only_empty_fields(client, business, llm):
