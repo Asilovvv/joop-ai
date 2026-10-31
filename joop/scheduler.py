@@ -11,6 +11,7 @@ from sqlmodel import Session, select
 from . import altegio, health
 from .db import new_session
 from .dispatch import notify_admins
+from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
 from .followups import send_return_invites, send_review_requests
 from .models import Booking, Business, Conversation, Message
 from .runtime import Runtime
@@ -139,6 +140,11 @@ def weekly_report_text(session: Session, business: Business, now_utc: datetime) 
         lines.append(f"Передал вам {st['leads']} вопросов, на которые нужен человек.")
     if results:
         lines.append(f"Итого {results} готовых обращений без участия администратора.")
+    gaps = open_gaps(session, business, now_utc)
+    if gaps:
+        many = "не меньше " if len(gaps) >= GAPS_SHOWN else ""
+        lines.append(f"Вопросы клиентов, на которые у ИИ не было ответа: {many}{len(gaps)} (панель, раздел «Вопросы»). "
+                     "Ответьте один раз — и дальше ИИ будет отвечать на них сам.")
     return "\n".join(lines)
 
 
