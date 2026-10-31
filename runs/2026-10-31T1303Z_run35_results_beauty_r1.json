@@ -1,0 +1,265 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/beauty/demo.yaml",
+  "summary": {
+    "cases": 13,
+    "passed": 13,
+    "avg_latency_s": 1.28,
+    "max_latency_s": 2.42,
+    "input_tokens": 103888,
+    "output_tokens": 1991,
+    "avg_cost_usd_per_conversation": 0.000876,
+    "total_cost_usd": 0.011384,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Мужская стрижка стоит 500 сомов, длительность около 40 минут.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.6,
+      "usage": {
+        "input_tokens": 6401,
+        "output_tokens": 49,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006646,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жабуусу менен маникюрдун баасы 900 сом. Кошумча суроолоруңуз болсо, жардам берүүгө даярмын.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.09,
+      "usage": {
+        "input_tokens": 6396,
+        "output_tokens": 74,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006766000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "unknown_service_no_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Наращивания ресниц в нашем прайсе нет, поэтому точную цену не назову. Передам ваш вопрос администратору, он уточнит и ответит вам.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.08,
+      "usage": {
+        "input_tokens": 6402,
+        "output_tokens": 130,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007052,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "booking_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Самое раннее после обеда — 13:00 у Айжан, воскресенье 01.11. Записываю вас на женскую стрижку. Адрес: Бишкек, ул. Киевская 95.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.05,
+      "usage": {
+        "input_tokens": 19573,
+        "output_tokens": 390,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0021523000000000002,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "booking_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Нургуль! Сиздин маникюрга жазууңузду 01.11 (жекшемби) саат 12:00 гө жазып койдум, мастер Нургуль. Дарек: Бишкек, Киевская 95. Суроолорыңыз болсо, +996 555 000 001 номерине жазсаңыз болот.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.72,
+      "usage": {
+        "input_tokens": 13108,
+        "output_tokens": 392,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0015068000000000002,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "booking_missing_name",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте! Завтра по нашему расписанию — понедельник, 02.11. Мужская стрижка у Айжан возможна в 11:00. Подскажите, пожалуйста, ваше имя, чтобы я оформила запись на номер 0555 123 456.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.11,
+      "usage": {
+        "input_tokens": 6533,
+        "output_tokens": 114,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007103000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "range_price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Окрашивание в один тон стоит от 2 500 сомов. Точную цену подскажет мастер Айжан после консультации. Хотите записаться?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.79,
+      "usage": {
+        "input_tokens": 6399,
+        "output_tokens": 73,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006764000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "complaint_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Мне очень жаль, что вы остались недовольны стрижкой. Я передам вашу жалобу администратору, и он свяжется с вами, чтобы разобраться в ситуации. Подскажите, пожалуйста, ваше имя и удобный номер телефона для связи.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.42,
+      "usage": {
+        "input_tokens": 6417,
+        "output_tokens": 197,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007402,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "complaint_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Кечиресиз, чачыңызды ылдый кыркышканына абдан өкүнүчтүүбүз. Бул маселени администраторго жеткиребиз, ал сиз менен байланышып, кандай чечим табууга болорун талкуулайт.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.42,
+      "usage": {
+        "input_tokens": 6538,
+        "output_tokens": 184,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007458,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "allergy_no_advice",
+      "passed": true,
+      "fails": [],
+      "final_reply": "По вопросам аллергии и противопоказаний я не могу давать медицинских советов. Передам вашу ситуацию администратору, он свяжется с вами и поможет подобрать консультацию мастера до окрашивания. Как к вам обращаться и какой у вас телефон для связи?",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.46,
+      "usage": {
+        "input_tokens": 6535,
+        "output_tokens": 175,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000741,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "faq_qr_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Ооба, төлөө накталай акча, карта же QR менен жүргүзүлөт.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.97,
+      "usage": {
+        "input_tokens": 6525,
+        "output_tokens": 53,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000679,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Стрижка в нашем салоне платная: женская стоит 800 сомов, мужская — 500 сомов. Если хотите, могу подобрать время для записи.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.85,
+      "usage": {
+        "input_tokens": 6533,
+        "output_tokens": 76,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006913,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "kyfaq_parking",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Машинаңызды салондун алдындагы бекер унаа токтотчу жайга токтотсоңуз болот. Дарек: Бишкек, Киевская көчөсү 95.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.07,
+      "usage": {
+        "input_tokens": 6528,
+        "output_tokens": 84,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006948000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}

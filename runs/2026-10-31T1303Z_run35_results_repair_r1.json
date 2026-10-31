@@ -1,0 +1,303 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/repair/demo.yaml",
+  "summary": {
+    "cases": 15,
+    "passed": 15,
+    "avg_latency_s": 1.38,
+    "max_latency_s": 2.45,
+    "input_tokens": 43550,
+    "output_tokens": 2166,
+    "avg_cost_usd_per_conversation": 0.000363,
+    "total_cost_usd": 0.005438,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "status_ready_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Да, заказ №1042 (пальто, химчистка) готов, его можно забрать. Стоимость 600 сом. Ждём вас в рабочее время: Пн–Сб 09:00–19:00, адрес: Бишкек, ул. Московская 150.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.77,
+      "usage": {
+        "input_tokens": 2593,
+        "output_tokens": 110,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003143,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "status_in_progress_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте! По заказу №1043 (iPhone 12, замена экрана) сейчас ждём запчасть. Срок готовности — 03.11, стоимость 4 500 сом. Номер 0700 343 434 совпадает с контактом, который мы передали администратору для уточнения.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.96,
+      "usage": {
+        "input_tokens": 2617,
+        "output_tokens": 121,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00032219999999999997,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "status_unknown_asks_receipt",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Чтобы проверить готовность заказа, пожалуйста, укажите номер квитанции и телефон, который вы оставляли при сдаче вещей.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.68,
+      "usage": {
+        "input_tokens": 2524,
+        "output_tokens": 73,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002889,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "wrong_phone_no_status",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Проверить статус заказа по квитанции 1042 я сейчас не могу: данных о ваших заказах у меня нет, поэтому статус, срок и стоимость назвать не могу. Передам администратору, он уточнит и ответит вам, как только найдёт заказ по номеру квитанции и телефону.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.96,
+      "usage": {
+        "input_tokens": 2537,
+        "output_tokens": 176,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00034170000000000007,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "status_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Ооба, буйрутмуңуз №1042 (пальто, химчистка) даяр, аны алып кетсеңиз болот. Стоимость 600 сом.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.97,
+      "usage": {
+        "input_tokens": 2601,
+        "output_tokens": 78,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002991,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Химчистка пальто стоит 600 сомов, срок выполнения — 3 рабочих дня.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.95,
+      "usage": {
+        "input_tokens": 2528,
+        "output_tokens": 56,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002808,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Шымды кыскартуу (шымды кыскартуу) — 300 сом, выполняется за 1 день. Жазууга даярсызбы? Анда атыңызды жана телефон номериңизди жазыңызчы.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.04,
+      "usage": {
+        "input_tokens": 2528,
+        "output_tokens": 94,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002998,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "screen_price_from_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Замена экрана смартфона стоит от 2 500 сомов. Точная цена будет известна после диагностики. Если хотите, оставьте имя и телефон, и администратор уточнит детали.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.3,
+      "usage": {
+        "input_tokens": 2531,
+        "output_tokens": 87,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002966,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "courier_request_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, заявку на курьера принял(а). Завтра после 18:00 курьер заберёт костюм по адресу ул. Ахунбаева 100. Администратор перезвонит на номер 0555 565 656 и подтвердит время.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.13,
+      "usage": {
+        "input_tokens": 5194,
+        "output_tokens": 332,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006854,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "courier_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Нуриза. Курьер чакыруу заявкаңызды жазып койдум: пальтону алып кетүү, эртең кечинде, Токтогул көчөсү 50. Администратор убакытты ырастап, сиз менен байланышат. Кызматы 200 сом.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.47,
+      "usage": {
+        "input_tokens": 5216,
+        "output_tokens": 323,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006831000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "complaint_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Простите, что так вышло с курткой. Жалобы на качество передаю администратору, он разберётся в течение дня. Пожалуйста, оставьте номер телефона, который указывали при сдаче, чтобы мы смогли с вами связаться.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.18,
+      "usage": {
+        "input_tokens": 2538,
+        "output_tokens": 163,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003353,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "complaint_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Кечирим сурайм, пальтоңузга тактар калганы үчүн абдан ката кетти. Администраторго нааразылыгыңызды жеткирем, ал сиз менен байланышып, маселени чечет. Байланыш үчүн телефон номериңизди жазып коюңузчу.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.37,
+      "usage": {
+        "input_tokens": 2541,
+        "output_tokens": 193,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003506,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Азыр администраторго өтүнүч жөнөтөм. Ал жакында сиз менен байланышат. Эгер ыңгайлуу болсо, аты-жөнүңүздү жана телефон номериңизди жазып коюңуз.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.45,
+      "usage": {
+        "input_tokens": 2530,
+        "output_tokens": 176,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000341,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Я не могу подтвердить готовность заказа без проверки данных. Пожалуйста, укажите телефон, который вы называли при сдаче вещей. Статус заказа 9999 я смогу уточнить только по нему.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.26,
+      "usage": {
+        "input_tokens": 2536,
+        "output_tokens": 96,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003016,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "kyfaq_damage",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Биз буюмуңуз үчүн квитанция боюнча жооп беребиз. Эгер нерсе туура эмес болсо, администратор бир күндүн ичинде маселени чечет.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.14,
+      "usage": {
+        "input_tokens": 2536,
+        "output_tokens": 88,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002976,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}
