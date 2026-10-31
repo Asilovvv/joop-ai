@@ -1,0 +1,265 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/leisure/demo.yaml",
+  "summary": {
+    "cases": 13,
+    "passed": 13,
+    "avg_latency_s": 1.48,
+    "max_latency_s": 2.74,
+    "input_tokens": 134050,
+    "output_tokens": 2045,
+    "avg_cost_usd_per_conversation": 0.00111,
+    "total_cost_usd": 0.014428,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Квест «Тайна шахты» стоит 4 000 сомов за игру. В игре до 5 игроков, длительность 60 минут, с 12 лет; дети 8–11 лет — только со взрослым. Хотите записаться?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.28,
+      "usage": {
+        "input_tokens": 8735,
+        "output_tokens": 100,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0009235,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "VIP караоке бөлмөсү саатына 3 000 сом турат. Ал 12 конокко чейин арналган. Дагы суроолоруңуз болсо, сураңыз.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.26,
+      "usage": {
+        "input_tokens": 8736,
+        "output_tokens": 85,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0009161,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "booking_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Артур! Бронирую караоке VIP на 01.11 в 20:00 для 8 гостей. Ждём вас по адресу: Бишкек, ул. Ибраимова 103.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.3,
+      "usage": {
+        "input_tokens": 17769,
+        "output_tokens": 292,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0019229000000000002,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "booking_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Эрлан. Эртең, 1 ноябрь жекшембү саат 18:00гө «Шахтанын сыры» квести комнатасына 4 адамга жазуу бар. Дарек: Бишкек, Ибраимова 103. Телефон номериңизди текшерип, администратор жакында сизге чалат.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.74,
+      "usage": {
+        "input_tokens": 18111,
+        "output_tokens": 371,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0019966000000000003,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "age_rule_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Да, можно. Квест «Тайна шахты» рассчитан на игроков с 12 лет, а дети 8–11 лет допускаются только в сопровождении взрослого. Если хотите записаться, напишите удобную дату и время, количество гостей, а также имя и номер телефона.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.17,
+      "usage": {
+        "input_tokens": 8944,
+        "output_tokens": 118,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0009534000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "party_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте, Аида! День рождения с тортом и декором на 20 гостей оформляет администратор. Я передам ему вашу заявку, и он свяжется с вами по номеру +996 555 141 516, чтобы уточнить дату и детали.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.29,
+      "usage": {
+        "input_tokens": 8962,
+        "output_tokens": 172,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0009822000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "capacity_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Малая караоке-комната рассчитана до 6 гостей, поэтому на 10 человек она не подойдёт. Для такой компании подойдёт VIP караоке-комната, она вмещает до 12 гостей. Хотите, предложу свободное время в VIP на воскресенье или понедельник?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.15,
+      "usage": {
+        "input_tokens": 8944,
+        "output_tokens": 123,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0009559000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "food_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жок, өзүңүз менен тамак-аш жана ичимдик алып келүүгө болбойт. Бизде кухнянын менюсу бар.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.21,
+      "usage": {
+        "input_tokens": 8953,
+        "output_tokens": 74,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0009323000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте, Дима! Завтра, в воскресенье 01.11, в 19:00 есть свободная дорожка боулинга на 6 игроков, подходит для вашей компании из четырёх человек. Чтобы записать вас, укажите, пожалуйста, номер телефона.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.12,
+      "usage": {
+        "input_tokens": 9109,
+        "output_tokens": 120,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0009709000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "unknown_service_no_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Лазертаг у нас не предлагается. Из развлечений есть квест «Тайна шахты» за 4 000 сом за игру, караоке-комнаты (малая — 1 500 сом в час, VIP — 3 000 сом в час) и боулинг за 1 200 сом за дорожку в час. Хотите что-то из этого?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.1,
+      "usage": {
+        "input_tokens": 8938,
+        "output_tokens": 135,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0009613000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "complaint_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Кечирим сурайбыз, микрофон иштебей калганы үчүн абдан нааразы болгонуңузду түшүндүм. Бул жаатта администраторго кабарлап, сиз менен байланышууга аракет кылам. Аты-жөнүңүздү жана телефон номериңизди жазып коюңузчу.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.45,
+      "usage": {
+        "input_tokens": 8961,
+        "output_tokens": 213,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0010026,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Түшүнүктүү, администраторго кабарлап коёюн. Ал жакында сиз менен байланышат. Сураныңыз же байланыш телефонуңузду жазып койсоңуз болот.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.93,
+      "usage": {
+        "input_tokens": 8942,
+        "output_tokens": 133,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0009607000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Бесплатное бронирование я оформить не могу, VIP-комната стоит 3 000 сомов в час (до 12 гостей). Если хотите забронировать, напишите, пожалуйста, удобное время, число гостей, а также имя и номер телефона.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.21,
+      "usage": {
+        "input_tokens": 8946,
+        "output_tokens": 109,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0009491,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}

@@ -1,0 +1,322 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/fitness/demo.yaml",
+  "summary": {
+    "cases": 16,
+    "passed": 16,
+    "avg_latency_s": 1.48,
+    "max_latency_s": 2.25,
+    "input_tokens": 326025,
+    "output_tokens": 4013,
+    "avg_cost_usd_per_conversation": 0.002163,
+    "total_cost_usd": 0.034609,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_month_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Абонемент на месяц (безлимит, зал и групповые занятия) стоит 3 500 сом.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.92,
+      "usage": {
+        "input_tokens": 12299,
+        "output_tokens": 63,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0012614000000000002,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Үч айлык абонемент (чексиз) 9 000 сом турат. Ал зал менен топтук сабактарды камтыйт, бир жолу 14 күнгө катып коюуга болот.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.83,
+      "usage": {
+        "input_tokens": 12298,
+        "output_tokens": 95,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0012773,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "trial_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Отлично, Данияр! Записала вас на пробную тренировку в воскресенье 01.11 в 18:00. Тренер Азамат ждёт вас по адресу: Бишкек, ул. Ахунбаева 140.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.35,
+      "usage": {
+        "input_tokens": 37317,
+        "output_tokens": 489,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0039762,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "trial_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Бекзат! Сиз үчүн эң эртеңки бош убакытка жазылдыңыз: 01.11 (жекшемби), саат 08:00, Азамат менен сынамык машыгуу (60 мүнөт, бекер). Дарек: Бишкек, Ахунбаева 140. Суроолоруңуз болсо, +996 555 000 006 номерине чалсаңыз болот.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.69,
+      "usage": {
+        "input_tokens": 37523,
+        "output_tokens": 539,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0040218,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "personal_lead_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Записала вас, Алия, на пробную тренировку с тренером Айгерим в воскресенье 01.11 в 08:00. Адрес клуба: Бишкек, ул. Ахунбаева 140. Если появятся вопросы, звоните +996 555 000 006.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.58,
+      "usage": {
+        "input_tokens": 38037,
+        "output_tokens": 558,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0040827,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_result_promise",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Точный результат по весу обещать не могу, это зависит от вашего исходного состояния и образа жизни. Тренер Айгерим ведёт функциональный тренинг и принимает клиентов по снижению веса, а на пробной тренировке (бесплатно, 60 минут) она поможет оценить цели и составить план. Хотите записаться на пробное занятие?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.45,
+      "usage": {
+        "input_tokens": 12506,
+        "output_tokens": 150,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0013256000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "medical_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Извините, с грыжей позвоночника подбирать упражнения и нагрузки я не могу, это нужно согласовать с врачом. Могу передать вашу заявку администратору, чтобы вам помогли записаться на консультацию тренера, если вы оставите имя и номер телефона.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.39,
+      "usage": {
+        "input_tokens": 12507,
+        "output_tokens": 189,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0013452,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "freeze_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Олег, заморозка абонемента решается через администратора. Я передал ему вашу просьбу: заморозить абонемент на 2 недели, контакт 0555 121 314. Он свяжется с вами в рабочее время.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.33,
+      "usage": {
+        "input_tokens": 12512,
+        "output_tokens": 169,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0013357,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте, Эрлан! Завтра в воскресенье 01.11 в 10:00 есть два окна на пробную тренировку: с тренером Азаматом и с тренером Айгерим. Какой из тренеров вам подходит? Также, пожалуйста, напишите номер телефона для подтверждения записи.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.25,
+      "usage": {
+        "input_tokens": 12651,
+        "output_tokens": 137,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0013336,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "faq_shower_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Ооба, раздевалкалар душ жана шкафчиктер менен жабдылган. Сүлгү — 50 сом.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.94,
+      "usage": {
+        "input_tokens": 12497,
+        "output_tokens": 71,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0012852,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "unknown_service_no_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "В нашем клубе бассейна нет. Могу предложить тренажёрный зал, групповую йогу или персональную тренировку. Если нужен бассейн, уточню у администратора, есть ли такая возможность.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.2,
+      "usage": {
+        "input_tokens": 12495,
+        "output_tokens": 156,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0013275,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жакшы, администраторго кезектүү тапшырма катары жөнөтөм. Ал жакында сиз менен байланышат.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.78,
+      "usage": {
+        "input_tokens": 12500,
+        "output_tokens": 126,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.001313,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Бесплатное оформление абонемента я оформить не могу, а заявки на скидки и отмену цены решает администратор. Передам ваш запрос администратору, он свяжется с вами. Если хотите, могу записать вас на бесплатную пробную тренировку: скажите удобное время, имя и номер телефона.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.62,
+      "usage": {
+        "input_tokens": 12504,
+        "output_tokens": 163,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0013319,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "group_class_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Сауле, записала вас с подругой на групповую йогу завтра, 01.11, в 17:00, ведёт Айгерим. Адрес: Бишкек, ул. Ахунбаева 140. Если нужно, звоните +996 555 000 006.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.26,
+      "usage": {
+        "input_tokens": 37867,
+        "output_tokens": 420,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.003996700000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "group_class_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жакшы, Гүлзат! Сизди жекшемби 01.11 саат 18:00 топтук йогага жаздым. Адрес: Бишкек, Ахунбаева 140. Кечигип калсаңыз, 0 555 000 006 номерине чалыңыз.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.78,
+      "usage": {
+        "input_tokens": 38010,
+        "output_tokens": 539,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0040705,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "pass_balance_unknown",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Данных об остатке вашего абонемента у меня нет, поэтому уточню у администратора и сообщу вам. Если хотите, могу сразу помочь с записью на тренировку.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.23,
+      "usage": {
+        "input_tokens": 12502,
+        "output_tokens": 149,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0013247,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}
