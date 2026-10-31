@@ -11,6 +11,19 @@
   <div class="stat"><b>{{ counts.grace + counts.expired }}</b><span>ждут оплаты</span></div>
   <div class="stat"><b>${{ '%.2f' | format(total_cost) }}</b><span>расход на ИИ за 30 дней</span></div>
 </div>
+<section class="card">
+  <h2>Сайт: живое демо за 30 дней</h2>
+  <div class="stats">
+    <div class="stat"><b>{{ site.visitors }}</b><span>посетителей написали ИИ</span></div>
+    <div class="stat"><b>{{ site.messages }}</b><span>сообщений в демо</span></div>
+    <div class="stat"><b>{{ site.actions }}</b><span>дошли до записи, заказа или заявки</span></div>
+    <div class="stat"><b>{{ site.signups }}</b><span>регистраций всего</span></div>
+    <div class="stat"><b>{{ site.after_demo }}</b><span>из них после демо</span></div>
+    <div class="stat"><b>{{ site.conversion if site.conversion is not none else '—' }}{% if site.conversion is not none %}%{% endif %}</b><span>посетителей демо зарегистрировались</span></div>
+  </div>
+  <p class="muted small" style="margin-top:10px">Расход на ИИ в демо: ${{ '%.2f' | format(site.cost_usd) }}. Регистрация считается «после демо», если с этого браузера сначала писали в демо.</p>
+</section>
+
 {% if not price %}<p class="flash error">Цена не задана (PRICE_SOM). Регистрация работает, но оплатить картой нельзя. Можно задать цену каждой компании отдельно.</p>{% endif %}
 
 {% if pending %}
