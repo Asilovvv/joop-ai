@@ -91,3 +91,21 @@ def test_free_rooms_counts_every_night(engine):
     std = rooms["Стандартный номер"]
     with db.new_session() as s:
         assert stays.free_rooms(s, std, TODAY + timedelta(days=1), TODAY + timedelta(days=3)) == 6
+
+
+def test_past_date_without_year_means_next_year(engine):
+    b, rooms = hotel()
+    family = rooms["Семейный номер"].id
+    last_year = TODAY - timedelta(days=90)  # "с 1 августа" written in October, model chose this year
+    reply = AgentReply(f"Забронировала на {last_year:%d.%m.%Y}.", stay={
+        "room_id": family, "check_in": last_year.isoformat(), "check_out": (last_year + timedelta(days=3)).isoformat(),
+        "guests": 2, "name": "Нурлан", "phone": "0700889900"})
+    out = say(b.id, "Семейный номер с 1 по 4 августа, Нурлан 0700 889 900", FakeLLM([reply]), "y1", chat="y1")
+    assert out.stay_id and str(last_year.year) not in out.reply
+    with db.new_session() as s:
+        st = s.get(Stay, out.stay_id)
+        assert st.check_in == stays._next_year(last_year) and (st.check_out - st.check_in).days == 3
+    # The customer wrote a year: no guessing, the dates are refused as past.
+    reply.stay["check_in"], reply.stay["check_out"] = last_year.isoformat(), (last_year + timedelta(days=3)).isoformat()
+    out = say(b.id, f"Семейный номер с 1 по 4 августа {last_year.year}, Нурлан 0700 889 900", FakeLLM([reply]), "y2", chat="y2")
+    assert out.stay_id is None and "даты" in out.reply

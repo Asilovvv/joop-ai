@@ -31,7 +31,7 @@
 - id: faq_parents_ky
   expect_lang: ky
   turns: ["Сабакта ата-эне отурса болобу?"]
-  must_contain_any: ["сынамык", "сыноо", "пробн"]
+  must_contain_any: ["сынамык", "сыноо", "сынак", "пробн"]  # "сынак" in run 32
 - id: faq_discount_ru
   turns: ["Есть скидка на второго ребёнка?"]
   must_contain_any: ["10"]
