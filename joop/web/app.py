@@ -213,7 +213,8 @@ def _site(request: Request, template: str, **ctx: Any):
 def landing(request: Request):
     s = _settings(request)
     packs = {k: p for k, p in all_packs().items() if k != "other"}
-    return _site(request, "site_home.html", packs=packs, price=s.price_som, trial_days=s.trial_days, signup=s.signup_enabled)
+    return _site(request, "site_home.html", packs=packs, price=s.price_som, trial_days=s.trial_days, signup=s.signup_enabled,
+                 live_demo=s.site_demo_daily_limit > 0 and bool(s.anthropic_api_key), csrf=_csrf(request))
 
 
 @router.get("/privacy")
@@ -1100,6 +1101,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .menu import router as menu_router
 
     app.include_router(menu_router)
+    from .demo import router as demo_router
+
+    app.include_router(demo_router)
     from .followups import router as followups_router
 
     app.include_router(followups_router)

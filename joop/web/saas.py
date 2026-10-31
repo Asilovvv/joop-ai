@@ -65,6 +65,8 @@ def slugify(name: str) -> str:
 
 def unique_slug(session: Session, name: str) -> str:
     base = slugify(name)
+    if base.startswith("site-demo"):
+        base = "c-" + base  # reserved for the live demo on the site (joop/web/demo.py)
     slug, n = base, 2
     while session.exec(select(Business.id).where(Business.slug == slug)).first() is not None:
         slug, n = f"{base}-{n}", n + 1
@@ -440,7 +442,7 @@ def owner_home(request: Request):
     now = utcnow()
     since = now - timedelta(days=30)
     with new_session() as s:
-        businesses = s.exec(select(Business).order_by(Business.id.desc())).all()
+        businesses = s.exec(select(Business).where(Business.slug.not_like("site-demo-%")).order_by(Business.id.desc())).all()
         subs = {x.business_id: x for x in s.exec(select(Subscription)).all()}
         msgs = _counts(s, Message, since)
         bookings = _counts(s, Booking, since)
