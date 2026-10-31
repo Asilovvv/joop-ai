@@ -1,0 +1,1224 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "kyrgyz_fill (one call per pack)",
+  "summary": {
+    "cases": 131,
+    "passed": 117,
+    "avg_latency_s": 1.4,
+    "max_latency_s": 2.15,
+    "total_cost_usd": 0.0018867,
+    "avg_cost_usd_per_conversation": 9.4e-05,
+    "language_guard_fired": 0,
+    "input_tokens": 7072,
+    "output_tokens": 2359
+  },
+  "cases": [
+    {
+      "id": "auto:0",
+      "passed": true,
+      "fails": [],
+      "source": "Компьютерная диагностика",
+      "final_reply": "Компьютердик диагностика",
+      "reference": "Компьютердик диагностика",
+      "avg_latency_s": 1.61
+    },
+    {
+      "id": "auto:1",
+      "passed": true,
+      "fails": [],
+      "source": "Замена масла и фильтра (работа)",
+      "final_reply": "Майды жана чыпкасын алмаштыруу (иш)",
+      "reference": "Майды жана чыпканы алмаштыруу (иш)",
+      "avg_latency_s": 1.61
+    },
+    {
+      "id": "auto:2",
+      "passed": true,
+      "fails": [],
+      "source": "Замена тормозных колодок, ось (работа)",
+      "final_reply": "Тормоз колодкаларын алмаштыруу, ок (иш)",
+      "reference": "Тормоз колодкаларын алмаштыруу",
+      "avg_latency_s": 1.61
+    },
+    {
+      "id": "auto:3",
+      "passed": true,
+      "fails": [],
+      "source": "Развал-схождение",
+      "final_reply": "Рулдук башкаруу жана дөңгөлөктөрдүн тегиздөө",
+      "reference": "Развал-схождение",
+      "avg_latency_s": 1.61
+    },
+    {
+      "id": "auto:4",
+      "passed": true,
+      "fails": [],
+      "source": "Шиномонтаж, 4 колеса",
+      "final_reply": "Шина монтажы, 4 дөңгөлөк",
+      "reference": "Шиномонтаж, 4 дөңгөлөк",
+      "avg_latency_s": 1.61
+    },
+    {
+      "id": "beauty:0",
+      "passed": true,
+      "fails": [],
+      "source": "Женская стрижка",
+      "final_reply": "Аялдар үчүн чач кесүү",
+      "reference": "Аялдардын чачын кыркуу",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "beauty:1",
+      "passed": true,
+      "fails": [],
+      "source": "Мужская стрижка",
+      "final_reply": "Эркектер үчүн чач кесүү",
+      "reference": "Эркектердин чачын кыркуу",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "beauty:2",
+      "passed": true,
+      "fails": [],
+      "source": "Окрашивание в один тон",
+      "final_reply": "Бир түстүү боёо",
+      "reference": "Чачты бир түскө боёо",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "beauty:3",
+      "passed": true,
+      "fails": [],
+      "source": "Маникюр с покрытием",
+      "final_reply": "Каптоо менен маникюр",
+      "reference": "Жабуусу менен маникюр",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "beauty:4",
+      "passed": false,
+      "fails": [
+        "suggestion dropped by the checks"
+      ],
+      "source": "Педикюр",
+      "final_reply": "",
+      "reference": "Педикюр",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "beauty:5",
+      "passed": true,
+      "fails": [],
+      "source": "Есть ли парковка?",
+      "final_reply": "Парковка барбы?",
+      "reference": "Унаа токтотчу жай барбы?",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "beauty:6",
+      "passed": true,
+      "fails": [],
+      "source": "Можно оплатить по QR?",
+      "final_reply": "QR менен төлөсө болобу?",
+      "reference": "QR менен төлөсө болобу?",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "clinic:0",
+      "passed": true,
+      "fails": [],
+      "source": "Приём терапевта",
+      "final_reply": "Терапевттин кабыл алуусу",
+      "reference": "Терапевттин кабыл алуусу",
+      "avg_latency_s": 1.23
+    },
+    {
+      "id": "clinic:1",
+      "passed": true,
+      "fails": [],
+      "source": "Приём кардиолога",
+      "final_reply": "Кардиологдун кабыл алуусу",
+      "reference": "Кардиологдун кабыл алуусу",
+      "avg_latency_s": 1.23
+    },
+    {
+      "id": "clinic:2",
+      "passed": true,
+      "fails": [],
+      "source": "Общий анализ крови",
+      "final_reply": "Кандын жалпы анализи",
+      "reference": "Кандын жалпы анализи",
+      "avg_latency_s": 1.23
+    },
+    {
+      "id": "clinic:3",
+      "passed": true,
+      "fails": [],
+      "source": "УЗИ брюшной полости",
+      "final_reply": "Курсак көңдөйүн УЗИ",
+      "reference": "Курсак көңдөйүнүн УЗИси",
+      "avg_latency_s": 1.23
+    },
+    {
+      "id": "clinic:4",
+      "passed": false,
+      "fails": [
+        "suggestion dropped by the checks"
+      ],
+      "source": "ЭКГ",
+      "final_reply": "",
+      "reference": "ЭКГ",
+      "avg_latency_s": 1.23
+    },
+    {
+      "id": "clinic:5",
+      "passed": true,
+      "fails": [],
+      "source": "Как получить результаты анализов?",
+      "final_reply": "Анализдердин натыйжаларын кантип алсам болот?",
+      "reference": "Анализдин жыйынтыгын кантип алабыз?",
+      "avg_latency_s": 1.23
+    },
+    {
+      "id": "clinic:6",
+      "passed": true,
+      "fails": [],
+      "source": "Нужен ли паспорт?",
+      "final_reply": "Паспорт керекпи?",
+      "reference": "Паспорт керекпи?",
+      "avg_latency_s": 1.23
+    },
+    {
+      "id": "dental:0",
+      "passed": true,
+      "fails": [],
+      "source": "Консультация и осмотр",
+      "final_reply": "Консультация жана текшерүү",
+      "reference": "",
+      "avg_latency_s": 2.15
+    },
+    {
+      "id": "dental:1",
+      "passed": true,
+      "fails": [],
+      "source": "Лечение кариеса (пломба)",
+      "final_reply": "Кариести дарылоо (пломба)",
+      "reference": "",
+      "avg_latency_s": 2.15
+    },
+    {
+      "id": "dental:2",
+      "passed": true,
+      "fails": [],
+      "source": "Лечение каналов, 1 канал",
+      "final_reply": "Тиш каналдарын дарылоо, 1 канал",
+      "reference": "",
+      "avg_latency_s": 2.15
+    },
+    {
+      "id": "dental:3",
+      "passed": true,
+      "fails": [],
+      "source": "Профессиональная чистка",
+      "final_reply": "Кесипкөй тазалоо",
+      "reference": "",
+      "avg_latency_s": 2.15
+    },
+    {
+      "id": "dental:4",
+      "passed": true,
+      "fails": [],
+      "source": "Удаление зуба простое",
+      "final_reply": "Тишти жөнөкөй жулуу",
+      "reference": "",
+      "avg_latency_s": 2.15
+    },
+    {
+      "id": "dental:5",
+      "passed": true,
+      "fails": [],
+      "source": "Удаление зуба мудрости",
+      "final_reply": "Акыл тишти жулуу",
+      "reference": "",
+      "avg_latency_s": 2.15
+    },
+    {
+      "id": "dental:6",
+      "passed": true,
+      "fails": [],
+      "source": "Имплант под ключ (имплант и коронка)",
+      "final_reply": "Имплант толук комплекттүү (имплант жана коронка)",
+      "reference": "",
+      "avg_latency_s": 2.15
+    },
+    {
+      "id": "dental:7",
+      "passed": true,
+      "fails": [],
+      "source": "Коронка металлокерамика",
+      "final_reply": "Металлокерамикалык коронка",
+      "reference": "",
+      "avg_latency_s": 2.15
+    },
+    {
+      "id": "dental:8",
+      "passed": true,
+      "fails": [],
+      "source": "Детский приём",
+      "final_reply": "Балдар кабыл алуу",
+      "reference": "",
+      "avg_latency_s": 2.15
+    },
+    {
+      "id": "dental:9",
+      "passed": true,
+      "fails": [],
+      "source": "Есть ли парковка?",
+      "final_reply": "Унаа токтотуучу жай барбы?",
+      "reference": "Унаа токтотчу жай барбы?",
+      "avg_latency_s": 2.15
+    },
+    {
+      "id": "dental:10",
+      "passed": true,
+      "fails": [],
+      "source": "Как оплатить?",
+      "final_reply": "Кантип төлөсө болот?",
+      "reference": "Кантип төлөйбүз?",
+      "avg_latency_s": 2.15
+    },
+    {
+      "id": "dental:11",
+      "passed": true,
+      "fails": [],
+      "source": "Принимаете детей?",
+      "final_reply": "Балдарды кабыл аласыздарбы?",
+      "reference": "Балдарды карайсыздарбы?",
+      "avg_latency_s": 2.15
+    },
+    {
+      "id": "driving:0",
+      "passed": false,
+      "fails": [
+        "call failed"
+      ],
+      "source": "Категория B (механика)",
+      "final_reply": "",
+      "reference": "B категориясы (механика)",
+      "avg_latency_s": 1.72
+    },
+    {
+      "id": "driving:1",
+      "passed": false,
+      "fails": [
+        "call failed"
+      ],
+      "source": "Категория B (автомат)",
+      "final_reply": "",
+      "reference": "B категориясы (автомат)",
+      "avg_latency_s": 1.72
+    },
+    {
+      "id": "driving:2",
+      "passed": false,
+      "fails": [
+        "call failed"
+      ],
+      "source": "Дополнительный час вождения",
+      "final_reply": "",
+      "reference": "Кошумча айдоо сааты",
+      "avg_latency_s": 1.72
+    },
+    {
+      "id": "driving:3",
+      "passed": false,
+      "fails": [
+        "call failed"
+      ],
+      "source": "Пробное занятие по вождению",
+      "final_reply": "",
+      "reference": "Айдоо боюнча сынамык сабак",
+      "avg_latency_s": 1.72
+    },
+    {
+      "id": "driving:4",
+      "passed": false,
+      "fails": [
+        "call failed"
+      ],
+      "source": "Можно платить частями?",
+      "final_reply": "",
+      "reference": "Бөлүп төлөсө болобу?",
+      "avg_latency_s": 1.72
+    },
+    {
+      "id": "driving:5",
+      "passed": false,
+      "fails": [
+        "call failed"
+      ],
+      "source": "Где проходят занятия по вождению?",
+      "final_reply": "",
+      "reference": "Айдоо сабактары кайда өтөт?",
+      "avg_latency_s": 1.72
+    },
+    {
+      "id": "education:0",
+      "passed": true,
+      "fails": [],
+      "source": "Английский для взрослых, группа",
+      "final_reply": "Чоңдор үчүн англис тили, топ",
+      "reference": "Чоңдор үчүн англис тили, топ",
+      "avg_latency_s": 1.17
+    },
+    {
+      "id": "education:1",
+      "passed": true,
+      "fails": [],
+      "source": "Подготовка к IELTS",
+      "final_reply": "IELTS даярдоо",
+      "reference": "IELTSке даярдоо",
+      "avg_latency_s": 1.17
+    },
+    {
+      "id": "education:2",
+      "passed": true,
+      "fails": [],
+      "source": "Программирование для детей 10–14 лет",
+      "final_reply": "10–14 жаштагы балдар үчүн программалоо",
+      "reference": "10–14 жаштагы балдар үчүн программалоо",
+      "avg_latency_s": 1.17
+    },
+    {
+      "id": "education:3",
+      "passed": true,
+      "fails": [],
+      "source": "Пробный урок",
+      "final_reply": "Сынак сабак",
+      "reference": "Сыноо сабагы",
+      "avg_latency_s": 1.17
+    },
+    {
+      "id": "fitness:0",
+      "passed": true,
+      "fails": [],
+      "source": "Разовое посещение тренажёрного зала",
+      "final_reply": "Тренажёр залына бир жолку кирүү",
+      "reference": "Машыгуу залына бир жолку кирүү",
+      "avg_latency_s": 1.35
+    },
+    {
+      "id": "fitness:1",
+      "passed": true,
+      "fails": [],
+      "source": "Абонемент на месяц (безлимит)",
+      "final_reply": "Бир айлык абонемент (лимитсиз)",
+      "reference": "Бир айлык абонемент (чексиз)",
+      "avg_latency_s": 1.35
+    },
+    {
+      "id": "fitness:2",
+      "passed": true,
+      "fails": [],
+      "source": "Абонемент на 3 месяца (безлимит)",
+      "final_reply": "3 айлык абонемент (лимитсиз)",
+      "reference": "Үч айлык абонемент (чексиз)",
+      "avg_latency_s": 1.35
+    },
+    {
+      "id": "fitness:3",
+      "passed": true,
+      "fails": [],
+      "source": "Персональная тренировка",
+      "final_reply": "Жеке машыгуу",
+      "reference": "Жеке машыгуу",
+      "avg_latency_s": 1.35
+    },
+    {
+      "id": "fitness:4",
+      "passed": true,
+      "fails": [],
+      "source": "Пробная тренировка",
+      "final_reply": "Сынак машыгуу",
+      "reference": "Сынамык машыгуу",
+      "avg_latency_s": 1.35
+    },
+    {
+      "id": "fitness:5",
+      "passed": true,
+      "fails": [],
+      "source": "Групповая йога, разовое занятие",
+      "final_reply": "Топтук йога, бир жолку сабак",
+      "reference": "Топтук йога, бир жолку сабак",
+      "avg_latency_s": 1.35
+    },
+    {
+      "id": "fitness:6",
+      "passed": true,
+      "fails": [],
+      "source": "Есть душ и шкафчики?",
+      "final_reply": "Душ жана шкафчиктер барбы?",
+      "reference": "Душ жана шкаф барбы?",
+      "avg_latency_s": 1.35
+    },
+    {
+      "id": "fitness:7",
+      "passed": true,
+      "fails": [],
+      "source": "Можно заморозить абонемент?",
+      "final_reply": "Абонементти токтото аласызбы?",
+      "reference": "Абонементти тоңдуруп (убактылуу токтотуп) койсо болобу?",
+      "avg_latency_s": 1.35
+    },
+    {
+      "id": "florist:0",
+      "passed": true,
+      "fails": [],
+      "source": "Букет из 15 красных роз",
+      "final_reply": "15 кызыл роза менен букет",
+      "reference": "15 кызыл роза гүлдесте",
+      "avg_latency_s": 1.76
+    },
+    {
+      "id": "florist:1",
+      "passed": true,
+      "fails": [],
+      "source": "Букет из 25 роз микс",
+      "final_reply": "25 роза аралаш букет",
+      "reference": "25 аралаш роза гүлдесте",
+      "avg_latency_s": 1.76
+    },
+    {
+      "id": "florist:2",
+      "passed": true,
+      "fails": [],
+      "source": "Букет тюльпанов, 21 шт.",
+      "final_reply": "21 шт. лала букети",
+      "reference": "Тюльпан гүлдесте, 21 даана",
+      "avg_latency_s": 1.76
+    },
+    {
+      "id": "florist:3",
+      "passed": true,
+      "fails": [],
+      "source": "Сборный букет «Нежность»",
+      "final_reply": "Назик» топтолгон букети",
+      "reference": "«Назиктик» аралаш гүлдесте",
+      "avg_latency_s": 1.76
+    },
+    {
+      "id": "florist:4",
+      "passed": true,
+      "fails": [],
+      "source": "Цветы в коробке",
+      "final_reply": "Кутудагы гүлдөр",
+      "reference": "Кутудагы гүлдөр",
+      "avg_latency_s": 1.76
+    },
+    {
+      "id": "florist:5",
+      "passed": true,
+      "fails": [],
+      "source": "Открытка с текстом",
+      "final_reply": "Текст менен открытка",
+      "reference": "Тексти бар открытка",
+      "avg_latency_s": 1.76
+    },
+    {
+      "id": "florist:6",
+      "passed": true,
+      "fails": [],
+      "source": "Воздушные шары, 5 шт.",
+      "final_reply": "5 шт. аба шарлары",
+      "reference": "Шарлар, 5 даана",
+      "avg_latency_s": 1.76
+    },
+    {
+      "id": "florist:7",
+      "passed": true,
+      "fails": [],
+      "source": "Сколько стоят букеты на заказ?",
+      "final_reply": "Заказ боюнча букеттер канча турат?",
+      "reference": "Буйрутма менен гүлдесте канча турат?",
+      "avg_latency_s": 1.76
+    },
+    {
+      "id": "florist:8",
+      "passed": true,
+      "fails": [],
+      "source": "Можно оплатить переводом?",
+      "final_reply": "Которуу аркылуу төлөөгө болобу?",
+      "reference": "Которуу менен төлөсө болобу?",
+      "avg_latency_s": 1.76
+    },
+    {
+      "id": "hotel:0",
+      "passed": true,
+      "fails": [],
+      "source": "Стандартный номер на двоих",
+      "final_reply": "Эки кишиге арналган стандарттык бөлмө",
+      "reference": "Эки кишилик стандарттык бөлмө",
+      "avg_latency_s": 1.49
+    },
+    {
+      "id": "hotel:1",
+      "passed": true,
+      "fails": [],
+      "source": "Семейный номер до 4 гостей",
+      "final_reply": "4 конокко чейинки үй-бүлөлүк бөлмө",
+      "reference": "4 кишиге чейинки үй-бүлөлүк бөлмө",
+      "avg_latency_s": 1.49
+    },
+    {
+      "id": "hotel:2",
+      "passed": true,
+      "fails": [],
+      "source": "Коттедж до 6 гостей",
+      "final_reply": "6 конокко чейинки коттедж",
+      "reference": "6 кишиге чейинки коттедж",
+      "avg_latency_s": 1.49
+    },
+    {
+      "id": "hotel:3",
+      "passed": true,
+      "fails": [],
+      "source": "Трансфер из Бишкека",
+      "final_reply": "Бишкектен трансфер",
+      "reference": "Бишкектен трансфер",
+      "avg_latency_s": 1.49
+    },
+    {
+      "id": "hotel:4",
+      "passed": true,
+      "fails": [],
+      "source": "Далеко до пляжа?",
+      "final_reply": "Пляжга чейин алыспы?",
+      "reference": "Пляж канчалык жакын?",
+      "avg_latency_s": 1.49
+    },
+    {
+      "id": "hotel:5",
+      "passed": true,
+      "fails": [],
+      "source": "Можно с животными?",
+      "final_reply": "Жаныбарлар менен болобу?",
+      "reference": "Үй жаныбарлары менен келсе болобу?",
+      "avg_latency_s": 1.49
+    },
+    {
+      "id": "hotel:6",
+      "passed": true,
+      "fails": [],
+      "source": "Нужна предоплата?",
+      "final_reply": "Алдын ала төлөм керекпи?",
+      "reference": "Алдын ала төлөм керекпи?",
+      "avg_latency_s": 1.49
+    },
+    {
+      "id": "kids:0",
+      "passed": true,
+      "fails": [],
+      "source": "Подготовка к школе, 5–6 лет",
+      "final_reply": "Мектепке даярдоо, 5–6 жаш",
+      "reference": "Мектепке даярдоо, 5–6 жаш",
+      "avg_latency_s": 1.37
+    },
+    {
+      "id": "kids:1",
+      "passed": true,
+      "fails": [],
+      "source": "Английский для детей, 7–10 лет",
+      "final_reply": "Балдарга англис тили, 7–10 жаш",
+      "reference": "Балдар үчүн англис тили, 7–10 жаш",
+      "avg_latency_s": 1.37
+    },
+    {
+      "id": "kids:2",
+      "passed": true,
+      "fails": [],
+      "source": "Рисование, 4–8 лет",
+      "final_reply": "Сүрөт тартуу, 4–8 жаш",
+      "reference": "Сүрөт тартуу, 4–8 жаш",
+      "avg_latency_s": 1.37
+    },
+    {
+      "id": "kids:3",
+      "passed": true,
+      "fails": [],
+      "source": "Абонемент на 8 занятий",
+      "final_reply": "8 сабакка абонемент",
+      "reference": "8 сабакка абонемент",
+      "avg_latency_s": 1.37
+    },
+    {
+      "id": "kids:4",
+      "passed": true,
+      "fails": [],
+      "source": "Пробное занятие",
+      "final_reply": "Сынак сабак",
+      "reference": "Сынамык сабак",
+      "avg_latency_s": 1.37
+    },
+    {
+      "id": "kids:5",
+      "passed": true,
+      "fails": [],
+      "source": "Родители могут присутствовать?",
+      "final_reply": "Ата-энелер катыша алабы?",
+      "reference": "Ата-энелер сабакта отурса болобу?",
+      "avg_latency_s": 1.37
+    },
+    {
+      "id": "kids:6",
+      "passed": true,
+      "fails": [],
+      "source": "Есть скидка на второго ребёнка?",
+      "final_reply": "Экинчи баланы арзандатуу барбы?",
+      "reference": "Экинчи балага арзандатуу барбы?",
+      "avg_latency_s": 1.37
+    },
+    {
+      "id": "leisure:0",
+      "passed": true,
+      "fails": [],
+      "source": "Квест «Тайна шахты»",
+      "final_reply": "Кенбиртолор» (Сыр) квести",
+      "reference": "«Шахтанын сыры» квести",
+      "avg_latency_s": 1.08
+    },
+    {
+      "id": "leisure:1",
+      "passed": true,
+      "fails": [],
+      "source": "Караоке-комната малая",
+      "final_reply": "Кичинекей караоке бөлмөсү",
+      "reference": "Кичине караоке бөлмөсү",
+      "avg_latency_s": 1.08
+    },
+    {
+      "id": "leisure:2",
+      "passed": true,
+      "fails": [],
+      "source": "Караоке-комната VIP",
+      "final_reply": "VIP караоке бөлмөсү",
+      "reference": "VIP караоке бөлмөсү",
+      "avg_latency_s": 1.08
+    },
+    {
+      "id": "leisure:3",
+      "passed": false,
+      "fails": [
+        "suggestion dropped by the checks"
+      ],
+      "source": "Боулинг",
+      "final_reply": "",
+      "reference": "Боулинг",
+      "avg_latency_s": 1.08
+    },
+    {
+      "id": "leisure:4",
+      "passed": true,
+      "fails": [],
+      "source": "Можно прийти со своей едой?",
+      "final_reply": "Өз тамагыңызды алып келсе болобу?",
+      "reference": "Өз тамак-ашыбыз менен келсе болобу?",
+      "avg_latency_s": 1.08
+    },
+    {
+      "id": "other:0",
+      "passed": true,
+      "fails": [],
+      "source": "Консультация",
+      "final_reply": "Кеңеш",
+      "reference": "",
+      "avg_latency_s": 1.11
+    },
+    {
+      "id": "photo:0",
+      "passed": true,
+      "fails": [],
+      "source": "Аренда зала «Лофт»",
+      "final_reply": "Лофт» залын ижарага алуу",
+      "reference": "«Лофт» залын ижарага алуу",
+      "avg_latency_s": 1.02
+    },
+    {
+      "id": "photo:1",
+      "passed": true,
+      "fails": [],
+      "source": "Аренда зала «Белая циклорама»",
+      "final_reply": "Ак циклорама» залын ижарага алуу",
+      "reference": "«Ак циклорама» залын ижарага алуу",
+      "avg_latency_s": 1.02
+    },
+    {
+      "id": "photo:2",
+      "passed": true,
+      "fails": [],
+      "source": "Индивидуальная фотосессия",
+      "final_reply": "Жеке фотосессия",
+      "reference": "Жеке фотосессия",
+      "avg_latency_s": 1.02
+    },
+    {
+      "id": "photo:3",
+      "passed": true,
+      "fails": [],
+      "source": "Семейная фотосессия",
+      "final_reply": "Үй-бүлөлүк фотосессия",
+      "reference": "Үй-бүлөлүк фотосессия",
+      "avg_latency_s": 1.02
+    },
+    {
+      "id": "photo:4",
+      "passed": true,
+      "fails": [],
+      "source": "Есть гримёр?",
+      "final_reply": "Гримёр барбы?",
+      "reference": "Визажист (гример) барбы?",
+      "avg_latency_s": 1.02
+    },
+    {
+      "id": "photo:5",
+      "passed": true,
+      "fails": [],
+      "source": "Можно с животными?",
+      "final_reply": "Жаныбарлар менен болобу?",
+      "reference": "Үй жаныбарлары менен келсе болобу?",
+      "avg_latency_s": 1.02
+    },
+    {
+      "id": "realty:0",
+      "passed": true,
+      "fails": [],
+      "source": "Объект 101: 2-комнатная квартира, 64 м², Джал, 7/12 этаж, ремонт",
+      "final_reply": "Объект 101: 2 бөлмөлүү батирге, 64 м², Жал, 7/12 кабат, оңдоо",
+      "reference": "",
+      "avg_latency_s": 1.23
+    },
+    {
+      "id": "realty:1",
+      "passed": true,
+      "fails": [],
+      "source": "Объект 102: 3-комнатная квартира, 92 м², Магистраль, 3/9 этаж, ПСО",
+      "final_reply": "Объект 102: 3 бөлмөлүү батир, 92 м², Магистраль, 3/9 кабат, ПСО",
+      "reference": "",
+      "avg_latency_s": 1.23
+    },
+    {
+      "id": "realty:2",
+      "passed": true,
+      "fails": [],
+      "source": "Объект 103: 1-комнатная квартира, 42 м², Асанбай, 5/10 этаж, мебель",
+      "final_reply": "Объект 103: 1 бөлмөлүү батир, 42 м², Асанбай, 5/10 кабат, эмерек",
+      "reference": "",
+      "avg_latency_s": 1.23
+    },
+    {
+      "id": "realty:3",
+      "passed": true,
+      "fails": [],
+      "source": "Объект 104: дом 160 м², 6 соток, Кок-Жар",
+      "final_reply": "Объект 104: 160 м² үй, 6 сотка, Көк-Жар",
+      "reference": "",
+      "avg_latency_s": 1.23
+    },
+    {
+      "id": "realty:4",
+      "passed": true,
+      "fails": [],
+      "source": "Какая комиссия агентства?",
+      "final_reply": "Агенттиктин комиссиясы кандай?",
+      "reference": "Агенттиктин комиссиясы кандай?",
+      "avg_latency_s": 1.23
+    },
+    {
+      "id": "repair:0",
+      "passed": true,
+      "fails": [],
+      "source": "Химчистка пальто",
+      "final_reply": "Пальто химиясы",
+      "reference": "Пальтону химиялык тазалоо",
+      "avg_latency_s": 1.57
+    },
+    {
+      "id": "repair:1",
+      "passed": true,
+      "fails": [],
+      "source": "Химчистка костюма (2 предмета)",
+      "final_reply": "Костюмдун химиясы (2 буюм)",
+      "reference": "Костюмду химиялык тазалоо (2 буюм)",
+      "avg_latency_s": 1.57
+    },
+    {
+      "id": "repair:2",
+      "passed": true,
+      "fails": [],
+      "source": "Подшив брюк",
+      "final_reply": "Шымдын кыска кылуу",
+      "reference": "Шымды кыскартуу",
+      "avg_latency_s": 1.57
+    },
+    {
+      "id": "repair:3",
+      "passed": true,
+      "fails": [],
+      "source": "Замена экрана смартфона",
+      "final_reply": "Смартфондун экранын алмаштыруу",
+      "reference": "Смартфондун экранын алмаштыруу",
+      "avg_latency_s": 1.57
+    },
+    {
+      "id": "repair:4",
+      "passed": true,
+      "fails": [],
+      "source": "Диагностика техники",
+      "final_reply": "Техниканы диагностикалоо",
+      "reference": "Техниканы текшерүү",
+      "avg_latency_s": 1.57
+    },
+    {
+      "id": "repair:5",
+      "passed": true,
+      "fails": [],
+      "source": "Курьер: забрать и привезти",
+      "final_reply": "Курьер: алып кетүү жана жеткирүү",
+      "reference": "Курьер: алып кетүү жана алып келүү",
+      "avg_latency_s": 1.57
+    },
+    {
+      "id": "repair:6",
+      "passed": true,
+      "fails": [],
+      "source": "Что если вещь испортят?",
+      "final_reply": "Эгерде буюмду бузуп алышса эмне болот?",
+      "reference": "Буюм бузулуп калса эмне болот?",
+      "avg_latency_s": 1.57
+    },
+    {
+      "id": "restaurant:0",
+      "passed": true,
+      "fails": [],
+      "source": "Плов",
+      "final_reply": "Палоо",
+      "reference": "Палоо",
+      "avg_latency_s": 1.39
+    },
+    {
+      "id": "restaurant:1",
+      "passed": false,
+      "fails": [
+        "suggestion dropped by the checks"
+      ],
+      "source": "Лагман",
+      "final_reply": "",
+      "reference": "Лагман",
+      "avg_latency_s": 1.39
+    },
+    {
+      "id": "restaurant:2",
+      "passed": true,
+      "fails": [],
+      "source": "Манты, 5 шт.",
+      "final_reply": "Манты, 5 даана",
+      "reference": "Манты, 5 даана",
+      "avg_latency_s": 1.39
+    },
+    {
+      "id": "restaurant:3",
+      "passed": true,
+      "fails": [],
+      "source": "Шашлык из баранины",
+      "final_reply": "Кой эти шашлык",
+      "reference": "Кой этинен шашлык",
+      "avg_latency_s": 1.39
+    },
+    {
+      "id": "restaurant:4",
+      "passed": true,
+      "fails": [],
+      "source": "Салат Ачичук",
+      "final_reply": "Ачычук салаты",
+      "reference": "Ачичук салаты",
+      "avg_latency_s": 1.39
+    },
+    {
+      "id": "restaurant:5",
+      "passed": false,
+      "fails": [
+        "suggestion dropped by the checks"
+      ],
+      "source": "Борщ",
+      "final_reply": "",
+      "reference": "Борщ",
+      "avg_latency_s": 1.39
+    },
+    {
+      "id": "restaurant:6",
+      "passed": true,
+      "fails": [],
+      "source": "Лепёшка",
+      "final_reply": "Нан",
+      "reference": "Нан",
+      "avg_latency_s": 1.39
+    },
+    {
+      "id": "restaurant:7",
+      "passed": true,
+      "fails": [],
+      "source": "Чай чёрный, чайник",
+      "final_reply": "Кара чай, чайнек",
+      "reference": "Кара чай, чайнек",
+      "avg_latency_s": 1.39
+    },
+    {
+      "id": "restaurant:8",
+      "passed": false,
+      "fails": [
+        "suggestion dropped by the checks"
+      ],
+      "source": "Компот, 1 л",
+      "final_reply": "",
+      "reference": "Компот, 1 л",
+      "avg_latency_s": 1.39
+    },
+    {
+      "id": "restaurant:9",
+      "passed": true,
+      "fails": [],
+      "source": "Есть ли детское меню?",
+      "final_reply": "Балдар менюсу барбы?",
+      "reference": "Балдар менюсу барбы?",
+      "avg_latency_s": 1.39
+    },
+    {
+      "id": "restaurant:10",
+      "passed": true,
+      "fails": [],
+      "source": "Можно прийти со своим тортом?",
+      "final_reply": "Өз торт менен келсе болобу?",
+      "reference": "Өзүбүздүн торт менен келсе болобу?",
+      "avg_latency_s": 1.39
+    },
+    {
+      "id": "spa:0",
+      "passed": true,
+      "fails": [],
+      "source": "Классический массаж спины",
+      "final_reply": "Классикалык арка массажы",
+      "reference": "Аркага классикалык массаж",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "spa:1",
+      "passed": true,
+      "fails": [],
+      "source": "Общий массаж",
+      "final_reply": "Жалпы массаж",
+      "reference": "Жалпы массаж",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "spa:2",
+      "passed": true,
+      "fails": [],
+      "source": "Антицеллюлитный массаж",
+      "final_reply": "Целлюлитке каршы массаж",
+      "reference": "Антицеллюлиттик массаж",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "spa:3",
+      "passed": false,
+      "fails": [
+        "suggestion dropped by the checks"
+      ],
+      "source": "Хаммам",
+      "final_reply": "",
+      "reference": "Хаммам",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "spa:4",
+      "passed": true,
+      "fails": [],
+      "source": "Подарочный сертификат",
+      "final_reply": "Белек сертификаты",
+      "reference": "Белек сертификаты",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "spa:5",
+      "passed": true,
+      "fails": [],
+      "source": "Есть парковка?",
+      "final_reply": "Унаа токтоочу жай барбы?",
+      "reference": "Унаа токтотчу жай барбы?",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "spa:6",
+      "passed": true,
+      "fails": [],
+      "source": "Есть парный массаж?",
+      "final_reply": "Жупташ массаж барбы?",
+      "reference": "Эки кишиге чогуу массаж барбы?",
+      "avg_latency_s": 1.2
+    },
+    {
+      "id": "tours:0",
+      "passed": false,
+      "fails": [
+        "suggestion dropped by the checks"
+      ],
+      "source": "Однодневный тур в Ала-Арчу",
+      "final_reply": "",
+      "reference": "Ала-Арчага бир күндүк тур",
+      "avg_latency_s": 1.66
+    },
+    {
+      "id": "tours:1",
+      "passed": true,
+      "fails": [],
+      "source": "Тур на Сон-Куль, 2 дня",
+      "final_reply": "Сон-Көлгө 2 күндүк тур",
+      "reference": "Соң-Көлгө 2 күндүк тур",
+      "avg_latency_s": 1.66
+    },
+    {
+      "id": "tours:2",
+      "passed": true,
+      "fails": [],
+      "source": "Иссык-Куль, южный берег, 3 дня",
+      "final_reply": "Ысык-Көлдүн түштүк жээги, 3 күн",
+      "reference": "Ысык-Көл, түштүк жээк, 3 күн",
+      "avg_latency_s": 1.66
+    },
+    {
+      "id": "tours:3",
+      "passed": true,
+      "fails": [],
+      "source": "Конная прогулка",
+      "final_reply": "Атчан сайран",
+      "reference": "Ат менен сейилдөө",
+      "avg_latency_s": 1.66
+    },
+    {
+      "id": "tours:4",
+      "passed": true,
+      "fails": [],
+      "source": "Что взять с собой?",
+      "final_reply": "Өзүңүз менен эмнени алсаңыз болот?",
+      "reference": "Өзүбүз менен эмне алышыбыз керек?",
+      "avg_latency_s": 1.66
+    },
+    {
+      "id": "tours:5",
+      "passed": true,
+      "fails": [],
+      "source": "Есть скидка детям?",
+      "final_reply": "Балдарга арзандатуу барбы?",
+      "reference": "Балдарга арзандатуу барбы?",
+      "avg_latency_s": 1.66
+    },
+    {
+      "id": "vet:0",
+      "passed": true,
+      "fails": [],
+      "source": "Приём ветеринара",
+      "final_reply": "Ветеринардын кабыл алуусу",
+      "reference": "Ветеринардын кабыл алуусу",
+      "avg_latency_s": 1.29
+    },
+    {
+      "id": "vet:1",
+      "passed": true,
+      "fails": [],
+      "source": "Вакцинация собаки (комплексная)",
+      "final_reply": "Иттин комплекстүү вакцинациясы",
+      "reference": "Итти эмдөө (комплекстүү)",
+      "avg_latency_s": 1.29
+    },
+    {
+      "id": "vet:2",
+      "passed": true,
+      "fails": [],
+      "source": "Вакцинация кошки",
+      "final_reply": "Мышыктын вакцинациясы",
+      "reference": "Мышыкты эмдөө",
+      "avg_latency_s": 1.29
+    },
+    {
+      "id": "vet:3",
+      "passed": true,
+      "fails": [],
+      "source": "Стерилизация кошки",
+      "final_reply": "Мышыкты стерилдөө",
+      "reference": "Мышыкты стерилизациялоо",
+      "avg_latency_s": 1.29
+    },
+    {
+      "id": "vet:4",
+      "passed": true,
+      "fails": [],
+      "source": "Груминг собаки малой породы",
+      "final_reply": "Кичи тукумдагу иттин груминги",
+      "reference": "Кичинекей иттерге груминг",
+      "avg_latency_s": 1.29
+    },
+    {
+      "id": "vet:5",
+      "passed": true,
+      "fails": [],
+      "source": "Нужен ли ветпаспорт для прививки?",
+      "final_reply": "Вакцинация үчүн ветпаспорт керекпи?",
+      "reference": "Эмдөөгө ветпаспорт керекпи?",
+      "avg_latency_s": 1.29
+    },
+    {
+      "id": "wholesale:0",
+      "passed": true,
+      "fails": [],
+      "source": "Термос 1 л, коробка 24 шт.",
+      "final_reply": "Термос 1 л, коробка 24 даана",
+      "reference": "Термос 1 л, куту 24 даана",
+      "avg_latency_s": 1.31
+    },
+    {
+      "id": "wholesale:1",
+      "passed": true,
+      "fails": [],
+      "source": "Набор контейнеров для еды, коробка 40 шт.",
+      "final_reply": "Тамак сактагыч идиштердин топтому, коробка 40 даана",
+      "reference": "Тамак үчүн контейнерлер, куту 40 даана",
+      "avg_latency_s": 1.31
+    },
+    {
+      "id": "wholesale:2",
+      "passed": true,
+      "fails": [],
+      "source": "Сушилка для белья, коробка 10 шт.",
+      "final_reply": "Кийим кургатуучу, коробка 10 даана",
+      "reference": "Кир кургаткыч, куту 10 даана",
+      "avg_latency_s": 1.31
+    },
+    {
+      "id": "wholesale:3",
+      "passed": true,
+      "fails": [],
+      "source": "Светодиодная лампа 12 Вт, коробка 100 шт.",
+      "final_reply": "Светодиод лампа 12 Вт, коробка 100 даана",
+      "reference": "Светодиод лампа 12 Вт, куту 100 даана",
+      "avg_latency_s": 1.31
+    },
+    {
+      "id": "wholesale:4",
+      "passed": true,
+      "fails": [],
+      "source": "Есть ли розница?",
+      "final_reply": "Чекене сатуу барбы?",
+      "reference": "Чекене сатасыздарбы?",
+      "avg_latency_s": 1.31
+    }
+  ]
+}
