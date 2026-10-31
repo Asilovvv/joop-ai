@@ -20,7 +20,8 @@ def process_incoming(rt: Runtime, business_id: int, incoming: IncomingMessage, n
         if business is None:
             return Outcome(skipped="unknown_business")
         try:
-            outcome = handle_incoming(session, business, incoming, rt.get_llm, now_utc, base_url=rt.settings.public_base_url)
+            outcome = handle_incoming(session, business, incoming, rt.get_llm, now_utc, base_url=rt.settings.public_base_url,
+                                       get_altegio=rt.altegio)
             session.commit()
         except Exception:
             session.rollback()

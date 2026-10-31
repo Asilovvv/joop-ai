@@ -54,6 +54,10 @@ class Business(SQLModel, table=True):
     wa_template_lang: str = "ru"
     ig_account_id: str = Field(default="", index=True)
     ig_access_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
+    altegio_location_id: int = 0  # Altegio location the schedule lives in; 0 = not connected (joop/altegio.py)
+    altegio_token: str = Field(default="", sa_type=EncryptedString)  # the salon's own partner token, optional; encrypted
+    altegio_synced_at: Optional[NaiveDatetime] = None
+    altegio_error: str = ""  # last sync problem, shown in the panel
     ig_token_refreshed_at: Optional[NaiveDatetime] = None
 
     # After-visit follow-ups (joop/followups.py): ask for a rating, invite back when it is time again
@@ -85,6 +89,7 @@ class Service(SQLModel, table=True):
     available: bool = True  # False = stop list / sold out: the AI does not offer it
     sort: int = 0
     repeat_days: int = 0  # invite the customer back this many days after the visit (0 = never)
+    external_id: str = ""  # id in the booking system the price list comes from (Altegio)
 
 
 class Staff(SQLModel, table=True):
@@ -96,6 +101,7 @@ class Staff(SQLModel, table=True):
     capacity: int = 0  # seats for a table, 0 = not relevant
     group_size: int = 0  # group class: how many people one slot takes (0 or 1 = one booking per slot)
     active: bool = True
+    external_id: str = ""  # id in the booking system the schedule comes from (Altegio)
 
 
 class Faq(SQLModel, table=True):
@@ -166,6 +172,7 @@ class Booking(SQLModel, table=True):
     chat_id: str = ""
     status: str = "booked"  # booked | cancelled
     source: str = "ai"
+    external_id: str = ""  # record id in the salon's booking system (Altegio), when the booking went there too
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     created_off_hours: bool = False
     reminder_status: str = ""  # "" | sent | manual | failed
