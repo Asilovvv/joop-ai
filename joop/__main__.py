@@ -146,6 +146,28 @@ def cmd_set_password(args) -> int:
     return 0
 
 
+def cmd_check(args) -> int:
+    from .config import get_settings
+    from .ops import launch_checks, live_model_check, report
+
+    settings = get_settings()  # reads .env like the server does
+    text, ready = report(launch_checks(settings, live=(lambda: live_model_check(settings)) if args.live else None))
+    print(text)
+    return 0 if ready else 1
+
+
+def cmd_backup(args) -> int:
+    from pathlib import Path
+
+    from .config import get_settings
+    from .ops import make_backup
+    from .timeutil import utcnow
+
+    path = make_backup(get_settings(), utcnow(), Path(args.to) if args.to else None)
+    print(f"Резервная копия: {path}" if path else "База не SQLite: сделайте копию средствами вашей базы данных.")
+    return 0 if path else 1
+
+
 def cmd_serve(args) -> int:
     import uvicorn
 
@@ -256,6 +278,12 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("gen-key", help="создать ключ шифрования токенов каналов").set_defaults(func=cmd_gen_key)
     sub.add_parser("encrypt-tokens", help="зашифровать уже сохранённые токены каналов").set_defaults(func=cmd_encrypt_tokens)
 
+    p = sub.add_parser("check", help="проверить настройки сервера перед запуском")
+    p.add_argument("--live", action="store_true", help="ещё и один короткий запрос к модели: работает ли ключ и есть ли баланс")
+    p.set_defaults(func=cmd_check)
+    p = sub.add_parser("backup", help="сделать резервную копию базы сейчас")
+    p.add_argument("--to", default="", help="папка для копии (по умолчанию backups рядом с базой)")
+    p.set_defaults(func=cmd_backup)
     p = sub.add_parser("serve", help="запустить сервер (панель и вебхуки)")
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8000)
