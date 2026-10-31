@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import health
+from . import altegio, health
 from .db import new_session
 from .dispatch import notify_admins
 from .followups import send_return_invites, send_review_requests
@@ -162,6 +162,26 @@ def refresh_instagram_token(rt: Runtime, business: Business, now_utc: datetime) 
     return False
 
 
+def sync_altegio(session: Session, rt: Runtime, business: Business, now_utc: datetime) -> bool:
+    """Refresh prices, team and free times from Altegio; a failure is kept for the panel and retried next time."""
+    client = rt.altegio(business)
+    if client is None:
+        business.altegio_error = "Нет ключа Altegio: задайте ALTEGIO_PARTNER_TOKEN на сервере или ключ салона в панели."
+        business.altegio_synced_at = now_utc
+        session.add(business)
+        return False
+    try:
+        with session.begin_nested():
+            altegio.sync(session, business, client, now_utc)
+        return True
+    except altegio.AltegioError as exc:
+        log.warning("Altegio sync for %s failed: %s", business.slug, exc)
+        business.altegio_error = f"Altegio не ответил ({exc.status or 'нет связи'}). Повторим через 10 минут."
+        business.altegio_synced_at = now_utc
+        session.add(business)
+        return False
+
+
 def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: datetime) -> dict:
     now_local = utc_to_local(now_utc, business.timezone)
     today = now_local.date().isoformat()
@@ -182,6 +202,8 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
     asked = send_review_requests(session, rt, business, now_utc)
     if asked:
         report["reviews"] = asked
+    if altegio.due(business, now_utc):
+        report["altegio"] = sync_altegio(session, rt, business, now_utc)
     refreshed = refresh_instagram_token(rt, business, now_utc)
     if refreshed is not None:
         report["instagram_token"] = refreshed

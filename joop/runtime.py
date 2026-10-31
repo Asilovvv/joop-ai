@@ -5,6 +5,8 @@ Tests replace the factory methods with fakes that record what would be sent.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import httpx
 
 from .agent.llm import AnthropicLLM, LLMClient, LLMError
@@ -12,6 +14,9 @@ from .channels.meta import InstagramClient, WhatsAppClient
 from .channels.telegram import TelegramClient
 from .config import Settings
 from .models import Business
+
+if TYPE_CHECKING:
+    from .altegio import AltegioClient
 
 
 class Runtime:
@@ -31,6 +36,15 @@ class Runtime:
                 effort=self.settings.effort,
             )
         return self._llm
+
+    def altegio(self, business: Business) -> "AltegioClient | None":
+        """Client for the salon's Altegio location: its own partner token if it set one, else Joop's."""
+        from .altegio import AltegioClient
+
+        token = business.altegio_token or self.settings.altegio_partner_token
+        if not business.altegio_location_id or not token:
+            return None
+        return AltegioClient(self.http, token, self.settings.altegio_api_base)
 
     def telegram(self, business: Business) -> TelegramClient | None:
         if not business.telegram_bot_token:
