@@ -39,13 +39,15 @@ def main() -> None:
         if not items:
             continue
         started = time.monotonic()
-        got = kyrgyz.suggest(llm, [src for src, _ in items], usage)
+        raw: list = []
+        got = kyrgyz.suggest(llm, [src for src, _ in items], usage, raw)
         latencies.append(round(time.monotonic() - started, 2))
         for i, (src, ref) in enumerate(items):
             ky = got[i] if got else ""
             fails = [] if ky else (["call failed"] if got is None else ["suggestion dropped by the checks"])
             cases.append({"id": f"{name}:{i}", "passed": not fails, "fails": fails, "source": src,
-                          "final_reply": ky, "reference": ref, "avg_latency_s": latencies[-1]})
+                          "final_reply": ky, "reference": ref, "avg_latency_s": latencies[-1],
+                          **({"raw": raw} if i == 0 and (got is None or len(raw) > 1) else {})})
         print(f"{name}: {sum(1 for c in cases if c['id'].startswith(name + ':') and c['passed'])}/{len(items)}")
     total = cost_usd(usage, settings.model)
     summary = {"cases": len(cases), "passed": sum(c["passed"] for c in cases),
