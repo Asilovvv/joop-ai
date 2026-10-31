@@ -13,6 +13,7 @@
 - id: booking_ru
   turns: ["Болит зуб, хочу записаться на завтра", "Айбек, 0555 123 456, удобно утром", "Давайте самое раннее из предложенных"]
   expect_lead: true
+  expect_cancel: false  # booking must not be read as a cancel
 - id: booking_ky
   expect_lang: ky
   # third turn: on a Saturday "эртең" is the day off and the bot rightly offers other times (run 31)
@@ -48,3 +49,13 @@
   expect_lang: ky
   turns: ['Балдарды кабыл аласыздарбы?']
   must_contain_any: ['3', Элина]
+# Customer cancels in the chat (joop/cancels.py, 31 Oct 2026): not yet run on the real model.
+- id: cancel_ru
+  turns: ["Запишите меня на консультацию на самое раннее свободное время. Айбек, 0555 123 456", "Извините, планы поменялись, отмените, пожалуйста, мою запись"]
+  expect_lead: true
+  expect_cancel: true
+- id: cancel_ky
+  expect_lang: ky
+  turns: ["Консультацияга эң эртерээк убакытка жазыңыз. Атым Гүлнара, 0555 321 654", "Кечиресиз, жазылууну жокко чыгарыңызчы"]
+  expect_lead: true
+  expect_cancel: true

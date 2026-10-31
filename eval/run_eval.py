@@ -41,7 +41,8 @@ from joop.niches import all_packs
 from joop.profile import apply_profile, load_profile
 
 
-def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, order_saved: bool = False) -> list[str]:
+def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, order_saved: bool = False,
+               cancelled: bool = False) -> list[str]:
     """Return a list of failure reasons (empty = pass)."""
     fails = []
     low = final_text.lower()
@@ -57,6 +58,8 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, ord
         fails.append(f"expect_order={case['expect_order']} got {order_saved}")
     if "expect_handoff" in case and bool(case["expect_handoff"]) != handoff:
         fails.append(f"expect_handoff={case['expect_handoff']} got {handoff}")
+    if "expect_cancel" in case and bool(case["expect_cancel"]) != cancelled:
+        fails.append(f"expect_cancel={case['expect_cancel']} got {cancelled}")
     any_of = case.get("must_contain_any")
     if any_of and not any(s.lower() in low for s in any_of):
         fails.append(f"missing any of {any_of}")
@@ -118,7 +121,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
         s.commit()
         business_id = business.id
 
-    lead = handoff = order = language_fixed = confirmation_fixed = False
+    lead = handoff = order = cancelled = language_fixed = confirmation_fixed = False
     final = ""
     latencies: list[float] = []
     usage = empty_usage()
@@ -137,6 +140,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
             latencies.append(time.perf_counter() - t0)
             lead = lead or any(x is not None for x in (out.booking_id, out.request_id, out.qualified_lead_id, out.stay_id))
             order = order or out.order_id is not None
+            cancelled = cancelled or out.cancelled_id is not None
             language_fixed = language_fixed or out.language_fixed
             confirmation_fixed = confirmation_fixed or out.confirmation_fixed
             final = out.reply or ""
@@ -145,7 +149,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
     finally:
         logging.getLogger("joop").removeHandler(collect)
 
-    fails = check_case(case, final, lead, handoff, order)
+    fails = check_case(case, final, lead, handoff, order, cancelled)
     return {
         "id": case["id"],
         "passed": not fails,
@@ -155,6 +159,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
         "lead": lead,
         "handoff": handoff,
         "order": order,
+        "cancelled": cancelled,
         "avg_latency_s": round(sum(latencies) / len(latencies), 2),
         "usage": usage,
         "cost_usd": cost_usd(usage, model),
