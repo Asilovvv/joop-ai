@@ -29,27 +29,26 @@ The input is a JSON array of strings: names of services or goods, and questions 
 Return ONLY a JSON array of the same length, in the same order, each item the Kyrgyz translation of the
 item at that position. Write natural Kyrgyz that a customer in Bishkek would use, in Kyrgyz Cyrillic
 (letters ң, ө, ү are fine). No Kazakh letters such as і, ә, ғ, қ, ұ, һ. Keep numbers, units, sizes and
-brand or product names written in Latin letters (iPhone, Wi-Fi, QR) exactly as they are. Do not add
-explanations, quotes around the array, or markdown."""
+brand or product names written in Latin letters (iPhone, Wi-Fi, QR) exactly as they are. Output the array
+once, with no explanations before or after it, no quotes around it and no markdown."""
 
 _KAZAKH = re.compile("[іәғқұһІӘҒҚҰҺ]")
 _LATIN_WORD = re.compile(r"[A-Za-z][A-Za-z\-]*")
 _CYRILLIC = re.compile("[а-яёңөүА-ЯЁҢӨҮ]")
 
 
-def _parse_list(text: str) -> list[Any] | None:
-    text = (text or "").strip()
-    fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
-    if fence:
-        text = fence.group(1).strip()
-    start, end = text.find("["), text.rfind("]")
-    if start == -1 or end <= start:
-        return None
-    try:
-        data = json.loads(text[start : end + 1])
-    except json.JSONDecodeError:
-        return None
-    return data if isinstance(data, list) else None
+def _parse_list(text: str, size: int) -> list[Any] | None:
+    """The last JSON array of `size` items in the answer: the model sometimes corrects itself
+    ("Wait, here is the right output: [...]") after a first array."""
+    found = None
+    for match in re.finditer(r"\[[^\[\]]*\]", text or "", re.S):
+        try:
+            data = json.loads(match.group(0))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, list) and len(data) == size:
+            found = data
+    return found
 
 
 def clean(source: str, suggestion: Any) -> str:
@@ -83,8 +82,8 @@ def suggest(llm: Any, texts: list[str], usage: dict | None = None, raw_answers: 
         raw = writer(INSTRUCTION, json.dumps(texts, ensure_ascii=False), usage)
         if raw_answers is not None:
             raw_answers.append(raw)
-        data = _parse_list(raw or "")
-        if data is not None and len(data) == len(texts):
+        data = _parse_list(raw or "", len(texts))
+        if data is not None:
             return [clean(src, s) for src, s in zip(texts, data)]
         log.warning("Kyrgyz suggestions: unusable answer for %d items", len(texts))
     return None
