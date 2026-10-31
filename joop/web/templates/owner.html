@@ -3,6 +3,12 @@
 {% set active = 'owner' %}
 {% block content %}
 {% include "owner_nav.html" %}
+{% if ai.down %}
+<div class="flash error" role="alert"><b>ИИ не отвечает клиентам.</b> За последние 30 минут не удалось ответить {{ ai.failures }} раз{% if ai.last_at %}, последний сбой {{ ai.last_at | dt }}{% endif %}. Причина: {{ ai.reason or 'неизвестна (сервер перезапускался) — проверьте баланс и ключ Anthropic' }}. Клиенты получают «Извините, сейчас не получается ответить», заявки уходят администраторам.</div>
+{% elif ai.failures %}
+<div class="flash" role="status">За последние 30 минут ИИ не смог ответить {{ ai.failures }} раз{% if ai.reason %} ({{ ai.reason }}){% endif %}. Если повторится, придёт предупреждение.</div>
+{% endif %}
+{% if not alerts_on %}<p class="muted small">Предупреждения в Telegram о сбоях ИИ выключены: задайте FOUNDER_BOT_TOKEN и FOUNDER_CHAT_ID на сервере.</p>{% endif %}
 <div class="stats">
   <div class="stat"><b>{{ '{:,}'.format(mrr).replace(',', ' ') }}</b><span>сом в месяц (оплаченные)</span></div>
   <div class="stat"><b>{{ '{:,}'.format(paid30).replace(',', ' ') }}</b><span>сом получено за 30 дней</span></div>
