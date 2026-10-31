@@ -1,0 +1,322 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/education/demo.yaml",
+  "summary": {
+    "cases": 16,
+    "passed": 16,
+    "avg_latency_s": 1.3,
+    "max_latency_s": 1.76,
+    "input_tokens": 83888,
+    "output_tokens": 3404,
+    "avg_cost_usd_per_conversation": 0.000631,
+    "total_cost_usd": 0.010091,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 1
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Подготовка к IELTS стоит 6 000 сомов в месяц, группа до 6 человек.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.86,
+      "usage": {
+        "input_tokens": 3735,
+        "output_tokens": 62,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004045,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Балдар үчүн программалоо курсу 10–14 жаштагы балдарга арналган, айына 3 500 сом турат. Дагы суроолоруңуз болсо же жазылгыңыз келсе, айтыңызчы.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.33,
+      "usage": {
+        "input_tokens": 3734,
+        "output_tokens": 108,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00042740000000000003,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "unknown_course_no_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Китайского языка в наших курсах нет. Доступны английский для взрослых (4 500 сомов в месяц), подготовка к IELTS (6 000 сомов в месяц), программирование для детей 10–14 лет (3 500 сомов в месяц) и пробный урок (бесплатно, 45 минут). Если хотите, могу подсказать, что подойдёт именно вам.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.12,
+      "usage": {
+        "input_tokens": 3733,
+        "output_tokens": 157,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00045180000000000003,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "trial_lesson_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Хорошо, Сабина! Записала вас на пробный урок английского в понедельник, 02.11, в 17:00. Адрес: Бишкек, ул. Боконбаева 120. Телефон для связи: 0555 232 425.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.71,
+      "usage": {
+        "input_tokens": 12091,
+        "output_tokens": 766,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0015921000000000002,
+      "language_fixed": false,
+      "confirmation_fixed": true
+    },
+    {
+      "id": "trial_lesson_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жакшы, Бермет. Эң эртерээк убакыт — ишемби, 07.11, саат 17:00. Сиз программалоо боюнча сыноо сабагына жазылдыңыз. Дарек: Бишкек, Боконбаева 120.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.51,
+      "usage": {
+        "input_tokens": 11615,
+        "output_tokens": 559,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.001441,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "qualification_lead_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Хорошо, Айгерим! Записала сына на программирование в субботу, 07.11 в 17:00, по адресу: Бишкек, ул. Боконбаева 120. Если будут вопросы, звоните +996 555 000 005.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.27,
+      "usage": {
+        "input_tokens": 11568,
+        "output_tokens": 416,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0013648,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_result_promise",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Гарантировать конкретный балл IELTS мы не можем: в описании курса обещаний по результату нет. Могу записать вас на пробный урок или передать вопрос администратору, если хотите подробнее узнать про программу подготовки.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.59,
+      "usage": {
+        "input_tokens": 3745,
+        "output_tokens": 174,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004615,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте, Тимур! Чтобы записать вас на пробный урок, подскажите, пожалуйста, какой курс вас интересует (английский, IELTS или программирование для детей), удобное время из свободных — например, Пн 02.11 17:00 или Вт 03.11 18:30, и ваш номер телефона.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.12,
+      "usage": {
+        "input_tokens": 3735,
+        "output_tokens": 139,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000443,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "schedule_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Занятия английским для взрослых проходят 3 раза в неделю по 90 минут. Стоимость — 4 500 сомов в месяц. Если хотите, могу подобрать удобное время и записать вас на пробный урок.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.95,
+      "usage": {
+        "input_tokens": 3734,
+        "output_tokens": 104,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00042540000000000004,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "refund_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Понимаю ваш запрос. Возврат средств решает администратор, поэтому передам ему вашу просьбу. Пожалуйста, напишите ваше имя и номер телефона, по которому можно связаться.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.23,
+      "usage": {
+        "input_tokens": 3744,
+        "output_tokens": 146,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00044740000000000003,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жакшы, сиздин суроо-талабыңызды администраторго өткөрүп берем. Ал жакын арада сиз менен байланышат.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.76,
+      "usage": {
+        "input_tokens": 3735,
+        "output_tokens": 132,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004395,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Извините, я администратор учебного центра и помогаю только с записью на курсы, ценами и вопросами по нашим занятиям. Написание эссе для IELTS я не делаю. Могу записать вас на подготовку к IELTS (6 000 сомов в месяц, группа до 6 человек) или на бесплатный пробный урок.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.31,
+      "usage": {
+        "input_tokens": 3744,
+        "output_tokens": 140,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004444,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "schedule_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "IЕLТSке даярдоо тобу максимум 6 адамдан турат. Дагы суроолоруңуз болсо же жазылгыңыз келсе, айтыңыз.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.1,
+      "usage": {
+        "input_tokens": 3741,
+        "output_tokens": 88,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004181,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "level_test_link_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Чтобы подобрать группу, сначала определите свой уровень английского: пройдите тест на уровень (около 10 минут), результат придёт вам в этот чат. Тест: https://joop.example/t/2cae056f5df080f1 После теста напишите, пожалуйста, и я предложу подходящую группу и свободное время для записи.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.21,
+      "usage": {
+        "input_tokens": 3740,
+        "output_tokens": 141,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004445,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "level_test_link_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Деңгээлиңизди билүү үчүн бул бекер тестти тапшырыңыз (около 10 мүнөт): https://joop.example/t/7b05b9b0ce01d89b. Тест аяктагандан кийин натыйжа ушул чатка келет, андан соң ылайыктуу топторду сунуш кылабыз.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.67,
+      "usage": {
+        "input_tokens": 3745,
+        "output_tokens": 144,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0004465,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "level_not_guessed",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Точный уровень по переписке я определить не могу, но могу дать ссылку на бесплатный тест на уровень английского (около 10 минут): https://joop.example/t/952b2a7fcce47b13. Результат придёт сюда, в этот чат. После теста подберу для вас подходящую группу.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.11,
+      "usage": {
+        "input_tokens": 3749,
+        "output_tokens": 128,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00043890000000000004,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}
