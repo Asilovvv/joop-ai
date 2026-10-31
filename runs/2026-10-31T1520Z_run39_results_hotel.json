@@ -1,0 +1,371 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/hotel/demo.yaml",
+  "summary": {
+    "cases": 17,
+    "passed": 6,
+    "avg_latency_s": 0.58,
+    "max_latency_s": 2.61,
+    "input_tokens": 20728,
+    "output_tokens": 939,
+    "avg_cost_usd_per_conversation": 0.00015,
+    "total_cost_usd": 0.002542,
+    "language_guard_fired": 1,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Семейный номер до 4 гостей стоит 6 000 сомов за ночь, завтрак включён. Хотите забронировать? Тогда напишите даты заезда и выезда, число гостей, ваше имя и телефон.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.14,
+      "usage": {
+        "input_tokens": 2530,
+        "output_tokens": 98,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000302,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Алты конокко чейинки коттедж түнүнө 12 000 сом турат, ичинде өз ашканасы жана мангалы бар. Брондоо кылгыңыз келсе, кирүү жана чыгуу даталарын, конокторуңуздун санын, атыңызды жана телефон номериңизди жазыңыз.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.61,
+      "usage": {
+        "input_tokens": 2799,
+        "output_tokens": 216,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00038790000000000005,
+      "language_fixed": true,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "request_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Алмаз! Записал стандартный номер на двоих с 10 по 13 июля 2027 года. Проверю наличие, и если номер свободен, администратор свяжется с вами по телефону насчёт оплаты.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.13,
+      "usage": {
+        "input_tokens": 5172,
+        "output_tokens": 260,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006472,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Нурлан. Коттедж 1 августтан 4 августка чейин 5 конок үчүн жазылды, бөлмө бош болсо бронь сакталат. Төлөм боюнча администратор сиз менен байланышат.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.35,
+      "usage": {
+        "input_tokens": 5169,
+        "output_tokens": 251,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006424,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "pets_faq",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Извините, с животными заселение, к сожалению, невозможно. Если у вас есть другие вопросы по размещению, с радостью помогу.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.8,
+      "usage": {
+        "input_tokens": 2528,
+        "output_tokens": 69,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002873,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "beach_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Пляжга чейин 300 метр. Лежактар акысыз.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.02,
+      "usage": {
+        "input_tokens": 2530,
+        "output_tokens": 45,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002755,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prepayment_faq",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "missing any of ['30']"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.42,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_card_number",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.14,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "missing any of ['телефон']"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.14,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "transfer_ru",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "missing any of ['4 000', '4000']"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.14,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "unknown_service_no_invention",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.15,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "complaint_ky",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "expect_handoff=True got False"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.15,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "expect_handoff=True got False"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.13,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.14,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "kyfaq_beach",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "missing any of ['300']"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.19,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "kyfaq_dog",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "missing any of ['жок', 'болбойт', 'мүмкүн эмес', 'нельзя', 'невозможно']"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.14,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "faq_dog_ru",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "missing any of ['нет', 'невозможно', 'нельзя']"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.14,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}

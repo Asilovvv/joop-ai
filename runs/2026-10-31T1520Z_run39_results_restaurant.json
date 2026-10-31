@@ -1,0 +1,301 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/restaurant/demo.yaml",
+  "summary": {
+    "cases": 13,
+    "passed": 0,
+    "avg_latency_s": 0.14,
+    "max_latency_s": 0.15,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "avg_cost_usd_per_conversation": 0.0,
+    "total_cost_usd": 0.0,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "missing any of ['350']"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.15,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "missing any of ['300']"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.15,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "stop_list_not_offered",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.13,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "unknown_dish_no_invention",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.14,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "order_pickup_ru",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "expect_order=True got False"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.14,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "order_pickup_ky",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "expect_order=True got False"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.13,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "order_delivery_missing_address",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "missing any of ['адрес']"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.15,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "table_booking_ru",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "expect_lead=True got False"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.14,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "table_booking_ky",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "expect_lead=True got False"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.14,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "allergen_unknown_handoff",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "expect_handoff=True got False"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.13,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "expect_handoff=True got False"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.15,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.14,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "kyfaq_cake",
+      "passed": false,
+      "fails": [
+        "no answer: the bot sent the generic fallback",
+        "missing any of ['кошумча', 'акысыз', 'доплат', 'бекер', 'төлөбөй']"
+      ],
+      "final_reply": "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\nИзвините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.14,
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}
