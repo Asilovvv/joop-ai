@@ -216,3 +216,8 @@ details summary { cursor: pointer; color: var(--accent); }
 
 form.row.chat-input { grid-template-columns: 1fr auto; align-items: end; border-bottom: 0; padding-top: 14px; }
 form.row.chat-input > span:empty { display: none; }
+
+/* "Fill Kyrgyz with the AI" card on the price list and FAQ pages */
+.ky-fill-form { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.ky-fill-form > div { flex: 1 1 320px; min-width: 0; }
+.ky-fill-form p { margin-top: 4px; }
