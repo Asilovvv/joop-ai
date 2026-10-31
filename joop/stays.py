@@ -7,16 +7,19 @@ customers can never get the last room for the same night, even at the same momen
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, delete, select
 
-from .models import Business, Conversation, RoomNight, Staff, Stay
+from .models import Business, Conversation, Message, RoomNight, Staff, Stay
 
 MAX_NIGHTS = 30
 MAX_AHEAD_DAYS = 365
+ROLL_AFTER_DAYS = 14  # a date this far in the past, given without a year, means next year
+_YEAR = re.compile(r"\b20\d\d\b")
 
 
 def room_types(session: Session, business_id: int) -> list[Staff]:
@@ -47,6 +50,22 @@ def parse_day(value: str) -> date | None:
         return None
 
 
+def _next_year(d: date) -> date:
+    return d.replace(year=d.year + 1) if not (d.month == 2 and d.day == 29) else date(d.year + 1, 3, 1)
+
+
+def roll_year(session: Session, conv: Conversation, check_in: date, check_out: date, today: date) -> tuple[date, date]:
+    """"С 1 по 4 августа" in October means next August. The model sometimes writes this year; the code fixes it
+    when the date is clearly past and the customer named no year."""
+    if check_in >= today - timedelta(days=ROLL_AFTER_DAYS):
+        return check_in, check_out
+    texts = session.exec(select(Message.text).where(Message.conversation_id == conv.id, Message.role == "customer")
+                         .order_by(Message.id.desc()).limit(3)).all()
+    if any(_YEAR.search(t or "") for t in texts):
+        return check_in, check_out  # the customer wrote a year: do not guess
+    return _next_year(check_in), _next_year(check_out)
+
+
 def _fmt(d: date) -> str:
     return f"{d:%d.%m.%Y}"
 
@@ -62,6 +81,8 @@ def book(session: Session, business: Business, conv: Conversation, data: dict, r
     check_in, check_out = parse_day(data.get("check_in", "")), parse_day(data.get("check_out", ""))
     if not check_in or not check_out or check_out <= check_in:
         return StayResult("Уточните, пожалуйста, даты заезда и выезда.")
+    asked_year = check_in.year
+    check_in, check_out = roll_year(session, conv, check_in, check_out, today)
     if check_in < today or check_in > today + timedelta(days=MAX_AHEAD_DAYS):
         return StayResult(f"Бронируем с {_fmt(today)} и не дальше чем на год вперёд. Уточните, пожалуйста, даты.")
     if (check_out - check_in).days > MAX_NIGHTS:
@@ -90,6 +111,9 @@ def book(session: Session, business: Business, conv: Conversation, data: dict, r
     except (IntegrityError, StopIteration):
         return StayResult(f"Извините, «{room.name}» на эти даты только что заняли. "
                           + _options(session, business, check_in, check_out, guests))
+    if check_in.year != asked_year and str(asked_year) in reply:  # the model's confirmation names the wrong year
+        reply = (f"Забронировала «{room.name}» на {_fmt(check_in)}–{_fmt(check_out)}, гостей: {guests}. "
+                 "Администратор свяжется с вами насчёт оплаты.")
     return StayResult(reply, stay)
 
 
