@@ -74,6 +74,23 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     items[1:1] = [("/panel/setup", "setup", "Запуск"), ("/panel/try", "try", "Проверить ИИ")]
     items.append(("/panel/billing", "billing", "Оплата"))
     return items
+NAV_GROUPS = (
+    ("Работа", {"dashboard", "conversations", "orders", "bookings", "stays", "leads", "jobs"}),
+    ("Инструменты", {"slots", "tests", "menu", "followups", "memberships"}),
+    ("Настройка", {"setup", "try", "services", "staff", "faq", "settings", "channels", "billing"}),
+)
+
+
+def nav_groups(items: list[tuple[str, str, str]]) -> list[tuple[str, list[tuple[str, str, str]]]]:
+    """The same sections, grouped for the sidebar; order inside a group follows nav_for."""
+    groups = [(title, [i for i in items if i[1] in keys]) for title, keys in NAV_GROUPS]
+    known = set().union(*(keys for _, keys in NAV_GROUPS))
+    rest = [i for i in items if i[1] not in known]
+    if rest:
+        groups[-1][1].extend(rest)
+    return [(t, g) for t, g in groups if g]
+
+
 TIMEZONES = ["Asia/Bishkek", "Asia/Almaty", "Asia/Tashkent", "Asia/Dushanbe", "Europe/Moscow"]
 CHANNEL_NAMES = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram", "console": "Тест"}
 
@@ -144,6 +161,7 @@ def _render(request: Request, template: str, active: str, business: Business | N
         csrf=_csrf(request),
         flashes=request.session.pop("flash", []),
         nav=nav_for(business),
+        nav_groups=nav_groups(nav_for(business)),
         pack=get_pack(business.niche if business else None),
         active=active,
     )

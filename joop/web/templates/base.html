@@ -1,30 +1,50 @@
-<!doctype html>
+{% from "_icons.html" import icon %}<!doctype html>
 <html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f1c20">
 <title>{% block title %}Joop AI{% endblock %}{% if business %} · {{ business.name }}{% endif %}</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
 <link rel="stylesheet" href="/static/app.css">
 </head>
-<body>
+<body class="{{ 'has-side' if business else 'bare' }}">
 {% if business %}
-<header class="top">
-  <div class="top-in">
-    <a class="brand" href="/panel">Joop AI</a>
-    <span class="biz">{{ business.name }}</span>
-    <form method="post" action="/logout" class="inline">
-      <input type="hidden" name="csrf" value="{{ csrf }}">
-      <button class="link" type="submit">Выйти</button>
-    </form>
+<aside class="side" aria-label="Панель">
+  <div class="side-head">
+    <a class="brand" href="/panel"><span class="mark" aria-hidden="true">J</span>Joop AI</a>
+    <details class="side-menu">
+      <summary aria-label="Меню"><span></span><span></span><span></span></summary>
+      <div class="side-body">
+        <div class="biz" title="{{ business.name }}">{{ business.name }}</div>
+        {% for title, items in nav_groups %}
+        <nav class="group" aria-label="{{ title }}">
+          <div class="group-title">{{ title }}</div>
+          {% for href, key, label in items %}<a href="{{ href }}" class="{{ 'on' if active == key else '' }}"{% if active == key %} aria-current="page"{% endif %}>{{ icon(key) }}<span>{{ label }}</span></a>{% endfor %}
+        </nav>
+        {% endfor %}
+        <form method="post" action="/logout" class="logout">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="link" type="submit">Выйти</button>
+        </form>
+      </div>
+    </details>
   </div>
-  <nav class="nav" aria-label="Разделы">
-    {% for href, key, label in nav %}<a href="{{ href }}" class="{{ 'on' if active == key else '' }}">{{ label }}</a>{% endfor %}
-  </nav>
-</header>
+</aside>
 {% endif %}
 <main class="wrap">
   {% for kind, text in flashes %}<div class="flash {{ kind }}" role="status">{{ text }}</div>{% endfor %}
   {% block content %}{% endblock %}
 </main>
+<script>
+/* Desktop: the sidebar menu is always open. Phone: it opens with the button and closes after a tap. */
+(function () {
+  var d = document.querySelector('.side-menu'); if (!d) return;
+  var mq = window.matchMedia('(min-width: 900px)');
+  function sync() { if (mq.matches) d.setAttribute('open', ''); else d.removeAttribute('open'); }
+  sync(); mq.addEventListener ? mq.addEventListener('change', sync) : mq.addListener(sync);
+  d.querySelector('summary').addEventListener('click', function (e) { if (mq.matches) e.preventDefault(); });
+})();
+</script>
 </body>
 </html>
