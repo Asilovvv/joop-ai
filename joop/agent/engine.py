@@ -163,7 +163,7 @@ def handle_incoming(
         health.record_failure(exc, now)  # the reason for the founder; the business sees only the lead
         lead = _add_lead(session, business, conv, "error", f"ИИ не смог ответить на сообщение: «{text[:300]}»", now, off)
         _add_message(session, business, conv, "ai", ERROR_REPLY, now, off)
-        return Outcome(reply=ERROR_REPLY, admin_notes=[_lead_note(business, conv, lead, off)], lead_id=lead.id)
+        return Outcome(reply=ERROR_REPLY, admin_notes=_outage_notes(session, business, conv, lead, now, off), lead_id=lead.id)
 
     outcome = Outcome(reply=result.reply, usage=dict(result.usage))
     # The model may only use outcomes the niche enables; anything else is ignored.
@@ -728,6 +728,26 @@ def _booking_note(business: Business, booking: Booking, off: bool) -> str:
         f"Канал: {CHANNEL_LABELS.get(booking.channel, booking.channel)}",
     ]
     return "\n".join(lines)
+
+
+OUTAGE_WINDOW = timedelta(minutes=30)
+OUTAGE_SUMMARY_EVERY = 10  # during an outage, one summary per this many unanswered customers
+
+
+def _outage_notes(session: Session, business: Business, conv: Conversation, lead: Lead, now: datetime, off: bool) -> list[str]:
+    """Staff notes for a failed model call. The first failure gets the full note; while failures go on, staff
+    get a short summary every OUTAGE_SUMMARY_EVERY customers instead of one message per customer (when the
+    API is down, every message fails). Every failure stays in the panel as a request either way."""
+    before = session.exec(select(Lead.id).where(
+        Lead.business_id == business.id, Lead.kind == "error", Lead.id != lead.id, Lead.created_at >= now - OUTAGE_WINDOW,
+    )).all()
+    if not before:
+        return [_lead_note(business, conv, lead, off) + "\nЕсли ИИ не ответит и следующим клиентам, отдельных уведомлений не будет:"
+                " пришлю сводку, а все такие сообщения будут в разделе «Заявки» панели."]
+    if (len(before) + 1) % OUTAGE_SUMMARY_EVERY == 0:
+        return [f"ИИ всё ещё не отвечает: за последние {int(OUTAGE_WINDOW.total_seconds() // 60)} минут без ответа "
+                f"остались {len(before) + 1} сообщений клиентов. Ответьте им вручную — список в разделе «Заявки» панели."]
+    return []
 
 
 def _lead_note(business: Business, conv: Conversation, lead: Lead, off: bool) -> str:
