@@ -5,6 +5,14 @@
   <h1>{{ pack.catalog_label }}</h1>
   <p class="muted">ИИ называет клиентам только эти цены. Цена — свободный текст: «3 000», «от 3 500». Галочка «есть» снята — позиция в стоп-листе, ИИ её не предлагает. Кыргызское название ИИ использует в ответах на кыргызском — пусть его проверит носитель языка.</p>
 </section>
+<section class="card ky-fill">
+  <form method="post" action="/panel/kyrgyz/fill" class="ky-fill-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="back" value="services">
+    <div><b>Кыргызские варианты</b><p class="muted small">ИИ отвечает кыргызским клиентам точнее, когда у услуг и вопросов есть кыргызский вариант. ИИ заполнит пустые поля в прайсе и вопросах, а вы проверьте перевод.</p></div>
+    <button class="btn small ghost" type="submit">Заполнить пустые с помощью ИИ</button>
+  </form>
+</section>
 <section class="card">
   {% for r in rows %}
   <form class="row c4" method="post" action="/panel/services/{{ r.id }}">

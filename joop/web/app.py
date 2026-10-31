@@ -513,6 +513,41 @@ def faq_update(request: Request, item_id: int, question: str = Form(""), questio
     return _back("/panel/faq")
 
 
+KY_FILLS_PER_DAY = 10
+_ky_fills: dict[int, list[float]] = {}
+
+
+@router.post("/panel/kyrgyz/fill")
+def kyrgyz_fill(request: Request, back: str = Form("services"), csrf: str = Form("")):
+    """The AI fills empty Kyrgyz names and questions; the owner checks them on the page."""
+    from .. import kyrgyz
+
+    _check_csrf(request, csrf)
+    target = "/panel/faq" if back == "faq" else "/panel/services"
+    now_s = time_module.time()
+    with new_session() as s:
+        b = _business(s, request)
+        recent = [t for t in _ky_fills.get(b.id, []) if now_s - t < 86400]
+        if len(recent) >= KY_FILLS_PER_DAY:
+            _flash(request, "Автозаполнение можно запускать до 10 раз в сутки. Остальное заполните вручную.", "error")
+            return _back(target)
+        _ky_fills[b.id] = recent + [now_s]
+        result = kyrgyz.fill_missing(s, b, _rt(request).get_llm())
+        s.commit()
+    if result.failed:
+        _flash(request, "ИИ сейчас не смог предложить перевод. Попробуйте через минуту.", "error")
+    elif result.filled == 0 and result.skipped == 0:
+        _flash(request, "Все кыргызские поля уже заполнены.")
+    else:
+        text = f"ИИ заполнил кыргызских вариантов: {result.filled}. Проверьте их и исправьте, если что-то звучит не так."
+        if result.skipped:
+            text += f" Не получилось: {result.skipped} — заполните вручную."
+        if result.left:
+            text += f" Осталось ещё {result.left} — нажмите кнопку снова."
+        _flash(request, text)
+    return _back(target)
+
+
 @router.post("/panel/faq/{item_id}/delete")
 def faq_delete(request: Request, item_id: int, csrf: str = Form("")):
     _check_csrf(request, csrf)
