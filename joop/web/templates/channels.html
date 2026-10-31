@@ -45,6 +45,29 @@
   <div><button class="btn" type="submit">Сохранить каналы</button></div>
 </form>
 
+<section class="card stack" id="altegio">
+  <h2>Altegio: онлайн-запись салона {% if business.altegio_location_id %}<span class="chip ok">подключено</span>{% endif %}</h2>
+  <p class="small muted">Если вы ведёте запись в Altegio, ИИ берёт оттуда прайс, мастеров и свободные окна и записывает клиентов прямо в Altegio. Каждая запись сначала проверяется у нас, затем в Altegio. Окна обновляются каждые 10 минут.</p>
+  {% if business.altegio_location_id %}
+  <p class="small">Филиал {{ business.altegio_location_id }}{% if altegio_synced %} · обновлено {{ altegio_synced.strftime('%d.%m %H:%M') }}{% endif %}</p>
+  {% if business.altegio_error %}<p class="flash error">{{ business.altegio_error }}</p>{% endif %}
+  {% endif %}
+  <form method="post" action="/panel/altegio" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid2">
+      <label for="a-loc">ID филиала в Altegio<input id="a-loc" name="location_id" inputmode="numeric" value="{{ business.altegio_location_id or '' }}" autocomplete="off" required></label>
+      <label for="a-tok">Ключ партнёра Altegio {% if business.altegio_token %}<span class="chip ok">задан</span>{% elif altegio_shared %}<span class="chip">общий ключ Joop</span>{% endif %}
+        <input id="a-tok" name="token" type="password" autocomplete="off" placeholder="{{ 'оставьте пустым, чтобы не менять' if business.altegio_token else ('не нужен' if altegio_shared else 'ключ из кабинета разработчика Altegio') }}">
+      </label>
+    </div>
+    {% if business.altegio_token %}<label class="check"><input type="checkbox" name="clear_token" value="1"> Удалить ключ салона</label>{% endif %}
+    <div class="row-tail">
+      <button class="btn" type="submit" name="action" value="connect">{{ 'Обновить сейчас' if business.altegio_location_id else 'Подключить Altegio' }}</button>
+      {% if business.altegio_location_id %}<button class="btn ghost" type="submit" name="action" value="disconnect" formnovalidate>Отключить</button>{% endif %}
+    </div>
+  </form>
+</section>
+
 <section class="card stack">
   <h2>Адреса для подключения</h2>
   {% if public_base %}

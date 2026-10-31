@@ -64,7 +64,7 @@ def cmd_encrypt_tokens(_args) -> int:
     n = 0
     with new_session() as s:
         for b in s.exec(select(Business)).all():
-            for field in ("telegram_bot_token", "wa_access_token", "ig_access_token"):
+            for field in ("telegram_bot_token", "wa_access_token", "ig_access_token", "altegio_token"):
                 if getattr(b, field):
                     flag_modified(b, field)
                     n += 1
@@ -211,7 +211,7 @@ def cmd_chat(args) -> int:
         incoming = IncomingMessage("console", args.chat_id, "command" if text.startswith("/") else "text", text, "Тест", f"console:{args.chat_id}:{n}:{text[:20]}")
         with new_session() as s:
             b = s.get(Business, business.id)
-            outcome = handle_incoming(s, b, incoming, rt.get_llm, base_url=rt.settings.public_base_url)
+            outcome = handle_incoming(s, b, incoming, rt.get_llm, base_url=rt.settings.public_base_url, get_altegio=rt.altegio)
             s.commit()
         if outcome.reply:
             print(f"ИИ: {outcome.reply}")
