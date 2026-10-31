@@ -102,6 +102,7 @@ class Faq(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     business_id: int = Field(foreign_key="business.id", index=True)
     question: str
+    question_ky: str = ""  # the same question in Kyrgyz: helps the AI match Kyrgyz customers' wording
     answer: str
 
 

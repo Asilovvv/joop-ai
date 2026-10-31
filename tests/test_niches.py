@@ -224,3 +224,20 @@ def test_select_relevant_falls_back_to_first_items():
 
     items = [SimpleNamespace(name=f"x{i}", name_ky="", category="", note="") for i in range(10)]
     assert select_relevant(items, ["ничего общего"], limit=3) == items[:3]
+
+
+
+def test_kyrgyz_faq_wording_reaches_the_prompt(engine):
+    from joop import db
+    from joop.agent.engine import handle_incoming
+    from joop.channels.base import IncomingMessage
+    from joop.presets import create_business
+
+    from .conftest import NOW_UTC, FakeLLM
+
+    llm = FakeLLM()
+    with db.new_session() as s:
+        b = create_business(s, slug="photo", name="Фото", password="photo-pass", niche="photo", demo=True, now_utc=NOW_UTC)
+        handle_incoming(s, b, IncomingMessage("telegram", "1", "text", "Итим менен келсем болобу?", "", "x1"), lambda: llm, NOW_UTC)
+    system = llm.calls[0]["system"]
+    assert "Можно с животными? (по-кыргызски: Үй жаныбарлары менен келсе болобу?)" in system and "по смыслу" in system
