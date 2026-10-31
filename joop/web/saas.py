@@ -129,7 +129,8 @@ def signup(
         # The demo profile brings a sample price list and hours; its address and phone are fake.
         business.address = ""
         business.phone = phone
-        billing.start_trial(s, business, settings.trial_days, now, "signup", contact_name, phone)
+        source = "signup-demo" if request.session.get("demo_tried") else "signup"  # wrote to the live demo first
+        billing.start_trial(s, business, settings.trial_days, now, source, contact_name, phone)
         partner = partners.find_active(s, request.session.get("ref", ""))
         if partner is not None:
             partners.attach(s, business.id, partner)
@@ -467,9 +468,13 @@ def owner_home(request: Request):
             "cost": cost.get(b.id, 0.0), "price": billing.price_for(sub, settings.price_som),
         })
     names = {b.id: b.name for b in businesses}
+    from .demo import funnel
+
+    with new_session() as s:
+        site = funnel(s, since)
     return _owner_render(request, "owner.html", rows=rows, counts=counts, mrr=mrr, paid30=paid30, pending=pending,
                          names=names, price=settings.price_som, trial_days=settings.trial_days,
-                         total_cost=sum(cost.values()))
+                         total_cost=sum(cost.values()), site=site)
 
 
 @router.post("/owner/business/{bid}")

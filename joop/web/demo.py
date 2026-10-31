@@ -12,7 +12,8 @@ from __future__ import annotations
 import logging
 import secrets
 import time
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -22,7 +23,7 @@ from sqlmodel import Session, select
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
-from ..models import Business, Conversation, Message, Staff
+from ..models import Booking, Business, Conversation, Lead, Message, Order, Staff, Subscription
 from ..niches import get_pack
 from ..presets import create_business
 from ..profile import load_profile
@@ -142,6 +143,7 @@ async def demo_chat(request: Request):
             return JSONResponse({"error": "ИИ сейчас недоступен. Попробуйте через минуту."}, status_code=503)
 
     request.session["demo_used"] = int(request.session.get("demo_used", 0)) + 1
+    request.session["demo_tried"] = True  # a sign-up from this browser counts as one after the demo
     count, first = _by_address.get(ip, (0, now_s))
     _by_address[ip] = (count + 1, first)
     notes = [n.splitlines()[0] for n in outcome.admin_notes][:3]
@@ -158,3 +160,41 @@ async def demo_reset(request: Request):
     _check_csrf(request, str(data.get("csrf", "")))
     request.session["demo_chat"] = secrets.token_hex(8)  # a fresh conversation; the old one stays for stats
     return JSONResponse({"ok": True})
+
+
+# --- the site funnel for the founder console -------------------------------------------------------
+
+
+@dataclass
+class Funnel:
+    visitors: int  # browsers that wrote to the demo at least once
+    messages: int
+    actions: int  # bookings, orders and requests the demo made: visitors who went all the way
+    cost_usd: float
+    signups: int  # self-serve sign-ups in the same period
+    after_demo: int  # of them, from a browser that used the demo first
+
+    @property
+    def conversion(self) -> int | None:
+        """Per cent of demo visitors who signed up; None until anyone tried the demo."""
+        return round(100 * self.after_demo / self.visitors) if self.visitors else None
+
+
+def funnel(session: Session, since: datetime) -> Funnel:
+    ids = list(session.exec(select(Business.id).where(Business.slug.startswith(DEMO_PREFIX))).all())
+    convs = session.exec(select(Conversation.chat_id).where(
+        Conversation.business_id.in_(ids), Conversation.chat_id.startswith("site-"), Conversation.created_at >= since)).all() if ids else []
+    visitors = {c.rsplit("-", 1)[-1] for c in convs}  # site-<key>-<browser token>: one browser may try several
+    messages = cost = actions = 0
+    if ids:
+        messages = session.exec(select(func.count()).select_from(Message).where(
+            Message.business_id.in_(ids), Message.role == "customer", Message.created_at >= since)).one()
+        cost = session.exec(select(func.coalesce(func.sum(Message.cost_usd), 0.0)).where(
+            Message.business_id.in_(ids), Message.created_at >= since)).one()
+        for model in (Booking, Order, Lead):
+            actions += session.exec(select(func.count()).select_from(model).where(
+                model.business_id.in_(ids), model.created_at >= since)).one()
+    sources = session.exec(select(Subscription.source).where(
+        Subscription.source.in_(["signup", "signup-demo"]), Subscription.created_at >= since)).all()
+    return Funnel(visitors=len(visitors), messages=messages, actions=actions, cost_usd=float(cost or 0),
+                  signups=len(sources), after_demo=sum(1 for x in sources if x == "signup-demo"))
