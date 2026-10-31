@@ -20,6 +20,10 @@ def response_format(pack: Pack) -> str:
             '"phone": "телефон клиента", "service": "услуга кратко", '
             '"preferred_time": "удобное время словами клиента или пустая строка", "party_size": число гостей или 0}'
         )
+    if pack.has("booking"):
+        from ..cancels import CANCEL_FORMAT
+
+        parts.append(CANCEL_FORMAT)
     if pack.has("order"):
         parts.append(
             '"order": null или {"lines": [{"item_id": номер позиции из списка, "quantity": количество, "note": "пожелание или пустая строка"}], '

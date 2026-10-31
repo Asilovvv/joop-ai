@@ -38,6 +38,8 @@ def test_check_case():
     )
     assert len(fails) == 4  # markdown, Russian, no lead, forbidden word
     assert check_case({}, ERROR_REPLY, False, False) == ["no answer: the bot sent the generic fallback"]
+    assert check_case({"expect_cancel": True}, "Отменила.", False, False, cancelled=False) == ["expect_cancel=True got False"]
+    assert check_case({"expect_cancel": False}, "Записала.", True, False, cancelled=False) == []
 
 
 def test_eval_pipeline_with_scripted_model(tmp_path):

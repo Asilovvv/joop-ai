@@ -61,6 +61,8 @@ def response_schema(outcomes: frozenset[str] | set[str] | None = None) -> dict[s
     props: dict[str, Any] = {"reply": _STR}
     if "booking" in outcomes or "request" in outcomes:
         props["booking"] = _nullable(BOOKING_SCHEMA)
+    if "booking" in outcomes:
+        props["cancel"] = {"anyOf": [{"type": "null"}, {"type": "integer"}]}  # joop/cancels.py
     if "stay" in outcomes:
         props["stay"] = _nullable(STAY_SCHEMA)
     if "order" in outcomes:
@@ -98,6 +100,7 @@ class AgentReply:
     order: dict | None = None
     lead: dict | None = None
     stay: dict | None = None
+    cancel: int | None = None  # a booking from "Предстоящие записи клиента" the customer asked to cancel
 
 
 class LLMClient(Protocol):
@@ -186,9 +189,14 @@ def coerce_reply(data: Any) -> AgentReply:
     handoff = data.get("handoff")
     handoff = str(handoff).strip() if isinstance(handoff, (str, int, float)) and str(handoff).strip() else None
 
+    try:
+        cancel: int | None = int(data["cancel"]) if data.get("cancel") not in (None, "", False) else None
+    except (TypeError, ValueError):
+        cancel = None
+
     if not reply:
         raise LLMError("model returned an empty reply")
-    return AgentReply(reply=reply, booking=booking, handoff=handoff, order=order, lead=lead, stay=stay)
+    return AgentReply(reply=reply, booking=booking, handoff=handoff, order=order, lead=lead, stay=stay, cancel=cancel)
 
 
 def _int(value: Any) -> int:

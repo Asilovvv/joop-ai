@@ -28,7 +28,26 @@ def process_incoming(rt: Runtime, business_id: int, incoming: IncomingMessage, n
             log.exception("Failed to process a %s message for %s", incoming.channel, business.slug)
             return Outcome(skipped="error")
     deliver(rt, business, incoming.channel, incoming.chat_id, outcome)
+    if outcome.freed_slot_id is not None:
+        _offer_to_waitlist(rt, business_id, outcome.freed_slot_id, now_utc)
     return outcome
+
+
+def _offer_to_waitlist(rt: Runtime, business_id: int, slot_id: int, now_utc: datetime | None) -> None:
+    """A customer cancelled in the chat: offer the time to those waiting, after the reply went out."""
+    from . import waitlist
+    from .models import Slot
+    from .timeutil import utcnow
+
+    with new_session() as session:
+        try:
+            business, slot = session.get(Business, business_id), session.get(Slot, slot_id)
+            if business is not None and slot is not None:
+                waitlist.offer_freed_slot(session, rt, business, slot, now_utc or utcnow())
+                session.commit()
+        except Exception:
+            session.rollback()
+            log.exception("Waiting-list offer after a cancel failed for business %s", business_id)
 
 
 def deliver(rt: Runtime, business: Business, channel: str, chat_id: str, outcome: Outcome) -> None:

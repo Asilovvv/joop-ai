@@ -50,6 +50,7 @@ def test_every_pack_has_demo_and_cases(niche, engine):
     assert pack.who in system
     assert set(schema["properties"]) - {"reply", "handoff"} == (
         ({"booking"} if pack.has("booking") or pack.has("request") else set())
+        | ({"cancel"} if pack.has("booking") else set())  # customers cancel slot bookings in the chat
         | ({"order"} if pack.has("order") else set())
         | ({"lead"} if pack.has("lead") else set())
         | ({"stay"} if pack.has("stay") else set())

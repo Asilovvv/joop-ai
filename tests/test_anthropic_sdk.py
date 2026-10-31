@@ -80,7 +80,7 @@ def test_request_through_sdk(mock_api):
     assert body["thinking"] == {"type": "disabled"}
     assert body["output_config"]["effort"] == "low"
     assert body["output_config"]["format"]["type"] == "json_schema"
-    assert body["output_config"]["format"]["schema"]["required"] == ["reply", "booking", "handoff"]
+    assert body["output_config"]["format"]["schema"]["required"] == ["reply", "booking", "cancel", "handoff"]
 
 
 def test_sdk_bad_request_falls_back():

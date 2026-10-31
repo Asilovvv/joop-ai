@@ -29,7 +29,7 @@ from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
 from ..followups import capture_rating
-from .. import intake, jobs, memberships, stays, waitlist
+from .. import cancels, intake, jobs, memberships, stays, waitlist
 from .prompt import CHANNEL_LABELS, build_history, build_system_prompt
 
 log = logging.getLogger(__name__)
@@ -71,6 +71,8 @@ class Outcome:
     order_id: int | None = None
     qualified_lead_id: int | None = None  # Lead of kind "lead"
     stay_id: int | None = None  # hotel nights (joop/stays.py)
+    cancelled_id: int | None = None  # booking the customer cancelled in the chat (joop/cancels.py)
+    freed_slot_id: int | None = None  # slot freed by that cancel: the dispatcher offers it to the waiting list
     skipped: str = ""  # why nothing was sent, for logs and tests
     language_fixed: bool = False
     confirmation_fixed: bool = False  # the reply claimed a booking that was not made and was rewritten
@@ -155,7 +157,8 @@ def handle_incoming(
         + _requested_slot_hint(session, conv, slots, now_local, now)
         + placement.prompt_hint(session, business, conv, base_url)
         + (memberships.prompt_hint(session, business, conv, now_local) if pack_offers(business, "memberships") else "")
-        + (jobs.prompt_hint(session, business, conv, now, text) if pack_offers(business, "jobs") else ""),
+        + (jobs.prompt_hint(session, business, conv, now, text) if pack_offers(business, "jobs") else "")
+        + (cancels.prompt_hint(session, conv, now_local) if pack_has(business, "booking") else ""),
     )
     history = _history(session, conv, now)
 
@@ -228,6 +231,19 @@ def handle_incoming(
                 waitlist.mark_booked(session, conv.id)
                 booked = booking
                 outcome.admin_notes.append(_booking_note(business, booking, off))
+    # Cancel, or the second half of a move: only when no new booking was asked for, or it went through.
+    if result.cancel is not None and pack.has("booking") and (not result.booking or booked is not None):
+        done = cancels.cancel(session, conv, result.cancel, now_local)
+        if done.booking is not None:
+            outcome.cancelled_id = done.booking.id
+            outcome.freed_slot_id = done.freed_slot_id
+            outcome.admin_notes.append(done.note)
+        if done.reply and booked is None:
+            outcome.reply = done.reply
+        if done.handoff:
+            lead = _add_lead(session, business, conv, "handoff", done.handoff, now, off)
+            outcome.lead_id = lead.id
+            outcome.admin_notes.append(_lead_note(business, conv, lead, off))
     if answered is not None:
         outcome.admin_notes.append(intake.answers_note(answered))
     if result.handoff:
@@ -238,7 +254,7 @@ def handle_incoming(
     # Confirmation guard: the model sometimes says "вы записаны" / "кабыл алдым" while it is still asking
     # for a phone number or a time. Nothing was captured, so rewrite the reply once without the claim.
     captured = any(x is not None for x in (outcome.booking_id, outcome.request_id, outcome.order_id, outcome.qualified_lead_id,
-                                           outcome.stay_id))
+                                           outcome.stay_id, outcome.cancelled_id))
     if outcome.reply and not captured and claims_confirmation(outcome.reply) and not _has_capture(session, conv):
         fixed = llm.remove_false_confirmation(outcome.reply, outcome.usage)
         if not fixed or claims_confirmation(fixed):
