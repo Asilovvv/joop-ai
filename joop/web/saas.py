@@ -469,14 +469,15 @@ def owner_home(request: Request):
         })
     names = {b.id: b.name for b in businesses}
     from .. import health
-    from .demo import funnel
+    from .demo import funnel, recent_questions
 
     with new_session() as s:
         site = funnel(s, since)
+        asked = recent_questions(s, since)
         ai = health.status(s, now)
     return _owner_render(request, "owner.html", rows=rows, counts=counts, mrr=mrr, paid30=paid30, pending=pending,
                          names=names, price=settings.price_som, trial_days=settings.trial_days,
-                         total_cost=sum(cost.values()), site=site, ai=ai, alerts_on=bool(settings.founder_bot_token and settings.founder_chat_id))
+                         total_cost=sum(cost.values()), site=site, asked=asked, ai=ai, alerts_on=bool(settings.founder_bot_token and settings.founder_chat_id))
 
 
 @router.post("/owner/business/{bid}")
