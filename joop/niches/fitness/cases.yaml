@@ -58,4 +58,5 @@
 - id: kyfaq_freeze
   expect_lang: ky
   turns: ['Абонементти бир аз убакытка токтотуп турсам болобу?']
-  must_contain_any: ['14']
+  # the pack rule sends freezing to the administrator: a handoff is a correct answer (runs 34-35)
+  expect_handoff: true
