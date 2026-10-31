@@ -15,7 +15,8 @@
   expect_lead: true
 - id: booking_ky
   expect_lang: ky
-  turns: ["Тиш тазалоого жазылгым келет", "Атым Гүлнара, 0555 321 654, эртең саат 10до"]
+  # third turn: on a Saturday "эртең" is the day off and the bot rightly offers other times (run 31)
+  turns: ["Тиш тазалоого жазылгым келет", "Атым Гүлнара, 0555 321 654, эртең саат 10до", "Эң эртерээк убакытка жазыңыз"]
   expect_lead: true
 - id: booking_missing_phone
   turns: ["Запишите меня на консультацию завтра, меня зовут Эрлан"]
