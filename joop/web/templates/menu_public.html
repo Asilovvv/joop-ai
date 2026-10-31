@@ -4,11 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ b.name }} — {{ title }}</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
 <style>
 :root { --bg: #f6f4ef; --paper: #fff; --ink: #1d1f1c; --muted: #5f645c; --line: #e2ded4; --accent: #0d7a68; --accent-ink: #fff; color-scheme: light; }
 @media (prefers-color-scheme: dark) { :root { --bg: #121512; --paper: #1b201c; --ink: #ecefe9; --muted: #a1a99f; --line: #2c332d; --accent: #3dbea3; --accent-ink: #121512; color-scheme: dark; } }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.45 "Golos Text", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
 .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 96px; }
 .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .lang a { color: var(--muted); text-decoration: none; font-size: 14px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px; }
