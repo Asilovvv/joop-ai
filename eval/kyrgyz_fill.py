@@ -11,6 +11,7 @@ reference for the native-speaker review; it is not an answer key.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -29,6 +30,12 @@ def main() -> None:
     if not settings.anthropic_api_key:
         sys.exit("ANTHROPIC_API_KEY is not set (environment or .env)")
     llm = Runtime(settings).get_llm()
+    from eval.run_eval import preflight
+
+    problem = preflight(lambda: llm)
+    if problem:
+        prefix = "::error::" if os.environ.get("GITHUB_ACTIONS") else ""
+        sys.exit(f"{prefix}The model {settings.model} does not answer, so the check is skipped: {problem}")
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "eval/results_kyfill.json")
     cases, latencies, usage = [], [], empty_usage()
     for name, pack in sorted(all_packs().items()):
