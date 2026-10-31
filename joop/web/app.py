@@ -33,7 +33,7 @@ from ..runtime import Runtime
 from ..scheduler import Scheduler
 from ..security import hash_password, new_link_code, verify_password
 from ..slots import add_slots, generate_slots, parse_times, release_slot, resize_group, seats_needed
-from ..stats import activity
+from ..stats import activity, by_hour, hour_bars
 from ..timeutil import WEEKDAYS_SHORT, fmt_date_long, fmt_dt, fmt_slot, parse_days_off, parse_hhmm, utc_to_local, utcnow
 
 log = logging.getLogger(__name__)
@@ -340,6 +340,8 @@ def dashboard(request: Request):
             b,
             s14=activity(s, b.id, now - timedelta(days=14)),
             s1=activity(s, b.id, now - timedelta(hours=24)),
+            hours=(hours := by_hour(s, b.id, now - timedelta(days=14), b.timezone)),
+            hour_bars=hour_bars(hours),
             upcoming=upcoming,
             leads=leads,
             counts=counts,

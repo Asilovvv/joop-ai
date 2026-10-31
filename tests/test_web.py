@@ -364,3 +364,33 @@ def test_faq_keeps_the_kyrgyz_wording(client, business):
     client.post(f"/panel/faq/{row.id}", data={"question": "Есть Wi-Fi?", "question_ky": "", "answer": "Да.", "csrf": token})
     with db.new_session() as s:
         assert s.get(Faq, row.id).question_ky == ""
+
+
+def test_dashboard_shows_messages_by_hour(client, business):
+    from datetime import timedelta as td
+
+    from joop.models import Conversation, Message
+    from joop.stats import by_hour, hour_bars
+
+    from .conftest import NOW_UTC
+
+    with db.new_session() as s:
+        conv = Conversation(business_id=business.id, channel="telegram", chat_id="h1")
+        s.add(conv)
+        s.flush()
+        # Bishkek is UTC+6: 17:00 UTC is 23:00 local (off hours), 05:00 UTC is 11:00 local (working hours)
+        for hour, off, n in ((17, True, 3), (5, False, 1)):
+            for i in range(n):
+                s.add(Message(business_id=business.id, conversation_id=conv.id, role="customer", text="?", off_hours=off,
+                              created_at=NOW_UTC.replace(hour=hour, minute=i) - td(days=1)))
+        s.add(Message(business_id=business.id, conversation_id=conv.id, role="ai", text="!", created_at=NOW_UTC - td(days=1)))
+        s.commit()
+        data = by_hour(s, business.id, NOW_UTC - td(days=14), business.timezone)
+    assert (data["total"], data["off_total"], data["off_pct"]) == (4, 3, 75)
+    assert data["off"][23] == 3 and data["on"][11] == 1
+    bars = hour_bars(data)
+    assert len(bars) == 24 and bars[23]["off_d"] and not bars[23]["on_d"] and bars[11]["on_d"] and not bars[0]["on_d"]
+    assert bars[23]["top"] < bars[11]["top"]  # the taller bar reaches higher
+    login(client)
+    page = client.get("/panel").text
+    assert "Когда пишут клиенты" in page and "<b>75%</b>" in page and "23:00–00:00 — 3 сообщ., из них 3 в нерабочее время" in page

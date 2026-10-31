@@ -39,6 +39,37 @@
   </div>
 </section>
 
+<section class="card hours" aria-labelledby="hours-title">
+  <div class="hours-head">
+    <h2 id="hours-title">Когда пишут клиенты</h2>
+    <div class="legend" aria-hidden="true"><span><i class="sw sw-on"></i>рабочее время</span><span><i class="sw sw-off"></i>нерабочее время</span></div>
+  </div>
+  {% if hours.total %}
+  <p class="hours-lead"><b>{{ hours.off_pct }}%</b> сообщений за 14 дней пришли в нерабочее время — {{ hours.off_total }} из {{ hours.total }}. На них ИИ ответил, пока никого не было на месте.</p>
+  <div class="hours-chart">
+    <svg viewBox="0 -4 720 176" role="img" aria-label="Сообщения клиентов по часам суток за 14 дней: {{ hours.off_total }} из {{ hours.total }} в нерабочее время">
+      <line class="axis" x1="0" y1="150.5" x2="720" y2="150.5"/>
+      {% for b in hour_bars %}
+      <g class="bar">
+        <title>{{ '%02d' % b.h }}:00–{{ '%02d' % ((b.h + 1) % 24) }}:00 — {{ b.on + b.off }} сообщ.{% if b.off %}, из них {{ b.off }} в нерабочее время{% endif %}</title>
+        <rect class="hit" x="{{ b.x - 2 }}" y="0" width="{{ b.w + 4 }}" height="150"/>
+        {% if b.on_d %}<path class="on" d="{{ b.on_d }}"/>{% endif %}
+        {% if b.off_d %}<path class="off" d="{{ b.off_d }}"/>{% endif %}
+      </g>
+      {% if b.h % 3 == 0 %}<text class="tick{{ ' minor' if b.h % 6 }}" x="{{ b.x + b.w / 2 }}" y="168" text-anchor="middle">{{ b.h }}:00</text>{% endif %}
+      {% endfor %}
+    </svg>
+  </div>
+  <details class="hours-table"><summary>Таблицей</summary>
+    <div class="scroll"><table class="table"><thead><tr><th>Час</th><th>Всего</th><th>В нерабочее время</th></tr></thead><tbody>
+    {% for b in hour_bars %}{% if b.on + b.off %}<tr><td class="mono">{{ '%02d' % b.h }}:00</td><td class="mono">{{ b.on + b.off }}</td><td class="mono">{{ b.off }}</td></tr>{% endif %}{% endfor %}
+    </tbody></table></div>
+  </details>
+  {% else %}
+  <p class="muted">Когда клиенты начнут писать, здесь появится график по часам: видно, сколько сообщений приходит ночью и в выходные.</p>
+  {% endif %}
+</section>
+
 <div class="cols">
   <section class="card">
     <h2>Ближайшие записи</h2>
