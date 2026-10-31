@@ -113,3 +113,32 @@ def test_funnel_counts_demo_visitors_and_signups_after_the_demo(site, llm):
     site.post("/owner/login", data={"password": "owner-pass-123", "csrf": token})
     page = site.get("/owner").text
     assert "Сайт: живое демо за 30 дней" in page and "100%" in page
+
+
+def test_founder_sees_what_visitors_ask_in_the_demo(site, llm):
+    from datetime import timedelta
+
+    from joop.timeutil import utcnow
+
+    say(site, "Сколько стоит маникюр?", key="salon")
+    say(site, "Эртең саат канчада ачыласыз?", key="cafe")
+    say(site, "<b>Привет</b>" + " длинный текст" * 40, key="clinic")
+    with db.new_session() as s:
+        q = demo.recent_questions(s, utcnow() - timedelta(days=30))
+    assert q.items[0].text.startswith("<b>Привет</b>") and q.items[1].text == "Эртең саат канчада ачыласыз?"
+    assert [i.kyrgyz for i in q.items] == [False, True, False]
+    assert [i.demo for i in q.items] == ["Стоматология «Ак-Тиш»", "Кафе «Ала-Тоо»", "Салон «Айгерим»"]  # newest first
+    assert (q.total, q.kyrgyz, q.kyrgyz_pct) == (3, 1, 33)
+    token = re.search(r'name="csrf" value="([^"]+)"', site.get("/owner/login").text).group(1)
+    site.post("/owner/login", data={"password": "owner-pass-123", "csrf": token})
+    page = site.get("/owner").text
+    assert "Что спрашивают в демо" in page and "Эртең саат канчада ачыласыз?" in page
+    assert "<b>Привет</b>" not in page and "&lt;b&gt;Привет&lt;/b&gt;" in page  # visitor text is escaped
+    assert "длинный текст" * 30 not in page  # long messages are cut in the table
+    assert "на кыргызском: 1 из 3 (33%)" in page
+
+
+def test_demo_questions_block_is_hidden_until_someone_writes(site):
+    token = re.search(r'name="csrf" value="([^"]+)"', site.get("/owner/login").text).group(1)
+    site.post("/owner/login", data={"password": "owner-pass-123", "csrf": token})
+    assert "Что спрашивают в демо" not in site.get("/owner").text

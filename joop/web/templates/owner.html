@@ -28,6 +28,18 @@
     <div class="stat"><b>{{ site.conversion if site.conversion is not none else '—' }}{% if site.conversion is not none %}%{% endif %}</b><span>посетителей демо зарегистрировались</span></div>
   </div>
   <p class="muted small" style="margin-top:10px">Расход на ИИ в демо: ${{ '%.2f' | format(site.cost_usd) }}. Регистрация считается «после демо», если с этого браузера сначала писали в демо.</p>
+  {% if asked.items %}
+  <h3 style="margin-top:18px">Что спрашивают в демо</h3>
+  <p class="muted small">Последние {{ asked.items | length }} сообщений посетителей, сначала новые. За 30 дней на кыргызском: {{ asked.kyrgyz }} из {{ asked.total }} ({{ asked.kyrgyz_pct }}%).</p>
+  <div class="scroll"><table class="table">
+    <thead><tr><th>Когда</th><th>Демо</th><th>Сообщение</th></tr></thead>
+    <tbody>
+    {% for q in asked.items %}
+      <tr><td style="white-space:nowrap">{{ q.at.strftime('%d.%m %H:%M') }}</td><td>{{ q.demo }}</td><td{% if q.kyrgyz %} lang="ky"{% endif %}>{{ q.text | truncate(160, True, '…') }}{% if q.kyrgyz %} <span class="muted small">кырг.</span>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
 </section>
 
 {% if not price %}<p class="flash error">Цена не задана (PRICE_SOM). Регистрация работает, но оплатить картой нельзя. Можно задать цену каждой компании отдельно.</p>{% endif %}

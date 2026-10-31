@@ -180,6 +180,48 @@ class Funnel:
         return round(100 * self.after_demo / self.visitors) if self.visitors else None
 
 
+RECENT_SHOWN = 20  # demo messages listed in the founder console
+RECENT_SCANNED = 2000  # messages scanned for the Kyrgyz share; the demo's daily limit keeps 30 days below this
+
+
+@dataclass
+class DemoQuestion:
+    at: datetime  # local time in Bishkek
+    demo: str  # the demo business it was written to
+    text: str
+    kyrgyz: bool
+
+
+@dataclass
+class DemoQuestions:
+    """What site visitors actually ask the demo: real demand, in their own words and language."""
+
+    items: list[DemoQuestion]  # newest first
+    total: int  # visitor messages in the period (up to RECENT_SCANNED)
+    kyrgyz: int  # of them, written mostly in Kyrgyz
+
+    @property
+    def kyrgyz_pct(self) -> int | None:
+        return round(100 * self.kyrgyz / self.total) if self.total else None
+
+
+def recent_questions(session: Session, since: datetime) -> DemoQuestions:
+    from ..lang import is_kyrgyz_message
+    from ..timeutil import utc_to_local
+
+    names = {b.id: b.name.replace(" (демо)", "") for b in session.exec(
+        select(Business).where(Business.slug.startswith(DEMO_PREFIX))).all()}
+    if not names:
+        return DemoQuestions([], 0, 0)
+    rows = session.exec(select(Message.business_id, Message.created_at, Message.text).where(
+        Message.business_id.in_(list(names)), Message.role == "customer", Message.created_at >= since,
+    ).order_by(Message.created_at.desc(), Message.id.desc()).limit(RECENT_SCANNED)).all()
+    flags = [is_kyrgyz_message(text or "") for _, _, text in rows]
+    items = [DemoQuestion(utc_to_local(at, None), names.get(bid, ""), text or "", ky)
+             for (bid, at, text), ky in zip(rows[:RECENT_SHOWN], flags)]
+    return DemoQuestions(items, len(rows), sum(flags))
+
+
 def funnel(session: Session, since: datetime) -> Funnel:
     ids = list(session.exec(select(Business.id).where(Business.slug.startswith(DEMO_PREFIX))).all())
     convs = session.exec(select(Conversation.chat_id).where(
