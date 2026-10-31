@@ -17,7 +17,8 @@
   expect_lead: true
 - id: booking_ky
   expect_lang: ky
-  turns: ["Диагностикага жазылгым келет, Honda Fit 2010", "Атым Нурбек, 0700 515 616, эртең саат 10до"]
+  # third turn: on a Saturday "эртең" is the day off and the bot rightly offers other times (run 30)
+  turns: ["Диагностикага жазылгым келет, Honda Fit 2010", "Атым Нурбек, 0700 515 616, эртең саат 10до", "Эң эртерээк убакытка жазыңыз"]
   expect_lead: true
 - id: no_repair_price_guess
   turns: ["Стучит подвеска, сколько будет стоить ремонт?"]
