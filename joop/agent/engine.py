@@ -15,6 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
+from .. import health
 from ..billing import access_ok
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -157,8 +158,9 @@ def handle_incoming(
         llm = get_llm()
         pack = get_pack(business.niche)
         result: AgentReply = llm.respond(system, history, schema=response_schema(pack.outcomes))
-    except Exception:
+    except Exception as exc:
         log.exception("Model call failed for business %s", business.slug)
+        health.record_failure(exc, now)  # the reason for the founder; the business sees only the lead
         lead = _add_lead(session, business, conv, "error", f"ИИ не смог ответить на сообщение: «{text[:300]}»", now, off)
         _add_message(session, business, conv, "ai", ERROR_REPLY, now, off)
         return Outcome(reply=ERROR_REPLY, admin_notes=[_lead_note(business, conv, lead, off)], lead_id=lead.id)

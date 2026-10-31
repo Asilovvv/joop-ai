@@ -71,6 +71,8 @@ class Settings:
     price_som: int = 0  # monthly price; 0 = not published yet, sign-up still works with a trial
     owner_password: str = ""  # founder console password; empty = console disabled
     site_demo_daily_limit: int = 300  # visitor messages a day to the live demo on the site; 0 = demo off
+    founder_bot_token: str = ""  # Telegram bot that alerts the founder when the AI stops answering (joop/health.py)
+    founder_chat_id: str = ""
     billing_instructions: str = ""  # how to pay by transfer or QR, shown on the billing page
     freedompay_merchant_id: str = ""
     freedompay_secret_key: str = ""
@@ -116,6 +118,8 @@ def settings_from_env() -> Settings:
         price_som=_int(env.get("PRICE_SOM"), 0),
         owner_password=env.get("OWNER_PASSWORD", "").strip(),
         site_demo_daily_limit=_int(env.get("SITE_DEMO_DAILY_LIMIT"), 300),
+        founder_bot_token=env.get("FOUNDER_BOT_TOKEN", "").strip(),
+        founder_chat_id=env.get("FOUNDER_CHAT_ID", "").strip(),
         billing_instructions=env.get("BILLING_INSTRUCTIONS", "").strip(),
         freedompay_merchant_id=env.get("FREEDOMPAY_MERCHANT_ID", "").strip(),
         freedompay_secret_key=env.get("FREEDOMPAY_SECRET_KEY", "").strip(),

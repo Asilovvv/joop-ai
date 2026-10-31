@@ -8,6 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
+from . import health
 from .db import new_session
 from .dispatch import notify_admins
 from .followups import send_return_invites, send_review_requests
@@ -209,6 +210,11 @@ class Scheduler(threading.Thread):
                 except Exception:
                     session.rollback()
                     log.exception("Scheduled jobs failed for business %s", business_id)
+        with new_session() as session:
+            try:
+                health.maybe_alert(session, self.rt, now_utc or utcnow())
+            except Exception:
+                log.exception("Founder alert check failed")
 
     def run(self) -> None:  # pragma: no cover - thread loop
         while not self._stop.wait(5):
