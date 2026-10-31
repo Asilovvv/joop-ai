@@ -13,6 +13,8 @@ Writes the results file used in the thesis and by the CI summary (eval/summary.p
 from __future__ import annotations
 
 import json
+import logging
+import os
 import re
 import sys
 import tempfile
@@ -67,6 +69,42 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, ord
     return fails
 
 
+def api_error(record: logging.LogRecord) -> str:
+    """'LLMError: Claude API call failed: RateLimitError — <the API's message>' for a failed model call.
+    Error messages from the API carry no key, so they are safe to store with the results."""
+    if not record.exc_info:
+        return record.getMessage()
+    exc = record.exc_info[1]
+    text = f"{type(exc).__name__}: {exc}"
+    cause = getattr(exc, "__cause__", None)
+    if cause is not None:
+        text += f" — {type(cause).__name__}: {str(cause)[:300]}"
+    return text
+
+
+class _Collect(logging.Handler):
+    """Collects warnings and errors logged during one case (failed model calls among them)."""
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.WARNING)
+        self.items: list[str] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        text = api_error(record)
+        if text not in self.items:
+            self.items.append(text)
+
+
+def preflight(get_llm) -> str | None:
+    """One tiny model call before a run: None if the model answers, else why not."""
+    try:
+        get_llm().respond("Reply with the JSON {\"reply\": \"ok\"}.", [{"role": "user", "content": "ping"}])
+    except Exception as exc:  # report the reason and stop instead of filling a run with fallbacks
+        cause = getattr(exc, "__cause__", None)
+        return f"{type(exc).__name__}: {exc}" + (f" — {type(cause).__name__}: {str(cause)[:300]}" if cause else "")
+    return None
+
+
 def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict:
     """One case = one new business and one conversation.
 
@@ -84,29 +122,35 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
     final = ""
     latencies: list[float] = []
     usage = empty_usage()
-    for turn_no, turn in enumerate(case["turns"]):
-        incoming = IncomingMessage("telegram", "eval", "text", turn, "eval", f"eval:{index}:{turn_no}")
-        t0 = time.perf_counter()
-        with db.new_session() as s:
-            business = s.get(Business, business_id)
-            out = handle_incoming(s, business, incoming, get_llm, base_url="https://joop.example")
-            s.commit()
-            if out.lead_id is not None:
-                handoff = handoff or s.get(Lead, out.lead_id).kind == "handoff"
-        latencies.append(time.perf_counter() - t0)
-        lead = lead or any(x is not None for x in (out.booking_id, out.request_id, out.qualified_lead_id, out.stay_id))
-        order = order or out.order_id is not None
-        language_fixed = language_fixed or out.language_fixed
-        confirmation_fixed = confirmation_fixed or out.confirmation_fixed
-        final = out.reply or ""
-        for k in usage:
-            usage[k] += out.usage.get(k, 0)
+    collect = _Collect()
+    logging.getLogger("joop").addHandler(collect)
+    try:
+        for turn_no, turn in enumerate(case["turns"]):
+            incoming = IncomingMessage("telegram", "eval", "text", turn, "eval", f"eval:{index}:{turn_no}")
+            t0 = time.perf_counter()
+            with db.new_session() as s:
+                business = s.get(Business, business_id)
+                out = handle_incoming(s, business, incoming, get_llm, base_url="https://joop.example")
+                s.commit()
+                if out.lead_id is not None:
+                    handoff = handoff or s.get(Lead, out.lead_id).kind == "handoff"
+            latencies.append(time.perf_counter() - t0)
+            lead = lead or any(x is not None for x in (out.booking_id, out.request_id, out.qualified_lead_id, out.stay_id))
+            order = order or out.order_id is not None
+            language_fixed = language_fixed or out.language_fixed
+            confirmation_fixed = confirmation_fixed or out.confirmation_fixed
+            final = out.reply or ""
+            for k in usage:
+                usage[k] += out.usage.get(k, 0)
+    finally:
+        logging.getLogger("joop").removeHandler(collect)
 
     fails = check_case(case, final, lead, handoff, order)
     return {
         "id": case["id"],
         "passed": not fails,
         "fails": fails,
+        **({"errors": collect.items[:3]} if collect.items else {}),
         "final_reply": final,
         "lead": lead,
         "handoff": handoff,
@@ -161,6 +205,10 @@ def main() -> None:
     if not settings.anthropic_api_key:
         sys.exit("ANTHROPIC_API_KEY is not set (environment or .env)")
     rt = Runtime(settings)
+    problem = preflight(rt.get_llm)
+    if problem:
+        prefix = "::error::" if os.environ.get("GITHUB_ACTIONS") else ""  # an annotation readable through the API
+        sys.exit(f"{prefix}The model {settings.model} does not answer, so the run is skipped: {problem}")
     arg = sys.argv[1] if len(sys.argv) > 1 else "business.example.yaml"
     if arg == "all" or arg in all_packs():
         names = [n for n, p in all_packs().items() if p.cases_file.exists()] if arg == "all" else [arg]

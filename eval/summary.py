@@ -32,7 +32,8 @@ def render(paths: list[str]) -> str:
         )
         for c in data["cases"]:
             if not c["passed"]:
-                failures.append(f"- `{c['id']}`: {'; '.join(c['fails'])}")
+                why = f" ({c['errors'][0]})" if c.get("errors") else ""
+                failures.append(f"- `{c['id']}`: {'; '.join(c['fails'])}{why}")
     out = "\n".join(lines)
     if failures:
         out += "\n\nFailed cases:\n" + "\n".join(failures)

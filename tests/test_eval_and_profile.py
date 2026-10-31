@@ -74,3 +74,44 @@ def test_summarize():
     s = summarize(results)
     assert s["passed"] == 1 and s["avg_latency_s"] == 2.0 and s["max_latency_s"] == 3.0
     assert s["input_tokens"] == 30 and s["avg_cost_usd_per_conversation"] == 0.002
+
+
+def test_failed_model_calls_are_recorded_and_preflight_stops_a_dead_run(tmp_path):
+    import json
+
+    from eval.run_eval import preflight
+    from joop.agent.llm import LLMError
+
+    from .conftest import FakeLLM
+
+    class CreditError(Exception):
+        pass
+
+    def broken():
+        try:
+            raise CreditError("Your credit balance is too low")
+        except CreditError as exc:
+            raise LLMError("Claude API call failed: CreditError") from exc
+
+    cases_file = tmp_path / "cases.yaml"
+    cases_file.write_text(json.dumps([{"id": "price", "turns": ["Сколько стоит чистка?"]}], ensure_ascii=False), "utf-8")
+    llm = FakeLLM([lambda system, messages: broken()])
+    data = run(DENTAL, str(cases_file), lambda: llm, "claude-haiku-5-5")
+    case = data["cases"][0]
+    assert not case["passed"] and "credit balance is too low" in case["errors"][0]
+    assert "credit balance is too low" in render_results(data)
+
+    dead = FakeLLM([lambda system, messages: broken()])
+    assert "credit balance is too low" in preflight(lambda: dead)
+    assert preflight(lambda: FakeLLM()) is None
+
+
+def render_results(data) -> str:
+    import json
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        p = Path(tmp) / "results.json"
+        p.write_text(json.dumps(data, ensure_ascii=False), "utf-8")
+        return render([str(p)])
