@@ -1,7 +1,7 @@
 """Business profiles in YAML: a quick way to load a client's price list, FAQ and rules.
 
 Format (see business.dental.example.yaml): name, description, address, hours, phone, services
-[{name, name_ky, price, duration, note}], faq [{q, a}], booking_policy, tone, rules [...].
+[{name, name_ky, price, duration, note}], faq [{q, q_ky, a}], booking_policy, tone, rules [...].
 """
 
 from __future__ import annotations
@@ -89,7 +89,7 @@ def apply_profile(
     for item in data.get("faq") or []:
         q, a = _text(item.get("q")), _text(item.get("a"))
         if q and a:
-            session.add(Faq(business_id=business.id, question=q, answer=a))
+            session.add(Faq(business_id=business.id, question=q, question_ky=_text(item.get("q_ky")), answer=a))
 
     if "work_start" in data or "work_end" in data or "days_off" in data:
         business.work_start = _text(data.get("work_start")) or business.work_start

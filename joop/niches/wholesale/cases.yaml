@@ -43,3 +43,8 @@
   expect_lang: ky
   turns: ["Бир термос сатып алсам болобу?"]
   must_contain_any: ["куту", "короб"]
+# Kyrgyz questions whose answer is only in the Russian FAQ (31 Oct 2026 experiment, see thesis 7.5)
+- id: kyfaq_retail
+  expect_lang: ky
+  turns: ['Бирден сатып алса болобу?']
+  must_contain_any: [коробка, куту]
