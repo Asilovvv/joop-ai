@@ -18,6 +18,10 @@ on:
         description: "How many times to run the chosen packs (model answers vary between runs)"
         required: false
         default: "1"
+      model:
+        description: "Model for this run (empty = JOOP_MODEL default, claude-haiku-5-5)"
+        required: false
+        default: ""
       kyfill:
         description: "Only the Kyrgyz suggestions check (eval/kyrgyz_fill.py): true/false"
         required: false
@@ -33,7 +37,7 @@ concurrency:
 jobs:
   eval:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120  # slower models need more than the 40 minutes Haiku takes
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -48,6 +52,7 @@ jobs:
           PACKS: ${{ inputs.packs }}
           REPEAT: ${{ inputs.repeat }}
           KYFILL: ${{ inputs.kyfill }}
+          JOOP_MODEL: ${{ inputs.model }}
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "::error::Add the repository secret ANTHROPIC_API_KEY (Settings -> Secrets and variables -> Actions)"
