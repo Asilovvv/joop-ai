@@ -18,6 +18,10 @@ on:
         description: "How many times to run the chosen packs (model answers vary between runs)"
         required: false
         default: "1"
+      kyfill:
+        description: "Only the Kyrgyz suggestions check (eval/kyrgyz_fill.py): true/false"
+        required: false
+        default: "false"
 
 permissions:
   contents: write  # only to push result files to the eval-results branch
@@ -43,10 +47,15 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           PACKS: ${{ inputs.packs }}
           REPEAT: ${{ inputs.repeat }}
+          KYFILL: ${{ inputs.kyfill }}
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "::error::Add the repository secret ANTHROPIC_API_KEY (Settings -> Secrets and variables -> Actions)"
             exit 1
+          fi
+          if [ "$KYFILL" = "true" ]; then
+            python -m eval.kyrgyz_fill eval/results_kyfill.json
+            exit 0
           fi
           if [ -n "$PACKS" ]; then
             for i in $(seq 1 "${REPEAT:-1}"); do
