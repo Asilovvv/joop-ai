@@ -15,7 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import health
+from .. import altegio, health
 from ..billing import access_ok
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -24,7 +24,7 @@ from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order,
 from ..niches import Pack, get_pack
 from ..phone import normalize_phone
 from ..pricing import cost_usd, empty_usage
-from ..slots import claim_slot, free_slots, requested_time, seats_left, seats_needed
+from ..slots import claim_slot, free_slots, release_slot, requested_time, seats_left, seats_needed
 from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
@@ -47,6 +47,10 @@ TEXT_ONLY_REPLY = (
 ERROR_REPLY = (
     "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\n"
     "Извините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся."
+)
+EXTERNAL_DOWN_REPLY = (
+    "Не получилось сразу подтвердить запись в системе салона. Я передала заявку администратору — "
+    "он подтвердит время и напишет вам."
 )
 ASK_CONTACTS_REPLY = (
     "Чтобы записать вас, напишите, пожалуйста, имя и номер телефона, например: Айбек, 0555 123 456."
@@ -81,6 +85,7 @@ def handle_incoming(
     get_llm: Callable[[], LLMClient],
     now_utc: datetime | None = None,
     base_url: str = "",
+    get_altegio: Callable[[Business], "altegio.AltegioClient | None"] | None = None,
 ) -> Outcome:
     now = now_utc or utcnow()
     now_local = utc_to_local(now, business.timezone)
@@ -205,9 +210,19 @@ def handle_incoming(
                     outcome.reply += waitlist.waiting_line(is_kyrgyz_message(text))
                 outcome.admin_notes.append(_request_note(conv, request, off))
         else:
-            outcome.reply, booking = _try_booking(
-                session, business, conv, result.booking, result.reply, now, now_local, off, incoming.channel, pack
-            )
+            client = get_altegio(business) if get_altegio and business.altegio_location_id else None
+            try:
+                outcome.reply, booking = _try_booking(
+                    session, business, conv, result.booking, result.reply, now, now_local, off, incoming.channel, pack, client
+                )
+            except _ExternalDown as down:  # the salon's own booking system did not answer: staff confirm the time
+                data = dict(result.booking, preferred_time=down.when)
+                _, request = _booking_request(session, business, conv, data, "", now, off)
+                booking = None
+                outcome.reply = EXTERNAL_DOWN_REPLY
+                if request is not None:
+                    outcome.request_id = request.id
+                    outcome.admin_notes.append(_request_note(conv, request, off))
             if booking is not None:
                 outcome.booking_id = booking.id
                 waitlist.mark_booked(session, conv.id)
@@ -493,6 +508,12 @@ def _alternatives(
     return [f"{fmt_slot(slot.start)} ({member.name})" for slot, member in rows[:3]]
 
 
+class _ExternalDown(Exception):
+    def __init__(self, when: str) -> None:
+        super().__init__(when)
+        self.when = when
+
+
 def _try_booking(
     session: Session,
     business: Business,
@@ -504,6 +525,7 @@ def _try_booking(
     off: bool,
     channel: str,
     pack: Pack | None = None,
+    external: "altegio.AltegioClient | None" = None,
 ) -> tuple[str, Booking | None]:
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
@@ -544,6 +566,24 @@ def _try_booking(
             text = "Извините, это время уже занято. Оставьте удобное время — администратор перезвонит и подберёт запись."
         return text, None
 
+    record_id = ""
+    if external is not None and member.external_id:
+        # Joop's checks passed and the slot is claimed here; now the salon's system checks it too, then records it.
+        service = (data.get("service") or "").strip()[:200]
+        try:
+            record_id = altegio.push_booking(session, business, external, slot, member, service, name, phone,
+                                             api_id=f"joop-{business.id}-{slot.id}")
+        except altegio.AltegioError as exc:
+            log.warning("Altegio booking for %s failed: %s", business.slug, exc)
+            if not exc.taken:
+                release_slot(session, slot.id, seats_needed(slot, party))
+                raise _ExternalDown(fmt_slot(slot.start)) from exc
+            # Taken in Altegio (someone booked by phone or in the widget): the slot stays closed here as well.
+            options = _alternatives(session, business, now_local, slot.staff_id)
+            text = "Извините, это время уже занято. " + ("Свободно: " + "; ".join(options) + ". Какое удобно?" if options
+                                                         else "Оставьте удобное время — администратор подберёт запись.")
+            return text, None
+
     booking = Booking(
         business_id=business.id,
         slot_id=slot.id,
@@ -559,6 +599,7 @@ def _try_booking(
         chat_id=conv.chat_id,
         created_at=now,
         created_off_hours=off,
+        external_id=record_id,
     )
     session.add(booking)
     conv.customer_name = name

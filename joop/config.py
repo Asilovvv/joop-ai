@@ -73,6 +73,8 @@ class Settings:
     site_demo_daily_limit: int = 300  # visitor messages a day to the live demo on the site; 0 = demo off
     founder_bot_token: str = ""  # Telegram bot that alerts the founder when the AI stops answering (joop/health.py)
     founder_chat_id: str = ""
+    altegio_partner_token: str = ""  # Joop's partner token for the Altegio API (joop/altegio.py); a salon may set its own
+    altegio_api_base: str = "https://api.alteg.io/api/v1"
     billing_instructions: str = ""  # how to pay by transfer or QR, shown on the billing page
     freedompay_merchant_id: str = ""
     freedompay_secret_key: str = ""
@@ -120,6 +122,8 @@ def settings_from_env() -> Settings:
         site_demo_daily_limit=_int(env.get("SITE_DEMO_DAILY_LIMIT"), 300),
         founder_bot_token=env.get("FOUNDER_BOT_TOKEN", "").strip(),
         founder_chat_id=env.get("FOUNDER_CHAT_ID", "").strip(),
+        altegio_partner_token=env.get("ALTEGIO_PARTNER_TOKEN", "").strip(),
+        altegio_api_base=env.get("ALTEGIO_API_BASE", "https://api.alteg.io/api/v1").rstrip("/"),
         billing_instructions=env.get("BILLING_INSTRUCTIONS", "").strip(),
         freedompay_merchant_id=env.get("FREEDOMPAY_MERCHANT_ID", "").strip(),
         freedompay_secret_key=env.get("FREEDOMPAY_SECRET_KEY", "").strip(),

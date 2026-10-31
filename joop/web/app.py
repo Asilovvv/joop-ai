@@ -990,7 +990,53 @@ def channels_page(request: Request):
             telegram_url=f"{base}/webhooks/telegram/{b.slug}" if base else "",
             meta_url=f"{base}/webhooks/meta" if base else "",
             meta_ready=bool(settings.meta_verify_token and (settings.meta_app_secret or settings.instagram_app_secret)),
+            altegio_shared=bool(settings.altegio_partner_token),
+            altegio_synced=utc_to_local(b.altegio_synced_at, b.timezone) if b.altegio_synced_at else None,
         )
+
+
+@router.post("/panel/altegio")
+def altegio_save(request: Request, location_id: str = Form(""), token: str = Form(""), clear_token: str = Form(""),
+                 action: str = Form("connect"), csrf: str = Form("")):
+    """Connect the salon's Altegio location: check the ID by loading its services and team right away;
+    the free times follow within a minute (scheduler)."""
+    from .. import altegio
+
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        if action == "disconnect":
+            b.altegio_location_id, b.altegio_error, b.altegio_synced_at = 0, "", None
+            s.add(b)
+            s.commit()
+            _flash(request, "Altegio отключён. Прайс и сотрудники остались; включите нужных вручную в разделе «Сотрудники».")
+            return _back("/panel/channels")
+        digits = "".join(ch for ch in location_id if ch.isdigit())[:12]
+        if not digits or int(digits) <= 0:
+            _flash(request, "Укажите ID филиала в Altegio — это число из адреса вашей онлайн-записи.", "error")
+            return _back("/panel/channels")
+        b.altegio_location_id = int(digits)
+        if clear_token:
+            b.altegio_token = ""
+        elif token.strip():
+            b.altegio_token = token.strip()[:500]
+        client = _rt(request).altegio(b)
+        if client is None:
+            _flash(request, "Нет ключа Altegio: вставьте ключ партнёра или попросите нас включить общий ключ.", "error")
+            s.add(b)
+            s.commit()
+            return _back("/panel/channels")
+        try:
+            res = altegio.sync(s, b, client, utcnow(), with_slots=False)
+        except altegio.AltegioError as exc:
+            s.rollback()
+            _flash(request, f"Altegio не принял подключение ({exc.status or 'нет связи'}). Проверьте ID филиала и ключ.", "error")
+            return _back("/panel/channels")
+        b.altegio_synced_at = None  # the scheduler loads the free times on its next round
+        s.add(b)
+        s.commit()
+        _flash(request, f"Altegio подключён: услуг {res.services}, сотрудников {res.staff}. Свободные окна загрузятся в течение минуты.")
+    return _back("/panel/channels")
 
 
 @router.post("/panel/channels")

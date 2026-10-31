@@ -256,7 +256,8 @@ def try_send(request: Request, text: str = Form(""), csrf: str = Form("")):
         incoming = IncomingMessage("console", TRY_CHAT_ID, "command" if text.startswith("/") else "text", text, "Тест",
                                    f"console:{TRY_CHAT_ID}:{secrets.token_hex(6)}")
         try:
-            outcome = handle_incoming(s, b, incoming, _rt(request).get_llm, base_url=_base_url(request))
+            outcome = handle_incoming(s, b, incoming, _rt(request).get_llm, base_url=_base_url(request),
+                                       get_altegio=_rt(request).altegio)
             s.commit()
         except Exception:
             s.rollback()
