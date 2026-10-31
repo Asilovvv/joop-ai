@@ -203,3 +203,17 @@ def test_booking_needs_a_name_the_customer_gave(business):
         s.commit()
         assert out.booking_id  # Latin spelling of the same name counts
     assert _fold("Жаңыл") == _fold("Zhanyl")
+
+
+def test_outage_sends_one_note_then_summaries(business):
+    notes = []
+    for i in range(10):
+        llm = FakeLLM([LLMError("boom")])
+        outcome = run(business, tg("Здравствуйте", chat=str(7000 + i), ext=f"o{i}"), llm)
+        assert outcome.reply == ERROR_REPLY and outcome.lead_id
+        notes.append(outcome.admin_notes)
+    assert "Заявка администратору" in notes[0][0] and "отдельных уведомлений не будет" in notes[0][0]
+    assert all(n == [] for n in notes[1:9])
+    assert "без ответа остались 10 сообщений" in notes[9][0]
+    with db.new_session() as s:
+        assert len(s.exec(select(Lead).where(Lead.business_id == business.id, Lead.kind == "error")).all()) == 10
