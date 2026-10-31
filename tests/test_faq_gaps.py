@@ -71,3 +71,18 @@ def test_owner_answers_a_gap_once_and_it_leaves_the_list(client, business):
     client.post("/panel/faq", data={"question": "Q", "answer": "A", "lead_id": str(foreign_id), "csrf": csrf_of(client.get("/panel/faq").text)})
     with db.new_session() as s:
         assert s.exec(select(Faq).where(Faq.question == "Q")).one().source_lead_id is None
+
+
+def test_weekly_report_reminds_the_owner_of_unanswered_questions(business):
+    from joop.scheduler import weekly_report_text
+
+    now = utcnow()
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        handoff(s, b, "Есть ли у вас детское кресло?", now - timedelta(days=1))
+        s.commit()
+        text = weekly_report_text(s, b, now)
+        assert "у ИИ не было ответа: 1 (панель, раздел «Вопросы»)" in text and "ИИ будет отвечать на них сам" in text
+        s.add(Faq(business_id=b.id, question="Есть ли у вас детское кресло?", answer="Да."))
+        s.commit()
+        assert "не было ответа" not in weekly_report_text(s, b, now)
