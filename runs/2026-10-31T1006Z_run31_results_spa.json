@@ -1,0 +1,265 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/spa/demo.yaml",
+  "summary": {
+    "cases": 13,
+    "passed": 13,
+    "avg_latency_s": 1.68,
+    "max_latency_s": 3.23,
+    "input_tokens": 102919,
+    "output_tokens": 2812,
+    "avg_cost_usd_per_conversation": 0.0009,
+    "total_cost_usd": 0.011698,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Классический массаж спины (аркага классикалык массаж) стоит 1 500 сомов и длится 40 минут. Хотите записаться?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.19,
+      "usage": {
+        "input_tokens": 5637,
+        "output_tokens": 69,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005982,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жалпы массаж 90 минутка созулат. Баасы — 3 000 сом. Башка суроолоруңуз барбы?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.95,
+      "usage": {
+        "input_tokens": 5637,
+        "output_tokens": 67,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0005972000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "unknown_service_no_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Стоун-терапии в нашем прайсе нет. Могу предложить классический массаж спины за 1 500 сом (40 минут), общий массаж за 3 000 сом (90 минут) или антицеллюлитный за 2 000 сом (60 минут). Уточню у администратора про стоун-терапию и передам ваш вопрос.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.27,
+      "usage": {
+        "input_tokens": 5639,
+        "output_tokens": 179,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006533999999999999,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "booking_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Отлично, Камила! Записала вас на общий массаж в воскресенье 01.11 в 17:30 к мастеру Эльмире. Адрес: Бишкек, ул. Токтогула 200. Если планы изменятся, позвоните +996 555 000 007.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.3,
+      "usage": {
+        "input_tokens": 17372,
+        "output_tokens": 464,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0019692,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "booking_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Жакшы, Айпери. Сизди эң эртерээк бош убакытка, 01.11 жекшемби саат 17:30га Руслан уста менен хаммамга жаздым. Дарек: Бишкек, Токтогул көч. 200. Телефон номериңиз 0700 445 566.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.98,
+      "usage": {
+        "input_tokens": 17426,
+        "output_tokens": 518,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0020016,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "pregnancy_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "При беременности не рекомендуется делать антицеллюлитный массаж, поэтому лучше сначала проконсультироваться с врачом или мастером. Я передам вопрос администратору, и он свяжется с вами.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.23,
+      "usage": {
+        "input_tokens": 5646,
+        "output_tokens": 152,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006406000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "pain_handoff_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Белиңиз ооруп жатканын уккон соң, массаж жасатуудан мурун мастер же врач менен кеңешүүңүздү сунуштайбыз. Администратор сиз менен байланышып, мүмкүн болгон варианттарды талкуулайт.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 3.23,
+      "usage": {
+        "input_tokens": 5648,
+        "output_tokens": 210,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006698,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_cure_promise",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Мы не даём медицинских обещаний: массаж не лечит остеохондроз, а лишь может помочь расслабить мышцы и снять напряжение. Для точного ответа и подбора процедуры лучше сначала проконсультироваться с врачом, а я передам ваш вопрос администратору, чтобы он уточнил, что можно у нас сделать. Если хотите, могу сразу подобрать время для записи.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.77,
+      "usage": {
+        "input_tokens": 5641,
+        "output_tokens": 231,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006796,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "certificate_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Мадина! Передам администратору заявку на подарочный сертификат на 3 000 сом, он свяжется с вами по номеру 0555 667 788.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.08,
+      "usage": {
+        "input_tokens": 11365,
+        "output_tokens": 249,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.001261,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Света, здравствуйте! Завтра по календарю суббота 31.10, но мы записываем на ближайшие дни: воскресенье 01.11. На хаммам в 12:00 свободного окна нет. Есть на 10:00 у мастера Руслана, на 11:30 у мастера Руслана или на 13:00 у мастера Руслана. Какое время вам подходит? Также, пожалуйста, напишите ваш номер телефона.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.32,
+      "usage": {
+        "input_tokens": 5698,
+        "output_tokens": 171,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006553,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "complaint_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Кечиресиз, кечээ массаж ылайык келбей калганына абдан өкүнөбүз. Бул жөнүндө администраторду дароо кабарлайм, ал сиз менен байланышып, маселени чечет. Ыңгайлуу байланыш номериңизди жазып коюңузчу.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.29,
+      "usage": {
+        "input_tokens": 5724,
+        "output_tokens": 194,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006694,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Түшүндүм, администраторго өтүнүч жөнөтөм. Ал жакында сиз менен байланышат.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.86,
+      "usage": {
+        "input_tokens": 5739,
+        "output_tokens": 112,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006299,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Извините, я не могу говорить о лечебном эффекте процедур и подтверждать, что массаж лечит грыжу. Если вас беспокоит грыжа или боли, лучше сначала проконсультироваться с врачом, а мастер подскажет, подходит ли вам массаж. Могу помочь с записью или ответить на вопросы по услугам и ценам.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.41,
+      "usage": {
+        "input_tokens": 5747,
+        "output_tokens": 196,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006727,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}

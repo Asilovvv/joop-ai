@@ -1,0 +1,265 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/wholesale/demo.yaml",
+  "summary": {
+    "cases": 13,
+    "passed": 13,
+    "avg_latency_s": 1.47,
+    "max_latency_s": 2.42,
+    "input_tokens": 44251,
+    "output_tokens": 2479,
+    "avg_cost_usd_per_conversation": 0.000436,
+    "total_cost_usd": 0.005665,
+    "language_guard_fired": 0,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Термос 1 л, коробка 24 шт., стоит 7 200 сом. Минимальный заказ — 1 коробка. Хотите оформить заказ?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.17,
+      "usage": {
+        "input_tokens": 2729,
+        "output_tokens": 81,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00031340000000000003,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Кир кургаткыч, куту 10 даана — 9 500 сом. Заказ үчүн минималдуу сумма 10 000 сом экенин эске алыңыз.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.16,
+      "usage": {
+        "input_tokens": 2729,
+        "output_tokens": 86,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00031590000000000003,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "stop_list_not_offered",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Светодиодная лампа 12 Вт, коробка 100 шт. сейчас нет в наличии. Могу предложить термос 1 л, набор контейнеров для еды или сушилку для белья. Что вас интересует?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.12,
+      "usage": {
+        "input_tokens": 2727,
+        "output_tokens": 102,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003237,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_retail",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте! Термос продаём только коробками по 24 штуки, минимум одна коробка, стоимость 7 200 сом за коробку. Оформить заказ коробкой?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.94,
+      "usage": {
+        "input_tokens": 2724,
+        "output_tokens": 89,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00031690000000000006,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "order_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Улан. Заказ на завтра утром на самовывоз записан, вы сможете забрать его по адресу: Бишкек, рынок Дордой, контейнер 12. Администратор проверит детали и подтвердит заказ, если понадобится.\nСумма заказа: 33 600 сом.",
+      "lead": false,
+      "handoff": false,
+      "order": true,
+      "avg_latency_s": 1.39,
+      "usage": {
+        "input_tokens": 5597,
+        "output_tokens": 328,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007237000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "order_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Жамиля. Эртең эртең менен келе турганыңызды жазып алдым. Ошол убакытта тапшырууга даяр болот, эгер мындан башка суроолоруңуз болсо, жазыңыз. Эскертүү: биздин иш убактыбыз күн сайын 07:00–16:00, ошондуктан эртең эртең менен ушул убакытта келсеңиз болот.\nСумма заказа: 19 000 сом.",
+      "lead": false,
+      "handoff": false,
+      "order": true,
+      "avg_latency_s": 2.08,
+      "usage": {
+        "input_tokens": 5601,
+        "output_tokens": 372,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0007461,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "lead_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Айдана! Партия на 100 000 сом и доставка в Ош в течение месяца записаны. Специалист свяжется с вами по номеру 0555 787 980 и уточнит ассортимент и сроки.",
+      "lead": true,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.66,
+      "usage": {
+        "input_tokens": 5723,
+        "output_tokens": 521,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0008328000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_discount_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Скидку за объём в каталоге не предусмотрено, поэтому обещать 15% не могу. Уточню у администратора условия для оптовой партии из 50 коробок и вернусь с ответом в рабочее время.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.51,
+      "usage": {
+        "input_tokens": 2736,
+        "output_tokens": 154,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003506,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "china_terms_handoff",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Сроки доставки контейнера из Гуанчжоу и вопросы таможни уточнит администратор. Передам ему ваш вопрос, он свяжется с вами в рабочее время.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.86,
+      "usage": {
+        "input_tokens": 2745,
+        "output_tokens": 165,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000357,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Эркин! Чтобы оформить заказ на 5 коробок термосов с самовывозом, напишите, пожалуйста, ваш номер телефона и к какому времени вам удобно забрать заказ.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.08,
+      "usage": {
+        "input_tokens": 2739,
+        "output_tokens": 102,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00032490000000000004,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Түшүнүктүү, менеджер менен байланыштыруу үчүн администраторго өтүнүч жөнөтөм. Азыр иш убактысы эмес, ошондуктан администратор дүйшөмбүдөн баштап, иш убактысында сиз менен байланышат. Ал үчүн аты-жөнүңүздү жана телефон номериңизди жазып коюңузчу.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.42,
+      "usage": {
+        "input_tokens": 2733,
+        "output_tokens": 225,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003858,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Цены в нашем каталоге фиксированные, изменить их я не могу. Могу помочь с заказом по актуальным ценам: термос 1 л — 7 200 сом за коробку, набор контейнеров — 6 000, сушилка для белья — 9 500. Какая позиция вас интересует?",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.16,
+      "usage": {
+        "input_tokens": 2738,
+        "output_tokens": 128,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003378,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "min_order_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Ооба, бирок биз коробка менен гана сатабыз. Термос 1 л, куту 24 даана, баасы 7 200 сом (минимум 1 коробка). Заказ берүү үчүн аты-жөнүңүздү жана телефон номериңизди жазыңызчы.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.61,
+      "usage": {
+        "input_tokens": 2730,
+        "output_tokens": 126,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000336,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}
