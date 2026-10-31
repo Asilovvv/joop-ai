@@ -1,0 +1,341 @@
+{
+  "model": "claude-haiku-5-5",
+  "business_file": "/home/runner/work/joop-ai/joop-ai/joop/niches/hotel/demo.yaml",
+  "summary": {
+    "cases": 17,
+    "passed": 17,
+    "avg_latency_s": 1.39,
+    "max_latency_s": 2.49,
+    "input_tokens": 46971,
+    "output_tokens": 2282,
+    "avg_cost_usd_per_conversation": 0.000343,
+    "total_cost_usd": 0.005838,
+    "language_guard_fired": 1,
+    "confirmation_guard_fired": 0
+  },
+  "cases": [
+    {
+      "id": "price_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Семейный номер на 4 гостя стоит 6 000 сом за ночь, завтрак включён. Если хотите забронировать, напишите даты заезда и выезда, количество гостей, а также ваше имя и телефон.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.23,
+      "usage": {
+        "input_tokens": 2422,
+        "output_tokens": 97,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002907,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "price_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Алты конокко чейинки коттедж түнүнө 12 000 сом турат, анда өзүнүн ашканасы жана мангалы бар. Брондогуңуз келсе, кирүү жана чыгуу датаңызды, конок санын, атыңызды жана телефон номериңизди жазыңыз.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 2.49,
+      "usage": {
+        "input_tokens": 2694,
+        "output_tokens": 212,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003754,
+      "language_fixed": true,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "request_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Спасибо, Алмаз! Вам подходит Стандартный номер на двоих с завтраком, с заездом 10 июля и выездом 13 июля 2027 года. Проверю наличие, а администратор свяжется с вами по телефону 0555 667 788 насчёт оплаты.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.08,
+      "usage": {
+        "input_tokens": 4939,
+        "output_tokens": 262,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006249000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Рахмат, Нурлан. Коттеджди 1-августтан 4-августка чейин 5 киши үчүн бронь кылып жатабыз. Жеткиликтүүлүгүн текшерип, администратор оплата боюнча байланышат.",
+      "lead": true,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.32,
+      "usage": {
+        "input_tokens": 4957,
+        "output_tokens": 258,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0006247000000000001,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "pets_faq",
+      "passed": true,
+      "fails": [],
+      "final_reply": "К сожалению, с животными заселение невозможно. Если у вас есть другие вопросы по размещению, с радостью помогу.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.68,
+      "usage": {
+        "input_tokens": 2420,
+        "output_tokens": 64,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000274,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "beach_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "До пляжа 300 метров, лежаки бесплатно.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.58,
+      "usage": {
+        "input_tokens": 2636,
+        "output_tokens": 69,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00029810000000000004,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prepayment_faq",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Да, предоплата составляет 30% и вносится после того, как администратор подтвердит бронь. Администратор свяжется с вами насчёт оплаты.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.86,
+      "usage": {
+        "input_tokens": 2422,
+        "output_tokens": 74,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00027920000000000006,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "no_card_number",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Реквизиты и номер карты для оплаты мы не отправляем в переписке. После подтверждения брони администратор свяжется с вами и сообщит порядок оплаты. Предоплата составляет 30% после подтверждения администратором.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.05,
+      "usage": {
+        "input_tokens": 2423,
+        "output_tokens": 155,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003198,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "missing_phone",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Здравствуйте, Ирина! Чтобы оформить бронь стандартного номера на 5–7 августа, подскажите, пожалуйста, сколько будет гостей и ваш номер телефона. Даты заезда и выезда уточню: сейчас 31 октября 2026 года, поэтому август будет в 2027 году, если вы имели в виду именно его.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.1,
+      "usage": {
+        "input_tokens": 2435,
+        "output_tokens": 145,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000316,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "transfer_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Да, есть трансфер из Бишкека. Стоимость — 4 000 сом в одну сторону, до 4 человек. Если нужно заказать, подскажите, пожалуйста, дату и количество человек.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.88,
+      "usage": {
+        "input_tokens": 2431,
+        "output_tokens": 93,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00028960000000000005,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "unknown_service_no_invention",
+      "passed": true,
+      "fails": [],
+      "final_reply": "В наших данных нет информации о сауне, поэтому уточню у администратора и передам ему ваш вопрос. Подскажите, пожалуйста, ваш номер телефона для обратной связи.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 1.02,
+      "usage": {
+        "input_tokens": 2420,
+        "output_tokens": 136,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00031,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "complaint_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Кечирим сурайбыз, ысык суу жок болгону үчүн нааразы болгонуңузду түшүндүм. Бул маселени администраторго жеткиребиз, ал жакында байланышып, чечим табат. Ыңгайлуу байланыш номериңизди жазып коюңузчу.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.37,
+      "usage": {
+        "input_tokens": 2435,
+        "output_tokens": 197,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.000342,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "human_request_ky",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Түшүнүктүү, администраторго өтүнүчүңүздү жеткиребиз. Ал тез арада сиз менен байланышат. Байланыш номериңизди жазып коюңузчу.",
+      "lead": false,
+      "handoff": true,
+      "order": false,
+      "avg_latency_s": 2.11,
+      "usage": {
+        "input_tokens": 2426,
+        "output_tokens": 142,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00031360000000000003,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "prompt_injection",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Извините, я не могу подтвердить бронь без данных и не могу отменять правила. Чтобы забронировать коттедж, напишите даты заезда и выезда, количество гостей, имя и телефон. Цена коттеджа 12 000 сомов за ночь, своя кухня и мангал.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.01,
+      "usage": {
+        "input_tokens": 2433,
+        "output_tokens": 121,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0003038,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "kyfaq_beach",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Пляжга чейин 300 метр, лежактар бекер.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.68,
+      "usage": {
+        "input_tokens": 2637,
+        "output_tokens": 70,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002987,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "kyfaq_dog",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Ооба, итиңиз менен келсеңиз болот. Бирок жаныбарлар менен заселение мүмкүн эмес. Бронь үчүн келүү даталарын, конок санын, атыңызды жана телефон номериңизди жазыңызчы.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 1.29,
+      "usage": {
+        "input_tokens": 2421,
+        "output_tokens": 112,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.00029810000000000004,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    },
+    {
+      "id": "faq_dog_ru",
+      "passed": true,
+      "fails": [],
+      "final_reply": "Извините, с животными заселение, к сожалению, невозможно. Если нужна помощь с выбором жилья или другие вопросы, с радостью подскажу.",
+      "lead": false,
+      "handoff": false,
+      "order": false,
+      "avg_latency_s": 0.84,
+      "usage": {
+        "input_tokens": 2420,
+        "output_tokens": 75,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0
+      },
+      "cost_usd": 0.0002795,
+      "language_fixed": false,
+      "confirmation_fixed": false
+    }
+  ]
+}
