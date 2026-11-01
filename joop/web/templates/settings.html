@@ -51,6 +51,19 @@
   </section>
   {% endif %}
 
+  {% if pack.has('booking') %}
+  <section class="card stack">
+    <h2>Предоплата за запись</h2>
+    <p class="muted small">Сразу после записи ИИ напишет клиенту сумму, как оплатить и до какого времени, и попросит прислать чек. Деньги приходят вам напрямую — Joop их не принимает. Чек или «оплатила» от клиента придёт вам уведомлением, а оплату вы отмечаете в разделе «Записи». Если визит раньше, чем через час с небольшим, предоплату не просим. 0 — выключено.</p>
+    <div class="grid2">
+      <label for="s-dep">Сумма, сом<input id="s-dep" type="number" min="0" max="100000" name="deposit_amount" value="{{ business.deposit_amount }}"></label>
+      <label for="s-deph">Сколько часов на оплату<input id="s-deph" type="number" min="1" max="48" name="deposit_hours" value="{{ business.deposit_hours }}"></label>
+    </div>
+    <label for="s-depd">Как оплатить<input id="s-depd" name="deposit_details" maxlength="300" value="{{ business.deposit_details }}" placeholder="перевод MBank по номеру 0555 123 456 (Айгерим К.) или ссылка на оплату"></label>
+    <label class="check"><input type="checkbox" name="deposit_auto_cancel" value="1" {{ 'checked' if business.deposit_auto_cancel }}> Снимать запись, если предоплата не пришла к сроку (иначе — только уведомление вам)</label>
+  </section>
+  {% endif %}
+
   <section class="card stack">
     <h2>Поведение ИИ</h2>
     <label for="s-desc">О компании, одной-двумя фразами<textarea id="s-desc" name="description">{{ business.description }}</textarea></label>

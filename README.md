@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram, WhatsApp Cloud API, Instagram Direct; Altegio for salons that book there |
 | Size | about 9,700 lines of Python in `joop/`, 46 page templates, 16 database migrations, 20 niche packs and a generic one |
-| Tests | 291 automated tests (about 4,800 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 300 automated tests (about 4,950 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 51 merged pull requests; changes go through pull requests checked by CI |
 
@@ -186,6 +186,12 @@ WhatsApp message fees for reminders.
   as a handoff. Each service can have "invite again after N days" (manicure 21, cleaning 180): the AI
   invites the customer back unless they have already booked. Messages go only where the channel allows
   (Telegram any time, WhatsApp / Instagram within 24 hours); the rest is listed for the staff.
+- **Prepayment** (settings "Предоплата за запись", off by default): right after the AI books, the customer
+  gets the amount, how to pay (a transfer by phone number or the business's own payment link) and a deadline,
+  never later than an hour before the visit. Joop does not touch the money. A receipt photo or "оплатила"
+  goes to staff as "please check", staff press "Предоплата получена" on the "Записи" page and the customer
+  is told. If nothing comes by the deadline, staff are told, or the booking is released and the customer
+  is told why, if the business chose that.
 - **Broadcasts** (`/panel/broadcasts`): one message to a group of customers: everybody who wrote, those
   who visited, those not seen for N days, those who had a given service, or those who wrote but never
   booked. The owner sees how many will get it per channel, can send a test to their own Telegram and may
@@ -247,7 +253,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 291 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 300 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

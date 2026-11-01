@@ -10,7 +10,7 @@
   {% if upcoming %}
   <div class="scroll">
     <table class="table">
-      <thead><tr><th>Когда</th><th>Клиент</th><th>Услуга</th><th>Специалист</th><th>Канал</th><th>Напоминание</th><th></th></tr></thead>
+      <thead><tr><th>Когда</th><th>Клиент</th><th>Услуга</th><th>Специалист</th><th>Канал</th><th>Напоминание, оплата</th><th></th></tr></thead>
       <tbody>
       {% for b in upcoming %}
       <tr class="{{ 'cancelled' if b.status == 'cancelled' else '' }}">
@@ -19,8 +19,9 @@
         <td>{{ b.service or 'приём' }}{% if b.loyalty_visit %} <span class="chip ok">{{ b.loyalty_visit }}-й визит: {{ business.loyalty_reward }}</span>{% endif %}{% if b.intake_answers %}<br><span class="small" style="white-space: pre-wrap">{{ b.intake_answers }}</span>{% elif b.intake_status == 'asked' %}<br><span class="muted small">ждём ответы на вопросы</span>{% endif %}</td>
         <td>{{ b.staff_name }}</td>
         <td>{{ channel_names.get(b.channel, 'вручную') }}{% if b.created_off_hours %} <span class="chip warn">ночью</span>{% endif %}</td>
-        <td>{{ {'sent': 'отправлено', 'manual': 'вручную', 'failed': 'ошибка'}.get(b.reminder_status, '—') }}</td>
+        <td>{{ {'sent': 'отправлено', 'manual': 'вручную', 'failed': 'ошибка'}.get(b.reminder_status, '—') }}{% if b.deposit_status %}<br>{% set ds = b.deposit_status %}<span class="chip {{ 'ok' if ds == 'paid' else 'warn' }}">{% if ds == 'awaiting' %}ждём предоплату {{ b.deposit_due }} сом до {{ b.deposit_deadline|local(business.timezone) }}{% elif ds == 'check' %}прислал чек — проверьте {{ b.deposit_due }} сом{% elif ds == 'paid' %}предоплата {{ b.deposit_due }} сом получена{% elif ds == 'overdue' %}предоплата не пришла{% else %}снята: не было предоплаты{% endif %}</span>{% endif %}</td>
         <td>{% if b.status == 'booked' %}
+          {% if b.deposit_status in ('awaiting', 'check', 'overdue') %}<form method="post" action="/panel/bookings/{{ b.id }}/paid" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small" type="submit">Предоплата получена</button></form>{% endif %}
           <form method="post" action="/panel/bookings/{{ b.id }}/cancel" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small danger" type="submit">Отменить</button></form>
         {% else %}<span class="muted small">отменена</span>{% endif %}</td>
       </tr>
