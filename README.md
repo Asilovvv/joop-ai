@@ -25,7 +25,8 @@ requests and CI runs document its progress.
 
 Screenshots: a local server with demo data. Documentation: [architecture](docs/architecture.md),
 [niche packs](docs/multi-niche-design.md), [channels](docs/channels.md), [first launch on a
-server](docs/deploy.md), [pilot economics](docs/pilot-economics.md).
+server](docs/deploy.md), [pilot economics](docs/pilot-economics.md),
+[Altegio Marketplace package](docs/altegio-marketplace.md).
 
 An AI administrator for small businesses in Kyrgyzstan. It answers customers in Telegram,
 WhatsApp and Instagram Direct, in Russian or Kyrgyz, quotes prices from the business's own price
