@@ -48,3 +48,13 @@
   expect_lang: ky
   turns: ['Балдарды кабыл аласыздарбы?']
   must_contain_any: ['3', Элина]
+# Guests writing in other languages (prompt rule of 1 Nov 2026): not yet run on the real model.
+- id: lang_en_price
+  expect_lang: en
+  turns: ["Hi! How much is a consultation?"]
+  must_contain_any: ["500"]
+- id: lang_zh_price
+  expect_lang: zh
+  turns: ["你好，咨询多少钱？"]
+  must_contain_any: ["500"]
+

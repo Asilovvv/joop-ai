@@ -41,6 +41,11 @@ from joop.niches import all_packs
 from joop.profile import apply_profile, load_profile
 
 
+def _mostly(text: str, wanted: str, other: str) -> bool:
+    """More letters of one script than of another: an English reply may quote a Russian service name."""
+    return len(re.findall(wanted, text)) > len(re.findall(other, text))
+
+
 def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, order_saved: bool = False) -> list[str]:
     """Return a list of failure reasons (empty = pass)."""
     fails = []
@@ -49,6 +54,10 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, ord
         fails.append("no answer: the bot sent the generic fallback")
     if "**" in final_text or re.search(r"(?m)^#{1,6} ", final_text):
         fails.append("markdown in reply (messengers show it as raw symbols)")
+    if case.get("expect_lang") == "en" and not _mostly(final_text, r"[A-Za-z]", r"[А-Яа-яЁёҢңӨөҮү]"):
+        fails.append("reply is not in English")
+    if case.get("expect_lang") == "zh" and not re.search(r"[\u4e00-\u9fff]", final_text):
+        fails.append("reply is not in Chinese")
     if case.get("expect_lang") == "ky" and not looks_kyrgyz(final_text) and looks_russian(final_text):
         fails.append("reply is in Russian, not Kyrgyz")
     if "expect_lead" in case and bool(case["expect_lead"]) != lead_saved:
