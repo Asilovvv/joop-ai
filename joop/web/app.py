@@ -942,6 +942,11 @@ async def settings_save(request: Request):
                 pass
         b.reminder_hour = hour("reminder_hour", b.reminder_hour)
         b.digest_hour = hour("digest_hour", b.digest_hour)
+        if "lead_nudge_minutes" in form:
+            try:
+                b.lead_nudge_minutes = max(0, min(int(str(form.get("lead_nudge_minutes") or 0)), 480))
+            except ValueError:
+                pass
         if "deposit_amount" in form:  # the card is shown only to businesses that book times
             try:
                 amount = max(0, min(int(str(form.get("deposit_amount") or 0).replace(" ", "")), 100_000))
