@@ -2,6 +2,10 @@
 
 *Joop (жооп) means "answer" in Kyrgyz.*
 
+Diploma project (category: Full-Stack Project) of Bektur Asilov, COMSE-23, Ala-Too International
+University, 2026; supervisor Erustan Erkebulanov. Individual work: the repository's history, pull
+requests and CI runs document its progress.
+
 An AI administrator for small businesses in Kyrgyzstan. It answers customers in Telegram,
 WhatsApp and Instagram Direct, in Russian or Kyrgyz, quotes prices from the business's own price
 list, books customers into real free time slots, reminds them the day before, and hands anything
