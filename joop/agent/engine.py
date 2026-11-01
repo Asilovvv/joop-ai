@@ -15,7 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, health
+from .. import altegio, broadcasts, health
 from ..billing import access_ok
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -113,12 +113,23 @@ def handle_incoming(
         if handled is not None:
             return handled
 
+    # "стоп" after a broadcast: recorded even while staff answer by hand, so nobody gets the next one
+    opt = broadcasts.opt_change(session, conv, text) if incoming.kind in {"text", "command"} else None
+    if opt is not None:
+        conv.broadcast_opt_out = opt
+        session.add(conv)
+
     if not business.bot_enabled:
         return Outcome(skipped="bot_disabled")
     if not access_ok(session, business.id, now):
         return Outcome(skipped="subscription")  # trial over or not paid: staff answer by hand
     if conv.ai_paused_until and conv.ai_paused_until > now:
         return Outcome(skipped="paused")
+
+    if opt is not None:
+        reply = broadcasts.opt_reply(opt, text)
+        _add_message(session, business, conv, "ai", reply, now, off)
+        return Outcome(reply=reply)
 
     if incoming.kind == "media":
         label = incoming.media_label or "вложение"

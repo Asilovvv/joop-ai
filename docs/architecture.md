@@ -131,6 +131,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/niches/<name>/` | Niche packs: labels, outcomes, rules, demo data, evaluation dialogues |
 | `joop/placement.py`, `joop/memberships.py`, `joop/jobs.py`, `joop/waitlist.py`, `joop/intake.py` | Level tests, passes, order status, waiting list, questions before a visit |
 | `joop/followups.py`, `joop/faq_gaps.py` | Ratings and return invitations; questions handed to staff as FAQ candidates |
+| `joop/broadcasts.py`, `joop/web/broadcasts.py` | Broadcasts to customer groups within channel rules, "стоп" to unsubscribe, batches in day hours |
 | **Platform** | |
 | `joop/web/app.py` | FastAPI app: the owner's panel and the channel webhooks |
 | `joop/web/saas.py`, `joop/billing.py`, `joop/partners.py` | Sign-up, test chat, billing (FreedomPay, transfers), founder console, referrals |
@@ -138,11 +139,11 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/altegio.py` | Altegio integration: prices, team and free times in, bookings out |
 | `joop/stats.py` | Numbers for the dashboard, reports and the pilot |
 | **Operations** | |
-| `joop/scheduler.py` | Reminders, summaries, weekly report, Altegio sync, daily backup |
+| `joop/scheduler.py` | Reminders, summaries, weekly and monthly reports, broadcast batches, Altegio sync, daily backup |
 | `joop/health.py` | Alerts for the founder when model calls keep failing |
 | `joop/ops.py` | Pre-launch check (`python -m joop check`) and database backups |
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 270 tests with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 291 tests with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |

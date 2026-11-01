@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram, WhatsApp Cloud API, Instagram Direct; Altegio for salons that book there |
 | Size | about 9,700 lines of Python in `joop/`, 46 page templates, 16 database migrations, 20 niche packs and a generic one |
-| Tests | 270 automated tests (about 4,300 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 291 automated tests (about 4,800 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 51 merged pull requests; changes go through pull requests checked by CI |
 
@@ -186,6 +186,14 @@ WhatsApp message fees for reminders.
   as a handoff. Each service can have "invite again after N days" (manicure 21, cleaning 180): the AI
   invites the customer back unless they have already booked. Messages go only where the channel allows
   (Telegram any time, WhatsApp / Instagram within 24 hours); the rest is listed for the staff.
+- **Broadcasts** (`/panel/broadcasts`): one message to a group of customers: everybody who wrote, those
+  who visited, those not seen for N days, those who had a given service, or those who wrote but never
+  booked. The owner sees how many will get it per channel, can send a test to their own Telegram and may
+  add a Kyrgyz version for customers who write in Kyrgyz. Channel rules hold: Telegram any time, WhatsApp
+  and Instagram only within 24 hours of the customer's last message; web-chat visitors cannot be reached.
+  Every message ends with "ответьте «стоп»"; "стоп" after a broadcast (or "отписаться" any time) turns
+  them off for that customer. At most one broadcast a day, sent in batches from 10:00 to 20:00; the
+  owner gets the result in Telegram.
 - **Group classes** (packs with `features: [group_classes]`: fitness, training centres): a resource with
   "Мест в группе" = 12 gets slots that take up to 12 bookings; a claim takes one seat per person atomically
   (`claim_slot(slot, count)`), the slot closes when full, cancelling frees the same seats. The AI sees
@@ -239,7 +247,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 106 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 291 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
