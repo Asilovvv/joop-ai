@@ -148,6 +148,70 @@ def weekly_report_text(session: Session, business: Business, now_utc: datetime) 
     return "\n".join(lines)
 
 
+MONTHS = ("январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь")
+
+
+def _som(n: int) -> str:
+    return f"{n:,}".replace(",", " ")
+
+
+def _ru(n: int, one: str, few: str, many: str) -> str:
+    """Russian plural: 1 запись, 2 записи, 5 записей (11–14 take the "many" form)."""
+    if n % 10 == 1 and n % 100 != 11:
+        return f"{n} {one}"
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return f"{n} {few}"
+    return f"{n} {many}"
+
+
+def monthly_report_text(session: Session, business: Business, now_utc: datetime) -> str | None:
+    """On the 1st: what the AI did last month and what it brought, valued at the business's own prices.
+
+    Only exact prices count: a booking whose service has one price in the price list, and orders whose total
+    the code computed. Bookings without such a price are named, not guessed."""
+    from sqlalchemy import func
+
+    from .models import Lead, Order, Service
+    from .timeutil import local_to_utc
+
+    now_local = utc_to_local(now_utc, business.timezone)
+    first_this = datetime.combine(now_local.date().replace(day=1), time.min)
+    first_last = (first_this - timedelta(days=1)).replace(day=1)
+    since, until = local_to_utc(first_last, business.timezone), local_to_utc(first_this, business.timezone)
+    window = (Message.business_id == business.id, Message.role == "customer", Message.created_at >= since, Message.created_at < until)
+    conversations = session.exec(select(func.count(func.distinct(Message.conversation_id))).where(*window)).one() or 0
+    if not conversations:
+        return None
+    off_conversations = session.exec(select(func.count(func.distinct(Message.conversation_id))).where(
+        *window, Message.off_hours == True)).one() or 0  # noqa: E712
+    handoffs = session.exec(select(func.count()).select_from(Lead).where(
+        Lead.business_id == business.id, Lead.kind == "handoff", Lead.created_at >= since, Lead.created_at < until)).one() or 0
+    prices = {s.name.casefold(): s.price_value for s in session.exec(select(Service).where(
+        Service.business_id == business.id, Service.price_value != None)).all()}  # noqa: E711
+    bookings = session.exec(select(Booking).where(Booking.business_id == business.id, Booking.source == "ai",
+                                                  Booking.created_at >= since, Booking.created_at < until)).all()
+    valued = [prices[b.service.casefold()] for b in bookings if b.service and b.service.casefold() in prices]
+    orders = session.exec(select(Order).where(Order.business_id == business.id, Order.created_at >= since,
+                                              Order.created_at < until, Order.status != "cancelled")).all()
+    order_sum = sum(o.total for o in orders if o.total)
+    total = sum(valued) + order_sum
+    lines = [f"Итоги за {MONTHS[first_last.month - 1]} «{business.name}»: ИИ-администратор",
+             f"Ответил {_ru(conversations, 'клиенту', 'клиентам', 'клиентам')}, из них {off_conversations} — в нерабочее время."]
+    off_bookings = sum(1 for b in bookings if b.created_off_hours)
+    if bookings:
+        lines.append(f"Записал сам {_ru(len(bookings), 'клиента', 'клиентов', 'клиентов')}"
+                     + (f", из них {off_bookings} — ночью и в выходные." if off_bookings else "."))
+    if orders:
+        lines.append(f"Оформил заказов: {len(orders)}.")
+    if total:
+        rest = len(bookings) - len(valued)
+        lines.append(f"По ценам вашего прайса это около {_som(total)} сом"
+                     + (f" (ещё {_ru(rest, 'запись', 'записи', 'записей')} — услуги без точной цены, не посчитаны)." if rest > 0 else "."))
+    if handoffs:
+        lines.append(f"Передал вам {_ru(handoffs, 'вопрос', 'вопроса', 'вопросов')}, на которые нужен человек.")
+    return "\n".join(lines)
+
+
 def refresh_instagram_token(rt: Runtime, business: Business, now_utc: datetime) -> bool | None:
     """Swap the Instagram token for a fresh one weekly. None = nothing to do, False = failed (retry tomorrow)."""
     if not business.ig_access_token:
@@ -204,6 +268,11 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
             if weekly:
                 texts.append(weekly)
                 report["weekly"] = True
+        if now_local.day == 1:  # the 1st: last month and what it brought
+            monthly = monthly_report_text(session, business, now_utc)
+            if monthly:
+                texts.append(monthly)
+                report["monthly"] = True
         report["digest"] = bool(texts) and notify_admins(rt, business, texts) > 0
     asked = send_review_requests(session, rt, business, now_utc)
     if asked:
