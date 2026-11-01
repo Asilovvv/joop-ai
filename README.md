@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram, WhatsApp Cloud API, Instagram Direct; Altegio for salons that book there |
 | Size | about 9,700 lines of Python in `joop/`, 46 page templates, 16 database migrations, 20 niche packs and a generic one |
-| Tests | 310 automated tests (about 5,150 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 315 automated tests (about 5,250 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 51 merged pull requests; changes go through pull requests checked by CI |
 
@@ -187,6 +187,10 @@ WhatsApp message fees for reminders.
   as a handoff. Each service can have "invite again after N days" (manicure 21, cleaning 180): the AI
   invites the customer back unless they have already booked. Messages go only where the channel allows
   (Telegram any time, WhatsApp / Instagram within 24 hours); the rest is listed for the staff.
+- **Requests nobody answered**: during working hours, a request the AI handed to staff that is still open
+  after 30 minutes (settings, 0 = off) goes to the staff's Telegram once, several in one message; a request
+  that came at night is due 30 minutes after opening. It counts as answered when marked "Готово" or when
+  staff replied in that chat. The morning summary counts requests still open.
 - **Price list and FAQ from text** ("Прайс" and "Вопросы", "Заполнить из текста"): the owner pastes a price
   list from Instagram, a WhatsApp message or a page of the website; the AI proposes services and FAQ entries,
   and code keeps a price only if every number of it is in the pasted text, drops services with no word from
@@ -259,7 +263,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 310 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 315 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
