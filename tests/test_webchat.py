@@ -109,3 +109,17 @@ def test_panel_shows_link_code_and_qr(web, business):
     assert "Чат на сайте и ссылка для Instagram" in page
     assert 'value="https://joop.test/c/aktish"' in page
     assert "https://joop.test/c/aktish/widget.js" in page and "<svg" in page
+
+
+def test_page_offers_four_languages_and_errors_follow_the_choice(web, rt, monkeypatch):
+    page = web.get("/c/aktish").text
+    for code in ('data-lang="ru"', 'data-lang="ky"', 'data-lang="en"', 'data-lang="zh"', "Ask us anything", "请提出您的问题"):
+        assert code in page
+    monkeypatch.setattr(webchat, "PER_BUSINESS", 0)
+    assert say_lang(web, "Hello", "en").json()["error"] == "The chat is busy today. Please call us."
+    assert say_lang(web, "你好", "zh").json()["error"].startswith("聊天今天很忙")
+    assert say_lang(web, "Салам", "xx").json()["error"].startswith("Чат сегодня перегружен")  # unknown language: Russian
+
+
+def say_lang(client, text, lang):
+    return client.post("/c/aktish/chat", json={"text": text, "visitor": "", "lang": lang})
