@@ -38,6 +38,10 @@ def test_check_case():
     )
     assert len(fails) == 4  # markdown, Russian, no lead, forbidden word
     assert check_case({}, ERROR_REPLY, False, False) == ["no answer: the bot sent the generic fallback"]
+    assert check_case({"expect_lang": "en"}, "A consultation costs 500 som (Консультация).", False, False) == []
+    assert check_case({"expect_lang": "en"}, "Консультация стоит 500 сом.", False, False) == ["reply is not in English"]
+    assert check_case({"expect_lang": "zh"}, "咨询费用为500索姆。", False, False) == []
+    assert check_case({"expect_lang": "zh"}, "Consultation is 500 som.", False, False) == ["reply is not in Chinese"]
 
 
 def test_eval_pipeline_with_scripted_model(tmp_path):
