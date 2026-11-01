@@ -67,6 +67,10 @@ class Business(SQLModel, table=True):
     intake_questions: str = ""  # asked right after a booking, one per line (joop/intake.py)
     loyalty_every: int = 0  # every N-th visit gets loyalty_reward (0 = off)
     loyalty_reward: str = ""
+    deposit_amount: int = 0  # prepayment in som asked after an AI booking (joop/deposits.py); 0 = off
+    deposit_details: str = ""  # how to pay: transfer by phone number, a payment link
+    deposit_hours: int = 2  # hours the customer has to pay
+    deposit_auto_cancel: bool = False  # release the booking when nothing came by the deadline
 
     # Public menu / price list /m/<slug> with QR codes (joop/web/menu.py)
     menu_enabled: bool = False
@@ -184,6 +188,9 @@ class Booking(SQLModel, table=True):
     intake_status: str = ""  # "" | asked | answered
     intake_answers: str = ""
     loyalty_visit: int = 0  # this was the customer's N-th visit and earned the reward
+    deposit_due: int = 0  # prepayment asked, som (joop/deposits.py)
+    deposit_status: str = ""  # "" | awaiting | check | paid | overdue | expired
+    deposit_deadline: Optional[NaiveDatetime] = None  # UTC
 
 
 class Lead(SQLModel, table=True):
