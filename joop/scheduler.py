@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, broadcasts, deposits, health, ops
+from . import altegio, broadcasts, deposits, health, nudges, ops
 from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
@@ -109,6 +109,9 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
         f"записей через ИИ {stats['bookings']} (в нерабочее время {stats['off_hours_bookings']}), "
         f"заявок администратору {stats['leads']}.",
     ]
+    still_open = nudges.open_count(session, business, now_utc)
+    if still_open:
+        lines.append(f"Не закрыто заявок: {still_open} — ответьте клиентам и отметьте «Готово» в разделе «Заявки».")
     if today:
         lines.append("Сегодня записаны:")
         lines += [f"{b.start:%H:%M} — {b.customer_name}, {b.customer_phone} — {b.service or 'приём'} ({b.staff_name})" for b in today]
@@ -274,6 +277,9 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
                 texts.append(monthly)
                 report["monthly"] = True
         report["digest"] = bool(texts) and notify_admins(rt, business, texts) > 0
+    nudged = nudges.send(session, rt, business, now_utc)
+    if nudged:
+        report["nudged"] = nudged
     late = deposits.check_deadlines(session, rt, business, now_utc)
     if late:
         report["deposits"] = late
