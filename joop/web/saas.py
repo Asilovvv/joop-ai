@@ -597,6 +597,56 @@ def draft_message(llm: Any, p: Prospect, trial_days: int, demo_link: str = "", o
     return writer(instruction, facts, empty_usage())
 
 
+PILOT_DEFAULT_DAYS = 14
+PILOT_TZ = "Asia/Bishkek"
+
+
+def _pilot_period(request: Request) -> tuple[str, str, Any, Any]:
+    """Local dates from the query (YYYY-MM-DD, both inclusive) and the UTC bounds [since, until)."""
+    from datetime import date, datetime as dt
+
+    from ..timeutil import local_now, local_to_utc
+
+    today = local_now(PILOT_TZ).date()
+
+    def parse(name: str, default: date) -> date:
+        try:
+            return date.fromisoformat(request.query_params.get(name, "")[:10])
+        except ValueError:
+            return default
+
+    end = parse("until", today)
+    start = parse("since", end - timedelta(days=PILOT_DEFAULT_DAYS - 1))
+    if start > end:
+        start, end = end, start
+    since = local_to_utc(dt.combine(start, dt.min.time()), PILOT_TZ)
+    until = local_to_utc(dt.combine(end + timedelta(days=1), dt.min.time()), PILOT_TZ)
+    return start.isoformat(), end.isoformat(), since, until
+
+
+@router.get("/owner/pilot")
+def owner_pilot(request: Request):
+    from .. import pilot
+
+    _owner(request)
+    start, end, since, until = _pilot_period(request)
+    with new_session() as s:
+        rows, total = pilot.report(s, since, until, utcnow())
+    return _owner_render(request, "owner_pilot.html", rows=rows, total=total, since=start, until=end)
+
+
+@router.get("/owner/pilot.csv")
+def owner_pilot_csv(request: Request):
+    from .. import pilot
+
+    _owner(request)
+    start, end, since, until = _pilot_period(request)
+    with new_session() as s:
+        rows, total = pilot.report(s, since, until, utcnow())
+    return Response(pilot.to_csv(rows, total), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="joop-pilot-{start}-{end}.csv"'})
+
+
 @router.get("/owner/prospects")
 def prospects_page(request: Request, status: str = ""):
     _owner(request)
