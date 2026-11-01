@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Пилот{% endblock %}
+{% set active = 'pilot' %}
+{% block content %}
+{% include "owner_nav.html" %}
+<section class="stack">
+  <h1>Пилот: что сделал ИИ</h1>
+  <p class="muted">Все цифры посчитаны по базе: сообщения, записи, заявки и передачи людям за выбранные дни (время Бишкека). Демо-компании сайта не входят. Эти строки — таблица главы 8 диплома.</p>
+</section>
+<section class="card">
+  <form method="get" action="/owner/pilot" class="row" style="border-bottom:0;grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));align-items:end">
+    <label>С <input type="date" name="since" value="{{ since }}"></label>
+    <label>По <input type="date" name="until" value="{{ until }}"></label>
+    <div class="row-tail">
+      <button class="btn small" type="submit">Показать</button>
+      <a class="btn small ghost" href="/owner/pilot.csv?since={{ since }}&until={{ until }}">Скачать CSV</a>
+    </div>
+  </form>
+</section>
+<section class="card">
+  {% if rows %}
+  <div class="scroll"><table class="table">
+    <thead><tr>
+      <th>Компания</th><th>Дней с сообщениями</th><th>Диалогов</th><th>Сообщений клиентов</th><th>Из них в нерабочее время</th>
+      <th>Сделал ИИ сам</th><th>Передал людям</th><th>Сбоев ИИ</th><th>Расход на ИИ</th><th>Подписка</th>
+    </tr></thead>
+    <tbody>
+    {% for r in rows + [total] %}
+      <tr{% if loop.last %} style="font-weight:600"{% endif %}>
+        <td>{{ r.business }}{% if r.niche %}<br><span class="muted small">{{ r.niche }}</span>{% endif %}</td>
+        <td>{{ r.active_days }}</td>
+        <td>{{ r.conversations }}</td>
+        <td>{{ r.customer_messages }}</td>
+        <td>{{ r.off_hours_messages }}{% if r.off_hours_pct is not none %} ({{ r.off_hours_pct }}%){% endif %}</td>
+        <td>{{ r.completed }}<br><span class="muted small">записи {{ r.bookings }} · заявки {{ r.requests }} · заказы {{ r.orders }} · лиды {{ r.leads }}</span></td>
+        <td>{{ r.handoffs }}</td>
+        <td>{{ r.failures }}</td>
+        <td>${{ '%.2f' | format(r.cost_usd) }}{% if r.cost_per_reply is not none %}<br><span class="muted small">${{ '%.5f' | format(r.cost_per_reply) }} за ответ</span>{% endif %}</td>
+        <td>{{ r.status }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted">За эти дни клиенты не писали ни одной компании.</p>
+  {% endif %}
+</section>
+{% endblock %}
