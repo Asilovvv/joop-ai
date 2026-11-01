@@ -46,6 +46,12 @@ class Runtime:
             return None
         return AltegioClient(self.http, token, self.settings.altegio_api_base)
 
+    def transcriber(self):
+        """Speech-to-text for voice messages, or None when it is not set up (joop/voice.py)."""
+        from .voice import make_transcriber
+
+        return make_transcriber(self.settings, self.http)
+
     def telegram(self, business: Business) -> TelegramClient | None:
         if not business.telegram_bot_token:
             return None
