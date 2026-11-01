@@ -9,7 +9,7 @@ from ..models import Business, Conversation, Faq, Message, Service, Slot, Staff
 from ..niches import Pack, get_pack
 from ..timeutil import WEEKDAYS_FULL, fmt_slot, is_off_hours
 
-CHANNEL_LABELS = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram Direct", "console": "тестовом чате"}
+CHANNEL_LABELS = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram Direct", "console": "тестовом чате", "web": "чате на сайте"}
 
 
 def response_format(pack: Pack) -> str:
