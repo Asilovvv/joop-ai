@@ -28,7 +28,7 @@ from ..dispatch import admin_chat_ids, process_incoming
 from ..catalog import parse_price
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, WaitlistEntry
 from ..niches import all_packs, get_pack
-from .. import waitlist
+from .. import deposits, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -743,6 +743,20 @@ def booking_cancel(request: Request, item_id: int, csrf: str = Form("")):
     return _back("/panel/bookings")
 
 
+@router.post("/panel/bookings/{item_id}/paid")
+def booking_paid(request: Request, item_id: int, csrf: str = Form("")):
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        booking = _own(s, Booking, item_id, b.id)
+        if booking.status == "booked" and booking.deposit_status in {"awaiting", "check", "overdue"}:
+            told = deposits.mark_paid(s, _rt(request), b, booking, utcnow())
+            s.commit()
+            _flash(request, "Предоплата отмечена." + (" Клиенту отправлено подтверждение." if told
+                                                      else " Подтвердите клиенту сами: написать ему из системы сейчас нельзя."))
+    return _back("/panel/bookings")
+
+
 # --- orders ------------------------------------------------------------------------------------------------
 
 ORDER_STATUSES = {"new": "Новый", "accepted": "Принят", "done": "Выполнен", "cancelled": "Отменён"}
@@ -928,6 +942,18 @@ async def settings_save(request: Request):
                 pass
         b.reminder_hour = hour("reminder_hour", b.reminder_hour)
         b.digest_hour = hour("digest_hour", b.digest_hour)
+        if "deposit_amount" in form:  # the card is shown only to businesses that book times
+            try:
+                amount = max(0, min(int(str(form.get("deposit_amount") or 0).replace(" ", "")), 100_000))
+                b.deposit_hours = max(1, min(int(str(form.get("deposit_hours") or 2)), 48))
+            except ValueError:
+                amount = b.deposit_amount
+            b.deposit_details = text("deposit_details")
+            b.deposit_auto_cancel = bool(form.get("deposit_auto_cancel"))
+            if amount and not b.deposit_details:
+                amount = 0
+                _flash(request, "Предоплата не включена: напишите, как оплатить.", "error")
+            b.deposit_amount = amount
         s.add(b)
         s.commit()
     _flash(request, "Настройки сохранены.")
