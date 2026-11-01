@@ -1259,6 +1259,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .broadcasts import router as broadcasts_router
 
     app.include_router(broadcasts_router)
+    from .autofill import router as autofill_router
+
+    app.include_router(autofill_router)
 
     @app.exception_handler(OwnerRequired)
     async def _owner_required(_request: Request, _exc: OwnerRequired):
