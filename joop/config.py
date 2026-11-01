@@ -75,6 +75,10 @@ class Settings:
     founder_chat_id: str = ""
     altegio_partner_token: str = ""  # Joop's partner token for the Altegio API (joop/altegio.py); a salon may set its own
     altegio_api_base: str = "https://api.alteg.io/api/v1"
+    stt_provider: str = ""  # speech-to-text for voice messages (joop/voice.py): "" = off, "elevenlabs"
+    stt_api_key: str = ""
+    stt_model: str = "scribe_v2"
+    stt_api_base: str = "https://api.elevenlabs.io"
     backup_dir: str = ""  # daily SQLite backups (joop/ops.py); empty = "backups" next to the database file
     backup_keep: int = 14  # daily copies kept; 0 = no automatic backups
     billing_instructions: str = ""  # how to pay by transfer or QR, shown on the billing page
@@ -126,6 +130,10 @@ def settings_from_env() -> Settings:
         founder_chat_id=env.get("FOUNDER_CHAT_ID", "").strip(),
         altegio_partner_token=env.get("ALTEGIO_PARTNER_TOKEN", "").strip(),
         altegio_api_base=env.get("ALTEGIO_API_BASE", "https://api.alteg.io/api/v1").rstrip("/"),
+        stt_provider=env.get("STT_PROVIDER", "").strip().lower(),
+        stt_api_key=env.get("STT_API_KEY", "").strip(),
+        stt_model=env.get("STT_MODEL", "scribe_v2").strip() or "scribe_v2",
+        stt_api_base=env.get("STT_API_BASE", "https://api.elevenlabs.io").strip().rstrip("/"),
         backup_dir=env.get("BACKUP_DIR", "").strip(),
         backup_keep=_int(env.get("BACKUP_KEEP_DAYS"), 14),
         billing_instructions=env.get("BILLING_INSTRUCTIONS", "").strip(),

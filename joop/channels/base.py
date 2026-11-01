@@ -14,6 +14,11 @@ class IncomingMessage:
     user_name: str = ""
     external_id: str = ""  # channel message id, used to drop duplicate webhook deliveries
     media_label: str = ""  # e.g. "голосовое сообщение"
+    media_ref: str = ""  # where to download a voice message: Telegram file_id, WhatsApp media id, Instagram URL
+    transcribed: bool = False  # the text was recognised from a voice message (joop/voice.py)
+
+
+MAX_MEDIA_BYTES = 10 * 1024 * 1024  # larger voice files are not downloaded: staff answer them by hand
 
 
 TELEGRAM_MAX = 4000

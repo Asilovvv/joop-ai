@@ -83,6 +83,8 @@ def launch_checks(settings: Settings, env: Mapping[str, str] | None = None,
     add("Цена подписки (PRICE_SOM)", settings.price_som > 0, False, "без цены оплата картой выключена, пробный период работает")
     add("Altegio (ALTEGIO_PARTNER_TOKEN)", bool(settings.altegio_partner_token), False,
         "без общего ключа салоны подключают Altegio своим ключом")
+    add("Голосовые сообщения (STT_PROVIDER, STT_API_KEY)", bool(settings.stt_provider and settings.stt_api_key), False,
+        "без распознавания голосовые передаются администратору")
     checks.extend(_database_checks(settings))
     return checks
 

@@ -15,7 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, deposits, health
+from .. import altegio, broadcasts, deposits, health, voice
 from ..billing import access_ok
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -100,7 +100,7 @@ def handle_incoming(
         return _handle_echo(session, business, conv, incoming, now, off)
 
     text = (incoming.text or "").strip()
-    stored = text
+    stored = (voice.STORED_PREFIX + text) if incoming.transcribed else text
     if incoming.kind == "media":
         stored = f"[{incoming.media_label or 'вложение'}]" + (f" {text}" if text else "")
     _add_message(session, business, conv, "customer", stored, now, off, incoming.external_id)

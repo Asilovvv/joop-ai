@@ -131,6 +131,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/niches/<name>/` | Niche packs: labels, outcomes, rules, demo data, evaluation dialogues |
 | `joop/placement.py`, `joop/memberships.py`, `joop/jobs.py`, `joop/waitlist.py`, `joop/intake.py` | Level tests, passes, order status, waiting list, questions before a visit |
 | `joop/followups.py`, `joop/faq_gaps.py` | Ratings and return invitations; questions handed to staff as FAQ candidates |
+| `joop/voice.py` | Voice messages: download from the channel, speech-to-text, then answered like text |
 | `joop/deposits.py` | Prepayment after an AI booking: details and deadline, receipts to staff, release when unpaid |
 | `joop/broadcasts.py`, `joop/web/broadcasts.py` | Broadcasts to customer groups within channel rules, "стоп" to unsubscribe, batches in day hours |
 | **Platform** | |
@@ -146,5 +147,5 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 300 tests with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 306 tests with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
+from . import voice
 from .agent.engine import Outcome, handle_incoming
 from .channels.base import IncomingMessage
 from .db import new_session
@@ -15,6 +16,11 @@ log = logging.getLogger(__name__)
 
 
 def process_incoming(rt: Runtime, business_id: int, incoming: IncomingMessage, now_utc: datetime | None = None) -> Outcome:
+    if incoming.kind == "media" and incoming.media_ref:  # a voice message: recognise it before the engine sees it
+        with new_session() as session:
+            found = session.get(Business, business_id)
+        if found is not None:
+            incoming = voice.prepare(rt, found, incoming)
     with new_session() as session:
         business = session.get(Business, business_id)
         if business is None:

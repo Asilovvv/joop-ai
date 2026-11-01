@@ -6,10 +6,11 @@ import hashlib
 import hmac
 import logging
 from typing import Any, Iterable
+from urllib.parse import urlsplit
 
 import httpx
 
-from .base import INSTAGRAM_MAX_BYTES, WHATSAPP_MAX, IncomingMessage, clip, clip_bytes
+from .base import INSTAGRAM_MAX_BYTES, MAX_MEDIA_BYTES, WHATSAPP_MAX, IncomingMessage, clip, clip_bytes
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ WA_MEDIA_LABELS = {
     "location": "геолокация",
     "contacts": "контакт",
 }
+MEDIA_HOSTS = ("fbcdn.net", "fbsbx.com", "cdninstagram.com", "facebook.com", "instagram.com")  # where Meta keeps attachments
 IG_MEDIA_LABELS = {
     "audio": "голосовое сообщение",
     "image": "фото",
@@ -52,7 +54,7 @@ def verify_signature(secrets: Iterable[str], raw_body: bytes, header: str) -> bo
 
 
 def _wa_text(m: dict[str, Any]) -> tuple[str, str, str]:
-    """(kind, text, media_label) for one WhatsApp message object."""
+    """(kind, text, media_label) for one WhatsApp message object; the media id is read by parse_whatsapp."""
     mtype = m.get("type", "")
     if mtype == "text":
         return "text", ((m.get("text") or {}).get("body") or "").strip(), ""
@@ -111,10 +113,11 @@ def parse_whatsapp(payload: dict[str, Any]) -> list[tuple[str, IncomingMessage]]
                     ):
                         previous.text += "\n" + text
                         continue
+                    ref = str((m.get("audio") or {}).get("id") or "") if isinstance(m.get("audio"), dict) else ""
                     out.append(
                         (
                             phone_number_id,
-                            IncomingMessage("whatsapp", sender, kind, text, names.get(sender.removeprefix(BSUID_PREFIX), ""), f"wa:{m.get('id', '')}", label),
+                            IncomingMessage("whatsapp", sender, kind, text, names.get(sender.removeprefix(BSUID_PREFIX), ""), f"wa:{m.get('id', '')}", label, ref),
                         )
                     )
             elif field == "smb_message_echoes":
@@ -155,7 +158,8 @@ def parse_instagram(payload: dict[str, Any]) -> list[tuple[str, IncomingMessage]
             if attachments:
                 kind = (attachments[0] or {}).get("type", "")
                 label = IG_MEDIA_LABELS.get(kind, "вложение")
-                out.append((target, IncomingMessage("instagram", sender, "media", "", "", external_id, label)))
+                url = str(((attachments[0] or {}).get("payload") or {}).get("url") or "") if kind == "audio" else ""
+                out.append((target, IncomingMessage("instagram", sender, "media", "", "", external_id, label, url)))
     return out
 
 
@@ -181,6 +185,7 @@ class _GraphClient:
         self.http = http
         self._base = base_url.rstrip("/")
         self._token = token
+        self._version = version
         self.url = f"{self._base}/{version}/{account_id}/messages"
         self._headers = {"Authorization": f"Bearer {token}"}
 
@@ -194,6 +199,18 @@ class _GraphClient:
             log.warning("%s send failed: HTTP %s %s", what, response.status_code, _error_text(response))
             return False
         return True
+
+
+    def _get(self, url: str, auth: bool) -> httpx.Response | None:
+        try:
+            response = self.http.get(url, headers=self._headers if auth else None, timeout=30.0)
+        except httpx.HTTPError as exc:
+            log.warning("Media download failed: %s", type(exc).__name__)
+            return None
+        if response.status_code >= 400 or len(response.content) > MAX_MEDIA_BYTES:
+            log.warning("Media download failed: HTTP %s", response.status_code)
+            return None
+        return response
 
 
 def _addressee(to: str) -> dict[str, str]:
@@ -223,11 +240,31 @@ class WhatsAppClient(_GraphClient):
         payload = {"messaging_product": "whatsapp", **_addressee(to), "type": "template", "template": template}
         return self._post(payload, "WhatsApp template")
 
+    def download(self, media_id: str) -> bytes | None:
+        """A voice message: the media id gives a short-lived URL, which needs the same token."""
+        info = self._get(f"{self._base}/{self._version}/{media_id}", auth=True)
+        try:
+            data = info.json() if info is not None else {}
+        except ValueError:
+            return None
+        if not data.get("url") or int(data.get("file_size") or 0) > MAX_MEDIA_BYTES:
+            return None
+        response = self._get(str(data["url"]), auth=True)
+        return response.content if response is not None else None
+
 
 class InstagramClient(_GraphClient):
     def send_text(self, recipient_id: str, text: str) -> bool:
         payload = {"recipient": {"id": recipient_id}, "message": {"text": clip_bytes(text, INSTAGRAM_MAX_BYTES)}}
         return self._post(payload, "Instagram")
+
+    def download(self, url: str) -> bytes | None:
+        """An audio attachment: Instagram gives a direct CDN link."""
+        host = (urlsplit(url).hostname or "").lower()
+        if not url.startswith("https://") or not any(host == h or host.endswith("." + h) for h in MEDIA_HOSTS):
+            return None
+        response = self._get(url, auth=False)
+        return response.content if response is not None else None
 
     def refresh_token(self) -> str | None:
         """Instagram user tokens live 60 days; a token older than 24 hours can be exchanged for a new one."""
