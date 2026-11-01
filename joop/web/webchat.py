@@ -41,6 +41,29 @@ PER_BUSINESS = 600  # web messages a day for one business: a public link must no
 _TOKEN = re.compile(r"^[a-f0-9]{16,32}$")
 _used: dict[str, tuple[str, int]] = {}  # key -> (day, count); reset with the process, the DB limit still holds
 PAUSED_REPLY = "Сообщение получено. Администратор ответит вам — оставьте, пожалуйста, номер телефона, если ещё не оставили."
+LANGS = ("ru", "ky", "en", "zh")  # the page's languages; the AI answers in the language the guest writes in
+TEXTS = {
+    "limit": {"ru": "Сегодня сообщений уже много. Позвоните нам или напишите завтра.",
+              "ky": "Бүгүн билдирүүлөр көп болуп кетти. Бизге чалыңыз же эртең жазыңыз.",
+              "en": "Too many messages today. Please call us or write tomorrow.",
+              "zh": "今天的消息太多了。请给我们打电话或明天再写。"},
+    "busy": {"ru": "Чат сегодня перегружен. Позвоните нам, пожалуйста.",
+             "ky": "Чат бүгүн жүктөлгөн. Сураныч, бизге чалыңыз.",
+             "en": "The chat is busy today. Please call us.",
+             "zh": "聊天今天很忙。请给我们打电话。"},
+    "failed": {"ru": "Не получилось ответить. Попробуйте через минуту.",
+               "ky": "Жооп берүү мүмкүн болгон жок. Бир мүнөттөн кийин кайра аракет кылыңыз.",
+               "en": "Could not answer right now. Please try again in a minute.",
+               "zh": "暂时无法回复。请一分钟后再试。"},
+    "paused": {"ru": PAUSED_REPLY,
+               "ky": "Билдирүү алынды. Администратор сизге жооп берет — телефон номериңизди калтырыңыз.",
+               "en": "Message received. A staff member will reply — please leave your phone number if you have not yet.",
+               "zh": "消息已收到。工作人员会回复您——如果还没有留下电话号码，请留下。"},
+}
+
+
+def _t(key: str, lang: str) -> str:
+    return TEXTS[key].get(lang, TEXTS[key]["ru"])
 
 
 def _business(s: Session, slug: str) -> Business:
@@ -83,13 +106,14 @@ async def chat_message(request: Request, slug: str):
         return JSONResponse({"error": "bad request"}, status_code=400)
     text = str(data.get("text", "")).strip()[:MAX_TEXT]
     visitor = str(data.get("visitor", ""))
+    lang = str(data.get("lang", "ru")) if str(data.get("lang", "ru")) in LANGS else "ru"
     if not _TOKEN.match(visitor):
         visitor = secrets.token_hex(12)
     if not text:
         return JSONResponse({"error": "empty"}, status_code=400)
     day, ip = time.strftime("%Y-%m-%d"), client_ip(request)
     if _count(f"v:{visitor}", day) >= PER_VISITOR or _count(f"ip:{ip}", day) >= PER_ADDRESS:
-        return JSONResponse({"error": "Сегодня сообщений уже много. Позвоните нам или напишите завтра.", "visitor": visitor},
+        return JSONResponse({"error": _t("limit", lang), "visitor": visitor},
                             status_code=429)
     rt = _rt(request)
     with new_session() as s:
@@ -98,7 +122,7 @@ async def chat_message(request: Request, slug: str):
         except HTTPException:
             return JSONResponse({"error": "not found"}, status_code=404)
         if _web_messages_today(s, business) >= PER_BUSINESS:
-            return JSONResponse({"error": "Чат сегодня перегружен. Позвоните нам, пожалуйста.", "visitor": visitor},
+            return JSONResponse({"error": _t("busy", lang), "visitor": visitor},
                                 status_code=429)
         chat_id = f"web-{visitor}"
         incoming = IncomingMessage(CHANNEL, chat_id, "text", text, "Посетитель сайта", f"web:{chat_id}:{secrets.token_hex(6)}")
@@ -109,7 +133,7 @@ async def chat_message(request: Request, slug: str):
         except Exception:
             s.rollback()
             log.exception("Web chat failed for %s", slug)
-            return JSONResponse({"error": "Не получилось ответить. Попробуйте через минуту.", "visitor": visitor}, status_code=503)
+            return JSONResponse({"error": _t("failed", lang), "visitor": visitor}, status_code=503)
     _bump(f"v:{visitor}", day)
     _bump(f"ip:{ip}", day)
     if outcome.admin_notes:
@@ -119,7 +143,7 @@ async def chat_message(request: Request, slug: str):
             notify_admins(rt, business, outcome.admin_notes)
         except Exception:
             log.exception("Staff notes for a web chat of %s were not sent", slug)
-    reply = outcome.reply or (PAUSED_REPLY if outcome.skipped in {"paused", "subscription"} else "")
+    reply = outcome.reply or (_t("paused", lang) if outcome.skipped in {"paused", "subscription"} else "")
     return JSONResponse({"reply": reply, "visitor": visitor})
 
 
