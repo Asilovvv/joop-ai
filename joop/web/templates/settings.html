@@ -36,6 +36,7 @@
     <div class="grid2">
       <label for="s-rem">Напоминания на завтра отправлять в, час<input id="s-rem" type="number" min="0" max="23" name="reminder_hour" value="{{ business.reminder_hour }}"></label>
       <label for="s-dig">Утренняя сводка в, час<input id="s-dig" type="number" min="0" max="23" name="digest_hour" value="{{ business.digest_hour }}"></label>
+      <label for="s-nudge">Напомнить о заявке без ответа через, минут (0 — не напоминать)<input id="s-nudge" type="number" min="0" max="480" name="lead_nudge_minutes" value="{{ business.lead_nudge_minutes }}"></label>
     </div>
   </section>
 

@@ -71,6 +71,7 @@ class Business(SQLModel, table=True):
     deposit_details: str = ""  # how to pay: transfer by phone number, a payment link
     deposit_hours: int = 2  # hours the customer has to pay
     deposit_auto_cancel: bool = False  # release the booking when nothing came by the deadline
+    lead_nudge_minutes: int = 30  # remind staff about a request nobody answered (joop/nudges.py); 0 = off
 
     # Public menu / price list /m/<slug> with QR codes (joop/web/menu.py)
     menu_enabled: bool = False
@@ -207,6 +208,7 @@ class Lead(SQLModel, table=True):
     status: str = "new"  # new | done
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     off_hours: bool = False
+    nudged_at: Optional[NaiveDatetime] = None  # staff were reminded that nobody answered (joop/nudges.py)
 
 
 class Order(SQLModel, table=True):
