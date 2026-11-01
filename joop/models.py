@@ -138,6 +138,7 @@ class Conversation(SQLModel, table=True):
     last_customer_at: Optional[NaiveDatetime] = None
     last_message_at: NaiveDatetime = Field(default_factory=utcnow)
     created_at: NaiveDatetime = Field(default_factory=utcnow)
+    broadcast_opt_out: bool = False  # the customer answered "стоп" to a broadcast (joop/broadcasts.py)
 
 
 class Message(SQLModel, table=True):
@@ -469,3 +470,32 @@ class RoomNight(SQLModel, table=True):
     stay_id: int = Field(foreign_key="stay.id", index=True)
     night: date_type = Field(index=True)
     unit: int = 0
+
+
+class Broadcast(SQLModel, table=True):
+    """One message from the business to a group of its customers (joop/broadcasts.py)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    text: str
+    text_ky: str = ""  # optional Kyrgyz version for customers who write in Kyrgyz
+    segment: str = "all"  # all | visited | lapsed | service | no_booking
+    segment_arg: str = ""  # the service name, or days for "lapsed"
+    status: str = "sending"  # sending | done | cancelled
+    total: int = 0
+    sent: int = 0
+    skipped: int = 0  # not delivered: outside the 24-hour window, unsubscribed meanwhile, or the channel refused
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+    finished_at: Optional[NaiveDatetime] = None
+
+
+class BroadcastDelivery(SQLModel, table=True):
+    """One recipient of a broadcast; rows are made when the broadcast starts and sent in batches."""
+
+    __table_args__ = (UniqueConstraint("broadcast_id", "conversation_id"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    broadcast_id: int = Field(foreign_key="broadcast.id", index=True)
+    conversation_id: int = Field(foreign_key="conversation.id", index=True)
+    status: str = "pending"  # pending | sent | skipped
+    sent_at: Optional[NaiveDatetime] = None
