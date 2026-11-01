@@ -991,8 +991,16 @@ def channels_page(request: Request):
             meta_url=f"{base}/webhooks/meta" if base else "",
             meta_ready=bool(settings.meta_verify_token and (settings.meta_app_secret or settings.instagram_app_secret)),
             altegio_shared=bool(settings.altegio_partner_token),
+            chat_url=f"{base or str(request.base_url).rstrip('/')}/c/{b.slug}",
+            chat_qr=_chat_qr(f"{base or str(request.base_url).rstrip('/')}/c/{b.slug}"),
             altegio_synced=utc_to_local(b.altegio_synced_at, b.timezone) if b.altegio_synced_at else None,
         )
+
+
+def _chat_qr(url: str) -> str:
+    from .menu import qr_svg
+
+    return qr_svg(url, scale=4, sized=True)
 
 
 @router.post("/panel/altegio")
@@ -1206,6 +1214,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .stays import router as stays_router
 
     app.include_router(stays_router)
+    from .webchat import router as webchat_router
+
+    app.include_router(webchat_router)
 
     @app.exception_handler(OwnerRequired)
     async def _owner_required(_request: Request, _exc: OwnerRequired):
