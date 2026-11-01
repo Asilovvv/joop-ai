@@ -13,6 +13,16 @@
     <button class="btn small ghost" type="submit">Заполнить пустые с помощью ИИ</button>
   </form>
 </section>
+<section class="card stack">
+  <h2>Заполнить из текста</h2>
+  <p class="muted small">Вставьте прайс из Instagram, сообщение из WhatsApp или текст с сайта — ИИ найдёт услуги с ценами и ответы на частые вопросы (адрес, часы, парковка, оплата). Вы проверите список и добавите нужное; цены, которых нет в тексте, ИИ не ставит.</p>
+  <form method="post" action="/panel/autofill" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="back" value="services">
+    <textarea name="source" rows="5" maxlength="20000" aria-label="Текст с ценами" placeholder="Маникюр с покрытием — 1 200 сом&#10;Педикюр — от 1 500 сом&#10;Работаем ежедневно с 9:00 до 21:00, парковка во дворе"></textarea>
+    <div><button class="btn small ghost" type="submit">Разобрать текст с помощью ИИ</button></div>
+  </form>
+</section>
 <section class="card">
   {% for r in rows %}
   <form class="row c4" method="post" action="/panel/services/{{ r.id }}">

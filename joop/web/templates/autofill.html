@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Проверьте, что нашёл ИИ{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Проверьте, что нашёл ИИ</h1>
+  <p class="muted">Ничего ещё не сохранено. Исправьте, что нужно, снимите галочки с лишнего и нажмите «Добавить». ИИ оставил только цены, которые есть в вашем тексте{% if dropped %}, и убрал {{ dropped }}, которых в тексте нет{% endif %}.{% if cut %} Текст длиннее {{ max_source }} символов — разобрано начало, остальное вставьте вторым разом.{% endif %}</p>
+</section>
+<form method="post" action="/panel/autofill/save">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="back" value="{{ 'faq' if back == '/panel/faq' else 'services' }}">
+  {% if proposal.services %}
+  <section class="card">
+    <h2>{{ pack.catalog_label }}: {{ proposal.services|length }}</h2>
+    <p class="muted small">Название · по-кыргызски · цена · комментарий</p>
+    {% for it in proposal.services %}{% set i = loop.index0 %}
+    <div class="row c4">
+      <input name="s{{ i }}_name" value="{{ it.name }}" maxlength="120" aria-label="Название">
+      <input name="s{{ i }}_name_ky" value="{{ it.name_ky }}" maxlength="120" aria-label="Название по-кыргызски" placeholder="по-кыргызски">
+      <div><input name="s{{ i }}_price" value="{{ it.price }}" maxlength="40" aria-label="Цена" placeholder="цена">{% if it.price_dropped %}<span class="chip warn">цены нет в тексте — впишите</span>{% endif %}</div>
+      <input name="s{{ i }}_note" value="{{ it.note }}" maxlength="200" aria-label="Комментарий" placeholder="комментарий">
+      <div class="row-tail"><label class="check small"><input type="checkbox" name="s{{ i }}_on" value="1" {{ '' if it.duplicate else 'checked' }}> {{ 'уже есть' if it.duplicate else 'добавить' }}</label></div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+  {% if proposal.faq %}
+  <section class="card">
+    <h2>Частые вопросы: {{ proposal.faq|length }}</h2>
+    {% for qa in proposal.faq %}{% set i = loop.index0 %}
+    <div class="row c3">
+      <input name="f{{ i }}_q" value="{{ qa.question }}" maxlength="200" aria-label="Вопрос">
+      <input name="f{{ i }}_a" value="{{ qa.answer }}" maxlength="500" aria-label="Ответ" style="grid-column: span 2">
+      <div class="row-tail"><label class="check small"><input type="checkbox" name="f{{ i }}_on" value="1" {{ '' if qa.duplicate else 'checked' }}> {{ 'уже есть' if qa.duplicate else 'добавить' }}</label></div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+  <div class="actions" style="justify-content: flex-start; margin-top: 12px">
+    <button class="btn" type="submit">Добавить отмеченное</button>
+    <a class="btn ghost" href="{{ back }}">Отмена</a>
+  </div>
+</form>
+{% endblock %}
