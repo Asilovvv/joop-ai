@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, Form, HTTPException, Request
-from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -995,6 +995,18 @@ def channels_page(request: Request):
             chat_qr=_chat_qr(f"{base or str(request.base_url).rstrip('/')}/c/{b.slug}"),
             altegio_synced=utc_to_local(b.altegio_synced_at, b.timezone) if b.altegio_synced_at else None,
         )
+
+
+@router.get("/panel/sticker", response_class=HTMLResponse)
+def sticker_page(request: Request):
+    """A printable A4 sheet of four stickers: "ask a question, we answer at once" with the chat's QR code."""
+    from .menu import qr_svg
+
+    settings = _settings(request)
+    with new_session() as s:
+        b = _business(s, request)
+        url = f"{settings.public_base_url or str(request.base_url).rstrip('/')}/c/{b.slug}"
+        return templates.TemplateResponse(request, "sticker.html", {"request": request, "business": b, "qr": qr_svg(url, scale=6)})
 
 
 def _chat_qr(url: str) -> str:

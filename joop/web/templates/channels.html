@@ -52,7 +52,8 @@
     <div class="stack">
       <label for="w-link">Ссылка на чат<input id="w-link" value="{{ chat_url }}" readonly onclick="this.select()"></label>
       <label for="w-code">Код для сайта<input id="w-code" value='<script src="{{ chat_url }}/widget.js" async></script>' readonly onclick="this.select()"></label>
-      <p><a class="btn small ghost" href="{{ chat_url }}" target="_blank" rel="noopener">Открыть чат</a></p>
+      <p class="row-tail"><a class="btn small ghost" href="{{ chat_url }}" target="_blank" rel="noopener">Открыть чат</a>
+        <a class="btn small ghost" href="/panel/sticker" target="_blank" rel="noopener">Наклейка для печати</a></p>
     </div>
     <div aria-label="QR-код ссылки на чат">{{ chat_qr | safe }}</div>
   </div>
