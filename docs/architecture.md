@@ -119,12 +119,30 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 
 | Path | Responsibility |
 |---|---|
-| `joop/agent/prompt.py` | System prompt from business data; message history mapping |
-| `joop/agent/llm.py` | Claude client, response schema, tolerant JSON parsing |
-| `joop/agent/engine.py` | One message in: commands, media, pause, model call, booking, leads |
-| `joop/channels/` | Telegram, WhatsApp and Instagram parsing and send clients; Telegram polling |
+| **Conversation core** | |
+| `joop/agent/prompt.py` | System prompt from the business's data; message history mapping |
+| `joop/agent/llm.py` | Claude client, response schema per niche, tolerant JSON parsing |
+| `joop/agent/engine.py` | One message in: commands, media, pause, model call, checks of every booking, order and lead, language and confirmation guards |
 | `joop/dispatch.py` | Runs the engine in a DB session, then delivers the reply and staff notes |
-| `joop/scheduler.py` | Day-before reminders and the morning summary |
-| `joop/slots.py` | Slot generation, listing and atomic claim |
-| `joop/web/` | FastAPI app: panel pages, webhooks |
-| `tests/` | Engine, channel, scheduler and web tests with fake model and fake channels |
+| `joop/channels/` | Telegram, WhatsApp and Instagram parsing and send clients; Telegram polling |
+| `joop/lang.py`, `joop/kyrgyz.py` | Kyrgyz/Russian heuristics; Kyrgyz drafts of service names and FAQ |
+| `joop/slots.py`, `joop/stays.py` | Time slots with an atomic claim; hotel nights booked atomically |
+| **Niches and modules** | |
+| `joop/niches/<name>/` | Niche packs: labels, outcomes, rules, demo data, evaluation dialogues |
+| `joop/placement.py`, `joop/memberships.py`, `joop/jobs.py`, `joop/waitlist.py`, `joop/intake.py` | Level tests, passes, order status, waiting list, questions before a visit |
+| `joop/followups.py`, `joop/faq_gaps.py` | Ratings and return invitations; questions handed to staff as FAQ candidates |
+| **Platform** | |
+| `joop/web/app.py` | FastAPI app: the owner's panel and the channel webhooks |
+| `joop/web/saas.py`, `joop/billing.py`, `joop/partners.py` | Sign-up, test chat, billing (FreedomPay, transfers), founder console, referrals |
+| `joop/web/demo.py`, `joop/web/studio.py`, `joop/web/menu.py` | Live demo on the site, AI-drafted business sites, online menu with QR codes |
+| `joop/altegio.py` | Altegio integration: prices, team and free times in, bookings out |
+| `joop/stats.py` | Numbers for the dashboard, reports and the pilot |
+| **Operations** | |
+| `joop/scheduler.py` | Reminders, summaries, weekly report, Altegio sync, daily backup |
+| `joop/health.py` | Alerts for the founder when model calls keep failing |
+| `joop/ops.py` | Pre-launch check (`python -m joop check`) and database backups |
+| `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
+| `joop/migrations/` | Alembic migrations, run on start |
+| **Quality** | |
+| `tests/` | 270 tests with a fake model, fake channels and a fake Altegio API |
+| `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |

@@ -1,10 +1,31 @@
 # Joop AI
 
+[![tests](https://github.com/Asilovvv/joop-ai/actions/workflows/tests.yml/badge.svg)](https://github.com/Asilovvv/joop-ai/actions/workflows/tests.yml)
+
 *Joop (жооп) means "answer" in Kyrgyz.*
 
 Diploma project (category: Full-Stack Project) of Bektur Asilov, COMSE-23, Ala-Too International
 University, 2026; supervisor Erustan Erkebulanov. Individual work: the repository's history, pull
 requests and CI runs document its progress.
+
+| At a glance (1 November 2026) | |
+| --- | --- |
+| Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
+| Channels | Telegram, WhatsApp Cloud API, Instagram Direct; Altegio for salons that book there |
+| Size | about 9,700 lines of Python in `joop/`, 46 page templates, 16 database migrations, 20 niche packs and a generic one |
+| Tests | 270 automated tests (about 4,300 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
+| History | 51 merged pull requests; changes go through pull requests checked by CI |
+
+| Public site with the live demo | Owner's panel: when customers write |
+| --- | --- |
+| ![Public site](docs/screenshots/site.png) | ![Owner's panel](docs/screenshots/panel-dashboard.png) |
+| **Questions the AI handed to staff become FAQ entries** | **Founder console: businesses, funnel, demo questions** |
+| ![FAQ page](docs/screenshots/panel-faq.png) | ![Founder console](docs/screenshots/owner-console.png) |
+
+Screenshots: a local server with demo data. Documentation: [architecture](docs/architecture.md),
+[niche packs](docs/multi-niche-design.md), [channels](docs/channels.md), [first launch on a
+server](docs/deploy.md), [pilot economics](docs/pilot-economics.md).
 
 An AI administrator for small businesses in Kyrgyzstan. It answers customers in Telegram,
 WhatsApp and Instagram Direct, in Russian or Kyrgyz, quotes prices from the business's own price
