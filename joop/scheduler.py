@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, health, ops
+from . import altegio, broadcasts, health, ops
 from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
@@ -274,6 +274,9 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
                 texts.append(monthly)
                 report["monthly"] = True
         report["digest"] = bool(texts) and notify_admins(rt, business, texts) > 0
+    broadcast = broadcasts.send_due(session, rt, business, now_utc)
+    if broadcast:
+        report["broadcast"] = broadcast
     asked = send_review_requests(session, rt, business, now_utc)
     if asked:
         report["reviews"] = asked

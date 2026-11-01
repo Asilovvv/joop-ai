@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Рассылки{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Рассылки клиентам</h1>
+  <p class="muted">Одно сообщение группе клиентов: акция, новая услуга, свободные окна на неделю, «давно вас не видели». Клиент может ответить прямо в чат — ИИ продолжит разговор и запишет его. В конце каждого сообщения стоит, как отписаться.</p>
+</section>
+<form method="post" action="/panel/broadcasts" class="card stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <h2>Новая рассылка</h2>
+  <div class="grid2">
+    <label>Кому
+      <select name="segment" id="segment">
+        {% for key, title in segments.items() %}<option value="{{ key }}" {{ 'selected' if form.segment == key }}>{{ title }}</option>{% endfor %}
+      </select></label>
+    {% if 'lapsed' in segments %}
+    <label data-for="lapsed">Не были больше, дней
+      <input name="days" type="number" min="7" max="730" value="{{ form.days }}"></label>
+    <label data-for="service">Услуга
+      <select name="service">
+        {% for sv in services %}<option value="{{ sv.name }}" {{ 'selected' if form.service == sv.name }}>{{ sv.name }}</option>{% endfor %}
+      </select></label>
+    {% endif %}
+  </div>
+  <label>Текст
+    <textarea name="text" rows="5" maxlength="{{ max_text }}" placeholder="Здравствуйте! На этой неделе скидка 20% на чистку зубов. Ответьте на это сообщение — подберём время.">{{ form.text }}</textarea></label>
+  <label>Текст на кыргызском — необязательно. Его получат те, кто пишет вам по-кыргызски
+    <textarea name="text_ky" rows="4" maxlength="{{ max_text }}" placeholder="Саламатсызбы! Ушул жумада тиш тазалоого 20% арзандатуу. Жооп жазыңыз — ыңгайлуу убакыт тандайбыз.">{{ form.text_ky }}</textarea></label>
+  <p class="muted small">В конце добавится: «{{ footer }}» (по-кыргызски: «{{ footer_ky }}»).</p>
+  {% if pv %}
+  <div class="stats">
+    <div class="stat"><b>{{ pv.reachable }}</b><span>получат: Telegram {{ pv.telegram }}, WhatsApp и Instagram {{ pv.window }}</span></div>
+    <div class="stat"><b>{{ pv.outside }}</b><span>не получат: писали в WhatsApp или Instagram больше суток назад</span></div>
+    <div class="stat"><b>{{ pv.opted_out }}</b><span>отписались</span></div>
+  </div>
+  {% endif %}
+  <div class="actions" style="justify-content: flex-start">
+    <button class="btn ghost" type="submit" name="action" value="preview">Посчитать получателей</button>
+    <button class="btn ghost" type="submit" name="action" value="test" {{ 'disabled' if not linked }}>Отправить себе пробное</button>
+    {% if pv and pv.reachable %}<button class="btn" type="submit" name="action" value="send">Отправить {{ pv.reachable }} клиентам</button>{% endif %}
+  </div>
+  {% if not linked %}<p class="muted small">Чтобы получить пробное сообщение и итог рассылки, привяжите свой Telegram в «Настройках».</p>{% endif %}
+  <p class="muted small">Правила каналов: в Telegram можно писать всегда; в WhatsApp и Instagram — только тем, кто писал вам за последние сутки (иначе Meta требует платный шаблон). Чат на сайте не в списке: посетителю сайта нельзя написать потом. Рассылка — не чаще раза в сутки, сообщения уходят с {{ hours[0] }}:00 до {{ hours[1] }}:00.</p>
+</form>
+<section class="card">
+  <h2>Отправленные</h2>
+  {% if history %}
+  <div class="list">{% for h in history %}
+    <div class="item"><div class="main">
+      <div><b>{{ label(h) }}</b> — {{ h.text[:120] }}{{ '…' if h.text|length > 120 }}</div>
+      <div class="muted small">{{ h.created_at|local(business.timezone) }} ·
+        {% if h.status == 'sending' %}отправляется: {{ h.sent }} из {{ h.total }}{% elif h.status == 'cancelled' %}остановлена: получили {{ h.sent }} из {{ h.total }}{% else %}получили {{ h.sent }} из {{ h.total }}{% endif %}{% if h.skipped %}, не дошло {{ h.skipped }}{% endif %}</div>
+    </div>
+    {% if h.status == 'sending' %}<form method="post" action="/panel/broadcasts/{{ h.id }}/stop" class="actions"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small danger" type="submit">Остановить</button></form>{% endif %}
+    </div>
+  {% endfor %}</div>
+  {% else %}<p class="muted">Рассылок пока не было.</p>{% endif %}
+  <p class="muted small">Отписались от рассылок: {{ opted_out }}. Клиент отписывается, ответив «стоп», и снова подписывается словом «подписаться».</p>
+</section>
+<script>
+(function () {
+  var seg = document.getElementById('segment');
+  function show() {
+    document.querySelectorAll('[data-for]').forEach(function (el) { el.hidden = el.getAttribute('data-for') !== seg.value; });
+  }
+  seg.addEventListener('change', show);
+  show();
+})();
+</script>
+{% endblock %}

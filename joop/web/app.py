@@ -65,6 +65,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     items.append(("/panel/menu", "menu", "QR-меню" if pack.has("order") else "Прайс онлайн"))
     if books:
         items.append(("/panel/followups", "followups", "Отзывы и возврат"))
+    items.append(("/panel/broadcasts", "broadcasts", "Рассылки"))
     if pack.offers("memberships"):
         items.append(("/panel/memberships", "memberships", "Абонементы"))
     if pack.offers("jobs"):
@@ -77,7 +78,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     return items
 NAV_GROUPS = (
     ("Работа", {"dashboard", "conversations", "orders", "bookings", "stays", "leads", "jobs"}),
-    ("Инструменты", {"slots", "tests", "menu", "followups", "memberships"}),
+    ("Инструменты", {"slots", "tests", "menu", "followups", "broadcasts", "memberships"}),
     ("Настройка", {"setup", "try", "services", "staff", "faq", "settings", "channels", "billing"}),
 )
 
@@ -1229,6 +1230,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .webchat import router as webchat_router
 
     app.include_router(webchat_router)
+    from .broadcasts import router as broadcasts_router
+
+    app.include_router(broadcasts_router)
 
     @app.exception_handler(OwnerRequired)
     async def _owner_required(_request: Request, _exc: OwnerRequired):
