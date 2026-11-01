@@ -16,7 +16,10 @@
   body { font-family: 'Golos Text', system-ui, sans-serif; background: var(--bg); color: var(--ink); display: flex; justify-content: center; }
   .chat { width: 100%; max-width: 560px; height: 100%; display: flex; flex-direction: column; background: var(--surface); }
   body:not(.embed) .chat { border-left: 1px solid var(--line); border-right: 1px solid var(--line); }
-  header { padding: 16px 18px; border-bottom: 1px solid var(--line); }
+  header { padding: 16px 18px; border-bottom: 1px solid var(--line); display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }
+  .langs { display: flex; gap: 4px; flex-shrink: 0; }
+  .langs button { padding: 4px 8px; font-size: 12px; font-weight: 600; border-radius: 8px; background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .langs button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
   header b { display: block; font-size: 17px; }
   header span { color: var(--muted); font-size: 13px; }
   .log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
@@ -35,24 +38,60 @@
 </head>
 <body class="{{ 'embed' if embed }}">
 <main class="chat">
-  <header><b>{{ b.name }}</b><span>Отвечает ИИ-администратор, сразу и в любое время · Жооп дароо берилет</span></header>
+  <header>
+    <div><b>{{ b.name }}</b><span id="sub">Отвечает ИИ-администратор, сразу и в любое время</span></div>
+    <div class="langs" role="group" aria-label="Язык · Language">
+      <button type="button" data-lang="ru">RU</button><button type="button" data-lang="ky">KY</button><button type="button" data-lang="en">EN</button><button type="button" data-lang="zh">中文</button>
+    </div>
+  </header>
   <div class="log" id="log" aria-live="polite">
-    <div class="msg ai">Здравствуйте! Напишите ваш вопрос: цены, свободное время, запись.
-Саламатсызбы! Сурооңузду жазыңыз.</div>
+    <div class="msg ai" id="hello">Здравствуйте! Напишите ваш вопрос: цены, свободное время, запись.</div>
   </div>
   <form id="form">
     <label for="text" class="note" style="position:absolute;left:-9999px">Сообщение</label>
     <textarea id="text" rows="1" maxlength="1000" placeholder="Напишите сообщение…" required></textarea>
     <button type="submit" id="send">Отправить</button>
   </form>
-  <footer>Работает на <a href="/" target="_blank" rel="noopener">Joop AI</a></footer>
+  <footer><span id="by">Работает на</span> <a href="/" target="_blank" rel="noopener">Joop AI</a></footer>
 </main>
 <script>
 (function () {
-  var slug = {{ b.slug | tojson }}, key = 'joop-chat-' + slug, visitor = '';
-  try { visitor = localStorage.getItem(key) || ''; } catch (e) {}
+  var slug = {{ b.slug | tojson }}, key = 'joop-chat-' + slug, visitor = '', lang = 'ru';
+  var T = {
+    ru: {sub: 'Отвечает ИИ-администратор, сразу и в любое время', hello: 'Здравствуйте! Напишите ваш вопрос: цены, свободное время, запись.',
+         ph: 'Напишите сообщение…', send: 'Отправить', by: 'Работает на', off: 'Нет связи. Попробуйте ещё раз.'},
+    ky: {sub: 'ИИ-администратор дароо жана каалаган убакта жооп берет', hello: 'Саламатсызбы! Сурооңузду жазыңыз: баалар, бош убакыт, жазылуу.',
+         ph: 'Билдирүү жазыңыз…', send: 'Жөнөтүү', by: 'Иштетет', off: 'Байланыш жок. Кайра аракет кылыңыз.'},
+    en: {sub: 'An AI assistant replies right away, any time', hello: 'Hello! Ask us anything: prices, free times, booking.',
+         ph: 'Type a message…', send: 'Send', by: 'Powered by', off: 'No connection. Please try again.'},
+    zh: {sub: 'AI 助理随时立即回复', hello: '您好！请提出您的问题：价格、空闲时间、预约。',
+         ph: '输入消息…', send: '发送', by: '技术支持', off: '无网络连接，请重试。'}
+  };
+  try { visitor = localStorage.getItem(key) || ''; lang = localStorage.getItem('joop-lang') || ''; } catch (e) {}
+  if (!T[lang]) {
+    var nav = (navigator.language || 'ru').slice(0, 2).toLowerCase();
+    lang = T[nav] ? nav : 'ru';
+  }
   var log = document.getElementById('log'), form = document.getElementById('form'),
       text = document.getElementById('text'), send = document.getElementById('send');
+  function setLang(next) {
+    lang = next;
+    try { localStorage.setItem('joop-lang', lang); } catch (e) {}
+    document.documentElement.lang = lang;
+    document.getElementById('sub').textContent = T[lang].sub;
+    var hello = document.getElementById('hello');
+    if (hello) hello.textContent = T[lang].hello;
+    text.placeholder = T[lang].ph;
+    send.textContent = T[lang].send;
+    document.getElementById('by').textContent = T[lang].by;
+    Array.prototype.forEach.call(document.querySelectorAll('.langs button'), function (b) {
+      b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === lang));
+    });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.langs button'), function (b) {
+    b.addEventListener('click', function () { setLang(b.getAttribute('data-lang')); text.focus(); });
+  });
+  setLang(lang);
   function add(cls, body) {
     var div = document.createElement('div');
     div.className = 'msg ' + cls;
@@ -74,7 +113,7 @@
     var wait = add('note', '…');
     fetch('/c/' + encodeURIComponent(slug) + '/chat', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({text: value, visitor: visitor})
+      body: JSON.stringify({text: value, visitor: visitor, lang: lang})
     }).then(function (r) { return r.json(); }).then(function (data) {
       wait.remove();
       if (data.visitor) { visitor = data.visitor; try { localStorage.setItem(key, visitor); } catch (e) {} }
@@ -82,7 +121,7 @@
       else if (data.error) add('note', data.error);
     }).catch(function () {
       wait.remove();
-      add('note', 'Нет связи. Попробуйте ещё раз.');
+      add('note', T[lang].off);
     }).finally(function () { send.disabled = false; text.focus(); });
   });
 })();
