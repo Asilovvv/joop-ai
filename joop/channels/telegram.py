@@ -7,7 +7,7 @@ from typing import Any
 
 import httpx
 
-from .base import TELEGRAM_MAX, IncomingMessage, clip
+from .base import MAX_MEDIA_BYTES, TELEGRAM_MAX, IncomingMessage, clip
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +50,8 @@ def parse_update(update: dict[str, Any]) -> IncomingMessage | None:
     for key, label in MEDIA_LABELS.items():
         if key in msg:
             caption = (msg.get("caption") or "").strip()
-            return IncomingMessage("telegram", chat_id, "media", caption, name, external_id, label)
+            ref = str((msg.get(key) or {}).get("file_id") or "") if key in {"voice", "audio"} and isinstance(msg.get(key), dict) else ""
+            return IncomingMessage("telegram", chat_id, "media", caption, name, external_id, label, ref)
     return None
 
 
@@ -74,6 +75,21 @@ class TelegramClient:
 
     def send_text(self, chat_id: str, text: str) -> bool:
         return self._call("sendMessage", {"chat_id": chat_id, "text": clip(text, TELEGRAM_MAX)}) is not None
+
+    def download(self, file_id: str) -> bytes | None:
+        """A file the customer sent (a voice message), at most MAX_MEDIA_BYTES."""
+        info = self._call("getFile", {"file_id": file_id})
+        path = (info or {}).get("file_path")
+        if not path or int((info or {}).get("file_size") or 0) > MAX_MEDIA_BYTES:
+            return None
+        try:
+            response = self.http.get(self._base.replace("/bot", "/file/bot", 1) + "/" + path, timeout=30.0)
+        except httpx.HTTPError as exc:
+            log.warning("Telegram file download failed: %s", type(exc).__name__)  # the URL holds the token
+            return None
+        if response.status_code >= 400 or len(response.content) > MAX_MEDIA_BYTES:
+            return None
+        return response.content
 
     def get_me(self) -> dict[str, Any] | None:
         return self._call("getMe")

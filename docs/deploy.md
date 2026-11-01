@@ -38,7 +38,8 @@ Open it with `nano .env`. Required:
 
 Recommended: `OWNER_PASSWORD` (founder console `/owner`, 12+ characters), `FOUNDER_BOT_TOKEN` and
 `FOUNDER_CHAT_ID` (alerts when the AI stops answering), `PRICE_SOM`. Optional: `META_*` for WhatsApp and
-Instagram, `ALTEGIO_PARTNER_TOKEN` for salons on Altegio.
+Instagram, `ALTEGIO_PARTNER_TOKEN` for salons on Altegio, `STT_PROVIDER=elevenlabs` and `STT_API_KEY` to
+answer voice messages (otherwise they go to staff).
 
 ## 5. Check, then start
 
