@@ -45,6 +45,19 @@
   <div><button class="btn" type="submit">Сохранить каналы</button></div>
 </form>
 
+<section class="card stack" id="webchat">
+  <h2>Чат на сайте и ссылка для Instagram <span class="chip ok">работает сразу</span></h2>
+  <p class="small muted">Тот же ИИ, без подключения Meta: поставьте ссылку в описание Instagram, в 2ГИС и Google Картах, распечатайте QR-код на ресепшен. Для своего сайта вставьте одну строку — появится кнопка «Чат».</p>
+  <div class="grid2">
+    <div class="stack">
+      <label for="w-link">Ссылка на чат<input id="w-link" value="{{ chat_url }}" readonly onclick="this.select()"></label>
+      <label for="w-code">Код для сайта<input id="w-code" value='<script src="{{ chat_url }}/widget.js" async></script>' readonly onclick="this.select()"></label>
+      <p><a class="btn small ghost" href="{{ chat_url }}" target="_blank" rel="noopener">Открыть чат</a></p>
+    </div>
+    <div aria-label="QR-код ссылки на чат">{{ chat_qr | safe }}</div>
+  </div>
+</section>
+
 <section class="card stack" id="altegio">
   <h2>Altegio: онлайн-запись салона {% if business.altegio_location_id %}<span class="chip ok">подключено</span>{% endif %}</h2>
   <p class="small muted">Если вы ведёте запись в Altegio, ИИ берёт оттуда прайс, мастеров и свободные окна и записывает клиентов прямо в Altegio. Каждая запись сначала проверяется у нас, затем в Altegio. Окна обновляются каждые 10 минут.</p>
