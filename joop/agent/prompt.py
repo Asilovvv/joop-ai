@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Sequence
 
+from .. import deposits
 from ..models import Business, Conversation, Faq, Message, Service, Slot, Staff
 from ..niches import Pack, get_pack
 from ..timeutil import WEEKDAYS_FULL, fmt_slot, is_off_hours
@@ -127,6 +128,8 @@ def build_system_prompt(
         out.append("Условия заказа: " + "; ".join(terms) + ".")
     if business.booking_policy.strip():
         out.append(f"Порядок записи и заказа в компании: {business.booking_policy.strip()}")
+    if deposits.prompt_line(business):  # only when the business turned prepayment on
+        out.append(deposits.prompt_line(business))
 
     if extra_facts:
         out += extra_facts.split("\n")

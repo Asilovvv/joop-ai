@@ -15,7 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, health
+from .. import altegio, broadcasts, deposits, health
 from ..billing import access_ok
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -131,6 +131,11 @@ def handle_incoming(
         _add_message(session, business, conv, "ai", reply, now, off)
         return Outcome(reply=reply)
 
+    paid = deposits.capture(session, business, conv, incoming, text, now)
+    if paid is not None:  # a receipt or "оплатила" while a booking waits for prepayment
+        _add_message(session, business, conv, "ai", paid.reply, now, off)
+        return Outcome(reply=paid.reply, admin_notes=[paid.note])
+
     if incoming.kind == "media":
         label = incoming.media_label or "вложение"
         lead = _add_lead(session, business, conv, "media", f"Клиент прислал: {label}. Нужно ответить вручную.", now, off)
@@ -238,6 +243,7 @@ def handle_incoming(
                 outcome.booking_id = booking.id
                 waitlist.mark_booked(session, conv.id)
                 booked = booking
+                deposits.require(business, booking, now)
                 outcome.admin_notes.append(_booking_note(business, booking, off))
     if answered is not None:
         outcome.admin_notes.append(intake.answers_note(answered))
@@ -275,7 +281,7 @@ def handle_incoming(
     if booked is not None and outcome.reply:  # added after the guards so they cannot reword them
         kyrgyz = is_kyrgyz_message(text)
         loyalty = intake.loyalty_line(session, business, booked, kyrgyz)
-        outcome.reply += loyalty + intake.after_booking(business, booked, kyrgyz)
+        outcome.reply += loyalty + intake.after_booking(business, booked, kyrgyz) + deposits.reply_line(business, booked, now, kyrgyz)
         if loyalty:
             outcome.admin_notes.append(f"Бонус: у {booked.customer_name} {booked.loyalty_visit}-й визит "
                                        f"({fmt_slot(booked.start)}) — {business.loyalty_reward.strip()}")
@@ -779,7 +785,8 @@ def _booking_note(business: Business, booking: Booking, off: bool) -> str:
         f"{booking.service or 'приём'} — {fmt_slot(booking.start)}, {booking.staff_name}",
         f"Канал: {CHANNEL_LABELS.get(booking.channel, booking.channel)}",
     ]
-    return "\n".join(lines)
+    deposit = deposits.note_line(business, booking)
+    return "\n".join(lines + ([deposit] if deposit else []))
 
 
 OUTAGE_WINDOW = timedelta(minutes=30)
