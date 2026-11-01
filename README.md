@@ -303,7 +303,8 @@ How the parts fit together: [docs/architecture.md](docs/architecture.md).
   shows "[голосовое] …"); otherwise, or if recognition fails, the AI asks the customer to write and sends
   the voice note to staff. Recognition of Kyrgyz has not been measured on real customers' voice notes yet,
   and the ElevenLabs call has been tested only against a fake API.
-- One panel login per business; no staff roles and no login attempt limit yet.
+- One panel login per business; no staff roles yet. Failed logins are limited per address and per
+  company, with a 15-minute lockout (the limit lives in memory and resets on restart).
 - Channel tokens are encrypted in the database when `TOKEN_ENCRYPTION_KEY` is set
   (`python -m joop gen-key`, then `python -m joop encrypt-tokens` for tokens saved earlier).
   Keep a copy of the key apart from the database backups: a lost key means reconnecting every channel.
