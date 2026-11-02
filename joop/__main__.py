@@ -64,7 +64,7 @@ def cmd_encrypt_tokens(_args) -> int:
     n = 0
     with new_session() as s:
         for b in s.exec(select(Business)).all():
-            for field in ("telegram_bot_token", "wa_access_token", "ig_access_token", "altegio_token"):
+            for field in ("telegram_bot_token", "wa_access_token", "ig_access_token", "altegio_token", "crm_token"):
                 if getattr(b, field):
                     flag_modified(b, field)
                     n += 1

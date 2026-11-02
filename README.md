@@ -11,9 +11,9 @@ requests and CI runs document its progress.
 | At a glance (1 November 2026) | |
 | --- | --- |
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
-| Channels | Telegram, WhatsApp Cloud API, Instagram Direct; Altegio for salons that book there |
+| Channels | Telegram, WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
 | Size | about 9,700 lines of Python in `joop/`, 46 page templates, 16 database migrations, 20 niche packs and a generic one |
-| Tests | 324 automated tests (about 5,450 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 328 automated tests (about 5,600 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 51 merged pull requests; changes go through pull requests checked by CI |
 
@@ -187,6 +187,12 @@ WhatsApp message fees for reminders.
   as a handoff. Each service can have "invite again after N days" (manicure 21, cleaning 180): the AI
   invites the customer back unless they have already booked. Messages go only where the channel allows
   (Telegram any time, WhatsApp / Instagram within 24 hours); the rest is listed for the staff.
+- **amoCRM / Kommo** ("Каналы", owner only): with the account address and a long-lived token of a private
+  integration, every booking, request and order the AI takes becomes a deal with the customer's contact (name,
+  phone), tags "Joop AI" and a note (what they wanted, prepayment, order lines, link to the dialogue), within a
+  scheduler tick. A deal the CRM rejects is skipped and shown; a revoked token stops sending until it is replaced.
+  The API is reached only on amocrm.ru / amocrm.com / kommo.com addresses; the token is encrypted at rest.
+  Tested against a fake amoCRM API.
 - **Staff logins** ("Доступ сотрудников", owner only): each administrator gets their own login (company login +
   own login + password). Staff work with dialogues, bookings, requests, the price list and the FAQ; settings,
   channels, payment, broadcasts and logins stay with the owner, who logs in with the company password as before.
@@ -274,7 +280,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 324 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 328 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

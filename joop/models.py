@@ -58,6 +58,11 @@ class Business(SQLModel, table=True):
     altegio_token: str = Field(default="", sa_type=EncryptedString)  # the salon's own partner token, optional; encrypted
     altegio_synced_at: Optional[NaiveDatetime] = None
     altegio_error: str = ""  # last sync problem, shown in the panel
+    crm_domain: str = ""  # amoCRM / Kommo account address, e.g. mycompany.amocrm.ru (joop/crm.py); "" = off
+    crm_token: str = Field(default="", sa_type=EncryptedString)  # long-lived token of a private integration; encrypted
+    crm_pipeline_id: int = 0  # 0 = the account's main pipeline
+    crm_synced_at: Optional[NaiveDatetime] = None
+    crm_error: str = ""
     ig_token_refreshed_at: Optional[NaiveDatetime] = None
 
     # After-visit follow-ups (joop/followups.py): ask for a rating, invite back when it is time again
@@ -193,6 +198,7 @@ class Booking(SQLModel, table=True):
     deposit_due: int = 0  # prepayment asked, som (joop/deposits.py)
     deposit_status: str = ""  # "" | awaiting | check | paid | overdue | expired
     deposit_deadline: Optional[NaiveDatetime] = None  # UTC
+    crm_id: str = ""  # deal id in amoCRM ("-" = the CRM rejected it), joop/crm.py
 
 
 class Lead(SQLModel, table=True):
@@ -211,6 +217,7 @@ class Lead(SQLModel, table=True):
     off_hours: bool = False
     nudged_at: Optional[NaiveDatetime] = None  # staff were reminded that nobody answered (joop/nudges.py)
     closed_by: str = ""  # who marked it done
+    crm_id: str = ""  # deal id in amoCRM ("-" = the CRM rejected it), joop/crm.py
 
 
 class Order(SQLModel, table=True):
@@ -232,6 +239,7 @@ class Order(SQLModel, table=True):
     chat_id: str = ""
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     created_off_hours: bool = False
+    crm_id: str = ""  # deal id in amoCRM ("-" = the CRM rejected it), joop/crm.py
 
 
 class OrderLine(SQLModel, table=True):

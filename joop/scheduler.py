@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, broadcasts, deposits, health, nudges, ops
+from . import altegio, broadcasts, crm, deposits, health, nudges, ops
 from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
@@ -289,6 +289,11 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
     asked = send_review_requests(session, rt, business, now_utc)
     if asked:
         report["reviews"] = asked
+    client = rt.crm(business)
+    if client is not None:
+        pushed = crm.push_due(session, client, business, now_utc, rt.settings.public_base_url)
+        if pushed:
+            report["crm"] = pushed
     if altegio.due(business, now_utc):
         report["altegio"] = sync_altegio(session, rt, business, now_utc)
     refreshed = refresh_instagram_token(rt, business, now_utc)
