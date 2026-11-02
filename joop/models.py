@@ -100,6 +100,7 @@ class Service(SQLModel, table=True):
     sort: int = 0
     repeat_days: int = 0  # invite the customer back this many days after the visit (0 = never)
     external_id: str = ""  # id in the booking system the price list comes from (Altegio)
+    upsell_id: int = 0  # another service offered right after a booking for this one (joop/upsell.py); 0 = none
 
 
 class Staff(SQLModel, table=True):
@@ -199,6 +200,9 @@ class Booking(SQLModel, table=True):
     deposit_status: str = ""  # "" | awaiting | check | paid | overdue | expired
     deposit_deadline: Optional[NaiveDatetime] = None  # UTC
     crm_id: str = ""  # deal id in amoCRM ("-" = the CRM rejected it), joop/crm.py
+    upsell_status: str = ""  # "" | offered | accepted | declined (joop/upsell.py)
+    upsell_service: str = ""
+    upsell_price: int = 0
 
 
 class Lead(SQLModel, table=True):

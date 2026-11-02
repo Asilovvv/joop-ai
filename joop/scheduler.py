@@ -193,7 +193,14 @@ def monthly_report_text(session: Session, business: Business, now_utc: datetime)
         Service.business_id == business.id, Service.price_value != None)).all()}  # noqa: E711
     bookings = session.exec(select(Booking).where(Booking.business_id == business.id, Booking.source == "ai",
                                                   Booking.created_at >= since, Booking.created_at < until)).all()
-    valued = [prices[b.service.casefold()] for b in bookings if b.service and b.service.casefold() in prices]
+    valued = []
+    for b in bookings:  # an accepted add-on (joop/upsell.py) is "Маникюр + Дизайн": the base price plus the add-on's
+        name, extra = b.service or "", 0
+        if b.upsell_status == "accepted" and " + " in name:
+            name, extra = name.rsplit(" + ", 1)[0], b.upsell_price
+        if name and name.casefold() in prices:
+            valued.append(prices[name.casefold()] + extra)
+    added = [b for b in bookings if b.upsell_status == "accepted"]
     orders = session.exec(select(Order).where(Order.business_id == business.id, Order.created_at >= since,
                                               Order.created_at < until, Order.status != "cancelled")).all()
     order_sum = sum(o.total for o in orders if o.total)
@@ -210,6 +217,9 @@ def monthly_report_text(session: Session, business: Business, now_utc: datetime)
         rest = len(bookings) - len(valued)
         lines.append(f"По ценам вашего прайса это около {_som(total)} сом"
                      + (f" (ещё {_ru(rest, 'запись', 'записи', 'записей')} — услуги без точной цены, не посчитаны)." if rest > 0 else "."))
+    if added:
+        lines.append(f"Допродажа: {_ru(len(added), 'дополнительная услуга', 'дополнительные услуги', 'дополнительных услуг')} "
+                     f"к записям — ещё {_som(sum(b.upsell_price for b in added))} сом.")
     if handoffs:
         lines.append(f"Передал вам {_ru(handoffs, 'вопрос', 'вопроса', 'вопросов')}, на которые нужен человек.")
     return "\n".join(lines)
