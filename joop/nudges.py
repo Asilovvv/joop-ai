@@ -69,7 +69,7 @@ def nudge_text(business: Business, leads: list[Lead]) -> str:
     lines = [head] + [_line(x) for x in leads[:LISTED]]
     if n > LISTED:
         lines.append(f"…и ещё {n - LISTED}.")
-    lines.append("Ответьте клиентам и отметьте «Готово» в разделе «Заявки».")
+    lines.append("Ответить можно прямо из панели: «Заявки» → «Открыть диалог». Если уже ответили иначе — отметьте «Готово».")
     return "\n".join(lines)
 
 
