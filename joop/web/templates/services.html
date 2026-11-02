@@ -39,6 +39,23 @@
   </form>
   {% else %}<p class="muted">Прайс пуст.</p>{% endfor %}
 </section>
+{% if pack.has('booking') and rows|length > 1 %}
+<section class="card stack">
+  <h2>Что предложить к записи</h2>
+  <p class="muted small">Сразу после записи ИИ одной строкой предложит выбранную услугу: «Хотите добавить дизайн ногтей — 300 сом?». Клиент отвечает «да» — услуга добавляется к записи, а вам приходит уведомление проверить время. Предложить можно только услугу с точной ценой.</p>
+  <form method="post" action="/panel/services/upsell" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% for r in rows %}
+    <label>{{ r.name }}
+      <select name="upsell_{{ r.id }}" aria-label="Что предложить к услуге {{ r.name }}">
+        <option value="0">— ничего не предлагать</option>
+        {% for o in rows if o.id != r.id and o.price_value %}<option value="{{ o.id }}" {{ 'selected' if r.upsell_id == o.id }}>{{ o.name }} — {{ o.price }}</option>{% endfor %}
+      </select></label>
+    {% endfor %}
+    <div><button class="btn small" type="submit">Сохранить</button></div>
+  </form>
+</section>
+{% endif %}
 <section class="card">
   <h2>Добавить: {{ pack.catalog_item }}</h2>
   <form class="row c4" method="post" action="/panel/services">

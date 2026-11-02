@@ -430,6 +430,30 @@ def service_add(
     return _back("/panel/services")
 
 
+@router.post("/panel/services/upsell")
+async def services_upsell(request: Request):
+    """Per service, the add-on the AI offers right after a booking (joop/upsell.py)."""
+    form = await request.form()
+    _check_csrf(request, str(form.get("csrf", "")))
+    with new_session() as s:
+        b = _business(s, request)
+        services = s.exec(select(Service).where(Service.business_id == b.id)).all()
+        priced = {sv.id for sv in services if sv.price_value}
+        for sv in services:
+            key = f"upsell_{sv.id}"
+            if key not in form:
+                continue
+            try:
+                chosen = int(str(form.get(key) or 0))
+            except ValueError:
+                chosen = 0
+            sv.upsell_id = chosen if chosen in priced and chosen != sv.id else 0
+            s.add(sv)
+        s.commit()
+    _flash(request, "Сохранено. После записи ИИ предложит выбранную услугу одной строкой.")
+    return _back("/panel/services")
+
+
 @router.post("/panel/services/{item_id}")
 def service_update(
     request: Request,
