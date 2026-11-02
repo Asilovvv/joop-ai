@@ -83,6 +83,28 @@
 </section>
 
 <section class="card stack">
+  <h2>amoCRM / Kommo {% if business.crm_domain %}<span class="chip ok">подключено</span>{% endif %}</h2>
+  <p class="small muted">Каждая запись, заявка и заказ, которые принял ИИ, появятся в вашей amoCRM как сделка с контактом клиента и заметкой: что он хотел и ссылка на диалог. В amoCRM создайте приватную интеграцию, на вкладке «Ключи и доступы» сгенерируйте долгосрочный токен и вставьте его сюда.</p>
+  {% if business.crm_domain %}
+  <p class="small">{{ business.crm_domain }}{% if business.crm_synced_at %} · последняя сделка {{ business.crm_synced_at|local(business.timezone) }}{% endif %}</p>
+  {% if business.crm_error %}<p class="flash error">{{ business.crm_error }}</p>{% endif %}
+  {% endif %}
+  <form method="post" action="/panel/crm" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid2">
+      <label for="c-dom">Адрес аккаунта<input id="c-dom" name="domain" value="{{ business.crm_domain }}" placeholder="mycompany.amocrm.ru" autocomplete="off" required></label>
+      <label for="c-tok">Долгосрочный токен {% if business.crm_token %}<span class="chip ok">задан</span>{% endif %}
+        <input id="c-tok" name="token" type="password" autocomplete="off" placeholder="{{ 'оставьте пустым, чтобы не менять' if business.crm_token else 'из настроек интеграции' }}"></label>
+      <label for="c-pipe">ID воронки — необязательно<input id="c-pipe" name="pipeline_id" inputmode="numeric" value="{{ business.crm_pipeline_id or '' }}" placeholder="главная воронка"></label>
+    </div>
+    <div class="row-tail">
+      <button class="btn" type="submit" name="action" value="connect">{{ 'Сохранить и проверить' if business.crm_domain else 'Подключить amoCRM' }}</button>
+      {% if business.crm_domain %}<button class="btn ghost" type="submit" name="action" value="disconnect" formnovalidate>Отключить</button>{% endif %}
+    </div>
+  </form>
+</section>
+
+<section class="card stack">
   <h2>Адреса для подключения</h2>
   {% if public_base %}
   <p>Telegram подключается кнопкой ниже. Адрес бота: <code>{{ telegram_url }}</code></p>
