@@ -12,7 +12,7 @@
 
 {% set books = pack.has('booking') or pack.has('request') %}
 {% set ready = [counts.services > 0, counts.staff > 0 or not books, counts.free_slots > 0 or not pack.has('booking'), channels[0][1] or channels[1][1] or channels[2][1], admins > 0] %}
-{% if not (ready[0] and ready[1] and ready[2] and ready[3] and ready[4]) %}
+{% if owner and not (ready[0] and ready[1] and ready[2] and ready[3] and ready[4]) %}
 <section class="card">
   <h2>Запуск</h2>
   <ol class="steps">

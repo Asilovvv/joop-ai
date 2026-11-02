@@ -25,7 +25,7 @@
         {% endfor %}
         <form method="post" action="/logout" class="logout">
           <input type="hidden" name="csrf" value="{{ csrf }}">
-          <button class="link" type="submit">Выйти</button>
+          {% if who %}<span class="who">{{ who }}</span>{% endif %}<button class="link" type="submit">Выйти</button>
         </form>
       </div>
     </details>

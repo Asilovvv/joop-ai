@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram, WhatsApp Cloud API, Instagram Direct; Altegio for salons that book there |
 | Size | about 9,700 lines of Python in `joop/`, 46 page templates, 16 database migrations, 20 niche packs and a generic one |
-| Tests | 320 automated tests (about 5,350 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 324 automated tests (about 5,450 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 51 merged pull requests; changes go through pull requests checked by CI |
 
@@ -187,6 +187,11 @@ WhatsApp message fees for reminders.
   as a handoff. Each service can have "invite again after N days" (manicure 21, cleaning 180): the AI
   invites the customer back unless they have already booked. Messages go only where the channel allows
   (Telegram any time, WhatsApp / Instagram within 24 hours); the rest is listed for the staff.
+- **Staff logins** ("Доступ сотрудников", owner only): each administrator gets their own login (company login +
+  own login + password). Staff work with dialogues, bookings, requests, the price list and the FAQ; settings,
+  channels, payment, broadcasts and logins stay with the owner, who logs in with the company password as before.
+  The staff member's name is kept next to the replies they send and the requests they close; a login turned off
+  ends its sessions at the next click.
 - **Reply from the panel**: staff answer a customer on the dialogue page through the customer's channel:
   Telegram through the bot at any time, WhatsApp and Instagram within 24 hours of the customer's last message,
   the web chat by showing the reply on the chat page (while it is open, and on the next visit from the same
@@ -269,7 +274,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 320 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 324 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
@@ -309,7 +314,7 @@ How the parts fit together: [docs/architecture.md](docs/architecture.md).
   shows "[голосовое] …"); otherwise, or if recognition fails, the AI asks the customer to write and sends
   the voice note to staff. Recognition of Kyrgyz has not been measured on real customers' voice notes yet,
   and the ElevenLabs call has been tested only against a fake API.
-- One panel login per business; no staff roles yet. Failed logins are limited per address and per
+- Two roles only (owner and staff). Failed logins are limited per address and per
   company, with a 15-minute lockout (the limit lives in memory and resets on restart).
 - Channel tokens are encrypted in the database when `TOKEN_ENCRYPTION_KEY` is set
   (`python -m joop gen-key`, then `python -m joop encrypt-tokens` for tokens saved earlier).

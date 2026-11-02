@@ -26,7 +26,8 @@ from ..config import Settings, get_settings
 from ..db import init_db, new_session
 from ..dispatch import admin_chat_ids, process_incoming
 from ..catalog import parse_price
-from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, WaitlistEntry
+from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, PanelUser, Service, Slot, Staff,
+                      WaitlistEntry)
 from ..niches import all_packs, get_pack
 from .. import deposits, staff_reply, waitlist
 from ..faq_gaps import open_gaps
@@ -72,14 +73,15 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
         items.append(("/panel/jobs", "jobs", "Заказы в работе"))
     if books or pack.has("stay"):
         items.append(("/panel/staff", "staff", pack.resource_label))
-    items += [("/panel/faq", "faq", "Вопросы"), ("/panel/settings", "settings", "Настройки"), ("/panel/channels", "channels", "Каналы")]
+    items += [("/panel/faq", "faq", "Вопросы"), ("/panel/settings", "settings", "Настройки"), ("/panel/channels", "channels", "Каналы"),
+              ("/panel/accounts", "accounts", "Доступ сотрудников")]
     items[1:1] = [("/panel/setup", "setup", "Запуск"), ("/panel/try", "try", "Проверить ИИ")]
     items.append(("/panel/billing", "billing", "Оплата"))
     return items
 NAV_GROUPS = (
     ("Работа", {"dashboard", "conversations", "orders", "bookings", "stays", "leads", "jobs"}),
     ("Инструменты", {"slots", "tests", "menu", "followups", "broadcasts", "memberships"}),
-    ("Настройка", {"setup", "try", "services", "staff", "faq", "settings", "channels", "billing"}),
+    ("Настройка", {"setup", "try", "services", "staff", "faq", "settings", "channels", "accounts", "billing"}),
 )
 
 
@@ -141,12 +143,35 @@ def _bid(request: Request) -> int:
     return bid
 
 
+# Panel sections only the owner (the company password) opens; staff logins (PanelUser) do the daily work.
+OWNER_ONLY = ("/panel/settings", "/panel/channels", "/panel/altegio", "/panel/setup", "/panel/billing",
+              "/panel/accounts", "/panel/broadcasts")
+OWNER_NAV = {"settings", "channels", "setup", "billing", "accounts", "broadcasts"}
+
+
 def _business(s: Session, request: Request) -> Business:
     business = s.get(Business, _bid(request))
     if business is None:
         request.session.clear()
         raise LoginRequired
+    uid = request.session.get("uid")
+    if uid is not None:  # a staff login: still active, and only the daily-work sections
+        user = s.get(PanelUser, uid)
+        if user is None or not user.active or user.business_id != business.id:
+            request.session.clear()
+            raise LoginRequired
+        if request.url.path.startswith(OWNER_ONLY):
+            raise HTTPException(status_code=403, detail="Этот раздел открывает только владелец: войдите паролем компании.")
     return business
+
+
+def _is_owner(request: Request) -> bool:
+    return request.session.get("uid") is None
+
+
+def _who(request: Request) -> str:
+    """The name shown next to what this person did: a staff login's name, or "Владелец"."""
+    return str(request.session.get("who") or "Владелец")
 
 
 def _own(s: Session, model: Any, obj_id: int, business_id: int) -> Any:
@@ -156,14 +181,21 @@ def _own(s: Session, model: Any, obj_id: int, business_id: int) -> Any:
     return obj
 
 
+def _nav(request: Request, business: Business | None) -> list[tuple[str, str, str]]:
+    items = nav_for(business)
+    return items if _is_owner(request) else [i for i in items if i[1] not in OWNER_NAV]
+
+
 def _render(request: Request, template: str, active: str, business: Business | None = None, **ctx: Any):
     ctx.update(
         request=request,
         business=business,
         csrf=_csrf(request),
         flashes=request.session.pop("flash", []),
-        nav=nav_for(business),
-        nav_groups=nav_groups(nav_for(business)),
+        nav=_nav(request, business),
+        nav_groups=nav_groups(_nav(request, business)),
+        who=_who(request) if request.session.get("bid") else "",
+        owner=_is_owner(request),
         pack=get_pack(business.niche if business else None),
         active=active,
     )
@@ -281,21 +313,35 @@ def record_failure(name: str, request: Request, now: float) -> None:
 
 
 @router.post("/login")
-def login(request: Request, slug: str = Form(""), password: str = Form(""), csrf: str = Form("")):
+def login(request: Request, slug: str = Form(""), password: str = Form(""), user: str = Form(""), csrf: str = Form("")):
+    """The company password logs in the owner; a staff member adds their own login (PanelUser)."""
     _check_csrf(request, csrf)
-    key, now = slug.strip().lower(), time_module.time()
+    company, person, now = slug.strip().lower(), user.strip().lower(), time_module.time()
+    key = f"{company}/{person}" if person else company
     if throttled(key, request, now):
         _flash(request, "Слишком много неудачных попыток. Попробуйте через 15 минут.", "error")
         return _back("/login")
     with new_session() as s:
-        business = s.exec(select(Business).where(Business.slug == key)).first()
-    if business is None or not verify_password(password, business.admin_password_hash):
-        record_failure(key, request, now)
-        _flash(request, "Неверный логин или пароль.", "error")
-        return _back("/login")
-    _login_fails.pop(f"{key}|{client_ip(request)}", None)
-    request.session.clear()
-    request.session["bid"] = business.id
+        business = s.exec(select(Business).where(Business.slug == company)).first()
+        account = None
+        if business is not None and person:
+            account = s.exec(select(PanelUser).where(PanelUser.business_id == business.id, PanelUser.login == person,
+                                                     PanelUser.active == True)).first()  # noqa: E712
+            ok = account is not None and verify_password(password, account.password_hash)
+        else:
+            ok = business is not None and verify_password(password, business.admin_password_hash)
+        if not ok:
+            record_failure(key, request, now)
+            _flash(request, "Неверный логин или пароль.", "error")
+            return _back("/login")
+        _login_fails.pop(f"{key}|{client_ip(request)}", None)
+        request.session.clear()
+        request.session["bid"] = business.id
+        if account is not None:
+            request.session["uid"], request.session["who"] = account.id, account.name
+            account.last_login_at = utcnow()
+            s.add(account)
+            s.commit()
     return _back("/panel")
 
 
@@ -806,7 +852,7 @@ def lead_done(request: Request, item_id: int, csrf: str = Form("")):
     with new_session() as s:
         b = _business(s, request)
         lead = _own(s, Lead, item_id, b.id)
-        lead.status = "done"
+        lead.status, lead.closed_by = "done", _who(request)
         s.add(lead)
         s.commit()
     return _back("/panel/leads")
@@ -862,7 +908,7 @@ def conversation_reply(request: Request, item_id: int, text: str = Form(""), csr
     with new_session() as s:
         b = _business(s, request)
         conv = _own(s, Conversation, item_id, b.id)
-        sent, problem = staff_reply.send(s, _rt(request), b, conv, text, utcnow())
+        sent, problem = staff_reply.send(s, _rt(request), b, conv, text, utcnow(), author=_who(request))
         s.commit()
     if sent:
         _flash(request, "Ответ отправлен. ИИ не вмешивается в этот диалог 12 часов; заявки из него отмечены выполненными.")
@@ -1284,6 +1330,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .autofill import router as autofill_router
 
     app.include_router(autofill_router)
+    from .accounts import router as accounts_router
+
+    app.include_router(accounts_router)
 
     @app.exception_handler(OwnerRequired)
     async def _owner_required(_request: Request, _exc: OwnerRequired):
