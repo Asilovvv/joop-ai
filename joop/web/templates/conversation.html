@@ -12,11 +12,24 @@
   <form method="post" action="/panel/conversations/{{ conv.id }}/pause"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="hours" value="24"><button class="btn ghost" type="submit">Выключить ИИ на 24 часа</button></form>
   {% endif %}
 </section>
-{% if paused %}<p class="flash error">ИИ не отвечает в этом диалоге до {{ conv.ai_paused_until|local(business.timezone) }}. Ответьте клиенту сами в {{ channel_names.get(conv.channel, conv.channel) }}.</p>{% endif %}
+{% if paused %}<p class="flash error">ИИ не отвечает в этом диалоге до {{ conv.ai_paused_until|local(business.timezone) }}. {% if reply_blocked %}Ответьте клиенту сами в {{ channel_names.get(conv.channel, conv.channel) }} или по телефону.{% else %}Ответьте клиенту ниже.{% endif %}</p>{% endif %}
 <section class="card msgs">
   {% for m in messages %}
   <div class="msg {{ m.role }}">{{ m.text }}<span class="meta">{{ {'customer': 'Клиент', 'ai': 'ИИ', 'staff': 'Администратор'}.get(m.role, m.role) }} · {{ m.created_at|local(business.timezone) }}{% if m.off_hours and m.role == 'customer' %} · нерабочее время{% endif %}</span></div>
   {% else %}<p class="muted">Сообщений нет.</p>{% endfor %}
+</section>
+<section class="card stack">
+  <h2>Ответить клиенту</h2>
+  {% if reply_blocked %}
+  <p class="muted">{{ reply_blocked }}{% if conv.customer_phone %} Телефон: <span class="mono">{{ conv.customer_phone }}</span>.{% endif %}</p>
+  {% else %}
+  <form method="post" action="/panel/conversations/{{ conv.id }}/reply" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <textarea name="text" rows="3" maxlength="2000" required aria-label="Ответ клиенту" placeholder="Здравствуйте! Это администратор…"></textarea>
+    <div class="actions" style="justify-content: flex-start"><button class="btn" type="submit">Отправить клиенту</button></div>
+  </form>
+  <p class="muted small">Сообщение уйдёт от имени {{ business.name }}{% if conv.channel == 'web' %}: клиент увидит его в чате на сайте, пока страница открыта, или когда откроет её снова{% endif %}. После ответа ИИ 12 часов не вмешивается в этот диалог.</p>
+  {% endif %}
 </section>
 <p><a href="/panel/conversations">← Все диалоги</a></p>
 {% endblock %}

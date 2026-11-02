@@ -26,6 +26,8 @@
   .msg { max-width: 85%; padding: 10px 13px; border-radius: 14px; line-height: 1.4; font-size: 15px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .ai { align-self: flex-start; background: var(--bg); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
   .me { align-self: flex-end; background: var(--mine); color: var(--mine-ink); border-bottom-right-radius: 4px; }
+  .staff { align-self: flex-start; background: var(--bg); border: 1px solid var(--accent); border-bottom-left-radius: 4px; }
+  .staff small { display: block; color: var(--muted); font-size: 12px; margin-bottom: 2px; }
   .note { align-self: center; color: var(--muted); font-size: 13px; text-align: center; }
   form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
   textarea { flex: 1; resize: none; font: inherit; font-size: 15px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 44px; max-height: 120px; }
@@ -59,13 +61,13 @@
   var slug = {{ b.slug | tojson }}, key = 'joop-chat-' + slug, visitor = '', lang = 'ru';
   var T = {
     ru: {sub: 'Отвечает ИИ-администратор, сразу и в любое время', hello: 'Здравствуйте! Напишите ваш вопрос: цены, свободное время, запись.',
-         ph: 'Напишите сообщение…', send: 'Отправить', by: 'Работает на', off: 'Нет связи. Попробуйте ещё раз.'},
+         ph: 'Напишите сообщение…', send: 'Отправить', by: 'Работает на', off: 'Нет связи. Попробуйте ещё раз.', staff: 'Администратор'},
     ky: {sub: 'ИИ-администратор дароо жана каалаган убакта жооп берет', hello: 'Саламатсызбы! Сурооңузду жазыңыз: баалар, бош убакыт, жазылуу.',
-         ph: 'Билдирүү жазыңыз…', send: 'Жөнөтүү', by: 'Иштетет', off: 'Байланыш жок. Кайра аракет кылыңыз.'},
+         ph: 'Билдирүү жазыңыз…', send: 'Жөнөтүү', by: 'Иштетет', off: 'Байланыш жок. Кайра аракет кылыңыз.', staff: 'Администратор'},
     en: {sub: 'An AI assistant replies right away, any time', hello: 'Hello! Ask us anything: prices, free times, booking.',
-         ph: 'Type a message…', send: 'Send', by: 'Powered by', off: 'No connection. Please try again.'},
+         ph: 'Type a message…', send: 'Send', by: 'Powered by', off: 'No connection. Please try again.', staff: 'Staff'},
     zh: {sub: 'AI 助理随时立即回复', hello: '您好！请提出您的问题：价格、空闲时间、预约。',
-         ph: '输入消息…', send: '发送', by: '技术支持', off: '无网络连接，请重试。'}
+         ph: '输入消息…', send: '发送', by: '技术支持', off: '无网络连接，请重试。', staff: '工作人员'}
   };
   try { visitor = localStorage.getItem(key) || ''; lang = localStorage.getItem('joop-lang') || ''; } catch (e) {}
   if (!T[lang]) {
@@ -100,6 +102,25 @@
     log.scrollTop = log.scrollHeight;
     return div;
   }
+  // Replies staff write from the panel: asked for while the page is open, and on the next visit.
+  var seenKey = 'joop-seen-' + slug, seen = 0;
+  try { seen = parseInt(localStorage.getItem(seenKey) || '0', 10) || 0; } catch (e) {}
+  function poll() {
+    if (!visitor || document.hidden) return;
+    fetch('/c/' + encodeURIComponent(slug) + '/updates?visitor=' + encodeURIComponent(visitor) + '&after=' + seen)
+      .then(function (r) { return r.json(); }).then(function (data) {
+        (data.messages || []).forEach(function (m) {
+          var div = add('staff', m.text), label = document.createElement('small');
+          label.textContent = T[lang].staff;
+          div.insertBefore(label, div.firstChild);
+          seen = Math.max(seen, m.id);
+        });
+        try { localStorage.setItem(seenKey, String(seen)); } catch (e) {}
+      }).catch(function () {});
+  }
+  poll();
+  setInterval(poll, 15000);
+  document.addEventListener('visibilitychange', poll);
   text.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
   });
