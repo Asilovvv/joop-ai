@@ -23,6 +23,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+from .. import staff_reply
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
@@ -174,6 +175,21 @@ WIDGET_JS = """(function () {
   document.body.appendChild(button);
 })();
 """
+
+
+@router.get("/c/{slug}/updates")
+def chat_updates(slug: str, visitor: str = "", after: int = 0):
+    """Replies staff wrote from the panel (joop/staff_reply.py); the page asks while it is open."""
+    if not _TOKEN.match(visitor):
+        return JSONResponse({"messages": []}, headers={"Cache-Control": "no-store"})
+    with new_session() as s:
+        try:
+            b = _business(s, slug)
+        except HTTPException:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        found = staff_reply.web_updates(s, b, f"web-{visitor}", max(0, after), utcnow())
+        items = [{"id": m.id, "text": m.text} for m in found]
+    return JSONResponse({"messages": items}, headers={"Cache-Control": "no-store"})
 
 
 @router.get("/c/{slug}/widget.js")

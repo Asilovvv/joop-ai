@@ -73,7 +73,7 @@ def test_one_message_once_and_the_switch(business, rt):
     assert report["nudged"] == 7
     [text] = [t for chat, t in rt.tg.sent if chat == "999" and t.startswith("Ждёт ответа")]
     assert text.startswith("Ждёт ответа больше 30 мин: 7 заявок\n— Клиент6, 0555 123 456 (WhatsApp): Хочу пожаловаться")
-    assert "…и ещё 2." in text and text.endswith("отметьте «Готово» в разделе «Заявки».")
+    assert "…и ещё 2." in text and text.endswith("Если уже ответили иначе — отметьте «Готово».")
     with db.new_session() as s:
         assert all(s.get(Lead, i).nudged_at == DAY for i in ids)
         assert nudges.send(s, rt, s.get(Business, business.id), DAY + timedelta(minutes=10)) == 0  # once per request
