@@ -131,6 +131,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/niches/<name>/` | Niche packs: labels, outcomes, rules, demo data, evaluation dialogues |
 | `joop/placement.py`, `joop/memberships.py`, `joop/jobs.py`, `joop/waitlist.py`, `joop/intake.py` | Level tests, passes, order status, waiting list, questions before a visit |
 | `joop/followups.py`, `joop/faq_gaps.py` | Ratings and return invitations; questions handed to staff as FAQ candidates |
+| `joop/web/accounts.py` | Staff logins (`PanelUser`); owner-only sections are listed in `app.py` (`OWNER_ONLY`) |
 | `joop/staff_reply.py` | Staff reply from the panel through the customer's channel; web chat updates |
 | `joop/nudges.py` | Reminders to staff about requests nobody answered |
 | `joop/autofill.py`, `joop/web/autofill.py` | Price list and FAQ drafted from pasted text, kept only where the text supports it |
@@ -150,5 +151,5 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 320 tests with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 324 tests with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |

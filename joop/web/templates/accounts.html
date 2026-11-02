@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Доступ сотрудников{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Доступ сотрудников</h1>
+  <p class="muted">У каждого администратора свой вход: видно, кто ответил клиенту и кто закрыл заявку, а уволенному сотруднику достаточно выключить вход. Сотрудники работают с диалогами, записями, заявками, прайсом и вопросами. Настройки, каналы, оплата, рассылки и эта страница — только у владельца (вход паролем компании).</p>
+</section>
+<section class="card">
+  <h2>Входы</h2>
+  {% if users %}
+  <div class="list">{% for u in users %}
+    <div class="item"><div class="main">
+      <div><b>{{ u.name }}</b> <span class="mono muted">{{ u.login }}</span>{% if not u.active %} <span class="chip">выключен</span>{% endif %}</div>
+      <div class="muted small">{% if u.last_login_at %}последний вход {{ u.last_login_at|local(business.timezone) }}{% else %}ещё не входил(а){% endif %}</div>
+    </div>
+    <div class="actions">
+      <form method="post" action="/panel/accounts/{{ u.id }}/password" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input name="password" type="password" minlength="{{ min_password }}" autocomplete="new-password" placeholder="новый пароль" aria-label="Новый пароль для {{ u.name }}" required style="width: 150px">
+        <button class="btn small ghost" type="submit">Сменить</button>
+      </form>
+      <form method="post" action="/panel/accounts/{{ u.id }}/toggle" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small {{ 'danger' if u.active else '' }}" type="submit">{{ 'Выключить' if u.active else 'Включить' }}</button></form>
+    </div></div>
+  {% endfor %}</div>
+  {% else %}<p class="muted">Пока в панель входят только паролем компании.</p>{% endif %}
+</section>
+<section class="card stack">
+  <h2>Добавить сотрудника</h2>
+  <form method="post" action="/panel/accounts" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid2">
+      <label>Имя<input name="name" maxlength="60" required placeholder="Айгерим"></label>
+      <label>Логин<input name="login" maxlength="32" required autocomplete="off" placeholder="aigerim" pattern="[a-z0-9][a-z0-9._\-]{2,31}"></label>
+      <label>Пароль, не короче {{ min_password }} символов<input name="password" type="password" minlength="{{ min_password }}" autocomplete="new-password" required></label>
+    </div>
+    <div><button class="btn" type="submit">Создать вход</button></div>
+  </form>
+  <p class="muted small">Сотрудник входит на странице входа: логин компании «{{ business.slug }}», свой логин и свой пароль.</p>
+</section>
+{% endblock %}
