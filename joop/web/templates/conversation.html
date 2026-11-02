@@ -15,7 +15,7 @@
 {% if paused %}<p class="flash error">ИИ не отвечает в этом диалоге до {{ conv.ai_paused_until|local(business.timezone) }}. {% if reply_blocked %}Ответьте клиенту сами в {{ channel_names.get(conv.channel, conv.channel) }} или по телефону.{% else %}Ответьте клиенту ниже.{% endif %}</p>{% endif %}
 <section class="card msgs">
   {% for m in messages %}
-  <div class="msg {{ m.role }}">{{ m.text }}<span class="meta">{{ {'customer': 'Клиент', 'ai': 'ИИ', 'staff': 'Администратор'}.get(m.role, m.role) }} · {{ m.created_at|local(business.timezone) }}{% if m.off_hours and m.role == 'customer' %} · нерабочее время{% endif %}</span></div>
+  <div class="msg {{ m.role }}">{{ m.text }}<span class="meta">{{ {'customer': 'Клиент', 'ai': 'ИИ', 'staff': 'Администратор'}.get(m.role, m.role) }}{% if m.author %} ({{ m.author }}){% endif %} · {{ m.created_at|local(business.timezone) }}{% if m.off_hours and m.role == 'customer' %} · нерабочее время{% endif %}</span></div>
   {% else %}<p class="muted">Сообщений нет.</p>{% endfor %}
 </section>
 <section class="card stack">

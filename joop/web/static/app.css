@@ -78,6 +78,7 @@ code { font-family: var(--mono); font-size: 13px; background: var(--bg); border:
 .side-menu[open] > summary span:nth-child(2) { opacity: 0; }
 .side-menu[open] > summary span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
 .side-body { position: absolute; left: 0; right: 0; top: 56px; background: var(--side); padding: 4px 12px 20px; max-height: calc(100dvh - 56px); overflow-y: auto; box-shadow: 0 20px 40px rgba(0,0,0,.35); }
+.logout .who { display: block; color: var(--side-dim); font-size: 13px; margin-bottom: 4px; }
 .biz { color: #fff; font-weight: 600; padding: 8px 10px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .group { display: flex; flex-direction: column; gap: 1px; margin-top: 14px; }
 .group-title { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--side-dim); padding: 0 10px 6px; }
