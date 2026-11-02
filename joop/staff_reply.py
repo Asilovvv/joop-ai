@@ -45,7 +45,7 @@ def blocked(conv: Conversation, now_utc: datetime) -> str:
 
 
 def send(session: Session, rt: "Runtime", business: Business, conv: Conversation, text: str,
-         now_utc: datetime) -> tuple[bool, str]:
+         now_utc: datetime, author: str = "") -> tuple[bool, str]:
     """(sent, problem in Russian). Stores the reply, pauses the AI in this chat and closes its open requests."""
     text = (text or "").strip()[:MAX_TEXT]
     if not text:
@@ -59,12 +59,13 @@ def send(session: Session, rt: "Runtime", business: Business, conv: Conversation
             return False, f"{CHANNEL_NAMES[conv.channel]} не подключён в разделе «Каналы»."
         if not client.send_text(conv.chat_id, text):
             return False, f"{CHANNEL_NAMES[conv.channel]} не принял сообщение. Попробуйте ещё раз или позвоните клиенту."
-    session.add(Message(business_id=business.id, conversation_id=conv.id, role="staff", text=text, created_at=now_utc))
+    session.add(Message(business_id=business.id, conversation_id=conv.id, role="staff", text=text, created_at=now_utc,
+                        author=author[:80]))
     conv.last_message_at = now_utc
     conv.ai_paused_until = max(conv.ai_paused_until or now_utc, now_utc + STAFF_TAKEOVER_PAUSE)
     session.add(conv)
     for lead in session.exec(select(Lead).where(Lead.conversation_id == conv.id, Lead.status == "new")).all():
-        lead.status = "done"
+        lead.status, lead.closed_by = "done", author[:80]
         session.add(lead)
     return True, ""
 

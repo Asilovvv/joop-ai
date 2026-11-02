@@ -155,6 +155,7 @@ class Message(SQLModel, table=True):
     created_at: NaiveDatetime = Field(default_factory=utcnow, index=True)
     off_hours: bool = False
     external_id: str = Field(default="", index=True)
+    author: str = ""  # who of the staff wrote it, for replies sent from the panel
     # Claude usage for AI replies (thinking tokens count as output)
     input_tokens: int = 0
     output_tokens: int = 0
@@ -209,6 +210,7 @@ class Lead(SQLModel, table=True):
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     off_hours: bool = False
     nudged_at: Optional[NaiveDatetime] = None  # staff were reminded that nobody answered (joop/nudges.py)
+    closed_by: str = ""  # who marked it done
 
 
 class Order(SQLModel, table=True):
@@ -508,3 +510,22 @@ class BroadcastDelivery(SQLModel, table=True):
     conversation_id: int = Field(foreign_key="conversation.id", index=True)
     status: str = "pending"  # pending | sent | skipped
     sent_at: Optional[NaiveDatetime] = None
+
+
+class PanelUser(SQLModel, table=True):
+    """A staff member's own login to the panel. The company password stays the owner's login.
+
+    Staff work with dialogues, bookings and requests; settings, channels, payment and these logins
+    are the owner's (joop/web/accounts.py).
+    """
+
+    __table_args__ = (UniqueConstraint("business_id", "login"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    name: str
+    login: str
+    password_hash: str
+    active: bool = True
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+    last_login_at: Optional[NaiveDatetime] = None

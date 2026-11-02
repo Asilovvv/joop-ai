@@ -28,7 +28,7 @@
   <h2>Обработанные</h2>
   <div class="list">
     {% for l in done %}
-    <div class="item"><div class="main"><div class="muted">{{ l.summary }}</div><div class="muted small">{{ l.customer_name }} {{ l.customer_phone }} · {{ l.created_at|local(business.timezone) }}</div></div></div>
+    <div class="item"><div class="main"><div class="muted">{{ l.summary }}</div><div class="muted small">{{ l.customer_name }} {{ l.customer_phone }} · {{ l.created_at|local(business.timezone) }}{% if l.closed_by %} · закрыл(а): {{ l.closed_by }}{% endif %}</div></div></div>
     {% endfor %}
   </div>
 </section>
