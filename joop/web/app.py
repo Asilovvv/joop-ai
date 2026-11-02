@@ -28,7 +28,7 @@ from ..dispatch import admin_chat_ids, process_incoming
 from ..catalog import parse_price
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, WaitlistEntry
 from ..niches import all_packs, get_pack
-from .. import deposits, waitlist
+from .. import deposits, staff_reply, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -94,7 +94,7 @@ def nav_groups(items: list[tuple[str, str, str]]) -> list[tuple[str, list[tuple[
 
 
 TIMEZONES = ["Asia/Bishkek", "Asia/Almaty", "Asia/Tashkent", "Asia/Dushanbe", "Europe/Moscow"]
-CHANNEL_NAMES = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram", "console": "Тест"}
+CHANNEL_NAMES = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram", "web": "Чат на сайте", "console": "Тест"}
 
 router = APIRouter()
 
@@ -851,7 +851,24 @@ def conversation_page(request: Request, item_id: int):
             messages=messages,
             paused=bool(conv.ai_paused_until and conv.ai_paused_until > utcnow()),
             channel_names=CHANNEL_NAMES,
+            reply_blocked=staff_reply.blocked(conv, utcnow()),
         )
+
+
+@router.post("/panel/conversations/{item_id}/reply")
+def conversation_reply(request: Request, item_id: int, text: str = Form(""), csrf: str = Form("")):
+    """Staff answer the customer from the panel, through the customer's channel (joop/staff_reply.py)."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        conv = _own(s, Conversation, item_id, b.id)
+        sent, problem = staff_reply.send(s, _rt(request), b, conv, text, utcnow())
+        s.commit()
+    if sent:
+        _flash(request, "Ответ отправлен. ИИ не вмешивается в этот диалог 12 часов; заявки из него отмечены выполненными.")
+    else:
+        _flash(request, problem, "error")
+    return _back(f"/panel/conversations/{item_id}")
 
 
 @router.post("/panel/conversations/{item_id}/pause")

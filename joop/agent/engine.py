@@ -124,7 +124,10 @@ def handle_incoming(
     if not access_ok(session, business.id, now):
         return Outcome(skipped="subscription")  # trial over or not paid: staff answer by hand
     if conv.ai_paused_until and conv.ai_paused_until > now:
-        return Outcome(skipped="paused")
+        # Staff answer this chat themselves. In WhatsApp and Instagram they see the message in their own app;
+        # a Telegram or web chat customer is seen only by the bot, so staff get it as a note.
+        notes = [_paused_note(conv, stored, base_url)] if conv.channel in ("telegram", "web") and stored else []
+        return Outcome(skipped="paused", admin_notes=notes)
 
     if opt is not None:
         reply = broadcasts.opt_reply(opt, text)
@@ -425,6 +428,14 @@ def _is_own_text(echo: str, sent: list[str]) -> bool:
         if e == t or (len(e) >= 20 and t.startswith(e)):
             return True
     return False
+
+
+def _paused_note(conv: Conversation, text: str, base_url: str) -> str:
+    who = conv.customer_name or conv.display_name or "Клиент"
+    where = {"telegram": "Telegram", "web": "чат на сайте"}.get(conv.channel, conv.channel)
+    link = f"{base_url.rstrip('/')}/panel/conversations/{conv.id}" if base_url else "панель → «Диалоги»"
+    body = text if len(text) <= 300 else text[:299] + "…"
+    return f"{who} пишет в диалог, где отвечаете вы ({where}): «{body}»\nОтветить: {link}"
 
 
 def _handle_echo(
