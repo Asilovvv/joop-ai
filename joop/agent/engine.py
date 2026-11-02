@@ -15,7 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, deposits, health, voice
+from .. import altegio, broadcasts, deposits, health, upsell, voice
 from ..billing import access_ok
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -147,6 +147,11 @@ def handle_incoming(
 
     if not text:
         return Outcome(skipped="empty")
+
+    added = upsell.capture(session, conv, text, now)
+    if added is not None:  # "да" right after "Хотите добавить …?"
+        _add_message(session, business, conv, "ai", added[0], now, off)
+        return Outcome(reply=added[0], admin_notes=[added[1]] if added[1] else [])
 
     rated = capture_rating(session, business, conv, text, now, off)
     if rated is not None:  # "5" right after "оцените визит от 1 до 5"
@@ -285,6 +290,7 @@ def handle_incoming(
         kyrgyz = is_kyrgyz_message(text)
         loyalty = intake.loyalty_line(session, business, booked, kyrgyz)
         outcome.reply += loyalty + intake.after_booking(business, booked, kyrgyz) + deposits.reply_line(business, booked, now, kyrgyz)
+        outcome.reply += upsell.offer(session, business, booked, kyrgyz)
         if loyalty:
             outcome.admin_notes.append(f"Бонус: у {booked.customer_name} {booked.loyalty_visit}-й визит "
                                        f"({fmt_slot(booked.start)}) — {business.loyalty_reward.strip()}")
