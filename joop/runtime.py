@@ -52,6 +52,15 @@ class Runtime:
 
         return make_transcriber(self.settings, self.http)
 
+    def crm(self, business: Business):
+        """amoCRM / Kommo client for the business's account, or None when it is not connected (joop/crm.py)."""
+        from .crm import AmoClient, base_url
+
+        base = base_url(business.crm_domain)
+        if not base or not business.crm_token:
+            return None
+        return AmoClient(self.http, base, business.crm_token)
+
     def telegram(self, business: Business) -> TelegramClient | None:
         if not business.telegram_bot_token:
             return None

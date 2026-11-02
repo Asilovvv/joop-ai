@@ -144,7 +144,7 @@ def _bid(request: Request) -> int:
 
 
 # Panel sections only the owner (the company password) opens; staff logins (PanelUser) do the daily work.
-OWNER_ONLY = ("/panel/settings", "/panel/channels", "/panel/altegio", "/panel/setup", "/panel/billing",
+OWNER_ONLY = ("/panel/settings", "/panel/channels", "/panel/altegio", "/panel/crm", "/panel/setup", "/panel/billing",
               "/panel/accounts", "/panel/broadcasts")
 OWNER_NAV = {"settings", "channels", "setup", "billing", "accounts", "broadcasts"}
 
@@ -1151,6 +1151,43 @@ def altegio_save(request: Request, location_id: str = Form(""), token: str = For
         s.add(b)
         s.commit()
         _flash(request, f"Altegio подключён: услуг {res.services}, сотрудников {res.staff}. Свободные окна загрузятся в течение минуты.")
+    return _back("/panel/channels")
+
+
+@router.post("/panel/crm")
+def crm_save(request: Request, domain: str = Form(""), token: str = Form(""), pipeline_id: str = Form(""),
+             action: str = Form("connect"), csrf: str = Form("")):
+    """Connect amoCRM / Kommo: check the token on the account right away; deals follow with the scheduler."""
+    from .. import crm
+
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        if action == "disconnect":
+            b.crm_domain, b.crm_token, b.crm_error = "", "", ""
+            s.add(b)
+            s.commit()
+            _flash(request, "amoCRM отключён: новые записи и заявки туда больше не уходят.")
+            return _back("/panel/channels")
+        base = crm.base_url(domain)
+        if not base:
+            _flash(request, "Укажите адрес аккаунта amoCRM, например mycompany.amocrm.ru или mycompany.kommo.com.", "error")
+            return _back("/panel/channels")
+        key = token.strip()[:2000] or b.crm_token
+        if not key:
+            _flash(request, "Вставьте долгосрочный токен из настроек интеграции amoCRM.", "error")
+            return _back("/panel/channels")
+        try:
+            account = crm.AmoClient(_rt(request).http, base, key).account()
+        except crm.CrmError as exc:
+            _flash(request, f"amoCRM не принял подключение ({exc.status or 'нет связи'}). Проверьте адрес и токен.", "error")
+            return _back("/panel/channels")
+        digits = "".join(ch for ch in pipeline_id if ch.isdigit())[:12]
+        b.crm_domain, b.crm_token, b.crm_pipeline_id, b.crm_error = base.removeprefix("https://"), key, int(digits or 0), ""
+        s.add(b)
+        s.commit()
+        name = str(account.get("name") or "").strip()
+        _flash(request, f"amoCRM подключён{(': ' + name) if name else ''}. Новые записи, заявки и заказы будут появляться там как сделки в течение нескольких минут.")
     return _back("/panel/channels")
 
 
