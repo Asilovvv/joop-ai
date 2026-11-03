@@ -292,6 +292,10 @@ WhatsApp message fees for reminders.
 - **Personal support in the first month**: for 30 days after sign-up the panel's sidebar shows the
   founder's WhatsApp and Telegram (`CONTACT_PHONE`, `CONTACT_TELEGRAM`), so the first question goes to
   a named person, not a form.
+- **Free plan for a solo master** (`/panel/billing`, "Перейти на бесплатный тариф"): one active master,
+  no expiry, the AI works as usual and signs the first reply of each conversation and every booking
+  with "— отвечает Joop AI … · <site>" in WhatsApp, Instagram and Telegram. A second master needs the
+  paid plan; a payment moves the business to it and the signature goes away.
 
 ## Database migrations
 
@@ -319,7 +323,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 366 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 369 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

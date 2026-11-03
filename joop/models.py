@@ -267,6 +267,7 @@ class Subscription(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     business_id: int = Field(foreign_key="business.id", unique=True, index=True)
     status: str = "trial"  # trial | active | suspended
+    plan: str = "pro"  # pro | free: one master, never expires, the AI signs its replies with Joop (free_plan.py)
     price_som: int = 0  # monthly price agreed with this business; 0 = the default price from settings
     trial_ends_at: Optional[NaiveDatetime] = None
     paid_until: Optional[NaiveDatetime] = None

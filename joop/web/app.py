@@ -30,7 +30,7 @@ from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order
                       WaitlistEntry)
 from ..niches import all_packs, get_pack
 from ..phone import normalize_phone
-from .. import deposits, staff_reply, waitlist
+from .. import billing, deposits, free_plan, staff_reply, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -534,6 +534,9 @@ def staff_add(
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
+        if name.strip() and free_plan.is_free(billing.get_subscription(s, b.id)) and len(free_plan.active_staff(s, b.id)) >= free_plan.MAX_STAFF:
+            _flash(request, free_plan.TOO_MANY, "error")  # the free plan is for one master
+            return _back("/panel/staff")
         if name.strip():
             s.add(Staff(business_id=b.id, name=name.strip(), role=role.strip(), handles=handles.strip(), capacity=max(0, capacity),
                         group_size=max(0, min(group_size, 500))))

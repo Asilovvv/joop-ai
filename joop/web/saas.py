@@ -21,7 +21,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .. import billing, health, partners, pitch, waitlist
+from .. import billing, free_plan, health, partners, pitch, waitlist
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
@@ -337,12 +337,32 @@ def billing_page(request: Request):
         b = _business(s, request)
         sub = billing.get_subscription(s, b.id)
         payments = s.exec(select(Payment).where(Payment.business_id == b.id).order_by(Payment.id.desc())).all()[:12]
+        solo = free_plan.eligible(s, b.id)
     return _render(
         request, "billing.html", "billing", b,
         sub=sub, st=billing.state(sub, now) if sub else None, price=billing.price_for(sub, settings.price_som),
         payments=payments, card=bool(settings.freedompay_merchant_id and settings.freedompay_secret_key),
-        instructions=settings.billing_instructions,
+        instructions=settings.billing_instructions, free=free_plan.is_free(sub), solo=solo,
     )
+
+
+@router.post("/panel/billing/free")
+def billing_free(request: Request, csrf: str = Form("")):
+    """A solo master takes the free plan: the AI works for nothing and signs its replies with Joop."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        sub = billing.get_subscription(s, b.id)
+        if sub is None:
+            raise HTTPException(status_code=404)
+        if not free_plan.eligible(s, b.id):
+            _flash(request, free_plan.TOO_MANY, "error")
+            return _back("/panel/billing")
+        free_plan.switch(sub)
+        s.add(sub)
+        s.commit()
+    _flash(request, "Вы на бесплатном тарифе: ИИ отвечает как раньше и подписывается «Joop AI» в первом сообщении и при записи.")
+    return _back("/panel/billing")
 
 
 @router.post("/panel/billing/cancel")

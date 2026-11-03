@@ -3,7 +3,7 @@
 {% block content %}
 <div class="head">
   <h1>Подписка</h1>
-  {% if st %}<span class="chip {{ 'ok' if st.code in ('trial', 'active') else 'warn' }}">{{ st.label }}{% if st.active %} · осталось {{ st.days_left }} дн.{% endif %}</span>{% endif %}
+  {% if st %}<span class="chip {{ 'ok' if st.code in ('trial', 'active', 'free') else 'warn' }}">{{ st.label }}{% if st.active and st.code != 'free' %} · осталось {{ st.days_left }} дн.{% endif %}</span>{% endif %}
 </div>
 <section class="card stack">
   {% if not sub %}
@@ -11,16 +11,29 @@
   {% else %}
   <div class="stats">
     <div class="stat"><b>{{ price if price else '—' }}</b><span>сом в месяц</span></div>
-    <div class="stat"><b>{{ sub.trial_ends_at.strftime('%d.%m') if sub.trial_ends_at else '—' }}</b><span>конец пробного периода</span></div>
+    <div class="stat"><b>{{ sub.trial_ends_at.strftime('%d.%m') if sub.trial_ends_at and not free else '—' }}</b><span>конец пробного периода</span></div>
     <div class="stat"><b>{{ sub.paid_until.strftime('%d.%m.%Y') if sub.paid_until else '—' }}</b><span>оплачено до</span></div>
   </div>
   {% if st and not st.active %}<p class="flash error">ИИ сейчас не отвечает клиентам: сообщения приходят в панель, отвечайте вручную или оплатите подписку.</p>{% endif %}
+  {% if free %}
+  <div class="card stack">
+    <h2>Вы на бесплатном тарифе</h2>
+    <p class="muted small">Для одного мастера, без срока. ИИ отвечает как обычно и подписывается «Joop AI» в первом сообщении диалога и при записи. Второй мастер, без подписи — на платном тарифе: оплатите, и он включится сразу.</p>
+  </div>
+  {% endif %}
   <form method="post" action="/panel/billing/pay" class="stack">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     {% if card %}<button class="btn" type="submit" name="method" value="card">Оплатить картой {{ price }} сом</button>{% endif %}
     <button class="btn {{ 'ghost' if card }}" type="submit" name="method" value="manual">Оплатить переводом или QR</button>
   </form>
-  {% if sub.cancelled_at %}
+  {% if not free %}
+  <div class="card stack">
+    <h2>Бесплатный тариф для мастера-одиночки</h2>
+    <p class="muted small">Если вы работаете одна (один), ИИ бесплатен без срока: он подписывается «Joop AI» в первом сообщении диалога и при записи — так о нас узнают ваши клиенты.{% if not solo %} Сейчас у вас больше одного мастера, поэтому тариф недоступен.{% endif %}</p>
+    {% if solo %}<form method="post" action="/panel/billing/free"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn ghost" type="submit">Перейти на бесплатный тариф</button></form>{% endif %}
+  </div>
+  {% endif %}
+  {% if free %}{% elif sub.cancelled_at %}
   <div class="card stack">
     <h2>Подписка отменена</h2>
     <p class="muted small">ИИ отвечает до конца оплаченного или пробного периода, напоминаний об оплате не будет. Данные и прайс остаются — вернуться можно в любой момент.</p>
