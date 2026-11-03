@@ -14,6 +14,7 @@ from joop.agent.engine import handle_incoming
 from joop.channels.base import IncomingMessage
 
 from .conftest import NOW_UTC, FakeLLM
+from .test_saas import app_client, owner_login, saas_settings  # noqa: F401  (fixtures)
 from .test_web import login
 
 BASE = "https://joop.test"
@@ -102,3 +103,13 @@ def test_signature_follows_a_booking_on_the_free_plan(settings, rt, business):
     assert say(business.id, rt, "Болит зуб, можно завтра?", "telegram", "1001", llm).reply == "Есть завтра в 09:00. Записать?"
     out = say(business.id, rt, "Да, Айбек 0555 123 456", "telegram", "1001", llm)
     assert out.booking_id is not None and out.reply.endswith("· https://joop.test") and "— отвечает Joop AI" in out.reply
+
+
+def test_owner_console_counts_free_businesses(business, app_client):
+    _one_master(business.id)
+    with db.new_session() as s:
+        free_plan.switch(billing.start_trial(s, s.get(Business, business.id), 14, NOW_UTC))
+        s.commit()
+    owner_login(app_client)
+    page = app_client.get("/owner").text
+    assert "<b>1</b><span>бесплатно</span>" in page and "Бесплатно: один мастер" in page

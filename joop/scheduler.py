@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, billing, broadcasts, crm, deposits, health, nudges, ops, recovery, trust
+from . import altegio, billing, broadcasts, crm, deposits, founder_digest, health, nudges, ops, recovery, trust
 from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
@@ -407,6 +407,12 @@ class Scheduler(threading.Thread):
                 health.maybe_alert(session, self.rt, now_utc or utcnow())
             except Exception:
                 log.exception("Founder alert check failed")
+        with new_session() as session:  # Monday: the founder's one line a week
+            try:
+                founder_digest.maybe_send(session, self.rt, now_utc or utcnow())
+            except Exception:
+                session.rollback()
+                log.exception("Founder digest failed")
         try:  # one consistent copy of the database a day (joop/ops.py)
             if ops.backup_due(self.rt.settings, now_utc or utcnow()):
                 ops.make_backup(self.rt.settings, now_utc or utcnow())
