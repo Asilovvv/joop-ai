@@ -11,13 +11,29 @@
 </section>
 
 {% set books = pack.has('booking') or pack.has('request') %}
-{% set ready = [counts.services > 0, counts.staff > 0 or not books, counts.free_slots > 0 or not pack.has('booking'), channels[0][1] or channels[1][1] or channels[2][1], admins > 0] %}
+{% set ready = [counts.services > 0 and not example.services, (counts.staff > 0 or not books) and not example.staff, counts.free_slots > 0 or not pack.has('booking'), channels[0][1] or channels[1][1] or channels[2][1], admins > 0] %}
+{% if owner and example.any %}
+<section class="card warn stack" id="example">
+  <h2>Часть данных — ещё пример</h2>
+  <p>Чтобы тестовый чат отвечал сразу, мы добавили пример из вашей сферы. ИИ говорит его клиентам как правду —
+    замените на свои данные или удалите:</p>
+  <ul>
+    {% if example.services %}<li><a href="/panel/services">{{ pack.catalog_label }}</a>: {{ example.services | join(', ') }}</li>{% endif %}
+    {% if example.staff %}<li><a href="/panel/staff">{{ pack.resource_label }}</a>: {{ example.staff | join(', ') }}</li>{% endif %}
+    {% if example.faq %}<li><a href="/panel/faq">Вопросы</a>: {{ example.faq | join(' · ') }}</li>{% endif %}
+  </ul>
+  <form method="post" action="/panel/example/ok" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn ghost small" type="submit">Это наши настоящие данные</button>
+  </form>
+</section>
+{% endif %}
 {% if owner and not (ready[0] and ready[1] and ready[2] and ready[3] and ready[4]) %}
 <section class="card">
   <h2>Запуск</h2>
   <ol class="steps">
-    <li class="{{ 'done' if ready[0] }}"><a href="/panel/services">Заполните раздел «{{ pack.catalog_label }}»</a></li>
-    {% if pack.has('booking') or pack.has('request') %}<li class="{{ 'done' if ready[1] }}"><a href="/panel/staff">Заполните раздел «{{ pack.resource_label }}»</a></li>{% endif %}
+    <li class="{{ 'done' if ready[0] }}"><a href="/panel/services">{{ 'Замените пример' if example.services else 'Заполните раздел' }} «{{ pack.catalog_label }}»</a></li>
+    {% if pack.has('booking') or pack.has('request') %}<li class="{{ 'done' if ready[1] }}"><a href="/panel/staff">{{ 'Замените пример' if example.staff else 'Заполните раздел' }} «{{ pack.resource_label }}»</a></li>{% endif %}
     {% if pack.has('booking') %}<li class="{{ 'done' if ready[2] }}"><a href="/panel/slots">Создайте свободные окна для записи</a></li>{% endif %}
     <li class="{{ 'done' if ready[3] }}"><a href="/panel/channels">Подключите канал: Telegram, WhatsApp или Instagram</a></li>
     <li class="{{ 'done' if ready[4] }}"><a href="/panel/settings">Привяжите Telegram для уведомлений о записях</a></li>
