@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, broadcasts, crm, deposits, health, nudges, ops, recovery, trust
+from . import altegio, billing, broadcasts, crm, deposits, health, nudges, ops, recovery, trust
 from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
@@ -179,10 +179,27 @@ def monthly_report_text(session: Session, business: Business, now_utc: datetime)
     from .models import Lead, Order, Service
     from .timeutil import local_to_utc
 
+    from .timeutil import local_to_utc
+
     now_local = utc_to_local(now_utc, business.timezone)
     first_this = datetime.combine(now_local.date().replace(day=1), time.min)
     first_last = (first_this - timedelta(days=1)).replace(day=1)
     since, until = local_to_utc(first_last, business.timezone), local_to_utc(first_this, business.timezone)
+    lines = period_lines(session, business, since, until)
+    if lines is None:
+        return None
+    return "\n".join([f"Итоги за {MONTHS[first_last.month - 1]} «{business.name}»: ИИ-администратор", *lines])
+
+
+def period_lines(session: Session, business: Business, since: datetime, until: datetime) -> list[str] | None:
+    """What the AI did between two UTC moments, valued at the business's own prices; None when nobody wrote.
+
+    Only exact prices count: a booking whose service has one price in the price list, and orders whose total
+    the code computed. Bookings without such a price are named, not guessed."""
+    from sqlalchemy import func
+
+    from .models import Lead, Order, Service
+
     window = (Message.business_id == business.id, Message.role == "customer", Message.created_at >= since, Message.created_at < until,
               real_messages(business.id))
     conversations = session.exec(select(func.count(func.distinct(Message.conversation_id))).where(*window)).one() or 0
@@ -211,8 +228,7 @@ def monthly_report_text(session: Session, business: Business, now_utc: datetime)
                                               Order.channel != TEST_CHANNEL)).all()
     order_sum = sum(o.total for o in orders if o.total)
     total = sum(valued) + order_sum
-    lines = [f"Итоги за {MONTHS[first_last.month - 1]} «{business.name}»: ИИ-администратор",
-             f"Ответил {_ru(conversations, 'клиенту', 'клиентам', 'клиентам')}, из них {off_conversations} — в нерабочее время."]
+    lines = [f"Ответил {_ru(conversations, 'клиенту', 'клиентам', 'клиентам')}, из них {off_conversations} — в нерабочее время."]
     off_bookings = sum(1 for b in bookings if b.created_off_hours)
     if bookings:
         lines.append(f"Записал сам {_ru(len(bookings), 'клиента', 'клиентов', 'клиентов')}"
@@ -228,7 +244,30 @@ def monthly_report_text(session: Session, business: Business, now_utc: datetime)
                      f"к записям — ещё {_som(sum(b.upsell_price for b in added))} сом.")
     if handoffs:
         lines.append(f"Передал вам {_ru(handoffs, 'вопрос', 'вопроса', 'вопросов')}, на которые нужен человек.")
-    return "\n".join(lines)
+    return lines
+
+
+def first_week_report_text(session: Session, business: Business, now_utc: datetime, price_som: int = 0) -> str | None:
+    """Once, on the morning after the seventh day with real customers: the week in numbers and what it would cost.
+
+    The strategy's day-7 report: by the end of the trial week the owner has a figure, not a feeling. Sent once
+    (Business.first_week_report_at); nothing when nobody wrote."""
+    started = trust.first_live_at(session, business)
+    if started is None or business.first_week_report_at is not None or now_utc - started < timedelta(days=7):
+        return None
+    lines = period_lines(session, business, started, now_utc)
+    if lines is None:
+        return None
+    sub = billing.get_subscription(session, business.id)
+    st = billing.state(sub, now_utc) if sub else None
+    tail = []
+    if st and st.code == "trial":
+        tail.append(f"Пробный период: ещё {_ru(st.days_left, 'день', 'дня', 'дней')}.")
+    if price_som:
+        tail.append(f"Подписка — {_som(price_som)} сом в месяц, отменить можно в любой момент: панель → «Оплата».")
+    tail.append("Если что-то отвечает не так — впишите ответ в «Вопросы» или напишите мне, поправлю в тот же день.")
+    business.first_week_report_at = now_utc
+    return "\n".join([f"Первая неделя с ИИ-администратором «{business.name}» — итоги", *lines, *tail])
 
 
 def refresh_instagram_token(rt: Runtime, business: Business, now_utc: datetime) -> bool | None:
@@ -310,6 +349,10 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
             if weekly:
                 texts.append(weekly)
                 report["weekly"] = True
+        week = first_week_report_text(session, business, now_utc, rt.settings.price_som)
+        if week:
+            texts.append(week)
+            report["first_week"] = True
         if now_local.day == 1:  # the 1st: last month and what it brought
             monthly = monthly_report_text(session, business, now_utc)
             if monthly:
