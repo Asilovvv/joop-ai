@@ -153,8 +153,9 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/health.py` | Alerts for the founder when model calls keep failing |
 | `joop/recovery.py` | Answers the customers an outage left waiting, once the model works again |
 | `joop/ops.py` | Pre-launch check (`python -m joop check`) and database backups |
+| `deploy/setup.sh`, `docker-compose.yml`, `deploy/Caddyfile` | One-command server setup; the app plus Caddy for HTTPS |
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 351 tests with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 353 tests with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
