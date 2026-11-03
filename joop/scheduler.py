@@ -15,7 +15,7 @@ from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
 from .followups import send_return_invites, send_review_requests
 from .models import Booking, Business, Conversation, Message
 from .runtime import Runtime
-from .stats import activity
+from .stats import TEST_CHANNEL, activity, real_messages
 from .timeutil import fmt_slot, utc_to_local, utcnow
 
 log = logging.getLogger(__name__)
@@ -181,18 +181,21 @@ def monthly_report_text(session: Session, business: Business, now_utc: datetime)
     first_this = datetime.combine(now_local.date().replace(day=1), time.min)
     first_last = (first_this - timedelta(days=1)).replace(day=1)
     since, until = local_to_utc(first_last, business.timezone), local_to_utc(first_this, business.timezone)
-    window = (Message.business_id == business.id, Message.role == "customer", Message.created_at >= since, Message.created_at < until)
+    window = (Message.business_id == business.id, Message.role == "customer", Message.created_at >= since, Message.created_at < until,
+              real_messages(business.id))
     conversations = session.exec(select(func.count(func.distinct(Message.conversation_id))).where(*window)).one() or 0
     if not conversations:
         return None
     off_conversations = session.exec(select(func.count(func.distinct(Message.conversation_id))).where(
         *window, Message.off_hours == True)).one() or 0  # noqa: E712
     handoffs = session.exec(select(func.count()).select_from(Lead).where(
-        Lead.business_id == business.id, Lead.kind == "handoff", Lead.created_at >= since, Lead.created_at < until)).one() or 0
+        Lead.business_id == business.id, Lead.kind == "handoff", Lead.created_at >= since, Lead.created_at < until,
+        Lead.channel != TEST_CHANNEL)).one() or 0
     prices = {s.name.casefold(): s.price_value for s in session.exec(select(Service).where(
         Service.business_id == business.id, Service.price_value != None)).all()}  # noqa: E711
     bookings = session.exec(select(Booking).where(Booking.business_id == business.id, Booking.source == "ai",
-                                                  Booking.created_at >= since, Booking.created_at < until)).all()
+                                                  Booking.created_at >= since, Booking.created_at < until,
+                                                  Booking.channel != TEST_CHANNEL)).all()
     valued = []
     for b in bookings:  # an accepted add-on (joop/upsell.py) is "Маникюр + Дизайн": the base price plus the add-on's
         name, extra = b.service or "", 0
@@ -202,7 +205,8 @@ def monthly_report_text(session: Session, business: Business, now_utc: datetime)
             valued.append(prices[name.casefold()] + extra)
     added = [b for b in bookings if b.upsell_status == "accepted"]
     orders = session.exec(select(Order).where(Order.business_id == business.id, Order.created_at >= since,
-                                              Order.created_at < until, Order.status != "cancelled")).all()
+                                              Order.created_at < until, Order.status != "cancelled",
+                                              Order.channel != TEST_CHANNEL)).all()
     order_sum = sum(o.total for o in orders if o.total)
     total = sum(valued) + order_sum
     lines = [f"Итоги за {MONTHS[first_last.month - 1]} «{business.name}»: ИИ-администратор",

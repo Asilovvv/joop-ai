@@ -3,7 +3,8 @@
 These are the rows of the pilot table in the thesis (Chapter 8) and of the founder's own review:
 conversations, how many customer messages came outside working hours, what the AI completed on its own
 (bookings, booking requests, orders, qualified leads), what it handed to people, how often it failed to
-answer and how many of those it answered later, what the model cost, and whether the business pays. Demo businesses of the public site are left out.
+answer and how many of those it answered later, what the model cost, and whether the business pays. Demo businesses of the public site
+and the owners' own test chats (joop/stats.py) are left out.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from sqlmodel import Session, select
 from . import billing
 from .models import Booking, Business, Lead, Message, Order, Subscription
 from .niches import get_pack
+from .stats import TEST_CHANNEL, real_messages
 
 DEMO_PREFIX = "site-demo-"
 LATE = "ИИ после сбоя"  # Lead.closed_by of a failure the AI answered later (set by joop/recovery.py)
@@ -63,7 +65,7 @@ class PilotRow:
 def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: datetime) -> tuple[list[PilotRow], PilotRow]:
     """Rows for businesses with customer messages in [since, until), busiest first, and a total row."""
     businesses = {b.id: b for b in session.exec(select(Business).where(Business.slug.not_like(f"{DEMO_PREFIX}%"))).all()}
-    in_period = (Message.created_at >= since_utc, Message.created_at < until_utc)
+    in_period = (Message.created_at >= since_utc, Message.created_at < until_utc, real_messages())  # not the test chat
     rows: dict[int, PilotRow] = {}
 
     def row(bid: int) -> PilotRow | None:
@@ -95,7 +97,8 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
 
     def count(model, *where) -> dict[int, int]:
         return dict(session.exec(select(model.business_id, func.count()).where(
-            model.created_at >= since_utc, model.created_at < until_utc, *where).group_by(model.business_id)).all())
+            model.created_at >= since_utc, model.created_at < until_utc, model.channel != TEST_CHANNEL, *where,
+        ).group_by(model.business_id)).all())
 
     for attr, counts in (
         ("bookings", count(Booking, Booking.source == "ai")),

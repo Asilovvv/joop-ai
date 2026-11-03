@@ -29,6 +29,7 @@ from ..catalog import parse_price
 from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, PanelUser, Service, Slot, Staff,
                       WaitlistEntry)
 from ..niches import all_packs, get_pack
+from ..phone import normalize_phone
 from .. import deposits, staff_reply, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
@@ -313,6 +314,15 @@ def record_failure(name: str, request: Request, now: float) -> None:
     _login_failed(f"{name}|*", now)
 
 
+def _by_phone(s: Session, text: str) -> Business | None:
+    """An owner who forgot the generated login can type the phone from sign-up; only a phone of exactly one company."""
+    phone = normalize_phone(text)
+    if not phone:
+        return None
+    found = [b for b in s.exec(select(Business).where(Business.phone != "")).all() if normalize_phone(b.phone) == phone]
+    return found[0] if len(found) == 1 else None
+
+
 @router.post("/login")
 def login(request: Request, slug: str = Form(""), password: str = Form(""), user: str = Form(""), csrf: str = Form("")):
     """The company password logs in the owner; a staff member adds their own login (PanelUser)."""
@@ -323,7 +333,7 @@ def login(request: Request, slug: str = Form(""), password: str = Form(""), user
         _flash(request, "Слишком много неудачных попыток. Попробуйте через 15 минут.", "error")
         return _back("/login")
     with new_session() as s:
-        business = s.exec(select(Business).where(Business.slug == company)).first()
+        business = s.exec(select(Business).where(Business.slug == company)).first() or _by_phone(s, company)
         account = None
         if business is not None and person:
             account = s.exec(select(PanelUser).where(PanelUser.business_id == business.id, PanelUser.login == person,
