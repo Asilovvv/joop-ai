@@ -162,6 +162,8 @@ button.link { background: none; border: 0; color: var(--muted); cursor: pointer;
 
 .flash { padding: 10px 14px; border-radius: 8px; background: var(--ok-soft); color: var(--ok); }
 .flash.error { background: var(--err-soft); color: var(--err); }
+.card.warn { background: var(--warn-soft); border-color: transparent; }
+.card.warn h2 { color: var(--warn); }
 
 .slots { display: flex; flex-wrap: wrap; gap: 6px; }
 .slot { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 8px; padding: 3px 4px 3px 9px; font-family: var(--mono); font-size: 13px; background: var(--surface); }

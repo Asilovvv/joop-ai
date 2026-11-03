@@ -30,7 +30,7 @@ from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order
                       WaitlistEntry)
 from ..niches import all_packs, get_pack
 from ..phone import normalize_phone
-from .. import billing, deposits, free_plan, staff_reply, waitlist
+from .. import billing, deposits, free_plan, samples, staff_reply, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -146,7 +146,7 @@ def _bid(request: Request) -> int:
 
 # Panel sections only the owner (the company password) opens; staff logins (PanelUser) do the daily work.
 OWNER_ONLY = ("/panel/settings", "/panel/channels", "/panel/altegio", "/panel/crm", "/panel/setup", "/panel/billing",
-              "/panel/accounts", "/panel/broadcasts")
+              "/panel/accounts", "/panel/broadcasts", "/panel/example")
 OWNER_NAV = {"settings", "channels", "setup", "billing", "accounts", "broadcasts"}
 
 
@@ -383,6 +383,19 @@ def logout(request: Request, csrf: str = Form("")):
 # --- dashboard -------------------------------------------------------------------------------------
 
 
+@router.post("/panel/example/ok")
+def example_ok(request: Request, csrf: str = Form("")):
+    """The owner checked: the rows that still equal the sign-up example are the business's real prices and answers."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        b.example_ok = True
+        s.add(b)
+        s.commit()
+    _flash(request, "Готово: эти данные считаются вашими, предупреждение больше не показывается.")
+    return _back("/panel")
+
+
 @router.get("/panel")
 def dashboard(request: Request):
     with new_session() as s:
@@ -409,6 +422,7 @@ def dashboard(request: Request):
                 )
             ).one(),
         }
+        example = samples.left(s, b)
         return _render(
             request,
             "dashboard.html",
@@ -421,6 +435,7 @@ def dashboard(request: Request):
             upcoming=upcoming,
             leads=leads,
             counts=counts,
+            example=example,
             admins=len(admin_chat_ids(b)),
             channels=[
                 ("Telegram", bool(b.telegram_bot_token)),

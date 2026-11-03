@@ -78,6 +78,7 @@ class Business(SQLModel, table=True):
     deposit_auto_cancel: bool = False  # release the booking when nothing came by the deadline
     lead_nudge_minutes: int = 30  # remind staff about a request nobody answered (joop/nudges.py); 0 = off
     first_week_report_at: Optional[NaiveDatetime] = None  # the day-7 report went out (scheduler.first_week_report_text)
+    example_ok: bool = False  # the owner confirmed that rows still equal to the sign-up example are real (joop/samples.py)
 
     # Public menu / price list /m/<slug> with QR codes (joop/web/menu.py)
     menu_enabled: bool = False
