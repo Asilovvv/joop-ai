@@ -48,6 +48,9 @@ ERROR_REPLY = (
     "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\n"
     "Извините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся."
 )
+# Start of an answer sent after an outage, when the customer already got ERROR_REPLY (joop/recovery.py).
+LATE_PREFIX_RU = "Извините, что отвечаю с задержкой.\n\n"
+LATE_PREFIX_KY = "Кечиресиз, кечигип жооп берип жатам.\n\n"
 EXTERNAL_DOWN_REPLY = (
     "Не получилось сразу подтвердить запись в системе салона. Я передала заявку администратору — "
     "он подтвердит время и напишет вам."
@@ -159,6 +162,28 @@ def handle_incoming(
         return Outcome(reply=rated.reply, admin_notes=[rated.admin_note] if rated.admin_note else [], lead_id=rated.lead_id)
 
     answered = intake.capture(session, conv, text, now)
+    return _model_reply(session, business, conv, incoming.channel, text, now, get_llm, base_url, get_altegio, answered)
+
+
+def _model_reply(
+    session: Session,
+    business: Business,
+    conv: Conversation,
+    channel: str,
+    text: str,
+    now: datetime,
+    get_llm: Callable[[], LLMClient],
+    base_url: str = "",
+    get_altegio: Callable[[Business], "altegio.AltegioClient | None"] | None = None,
+    answered=None,
+    late: bool = False,
+) -> Outcome:
+    """The model's reply to the conversation's last customer message, checked by code and stored.
+
+    ``late``: an answer after an outage (joop/recovery.py). A failed model call then raises instead of
+    storing the fallback reply and another request, and the stored reply starts with an apology."""
+    now_local = utc_to_local(now, business.timezone)
+    off = is_off_hours(now_local, business.work_start, business.work_end, business.days_off)
     services = list(session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort, Service.id)).all())
     services, catalog_hint = _catalog_for_prompt(session, conv, services, text)
     staff = session.exec(select(Staff).where(Staff.business_id == business.id).order_by(Staff.id)).all()
@@ -172,7 +197,7 @@ def handle_incoming(
         slots=slots,
         now_local=now_local,
         conversation=conv,
-        channel=incoming.channel,
+        channel=channel,
         catalog_hint=catalog_hint,
         extra_facts=(intake.ANSWERED_HINT if answered else "")
         + ("\n".join(stays.prompt_lines(session, business, now_local.date()) + [stays.STAY_RULE]) if pack_has(business, "stay") else "")
@@ -190,6 +215,8 @@ def handle_incoming(
     except Exception as exc:
         log.exception("Model call failed for business %s", business.slug)
         health.record_failure(exc, now)  # the reason for the founder; the business sees only the lead
+        if late:
+            raise
         lead = _add_lead(session, business, conv, "error", f"ИИ не смог ответить на сообщение: «{text[:300]}»", now, off)
         _add_message(session, business, conv, "ai", ERROR_REPLY, now, off)
         return Outcome(reply=ERROR_REPLY, admin_notes=_outage_notes(session, business, conv, lead, now, off), lead_id=lead.id)
@@ -201,7 +228,7 @@ def handle_incoming(
     if result.booking and result.booking.get("slot_id") is not None and not pack.has("booking"):
         result.booking["slot_id"] = None
     if result.order and pack.has("order"):
-        outcome.reply, order = _try_order(session, business, pack, conv, result.order, result.reply, now, off, incoming.channel)
+        outcome.reply, order = _try_order(session, business, pack, conv, result.order, result.reply, now, off, channel)
         if order is not None:
             outcome.order_id = order.id
             outcome.admin_notes.append(_order_note(session, conv, order, off))
@@ -217,7 +244,7 @@ def handle_incoming(
             outcome.reply = ASK_CONTACTS_REPLY
         else:
             done = stays.book(session, business, conv, result.stay, outcome.reply, now_local.date(), now, off,
-                              incoming.channel, name, phone)
+                              channel, name, phone)
             outcome.reply = done.reply
             if done.stay is not None:
                 outcome.stay_id = done.stay.id
@@ -237,7 +264,7 @@ def handle_incoming(
             client = get_altegio(business) if get_altegio and business.altegio_location_id else None
             try:
                 outcome.reply, booking = _try_booking(
-                    session, business, conv, result.booking, result.reply, now, now_local, off, incoming.channel, pack, client
+                    session, business, conv, result.booking, result.reply, now, now_local, off, channel, pack, client
                 )
             except _ExternalDown as down:  # the salon's own booking system did not answer: staff confirm the time
                 data = dict(result.booking, preferred_time=down.when)
@@ -297,6 +324,8 @@ def handle_incoming(
         session.add(booked)
 
     outcome.cost_usd = cost_usd(outcome.usage, getattr(llm, "model", ""))
+    if outcome.reply and late:
+        outcome.reply = (LATE_PREFIX_KY if is_kyrgyz_message(text) else LATE_PREFIX_RU) + outcome.reply
     if outcome.reply:
         msg = _add_message(session, business, conv, "ai", outcome.reply, now, off)
         msg.input_tokens = outcome.usage.get("input_tokens", 0) + outcome.usage.get("cache_read_input_tokens", 0)
@@ -417,7 +446,8 @@ def _history(session: Session, conv: Conversation, now: datetime) -> list[dict]:
         .order_by(Message.id.desc())
         .limit(HISTORY_LIMIT)
     ).all()
-    return build_history(list(reversed(rows)))
+    # The fallback replies of an outage are not answers: leave them out, so the customer's messages read as one turn.
+    return build_history([m for m in reversed(rows) if not (m.role == "ai" and m.text == ERROR_REPLY)])
 
 
 def _norm(text: str) -> str:
