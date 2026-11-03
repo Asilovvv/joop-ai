@@ -15,7 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, deposits, health, upsell, voice
+from .. import altegio, broadcasts, deposits, health, trust, upsell, voice
 from ..billing import access_ok
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -59,8 +59,8 @@ ASK_CONTACTS_REPLY = (
     "Чтобы записать вас, напишите, пожалуйста, имя и номер телефона, например: Айбек, 0555 123 456."
 )
 DEFAULT_GREETING = (
-    "Здравствуйте! Это администратор «{name}». Напишите, что беспокоит или на какую услугу хотите "
-    "записаться, — подберу удобное время."
+    "Здравствуйте! Это ИИ-помощник «{name}»: отвечаю сразу, а если нужно — позову администратора. "
+    "Напишите, что беспокоит или на какую услугу хотите записаться, — подберу удобное время."
 )
 
 
@@ -313,6 +313,9 @@ def _model_reply(
         outcome.reply = fix_mixed_script(outcome.reply)
         if is_kyrgyz_message(text) and looks_kyrgyz(outcome.reply):
             outcome.reply = use_kyrgyz_names(outcome.reply, {sv.name: sv.name_ky for sv in services if sv.name_ky})
+
+    if outcome.reply and channel in trust.INTRO_CHANNELS and trust.first_contact(session, conv):
+        outcome.reply = trust.with_intro(business, outcome.reply, is_kyrgyz_message(text))
 
     if booked is not None and outcome.reply:  # added after the guards so they cannot reword them
         kyrgyz = is_kyrgyz_message(text)

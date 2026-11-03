@@ -128,8 +128,9 @@ def test_duplicates_paused_and_disabled(business):
 
 def test_echo_from_staff_pauses_ai_but_own_echo_does_not(business):
     llm = FakeLLM([AgentReply("Свободно завтра в 10:00.")])
-    run(business, IncomingMessage("instagram", "igsid-1", "text", "Здравствуйте", "", "ig:m1"), llm)
-    own = run(business, IncomingMessage("instagram", "igsid-1", "echo", "Свободно  завтра в 10:00.", "", "ig:m2"), llm)
+    first = run(business, IncomingMessage("instagram", "igsid-1", "text", "Здравствуйте", "", "ig:m1"), llm)
+    assert first.reply.startswith("Здравствуйте! Я ИИ-помощник «Ак-Тиш Дент»") and first.reply.endswith("\n\nСвободно завтра в 10:00.")
+    own = run(business, IncomingMessage("instagram", "igsid-1", "echo", first.reply.replace(" завтра", "  завтра"), "", "ig:m2"), llm)
     assert own.skipped == "own_echo"
     staff = run(business, IncomingMessage("instagram", "igsid-1", "echo", "Я вам перезвоню, Айгерим", "", "ig:m3"), llm)
     assert staff.skipped == "staff_reply"

@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram, WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
 | Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 22 database migrations, 20 niche packs and a generic one |
-| Tests | 345 automated tests (about 6,050 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 348 automated tests (about 5,950 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -190,6 +190,12 @@ WhatsApp message fees for reminders.
   as a handoff. Each service can have "invite again after N days" (manicure 21, cleaning 180): the AI
   invites the customer back unless they have already booked. Messages go only where the channel allows
   (Telegram any time, WhatsApp / Instagram within 24 hours); the rest is listed for the staff.
+- **Trust at first contact**: in WhatsApp and Instagram the first reply to a new customer opens with one calm
+  line, "Я ИИ-помощник «…»: отвечаю сразу, а если нужно — позову администратора" (Kyrgyz when the customer
+  writes in Kyrgyz); the model's own greeting is dropped so nobody is greeted twice. Telegram says it in the
+  `/start` greeting and the web chat in its header. Added by code, so the prompt is unchanged.
+- **Week-one review**: for a business's first seven days with real customers, the morning summary carries up to
+  three of yesterday's dialogues (customer line, AI answer, link) and asks the owner to check them.
 - **Add-on after a booking** ("Прайс" → "Что предложить к записи"): per service, one other service with an exact
   price. After an AI booking, code (not the model) adds one line: "Хотите добавить «…» — 300 сом?". "Да" within two
   hours adds it to the booking and tells staff to check the time; "нет" closes it; anything else goes to the AI.
@@ -287,7 +293,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 345 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 348 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
