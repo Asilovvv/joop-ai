@@ -138,6 +138,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/nudges.py` | Reminders to staff about requests nobody answered |
 | `joop/autofill.py`, `joop/web/autofill.py` | Price list and FAQ drafted from pasted text, kept only where the text supports it |
 | `joop/voice.py` | Voice messages: download from the channel, speech-to-text, then answered like text |
+| `joop/pitch.py` | Founder's demo on a prospect's own price list: autofill, slots, a scripted dialogue, a page to screenshot |
 | `joop/trust.py` | AI self-disclosure at first contact; week-one dialogue review in the morning summary |
 | `joop/upsell.py` | One add-on offered by code after a booking; "да" adds it |
 | `joop/deposits.py` | Prepayment after an AI booking: details and deadline, receipts to staff, release when unpaid |
@@ -158,5 +159,5 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 356 tests with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 358 tests with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
