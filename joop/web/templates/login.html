@@ -9,8 +9,8 @@
   </div>
   <form method="post" action="/login" class="stack">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label for="slug">Логин компании
-      <input id="slug" name="slug" autocomplete="username" required>
+    <label for="slug">Логин компании или её телефон
+      <input id="slug" name="slug" autocomplete="username" required placeholder="ak-tish-dent или 0555 123 456">
     </label>
     <label for="user">Ваш логин сотрудника — если вход не владельца
       <input id="user" name="user" autocomplete="off" placeholder="необязательно">
