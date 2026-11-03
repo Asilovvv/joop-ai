@@ -90,7 +90,7 @@ docker compose run --rm app python -m joop create-business --slug aktish --name 
 pass it to the owner; they can change it in «Настройки».) The command prints the `/admin` code for Telegram
 notifications.
 
-In the panel: fill the price list, hours and FAQ, try the test chat, then «Каналы» → paste the Telegram
+In the panel: fill the price list, hours and FAQ, try the test chat, then «Каналы» (or «Запуск») → paste the Telegram
 bot token → «Подключить Telegram».
 
 ## 7. Backups
