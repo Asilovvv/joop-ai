@@ -28,7 +28,7 @@
   <h2>Платежи</h2>
   <div class="scroll"><table class="table">
     <tr><th>№</th><th>Дата</th><th>Сумма</th><th>Способ</th><th>Статус</th></tr>
-    {% for p in payments %}<tr><td>{{ p.id }}</td><td>{{ p.created_at | dt }}</td><td>{{ p.amount_som }} сом</td><td>{{ 'карта' if p.method == 'freedompay' else 'перевод' }}</td><td>{{ {'pending': 'ждёт', 'paid': 'оплачен', 'failed': 'не прошёл'}[p.status] }}</td></tr>{% endfor %}
+    {% for p in payments %}<tr><td>{{ p.id }}</td><td>{{ p.created_at | local(business.timezone) }}</td><td>{{ p.amount_som }} сом</td><td>{{ 'карта' if p.method == 'freedompay' else 'перевод' }}</td><td>{{ {'pending': 'ждёт', 'paid': 'оплачен', 'failed': 'не прошёл'}[p.status] }}</td></tr>{% endfor %}
   </table></div>
 </section>
 {% endif %}

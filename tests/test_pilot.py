@@ -41,6 +41,7 @@ def seed():
         s.add(Booking(business_id=salon.id, start=NOW_UTC, source="panel", created_at=NOW_UTC - timedelta(days=1)))  # staff, not AI
         s.add(Lead(business_id=salon.id, kind="handoff", created_at=NOW_UTC - timedelta(days=2)))
         s.add(Lead(business_id=salon.id, kind="error", created_at=NOW_UTC - timedelta(days=2)))
+        s.add(Lead(business_id=salon.id, kind="error", status="done", closed_by=pilot.LATE, created_at=NOW_UTC - timedelta(days=2)))
         s.add(Lead(business_id=salon.id, kind="request", created_at=NOW_UTC - timedelta(days=2)))
         billing.start_trial(s, salon, 14, NOW_UTC - timedelta(days=20))
         sub = billing.start_trial(s, cafe, 14, NOW_UTC - timedelta(days=5))
@@ -59,7 +60,8 @@ def test_report_counts_what_the_ai_did_per_business(engine):
     assert [r.business for r in rows] == ["Салон Гүл", "Кафе Нур"]  # busiest first; demo and silent ones left out
     salon, cafe = rows
     assert (salon.conversations, salon.customer_messages, salon.off_hours_messages, salon.off_hours_pct, salon.active_days) == (2, 3, 2, 67, 2)
-    assert (salon.bookings, salon.requests, salon.completed, salon.handoffs, salon.failures) == (1, 1, 2, 1, 1)
+    assert (salon.bookings, salon.requests, salon.completed, salon.handoffs, salon.failures) == (1, 1, 2, 1, 2)
+    assert salon.answered_later == 1 and total.answered_later == 1  # one of the two failures answered once the AI was back
     assert round(salon.cost_usd, 6) == 0.0015 and round(salon.cost_per_reply, 6) == 0.0005
     assert salon.status == "Не оплачено" and not salon.paying
     assert cafe.orders == 1 and cafe.paying and cafe.status == "Оплачено"
@@ -73,6 +75,7 @@ def test_csv_has_one_row_per_business_and_a_total(engine):
     table = list(csv.DictReader(io.StringIO(pilot.to_csv(rows, total))))
     assert [r["business"] for r in table] == ["Салон Гүл", "Кафе Нур", "Итого: 2"]
     assert table[0]["off_hours_pct"] == "67" and table[0]["completed_by_ai"] == "2" and table[0]["cost_per_reply_usd"] == "0.000500"
+    assert table[0]["failures"] == "2" and table[0]["failures_answered_later"] == "1"
 
 
 def test_owner_page_and_download(app_client):  # noqa: F811
@@ -83,7 +86,7 @@ def test_owner_page_and_download(app_client):  # noqa: F811
     until = (NOW_UTC + timedelta(days=1)).date().isoformat()
     page = app_client.get(f"/owner/pilot?since={since}&until={until}").text
     assert "Пилот: что сделал ИИ" in page and "Салон Гүл" in page and "Кафе Нур" in page and "Витрина сайта" not in page
-    assert "2 (67%)" in page and "Итого: 2" in page
+    assert "2 (67%)" in page and "Итого: 2" in page and "ответил позже: 1" in page
     r = app_client.get(f"/owner/pilot.csv?since={since}&until={until}")
     assert r.headers["content-type"].startswith("text/csv") and f"joop-pilot-{since}-{until}.csv" in r.headers["content-disposition"]
     assert r.text.splitlines()[0].startswith("business,niche,active_days,conversations")

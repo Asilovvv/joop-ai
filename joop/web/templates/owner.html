@@ -4,7 +4,9 @@
 {% block content %}
 {% include "owner_nav.html" %}
 {% if ai.down %}
-<div class="flash error" role="alert"><b>ИИ не отвечает клиентам.</b> За последние 30 минут не удалось ответить {{ ai.failures }} раз{% if ai.last_at %}, последний сбой {{ ai.last_at | dt }}{% endif %}. Причина: {{ ai.reason or 'неизвестна (сервер перезапускался) — проверьте баланс и ключ Anthropic' }}. Клиенты получают «Извините, сейчас не получается ответить», заявки уходят администраторам.</div>
+<div class="flash error" role="alert"><b>ИИ не отвечает клиентам.</b> За последние 30 минут не удалось ответить {{ ai.failures }} раз{% if ai.last_at %}, последний сбой {{ ai.last_at | local("Asia/Bishkek") }}{% endif %}. Причина: {{ ai.reason or 'неизвестна (сервер перезапускался) — проверьте баланс и ключ Anthropic' }}. Клиенты получают «Извините, сейчас не получается ответить», заявки уходят администраторам.</div>
+{% elif ai.recovered %}
+<div class="flash" role="status">ИИ снова отвечает (с {{ ai.last_success | local("Asia/Bishkek") }}). За последние 30 минут не удалось ответить {{ ai.failures }} раз; клиентам, которые ждали, ИИ ответит сам с извинением за задержку (до 12 часов после сообщения).</div>
 {% elif ai.failures %}
 <div class="flash" role="status">За последние 30 минут ИИ не смог ответить {{ ai.failures }} раз{% if ai.reason %} ({{ ai.reason }}){% endif %}. Если повторится, придёт предупреждение.</div>
 {% endif %}
@@ -49,7 +51,7 @@
   <h2>Ждут подтверждения оплаты</h2>
   <div class="list">
     {% for p in pending %}
-    <div class="item"><div class="main">№{{ p.id }} · {{ names.get(p.business_id, '?') }} · <b>{{ p.amount_som }} сом</b> · {{ 'карта' if p.method == 'freedompay' else 'перевод' }} · {{ p.created_at | dt }}</div>
+    <div class="item"><div class="main">№{{ p.id }} · {{ names.get(p.business_id, '?') }} · <b>{{ p.amount_som }} сом</b> · {{ 'карта' if p.method == 'freedompay' else 'перевод' }} · {{ p.created_at | local("Asia/Bishkek") }}</div>
       <div class="actions">
         <form method="post" action="/owner/payment/{{ p.id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small" name="action" value="confirm">Деньги пришли</button></form>
         <form method="post" action="/owner/payment/{{ p.id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn danger small" name="action" value="reject">Отклонить</button></form>

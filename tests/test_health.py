@@ -74,3 +74,44 @@ def test_no_alert_without_settings_or_failures(business, settings, rt):
     with db.new_session() as s:
         assert health.maybe_alert(s, rt, NOW_UTC) is False
         assert not health.status(s, NOW_UTC).down
+
+
+def test_founder_hears_once_when_the_ai_is_back(business, settings, rt, llm):
+    from joop import recovery
+    from joop.agent.llm import AgentReply
+
+    health.reset()
+    recovery.reset()
+    rt.settings = dataclasses.replace(settings, founder_bot_token="999:FOUNDER", founder_chat_id="42")
+    sent = []
+    rt.http = type("H", (), {"post": lambda self, url, json, timeout: sent.append((url, json)) or
+                             type("R", (), {"json": lambda self: {"ok": True, "result": {}}})()})()
+    fail(business.id, 3)
+    sched = Scheduler(rt, 300)
+    llm.replies = [credit_error]  # still down at the first round: the waiting customers are tried and stay waiting
+    sched.tick(NOW_UTC + timedelta(minutes=1))
+    assert len(sent) == 1 and "ИИ не отвечает клиентам" in sent[0][1]["text"]
+
+    llm.replies = [AgentReply("Чистка — 3 000 сом.")] * 3  # balance topped up
+    sched.tick(NOW_UTC + timedelta(minutes=10))
+    assert len(sent) == 2
+    back = sent[1][1]["text"]
+    assert "ИИ снова отвечает" in back and "остались 3 сообщений: на 3 ИИ ответил сам" in back and "0 заявок ещё ждут" in back
+    with db.new_session() as s:
+        st = health.status(s, NOW_UTC + timedelta(minutes=10))
+        assert st.failures == 3 and st.recovered and not st.down  # the console shows "back", not "down"
+    saved = rt.settings
+    rt.settings = dataclasses.replace(saved, owner_password="owner-pass-123")
+    with TestClient(create_app(rt.settings, rt, init=False)) as c:
+        c.post("/owner/login", data={"password": "owner-pass-123", "csrf": csrf_of(c.get("/owner/login").text)})
+        page = c.get("/owner").text
+    assert "ИИ снова отвечает" in page and "ИИ не отвечает клиентам" not in page
+    assert "с 04.11.2026 23:24)" in page  # Bishkek time (17:24 UTC), not the server's UTC
+    rt.settings = saved
+    sched.tick(NOW_UTC + timedelta(minutes=15))
+    assert len(sent) == 2  # said once
+
+    fail(business.id, 3, now=NOW_UTC + timedelta(minutes=20), tag="c")  # a new outage gets its own alert at once
+    llm.replies = [credit_error]
+    sched.tick(NOW_UTC + timedelta(minutes=21))
+    assert len(sent) == 3 and "ИИ не отвечает клиентам" in sent[2][1]["text"]

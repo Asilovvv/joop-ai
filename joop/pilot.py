@@ -3,7 +3,7 @@
 These are the rows of the pilot table in the thesis (Chapter 8) and of the founder's own review:
 conversations, how many customer messages came outside working hours, what the AI completed on its own
 (bookings, booking requests, orders, qualified leads), what it handed to people, how often it failed to
-answer, what the model cost, and whether the business pays. Demo businesses of the public site are left out.
+answer and how many of those it answered later, what the model cost, and whether the business pays. Demo businesses of the public site are left out.
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from .models import Booking, Business, Lead, Message, Order, Subscription
 from .niches import get_pack
 
 DEMO_PREFIX = "site-demo-"
+LATE = "ИИ после сбоя"  # Lead.closed_by of a failure the AI answered later (set by joop/recovery.py)
 
 
 @dataclass
@@ -38,6 +39,7 @@ class PilotRow:
     leads: int = 0  # qualified leads (real estate, wholesale)
     handoffs: int = 0
     failures: int = 0  # the model could not answer; the customer got the fallback
+    answered_later: int = 0  # of those, answered by the AI once it worked again (joop/recovery.py)
     cost_usd: float = 0.0
     status: str = ""
     paying: bool = False
@@ -102,6 +104,7 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
         ("leads", count(Lead, Lead.kind == "lead")),
         ("handoffs", count(Lead, Lead.kind == "handoff")),
         ("failures", count(Lead, Lead.kind == "error")),
+        ("answered_later", count(Lead, Lead.kind == "error", Lead.closed_by == LATE)),
     ):
         for bid, n in counts.items():
             if bid in rows:
@@ -117,7 +120,7 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
     total = PilotRow(business=f"Итого: {len(ordered)}")
     total.active_days = len(set().union(*(r._days for r in ordered)))  # calendar days with any customer message
     for f in ("conversations", "customer_messages", "off_hours_messages", "ai_replies", "bookings", "requests",
-              "orders", "leads", "handoffs", "failures", "cost_usd"):
+              "orders", "leads", "handoffs", "failures", "answered_later", "cost_usd"):
         setattr(total, f, sum(getattr(r, f) for r in ordered))
     total.status = f"платят: {sum(r.paying for r in ordered)}"
     total.paying = any(r.paying for r in ordered)
@@ -128,7 +131,7 @@ CSV_COLUMNS = [
     ("business", "business"), ("niche", "niche"), ("active_days", "active_days"), ("conversations", "conversations"),
     ("customer_messages", "customer_messages"), ("off_hours_messages", "off_hours_messages"), ("off_hours_pct", "off_hours_pct"),
     ("ai_replies", "ai_replies"), ("bookings", "bookings"), ("requests", "requests"), ("orders", "orders"), ("leads", "leads"),
-    ("completed", "completed_by_ai"), ("handoffs", "handoffs"), ("failures", "failures"), ("cost_usd", "cost_usd"),
+    ("completed", "completed_by_ai"), ("handoffs", "handoffs"), ("failures", "failures"), ("answered_later", "failures_answered_later"), ("cost_usd", "cost_usd"),
     ("cost_per_reply", "cost_per_reply_usd"), ("status", "status"), ("paying", "paying"),
 ]
 
