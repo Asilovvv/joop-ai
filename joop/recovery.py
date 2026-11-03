@@ -29,6 +29,7 @@ from .agent.engine import ERROR_REPLY, _model_reply
 from .billing import access_ok
 from .dispatch import deliver, notify_admins
 from .models import Business, Conversation, Lead, Message
+from .pilot import LATE as CLOSED_BY  # how the panel shows who closed the request
 
 if TYPE_CHECKING:
     from .runtime import Runtime
@@ -39,7 +40,6 @@ RECOVERY_WINDOW = timedelta(hours=12)
 RETRY_EVERY = timedelta(minutes=5)
 CHANNELS = ("telegram", "whatsapp", "instagram")
 CHANNEL_NAMES = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram"}
-CLOSED_BY = "ИИ после сбоя"
 PER_TICK = 20  # answers per business per tick; the rest wait for the next tick
 
 _lock = threading.Lock()
