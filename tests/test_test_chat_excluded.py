@@ -77,3 +77,37 @@ def test_staff_reminders_and_crm_skip_the_test_chat(engine):
     assert [x.channel for x in waiting] == ["telegram"]
     assert sorted(type(i.row).__name__ + ":" + i.row.channel for i in items) == ["Booking:telegram", "Lead:telegram",
                                                                                  "Order:telegram"]
+
+
+def test_a_test_booking_gives_staff_no_reminder_digest_or_prepayment_note(business, rt):
+    """The owner books "tomorrow 10:00" in the test chat: nobody is reminded, and staff get no note about it."""
+    from joop import deposits
+    from joop.agent.engine import handle_incoming
+    from joop.agent.llm import AgentReply
+    from joop.channels.base import IncomingMessage
+    from joop.models import Slot, Staff
+    from joop.scheduler import digest_text, send_reminders
+
+    from .conftest import FakeLLM
+
+    evening = datetime(2026, 11, 4, 12, 5)  # 18:05 in Bishkek: reminders for Thursday
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.admin_chat_ids = "-5001"
+        slot = s.exec(select(Slot).join(Staff).where(Slot.business_id == b.id, Slot.status == "free",
+                                                       Slot.start == datetime(2026, 11, 5, 10, 0))).first()
+        llm = FakeLLM([AgentReply("Записала", booking={"slot_id": slot.id, "name": "Тест", "phone": "0555123456"})])
+        out = handle_incoming(s, b, IncomingMessage("console", "panel-test", "text", "запишите, Тест", "Тест", "console:1"),
+                              lambda: llm, evening - timedelta(hours=2))
+        booking = s.get(Booking, out.booking_id)
+        booking.deposit_status, booking.deposit_deadline = "awaiting", evening - timedelta(minutes=1)
+        s.add(Lead(business_id=b.id, conversation_id=booking.conversation_id, kind="handoff", channel="console",
+                   summary="Вопрос из теста", created_at=evening - timedelta(hours=3)))
+        s.commit()
+
+        assert send_reminders(s, rt, b, evening) == {"sent": 0, "manual": 0}
+        assert deposits.check_deadlines(s, rt, b, evening) == {}
+        assert nudges.open_count(s, b, evening) == 0
+        assert digest_text(s, b, datetime(2026, 11, 5, 2, 30)) is None  # Thursday 08:30: nothing real to report
+        assert s.get(Booking, out.booking_id).status == "booked"  # still visible in the panel
+    assert rt.tg.sent == []

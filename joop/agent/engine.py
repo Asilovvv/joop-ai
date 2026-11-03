@@ -25,6 +25,7 @@ from ..niches import Pack, get_pack
 from ..phone import normalize_phone
 from ..pricing import cost_usd, empty_usage
 from ..slots import claim_slot, free_slots, release_slot, requested_time, seats_left, seats_needed
+from ..stats import TEST_CHANNEL
 from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
@@ -262,7 +263,9 @@ def _model_reply(
                     outcome.reply += waitlist.waiting_line(is_kyrgyz_message(text))
                 outcome.admin_notes.append(_request_note(conv, request, off))
         else:
-            client = get_altegio(business) if get_altegio and business.altegio_location_id else None
+            # The panel's test chat books in Joop only: a test must not put a record into the salon's real journal.
+            client = (get_altegio(business) if get_altegio and business.altegio_location_id and channel != TEST_CHANNEL
+                      else None)
             try:
                 outcome.reply, booking = _try_booking(
                     session, business, conv, result.booking, result.reply, now, now_local, off, channel, pack, client
