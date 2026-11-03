@@ -70,6 +70,7 @@ def send_reminders(session: Session, rt: Runtime, business: Business, now_utc: d
             Booking.start >= day,
             Booking.start < day + timedelta(days=1),
             Booking.reminder_status == "",
+            Booking.channel != TEST_CHANNEL,  # a test booking has nobody to remind: no "remind by hand" note either
         )
         .order_by(Booking.start)
     ).all()
@@ -98,6 +99,7 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
             Booking.status == "booked",
             Booking.start >= day,
             Booking.start < day + timedelta(days=1),
+            Booking.channel != TEST_CHANNEL,
         )
         .order_by(Booking.start)
     ).all()

@@ -21,16 +21,18 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .. import billing, partners, pitch
+from .. import billing, partners, pitch, waitlist
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
 from ..models import (
-    Booking, Business, Conversation, Lead, Message, Order, Partner, PartnerPayout, Payment, Prospect, Service, Subscription,
+    Booking, Business, Conversation, Lead, Message, Order, Partner, PartnerPayout, Payment, Prospect, Service, Slot,
+    Subscription, WaitlistEntry,
 )
 from ..niches import all_packs, get_pack
 from ..presets import SlugTaken, create_business
 from ..pricing import empty_usage
+from ..slots import release_slot, seats_needed
 from ..timeutil import utcnow
 from .app import _back, _base_url, _business, _check_csrf, _csrf, _flash, _render, _rt, _settings, templates
 
@@ -271,6 +273,10 @@ def try_send(request: Request, text: str = Form(""), csrf: str = Form("")):
         _flash(request, "ИИ выключен в настройках.", "error")
     for note in outcome.admin_notes:
         _flash(request, "Уведомление администратору: " + note.splitlines()[0])
+    if outcome.booking_id:
+        _flash(request, "Это тестовая запись: она видна в «Записях» и занимает время. Напоминаний по ней не будет"
+               + (", в Altegio она не отправлена" if b.altegio_location_id else "")
+               + ". Кнопка «Новый диалог» её отменит.")
     return _back("/panel/try#end")
 
 
@@ -282,11 +288,37 @@ def try_reset(request: Request, csrf: str = Form("")):
         conv = s.exec(
             select(Conversation).where(Conversation.business_id == b.id, Conversation.channel == "console", Conversation.chat_id == TRY_CHAT_ID)
         ).first()
+        cancelled = 0
         if conv:
-            conv.chat_id = f"{TRY_CHAT_ID}-{secrets.token_hex(4)}"  # keep the history for stats, start a fresh chat
+            cancelled = _undo_test_bookings(s, _rt(request), b, conv)
+            conv.chat_id = f"{TRY_CHAT_ID}-{secrets.token_hex(4)}"  # keep the dialogue in the panel, start a fresh chat
             s.add(conv)
             s.commit()
+    if cancelled:
+        _flash(request, f"Тестовые записи отменены, время снова свободно: {cancelled}.")
     return _back("/panel/try")
+
+
+def _undo_test_bookings(s: Session, rt, b: Business, conv: Conversation) -> int:
+    """A new test dialogue leaves nothing behind on the schedule: the test's bookings are cancelled, their times
+    freed (and offered to customers on the waiting list, as after any cancellation), its waiting-list entries closed."""
+    now = utcnow()
+    count = 0
+    for booking in s.exec(select(Booking).where(Booking.conversation_id == conv.id, Booking.status == "booked")).all():
+        booking.status = "cancelled"
+        s.add(booking)
+        slot = s.get(Slot, booking.slot_id) if booking.slot_id else None
+        release_slot(s, booking.slot_id, seats_needed(slot, booking.party_size) if slot else 1)
+        s.flush()
+        if slot is not None:
+            s.refresh(slot)
+            waitlist.offer_freed_slot(s, rt, b, slot, now)
+        count += 1
+    for entry in s.exec(select(WaitlistEntry).where(WaitlistEntry.conversation_id == conv.id,
+                                                    WaitlistEntry.status.in_(["waiting", "notified"]))).all():
+        entry.status = "cancelled"
+        s.add(entry)
+    return count
 
 
 # --- billing (business side) ---------------------------------------------------------------------------

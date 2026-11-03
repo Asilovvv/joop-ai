@@ -98,9 +98,9 @@ def altegio_slot(business, hour="10:00"):
         return next(x for x in s.exec(select(Slot).where(Slot.staff_id == member.id)).all() if x.start.strftime("%H:%M") == hour)
 
 
-def book(business, fake, slot_id, service="маникюр с покрытием", ext="1"):
+def book(business, fake, slot_id, service="маникюр с покрытием", ext="1", channel="telegram"):
     llm = FakeLLM([AgentReply("Записала!", booking={"slot_id": slot_id, "name": "Айбек", "phone": "0555 123 456", "service": service})])
-    incoming = IncomingMessage("telegram", "5001", "text", "Запишите на маникюр, Айбек, 0555 123 456", "Айбек", f"tg:{slot_id}:{ext}")
+    incoming = IncomingMessage(channel, "5001", "text", "Запишите на маникюр, Айбек, 0555 123 456", "Айбек", f"tg:{slot_id}:{ext}")
     with db.new_session() as s:
         b = s.get(Business, business.id)
         out = handle_incoming(s, b, incoming, lambda: llm, NOW_UTC, get_altegio=lambda _b: make_client(fake))
@@ -151,6 +151,20 @@ def test_booking_is_checked_by_code_then_by_altegio_then_recorded(business, fake
     with db.new_session() as s:
         booking = s.get(Booking, out.booking_id)
         assert booking.external_id == "987654" and s.get(Slot, slot.id).status == "booked"
+
+
+def test_a_test_chat_booking_stays_in_joop_and_the_next_sync_frees_it(business, fake):
+    synced(business, fake)
+    slot = altegio_slot(business)
+    out = book(business, fake, slot.id, channel="console")  # the owner tries the AI in the panel
+    assert out.booking_id is not None and fake.paths("POST") == []  # nothing in the salon's real journal
+    with db.new_session() as s:
+        assert s.get(Booking, out.booking_id).external_id == "" and s.get(Slot, slot.id).status == "booked"
+        res = altegio.sync(s, s.get(Business, business.id), make_client(fake), NOW_UTC + timedelta(minutes=10))
+        s.commit()
+    assert res.released == 1  # Altegio still lists the time as free: the test booking closes by itself
+    with db.new_session() as s:
+        assert s.get(Booking, out.booking_id).status == "cancelled" and s.get(Slot, slot.id).status == "free"
 
 
 def test_a_slot_the_code_rejects_never_reaches_altegio(business, fake):
