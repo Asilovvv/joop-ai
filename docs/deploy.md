@@ -3,6 +3,25 @@
 A step-by-step path from an empty server to the first business answering customers. About an hour,
 most of it waiting for DNS. Commands are run on the server unless said otherwise.
 
+## Fast path: one script
+
+After step 2 below (the domain points to the server), on the server:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Asilovvv/joop-ai/main/deploy/setup.sh -o setup.sh
+sudo bash setup.sh
+```
+
+It asks three questions: the domain, the Anthropic API key, the subscription price (Enter to decide later),
+and, optionally, a Telegram bot token for your outage alerts (then it asks you to message the bot and finds
+your chat id itself). It does steps 3–5 for you: installs Docker and git, gets the code into `/opt/joop-ai`,
+writes `.env` (mode 600) with a fresh `SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY` and founder console password,
+warns if DNS does not point to this server yet, builds, migrates, runs `check --live` (stops with the fix if
+the key is wrong or the balance is empty), starts and waits for HTTPS. At the end it prints the sign-up and
+`/owner` addresses and the console password. Running it again keeps `.env` and only updates and restarts.
+
+Then continue with step 6. The steps below are the same work by hand.
+
 ## 1. What you need
 
 - A Linux server with 2 GB RAM (see the price table in the README; MyHost.kg takes Kyrgyz payment methods).
