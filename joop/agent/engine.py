@@ -212,6 +212,7 @@ def _model_reply(
         llm = get_llm()
         pack = get_pack(business.niche)
         result: AgentReply = llm.respond(system, history, schema=response_schema(pack.outcomes))
+        health.record_success(now)
     except Exception as exc:
         log.exception("Model call failed for business %s", business.slug)
         health.record_failure(exc, now)  # the reason for the founder; the business sees only the lead

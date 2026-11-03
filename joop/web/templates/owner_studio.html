@@ -13,7 +13,7 @@
     {% for row in rows %}{% set r = row.r %}
     <div class="item" id="r{{ r.id }}"><div class="main stack">
       <div><b>{{ r.business_name }}</b> <span class="chip">{{ kinds.get(r.kind, r.kind) }}</span> <span class="chip {{ 'ok' if r.status in ('paid', 'done') else '' }}">{{ statuses[r.status] }}</span>
-        <span class="muted small">{{ r.contact_name }} · {{ r.phone }} · {{ r.created_at | dt }}</span></div>
+        <span class="muted small">{{ r.contact_name }} · {{ r.phone }} · {{ r.created_at | local("Asia/Bishkek") }}</span></div>
       <p class="small" style="white-space: pre-wrap">{{ r.description }}</p>
       <form method="post" action="/owner/studio/{{ r.id }}" class="stack">
         <input type="hidden" name="csrf" value="{{ csrf }}">
