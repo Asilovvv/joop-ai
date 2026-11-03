@@ -286,6 +286,12 @@ WhatsApp message fees for reminders.
   offers other free room types when needed. Panel "Брони номеров": two-week occupancy grid and cancel.
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
+- **Cancel in one click** (`/panel/billing`): the owner cancels the subscription himself with a one-line
+  reason; the AI keeps answering until the paid period ends, nothing is charged after, and "Возобновить"
+  undoes it at any time. The founder gets a Telegram note with the reason and the phone.
+- **Personal support in the first month**: for 30 days after sign-up the panel's sidebar shows the
+  founder's WhatsApp and Telegram (`CONTACT_PHONE`, `CONTACT_TELEGRAM`), so the first question goes to
+  a named person, not a form.
 
 ## Database migrations
 
@@ -313,7 +319,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 362 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 364 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
