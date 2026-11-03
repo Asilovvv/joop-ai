@@ -737,9 +737,14 @@ def owner_pilot(request: Request):
 
     _owner(request)
     start, end, since, until = _pilot_period(request)
+    from .. import retention
+
+    now = utcnow()
     with new_session() as s:
-        rows, total = pilot.report(s, since, until, utcnow())
-    return _owner_render(request, "owner_pilot.html", rows=rows, total=total, since=start, until=end)
+        rows, total = pilot.report(s, since, until, now)
+        kept_rows, kept = retention.report(s, now)
+    return _owner_render(request, "owner_pilot.html", rows=rows, total=total, since=start, until=end,
+                         kept_rows=kept_rows, kept=kept, now=now)
 
 
 @router.get("/owner/pilot.csv")

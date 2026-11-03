@@ -45,4 +45,29 @@
   <p class="muted">За эти дни клиенты не писали ни одной компании.</p>
   {% endif %}
 </section>
+<section class="card stack">
+  <h2>Удержание</h2>
+  <p class="muted small">Не за период, а по всем компаниям с подпиской. «Удержан» — платит, на бесплатном тарифе или ещё в пробном периоде. Судим только тех, кто зарегистрирован достаточно давно.</p>
+  <div class="stats">
+    <div class="stat"><b>{% if kept.kept_30[1] %}{{ kept.kept_30[0] }} из {{ kept.kept_30[1] }}{% else %}—{% endif %}</b><span>удержано через 30 дней</span></div>
+    <div class="stat"><b>{% if kept.kept_90[1] %}{{ kept.kept_90[0] }} из {{ kept.kept_90[1] }}{% else %}—{% endif %}</b><span>удержано через 90 дней · цель 70%</span></div>
+    <div class="stat"><b>{{ kept.week_one_reviewed }} из {{ kept.week_one_conversations }}</b><span>диалогов первой недели открыл владелец</span></div>
+  </div>
+  {% if kept_rows %}
+  <div class="scroll"><table class="table">
+    <thead><tr><th>Компания</th><th>Регистрация</th><th>Первый клиент</th><th>Проверено в первую неделю</th><th>Подписка</th></tr></thead>
+    <tbody>
+    {% for r in kept_rows %}
+      <tr>
+        <td>{{ r.business }}</td>
+        <td>{{ r.signed_up.strftime('%d.%m.%Y') }}<br><span class="muted small">{{ r.age_days(now) }} дн. назад</span></td>
+        <td>{{ r.live_at.strftime('%d.%m.%Y') if r.live_at else '—' }}</td>
+        <td>{% if r.live_at %}{{ r.week_one_reviewed }} из {{ r.week_one_conversations }}{% else %}—{% endif %}</td>
+        <td><span class="chip {{ 'ok' if r.kept else 'warn' }}">{{ r.status }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+</section>
 {% endblock %}

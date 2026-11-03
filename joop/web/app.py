@@ -957,6 +957,11 @@ def conversation_page(request: Request, item_id: int):
     with new_session() as s:
         b = _business(s, request)
         conv = _own(s, Conversation, item_id, b.id)
+        if conv.reviewed_at is None:  # the first look by a person: the pilot's "dialogues checked in week one"
+            conv.reviewed_at = utcnow()
+            s.add(conv)
+            s.commit()
+            s.refresh(conv)
         messages = list(
             reversed(s.exec(select(Message).where(Message.conversation_id == conv.id).order_by(Message.id.desc()).limit(200)).all())
         )
