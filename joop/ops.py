@@ -132,7 +132,7 @@ def _database_checks(settings: Settings) -> list[Check]:
             writable = os.access(folder, os.W_OK)
         except OSError:
             writable = False
-        checks.append(Check("Папка резервных копий", writable, True, f"нет записи в {folder}"))
+        checks.append(Check(f"Папка резервных копий ({folder})", writable, True, f"нет записи в {folder}"))
     return checks
 
 

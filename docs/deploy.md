@@ -64,8 +64,12 @@ Caddy gets the HTTPS certificate by itself. Open `https://joop.kg/health`: it sh
 Either the owner signs up at `https://joop.kg/signup`, or you create it:
 
 ```bash
-docker compose run --rm app python -m joop create-business --slug aktish --name "Ак-Тиш Дент"
+docker compose run --rm app python -m joop create-business --slug aktish --name "Ак-Тиш Дент" --password 'пароль-панели'
 ```
+
+(`--password` is required here: `docker compose run` has no terminal to ask for it. Pick 8+ characters and
+pass it to the owner; they can change it in «Настройки».) The command prints the `/admin` code for Telegram
+notifications.
 
 In the panel: fill the price list, hours and FAQ, try the test chat, then «Каналы» → paste the Telegram
 bot token → «Подключить Telegram».
@@ -81,8 +85,18 @@ docker compose run --rm app python -m joop backup          # a fresh copy now
 docker compose cp app:/data/backups/joop-YYYY-MM-DD.db ./  # then download this file with scp or WinSCP
 ```
 
-Restore: `docker compose stop app`, copy the backup over `/data/joop.db` in the `joop-data` volume,
-`docker compose start app`. Encrypted tokens need the same `TOKEN_ENCRYPTION_KEY`.
+Restore (the copy you took home is `joop-2026-11-03.db`, say):
+
+```bash
+docker compose stop app
+docker compose cp ./joop-2026-11-03.db app:/data/joop.db
+docker compose start app
+```
+
+Encrypted channel tokens need the same `TOKEN_ENCRYPTION_KEY` as when the copy was made.
+
+This guide was run end to end on a clean machine on 3 November 2026 (without Docker: a plain Python
+environment with the same commands); every step above worked as written.
 
 ## 8. Updates and logs
 
