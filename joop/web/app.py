@@ -1255,7 +1255,8 @@ async def channels_save(request: Request):
 
     with new_session() as s:
         b = _business(s, request)
-        for field in ("telegram_bot_token", "wa_access_token", "ig_access_token"):
+        # The bot token is not saved here: /panel/setup/telegram checks it with Telegram first and sets the webhook.
+        for field in ("wa_access_token", "ig_access_token"):
             if form.get(f"clear_{field}"):
                 setattr(b, field, "")
             elif value(field):
@@ -1272,8 +1273,27 @@ async def channels_save(request: Request):
                 return _back("/panel/channels")
         s.add(b)
         s.commit()
-    _flash(request, "Каналы сохранены.")
+    _flash(request, "WhatsApp и Instagram сохранены.")
     return _back("/panel/channels")
+
+
+@router.post("/panel/channels/telegram/disconnect")
+def telegram_disconnect(request: Request, csrf: str = Form("")):
+    """Stop the bot: Telegram stops sending its messages here (best effort), then the token is removed."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        client = _rt(request).telegram(b)
+        if client is not None:
+            try:
+                client.delete_webhook()
+            except Exception:  # noqa: BLE001 - Telegram unreachable: the token is removed anyway
+                log.warning("Telegram webhook not deleted for %s", b.slug)
+        b.telegram_bot_token = ""
+        s.add(b)
+        s.commit()
+    _flash(request, "Бот отключён: в Telegram ИИ больше не отвечает. Подключить снова — вставьте токен.")
+    return _back("/panel/channels#telegram")
 
 
 @router.post("/panel/channels/telegram/webhook")
