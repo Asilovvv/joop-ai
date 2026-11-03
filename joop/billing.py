@@ -3,6 +3,7 @@
 The money flow: a business signs up -> trial (TRIAL_DAYS) -> pays PRICE_SOM a month by card through
 FreedomPay or by bank transfer / QR that the founder confirms in the console. When the trial or paid
 period ends (plus GRACE_DAYS), the AI stops answering; messages still reach the panel and staff.
+A business with one master may take the free plan instead (free_plan.py): it never expires.
 """
 
 from __future__ import annotations
@@ -47,7 +48,7 @@ def access_ok(session: Session, business_id: int, now: datetime) -> bool:
 
 @dataclass
 class State:
-    code: str  # trial | active | grace | expired | suspended
+    code: str  # trial | active | grace | expired | suspended | free
     active: bool
     days_left: int
     label: str
@@ -61,6 +62,8 @@ def _days(left: timedelta) -> int:
 def state(sub: Subscription, now: datetime) -> State:
     if sub.status == "suspended":
         return State("suspended", False, 0, "Приостановлено")
+    if sub.plan == "free":
+        return State("free", True, 0, "Бесплатно: один мастер")
     cancelled = sub.cancelled_at is not None
     if sub.paid_until and now <= sub.paid_until:
         return State("active", True, _days(sub.paid_until - now), "Отменена, работает до конца оплаты" if cancelled else "Оплачено")
@@ -98,6 +101,7 @@ def mark_paid(session: Session, payment: Payment, now: datetime) -> Subscription
     start = sub.paid_until if sub.paid_until and sub.paid_until > now else now
     sub.paid_until = start + timedelta(days=payment.period_days)
     sub.status = "active"
+    sub.plan = "pro"  # a payment ends the free plan: no signature, any number of masters
     session.add(payment)
     session.add(sub)
     return sub
