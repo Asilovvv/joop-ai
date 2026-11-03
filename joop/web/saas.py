@@ -21,7 +21,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .. import billing, free_plan, health, partners, pitch, waitlist
+from .. import billing, free_plan, health, partners, pitch, samples, waitlist
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
@@ -161,11 +161,15 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     channel = bool(b.telegram_bot_token or (b.wa_phone_number_id and b.wa_access_token) or (b.ig_account_id and b.ig_access_token))
     sub = billing.get_subscription(s, b.id)
     paid = bool(sub and billing.state(sub, now).code == "active")
+    example = samples.left(s, b).services
+    label = get_pack(b.niche).catalog_label
     return [
         {"done": bool(b.address and b.phone and b.hours_text), "title": "Контакты и часы работы", "href": "/panel/settings",
          "hint": "Адрес, телефон и часы — ИИ отвечает только тем, что здесь написано."},
-        {"done": services > 0, "title": f"{get_pack(b.niche).catalog_label}: {services}", "href": "/panel/services",
-         "hint": "Мы добавили пример. Замените цены и названия на свои; кыргызские названия — по желанию."},
+        {"done": services > 0 and not example,
+         "title": f"{label}: {services}" + (f", из них пример: {len(example)}" if example else ""), "href": "/panel/services",
+         "hint": "Мы добавили пример. Замените цены и названия на свои; кыргызские названия — по желанию. Пока позиция из"
+                 " примера, ИИ называет её цену клиентам как настоящую."},
         {"done": tested > 0, "title": "Проверьте ИИ в тестовом чате", "href": "/panel/try",
          "hint": "Напишите как клиент: по-русски и по-кыргызски, спросите цену, запишитесь."},
         {"done": channel, "title": "Подключите Telegram-бота", "href": "#telegram",
@@ -224,6 +228,10 @@ def setup_telegram(request: Request, token: str = Form(""), csrf: str = Form("")
         return _back(page)
     if client.set_webhook(f"{settings.public_base_url}/webhooks/telegram/{b.slug}", b.telegram_secret):
         _flash(request, f"Бот @{me.get('username', '')} подключён. Напишите ему — ИИ ответит.")
+        with new_session() as s:  # the bot now answers real customers: say what is still the sign-up example
+            found = samples.left(s, s.get(Business, b.id))
+        if found.any:
+            _flash(request, samples.warning(found), "error")
     else:
         _flash(request, "Не удалось подключить бота. Попробуйте ещё раз через минуту.", "error")
     return _back(page)
