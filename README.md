@@ -8,14 +8,14 @@ Diploma project (category: Full-Stack Project) of Bektur Asilov, COMSE-23, Ala-T
 University, 2026; supervisor Erustan Erkebulanov. Individual work: the repository's history, pull
 requests and CI runs document its progress.
 
-| At a glance (1 November 2026) | |
+| At a glance (3 November 2026) | |
 | --- | --- |
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram, WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
-| Size | about 9,700 lines of Python in `joop/`, 46 page templates, 16 database migrations, 20 niche packs and a generic one |
-| Tests | 338 automated tests (about 5,850 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 22 database migrations, 20 niche packs and a generic one |
+| Tests | 344 automated tests (about 6,000 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
-| History | 51 merged pull requests; changes go through pull requests checked by CI |
+| History | 67 merged pull requests; changes go through pull requests checked by CI |
 
 | Public site with the live demo | Owner's panel: when customers write |
 | --- | --- |
@@ -58,6 +58,9 @@ weekends often go unanswered until the next working day.
 - Businesses without a schedule in the panel still get bookings: the AI takes a request (name,
   phone, service, preferred time) and staff call back to confirm.
 - Cost tracking: tokens and USD per AI reply, shown in the panel.
+- If the AI is down for a while (for example, the API balance ran out), customers get a polite
+  fallback and staff get a request; when the AI is back, customers nobody answered yet get a real
+  answer with an apology for the delay, and staff get one summary.
 
 ## Quick start on your computer (about 10 minutes)
 
@@ -284,7 +287,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 338 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 344 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
