@@ -87,6 +87,24 @@ def test_second_business_with_same_name_gets_unique_login(app_client, saas_setti
     assert slugs == ["ak-tish-dent", "ak-tish-dent-2"]
 
 
+def test_owner_who_forgot_the_login_signs_in_with_the_phone(app_client, saas_settings, rt):
+    r = signup(app_client, phone="0555 123 456")
+    assert "или телефон 0555 123 456" in app_client.get(r.headers["location"]).text
+    app_client.post("/logout", data={"csrf": csrf_of(app_client.get("/panel").text)})
+
+    def login(who):
+        with TestClient(create_app(saas_settings, rt, init=False)) as c:
+            token = csrf_of(c.get("/login").text)
+            return c.post("/login", data={"slug": who, "password": "long-password", "csrf": token}, follow_redirects=False)
+
+    assert login("+996 555 123456").headers["location"].startswith("/panel")  # any way of writing the same number
+    assert login("0555 999 999").headers["location"] == "/login"
+    with TestClient(create_app(saas_settings, rt, init=False)) as other:  # a second company with the same phone
+        signup(other, name="Ак-Тиш Дент 2", phone="0555123456")
+    assert login("0555 123 456").headers["location"] == "/login"  # ambiguous: the login is needed
+    assert login("ak-tish-dent").headers["location"].startswith("/panel")
+
+
 def test_subscription_states_and_ai_gate(engine, business, llm):
     now = NOW_UTC
     with db.new_session() as s:
@@ -197,6 +215,17 @@ def test_telegram_one_step_connect(app_client, rt):
     assert "не похоже на токен" in r.text
     r = app_client.post("/panel/setup/telegram", data={"token": "123456789:" + "A" * 35, "csrf": token})
     assert "@aktish_bot подключён" in r.text
+
+
+def test_a_token_telegram_rejects_is_not_saved(app_client, rt):
+    signup(app_client)
+    rt.tg.get_me = lambda: None  # Telegram says the token is wrong
+    token = csrf_of(app_client.get("/panel/setup").text)
+    r = app_client.post("/panel/setup/telegram", data={"token": "123456789:" + "B" * 35, "csrf": token})
+    assert "бот не подключён" in r.text
+    with db.new_session() as s:
+        assert s.exec(select(Business)).one().telegram_bot_token == ""  # the panel must not show it as connected
+    assert "Telegram: подключён" not in app_client.get("/panel").text
 
 
 def test_owner_console_requires_password_and_manages_businesses(app_client, saas_settings, rt, engine):
