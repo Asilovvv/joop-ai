@@ -16,6 +16,7 @@
   <div class="stat"><b>{{ '{:,}'.format(paid30).replace(',', ' ') }}</b><span>сом получено за 30 дней</span></div>
   <div class="stat"><b>{{ counts.active }}</b><span>платят</span></div>
   <div class="stat"><b>{{ counts.trial }}</b><span>на пробном</span></div>
+  <div class="stat"><b>{{ counts.free }}</b><span>бесплатно</span></div>
   <div class="stat"><b>{{ counts.grace + counts.expired }}</b><span>ждут оплаты</span></div>
   <div class="stat"><b>${{ '%.2f' | format(total_cost) }}</b><span>расход на ИИ за 30 дней</span></div>
 </div>
