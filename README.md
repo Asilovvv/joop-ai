@@ -299,6 +299,9 @@ WhatsApp message fees for reminders.
   no expiry, the AI works as usual and signs the first reply of each conversation and every booking
   with "— отвечает Joop AI … · <site>" in WhatsApp, Instagram and Telegram. A second master needs the
   paid plan; a payment moves the business to it and the signature goes away.
+- **Retention on the pilot page** (`/owner/pilot`, "Удержание"): of the businesses signed up 30 and 90
+  days ago, how many still pay, use the free plan or are in a trial; and how many of each business's
+  first-week dialogues a person opened in the panel in that week (`Conversation.reviewed_at`).
 
 ## Database migrations
 
@@ -326,7 +329,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 372 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 375 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
