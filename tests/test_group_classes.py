@@ -17,6 +17,7 @@ from .conftest import NOW_UTC, FakeLLM
 def gym():
     with db.new_session() as s:
         b = create_business(s, slug="gym", name="Фитнес", password="gym-pass-1", niche="fitness", demo=True, now_utc=NOW_UTC)
+        b.example_ok = True  # the fitness demo stands for a real club here (joop/samples.py)
         s.commit()
         yoga = s.exec(select(Staff).where(Staff.business_id == b.id, Staff.name == "Групповая йога")).one()
         slot = s.exec(select(Slot).where(Slot.staff_id == yoga.id).order_by(Slot.start)).first()
