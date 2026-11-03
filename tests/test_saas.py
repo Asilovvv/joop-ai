@@ -12,6 +12,7 @@ from joop.agent.llm import AgentReply
 from joop.channels.base import IncomingMessage
 from joop.models import Business, Payment, Prospect, Service, Subscription
 from joop.web.app import create_app
+from joop.timeutil import utc_to_local, utcnow
 from joop.web.saas import slugify
 
 from .conftest import NOW_UTC
@@ -347,3 +348,24 @@ def test_days_left_rounds_up():
 
     assert _days(timedelta(days=13, hours=23)) == 14 and _days(timedelta(hours=1)) == 1
     assert _days(timedelta(0)) == 0 and _days(timedelta(hours=-5)) == 0
+
+
+def test_test_chat_booking_is_marked_and_a_new_dialogue_cancels_it(app_client, llm):
+    from joop.models import Booking, Slot
+
+    signup(app_client)
+    with db.new_session() as s:
+        b = s.exec(select(Business)).one()
+        now_local = utc_to_local(utcnow(), b.timezone)
+        slot = s.exec(select(Slot).where(Slot.business_id == b.id, Slot.status == "free", Slot.start > now_local + timedelta(hours=3))
+                      .order_by(Slot.start)).first()
+    llm.replies.append(AgentReply("Записала вас!", booking={"slot_id": slot.id, "name": "Тест", "phone": "0555 123 456"}))
+    token = csrf_of(app_client.get("/panel/try").text)
+    r = app_client.post("/panel/try", data={"text": "Запишите меня, Тест, 0555 123 456", "csrf": token})
+    assert "Это тестовая запись" in r.text and "«Новый диалог» её отменит" in r.text
+    with db.new_session() as s:
+        assert s.get(Slot, slot.id).status == "booked"
+    r = app_client.post("/panel/try/reset", data={"csrf": token})
+    assert "Тестовые записи отменены, время снова свободно: 1." in r.text
+    with db.new_session() as s:
+        assert s.exec(select(Booking)).one().status == "cancelled" and s.get(Slot, slot.id).status == "free"

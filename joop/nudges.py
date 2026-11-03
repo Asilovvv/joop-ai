@@ -96,5 +96,5 @@ def open_count(session: Session, business: Business, now_utc: datetime) -> int:
     """Requests still open after an hour, for the morning summary."""
     return len(session.exec(select(Lead.id).where(
         Lead.business_id == business.id, Lead.status == "new", Lead.kind.in_(KINDS),
-        Lead.created_at <= now_utc - timedelta(hours=1),
+        Lead.created_at <= now_utc - timedelta(hours=1), Lead.channel != TEST_CHANNEL,
     )).all())

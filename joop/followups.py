@@ -17,6 +17,7 @@ from sqlmodel import Session, select
 
 from .lang import is_kyrgyz_message
 from .models import Booking, Business, Conversation, Lead, Message, Service
+from .stats import TEST_CHANNEL
 from .timeutil import fmt_slot, utc_to_local
 
 if TYPE_CHECKING:
@@ -190,7 +191,7 @@ def send_return_invites(session: Session, rt: "Runtime", business: Business, now
     today = utc_to_local(now_utc, business.timezone).date()
     longest = max(s.repeat_days for s in services) + RETURN_LATE_DAYS + 1
     all_bookings = list(session.exec(select(Booking).where(
-        Booking.business_id == business.id, Booking.status == "booked",
+        Booking.business_id == business.id, Booking.status == "booked", Booking.channel != TEST_CHANNEL,
         Booking.start >= datetime.combine(today - timedelta(days=longest), datetime.min.time()),
     )).all())
     sent, manual = 0, []
