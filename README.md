@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram, WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
 | Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 22 database migrations, 20 niche packs and a generic one |
-| Tests | 351 automated tests (about 6,150 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 353 automated tests (about 6,200 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -111,6 +111,16 @@ to it, and Docker.
 
 Prices checked on the providers' pages on 29 October 2026.
 
+**One command** on a fresh Ubuntu or Debian server, after the domain's `A` record points to it:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Asilovvv/joop-ai/main/deploy/setup.sh -o setup.sh && sudo bash setup.sh
+```
+
+It asks for the domain and the Anthropic API key (optionally a Telegram bot for your outage alerts), installs
+Docker, writes `.env` with fresh secrets and a founder console password, checks DNS, the key and the balance,
+starts, and waits for HTTPS. Run it again later to update. By hand instead:
+
 ```bash
 git clone <this repository> joop-ai && cd joop-ai
 cp .env.example .env
@@ -118,7 +128,7 @@ cp .env.example .env
 # PUBLIC_BASE_URL=https://joop.example.kg, SECURE_COOKIES=true,
 # META_VERIFY_TOKEN and META_APP_SECRET if you connect WhatsApp or Instagram
 docker compose up -d --build
-docker compose run --rm app python -m joop create-business --slug aktish --name "Ак-Тиш Дент"
+docker compose run --rm app python -m joop create-business --slug aktish --name "Ак-Тиш Дент" --password 'panel-password'
 ```
 
 Caddy obtains the HTTPS certificate automatically. The panel is at `https://<DOMAIN>/login`. In
@@ -287,7 +297,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 351 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 353 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
