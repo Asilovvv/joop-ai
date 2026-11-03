@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from joop import db, trust
+from joop import billing, db, trust
 from joop.agent.engine import DEFAULT_GREETING, handle_incoming
 from joop.agent.llm import AgentReply
 from joop.channels.base import IncomingMessage
@@ -61,3 +61,36 @@ def test_week_one_review_in_the_morning_summary(business, rt):
     assert "впишите правильный в «Вопросы»" in text
     with db.new_session() as s:  # day 9: the week is over
         assert trust.week_one_review(s, s.get(Business, business.id), NOW_UTC + timedelta(days=9)) is None
+
+
+def test_day_seven_report_once_with_numbers_and_the_price(business, rt, settings):
+    from joop.scheduler import first_week_report_text
+
+    rt.settings = __import__("dataclasses").replace(settings, price_som=2900)
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.admin_chat_ids, b.digest_hour = "999", 8
+        s.add(b)
+        billing.start_trial(s, b, 14, NOW_UTC - timedelta(days=7, hours=3), "signup")
+        s.commit()
+    rt._llm = FakeLLM([AgentReply("Консультация — 500 сом.")] * 3)
+    start = NOW_UTC - timedelta(days=7, hours=2)
+    for i in range(3):
+        say(business.id, rt, "Сколько стоит консультация?", chat=f"99655500022{i}", now=start + timedelta(hours=i))
+    with db.new_session() as s:
+        assert first_week_report_text(s, s.get(Business, business.id), start + timedelta(days=6)) is None  # too early
+    with db.new_session() as s:
+        report = run_due_jobs(s, rt, s.get(Business, business.id), MORNING)
+        s.commit()
+    assert report["first_week"] is True
+    [text] = [t for chat, t in rt.tg.sent if chat == "999" and t.startswith("Первая неделя с ИИ-администратором «Ак-Тиш Дент»")]
+    assert "Ответил 3 клиентам, из них 3 — в нерабочее время." in text  # 23:14 Bishkek: off hours
+    assert "Пробный период: ещё" in text and "Подписка — 2 900 сом в месяц" in text and "«Оплата»" in text
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        assert b.first_week_report_at == MORNING
+        b.last_digest_date = ""
+        s.add(b)
+        s.commit()
+    with db.new_session() as s:  # the next morning: not again
+        assert "first_week" not in run_due_jobs(s, rt, s.get(Business, business.id), MORNING + timedelta(days=1))
