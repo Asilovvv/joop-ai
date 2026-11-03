@@ -1,4 +1,9 @@
-"""Activity numbers for the dashboard, the morning summary and the pilot report."""
+"""Activity numbers for the dashboard, the morning summary and the pilot report.
+
+Only real customers count. The panel's test chat (/panel/try, channel "console") is the owner writing as a
+customer: its messages, bookings and requests stay visible in the panel lists, but they are left out of every
+number shown to the owner, of the reports and of the pilot table, and they are not sent to the business's CRM.
+"""
 
 from __future__ import annotations
 
@@ -7,14 +12,28 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .models import Booking, Lead, Message, Order
+from .models import Booking, Conversation, Lead, Message, Order
+
+TEST_CHANNEL = "console"  # the panel's test chat
+
+
+def test_conversations(business_id: int | None = None):
+    """Ids of test-chat conversations (of one business, or of all)."""
+    q = select(Conversation.id).where(Conversation.channel == TEST_CHANNEL)
+    return q.where(Conversation.business_id == business_id) if business_id is not None else q
+
+
+def real_messages(business_id: int | None = None):
+    """Condition on Message: not in the test chat."""
+    return Message.conversation_id.not_in(test_conversations(business_id))
 
 
 def activity(session: Session, business_id: int, since_utc: datetime) -> dict:
     def scalar(query) -> int:
         return int(session.exec(query).one() or 0)
 
-    customer = (Message.business_id == business_id, Message.role == "customer", Message.created_at >= since_utc)
+    customer = (Message.business_id == business_id, Message.role == "customer", Message.created_at >= since_utc,
+                real_messages(business_id))
     return {
         "customer_messages": scalar(select(func.count()).select_from(Message).where(*customer)),
         "conversations": scalar(select(func.count(func.distinct(Message.conversation_id))).where(*customer)),
@@ -23,7 +42,8 @@ def activity(session: Session, business_id: int, since_utc: datetime) -> dict:
         ),
         "bookings": scalar(
             select(func.count()).select_from(Booking).where(
-                Booking.business_id == business_id, Booking.source == "ai", Booking.created_at >= since_utc
+                Booking.business_id == business_id, Booking.source == "ai", Booking.created_at >= since_utc,
+                Booking.channel != TEST_CHANNEL,
             )
         ),
         "off_hours_bookings": scalar(
@@ -32,30 +52,32 @@ def activity(session: Session, business_id: int, since_utc: datetime) -> dict:
                 Booking.source == "ai",
                 Booking.created_at >= since_utc,
                 Booking.created_off_hours == True,  # noqa: E712
+                Booking.channel != TEST_CHANNEL,
             )
         ),
         "requests": scalar(
             select(func.count()).select_from(Lead).where(
-                Lead.business_id == business_id, Lead.kind == "request", Lead.created_at >= since_utc
+                Lead.business_id == business_id, Lead.kind == "request", Lead.created_at >= since_utc, Lead.channel != TEST_CHANNEL
             )
         ),
         "leads": scalar(
             select(func.count()).select_from(Lead).where(
-                Lead.business_id == business_id, Lead.kind != "request", Lead.created_at >= since_utc
+                Lead.business_id == business_id, Lead.kind != "request", Lead.created_at >= since_utc, Lead.channel != TEST_CHANNEL
             )
         ),
         "orders": scalar(
-            select(func.count()).select_from(Order).where(Order.business_id == business_id, Order.created_at >= since_utc)
+            select(func.count()).select_from(Order).where(Order.business_id == business_id, Order.created_at >= since_utc,
+                                                          Order.channel != TEST_CHANNEL)
         ),
         "ai_replies": scalar(
             select(func.count()).select_from(Message).where(
-                Message.business_id == business_id, Message.role == "ai", Message.created_at >= since_utc
+                Message.business_id == business_id, Message.role == "ai", Message.created_at >= since_utc, real_messages(business_id)
             )
         ),
         "ai_cost_usd": float(
             session.exec(
                 select(func.coalesce(func.sum(Message.cost_usd), 0.0)).where(
-                    Message.business_id == business_id, Message.created_at >= since_utc
+                    Message.business_id == business_id, Message.created_at >= since_utc, real_messages(business_id)
                 )
             ).one()
             or 0.0
@@ -73,7 +95,8 @@ def by_hour(session: Session, business_id: int, since_utc: datetime, tz: str) ->
 
     rows = session.exec(
         select(Message.created_at, Message.off_hours).where(
-            Message.business_id == business_id, Message.role == "customer", Message.created_at >= since_utc
+            Message.business_id == business_id, Message.role == "customer", Message.created_at >= since_utc,
+            real_messages(business_id),
         ).limit(50_000)
     ).all()
     on = [0] * 24
