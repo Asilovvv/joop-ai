@@ -8,7 +8,7 @@
     <button class="btn ghost small" type="submit">Новый диалог</button>
   </form>
 </div>
-<p class="muted">Это тестовый чат: ИИ отвечает так же, как клиентам в мессенджерах, и по вашим данным. Записи и заявки из теста видны в панели.</p>
+<p class="muted">Это тестовый чат: ИИ отвечает так же, как клиентам в мессенджерах, и по вашим данным. Записи и заявки из теста видны в панели, но не входят в цифры и отчёты, не попадают в Altegio и amoCRM и не дают напоминаний сотрудникам. «Новый диалог» отменяет тестовые записи.</p>
 <section class="card stack">
   <div class="msgs">
     {% for m in messages %}<div class="msg {{ m.role }}">{{ m.text }}<span class="meta">{{ 'вы' if m.role == 'customer' else 'ИИ' if m.role == 'ai' else 'администратор' }}</span></div>
