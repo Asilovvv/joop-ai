@@ -369,3 +369,50 @@ def test_test_chat_booking_is_marked_and_a_new_dialogue_cancels_it(app_client, l
     assert "Тестовые записи отменены, время снова свободно: 1." in r.text
     with db.new_session() as s:
         assert s.exec(select(Booking)).one().status == "cancelled" and s.get(Slot, slot.id).status == "free"
+
+
+def test_channels_page_connects_telegram_only_after_telegram_accepts_the_token(app_client, rt):
+    signup(app_client)
+    page = app_client.get("/panel/channels").text
+    assert 'action="/panel/setup/telegram"' in page and 'name="back" value="/panel/channels"' in page
+    assert page.index('id="webchat"') < page.index('id="telegram"')  # what works at once comes first
+    assert "META_VERIFY_TOKEN" not in page and "Адреса для подключения" not in page  # server settings are not the owner's job
+    token, good = csrf_of(page), "123456789:" + "C" * 35
+
+    rt.tg.get_me = lambda: None
+    r = app_client.post("/panel/setup/telegram", data={"token": good, "back": "/panel/channels", "csrf": token})
+    assert r.url.path == "/panel/channels" and "бот не подключён" in r.text
+    with db.new_session() as s:
+        assert s.exec(select(Business)).one().telegram_bot_token == ""
+
+    # the old «Сохранить каналы» form no longer saves a bot token unchecked
+    app_client.post("/panel/channels", data={"csrf": token, "telegram_bot_token": good})
+    with db.new_session() as s:
+        assert s.exec(select(Business)).one().telegram_bot_token == ""
+
+    rt.tg.get_me = lambda: {"username": "salon_bot"}
+    rt.tg.set_webhook = lambda url, secret: url.endswith("/webhooks/telegram/ak-tish-dent")
+    r = app_client.post("/panel/setup/telegram", data={"token": good, "back": "/panel/channels", "csrf": token})
+    assert r.url.path == "/panel/channels" and "Бот @salon_bot подключён" in r.text and "Отключить бота" in r.text
+    r = app_client.post("/panel/setup/telegram", data={"token": good, "back": "https://evil.example/", "csrf": token})
+    assert r.url.path == "/panel/setup"  # only our own pages
+
+    deleted = []
+    rt.tg.delete_webhook = lambda: deleted.append(True) or True
+    r = app_client.post("/panel/channels/telegram/disconnect", data={"csrf": token})
+    assert "Бот отключён" in r.text and deleted == [True]
+    with db.new_session() as s:
+        assert s.exec(select(Business)).one().telegram_bot_token == ""
+
+
+def test_whatsapp_and_instagram_fields_only_when_the_server_is_set_up_for_meta(saas_settings, rt, engine):
+    closed = dataclasses.replace(saas_settings, meta_verify_token="", meta_app_secret="", instagram_app_secret="")
+    rt.settings = closed
+    with TestClient(create_app(closed, rt, init=False)) as c:
+        signup(c)
+        page = c.get("/panel/channels").text
+    assert 'name="wa_phone_number_id"' not in page and "подключает команда Joop" in page
+    rt.settings = saas_settings
+    with TestClient(create_app(saas_settings, rt, init=False)) as c:
+        signup(c, name="Салон Два", phone="0555 765 432")
+        assert 'name="wa_phone_number_id"' in c.get("/panel/channels").text
