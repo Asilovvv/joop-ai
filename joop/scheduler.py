@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, broadcasts, crm, deposits, health, nudges, ops, recovery
+from . import altegio, broadcasts, crm, deposits, health, nudges, ops, recovery, trust
 from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
@@ -297,7 +297,8 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
         if not (_due(now_local.hour, business.digest_hour) and business.last_digest_date != today):
             return None
         business.last_digest_date = today
-        texts = [t for t in [digest_text(session, business, now_utc)] if t]
+        texts = [t for t in [digest_text(session, business, now_utc),
+                             trust.week_one_review(session, business, now_utc, rt.settings.public_base_url)] if t]
         if now_local.weekday() == 0:  # Monday: the week in numbers
             weekly = weekly_report_text(session, business, now_utc)
             if weekly:

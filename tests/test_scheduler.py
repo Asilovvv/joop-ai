@@ -83,8 +83,7 @@ def test_digest_runs_in_the_morning_only(business, rt):
     thursday_morning = datetime(2026, 11, 5, 2, 30)  # 08:30 in Bishkek
     report = _run(business, rt, thursday_morning)
     assert report["digest"] is True
-    text = rt.tg.sent[-1][1]
-    assert text.startswith("Сводка «Ак-Тиш Дент» на 05.11")
+    text = next(t for _, t in rt.tg.sent if t.startswith("Сводка «Ак-Тиш Дент» на 05.11"))
     assert "10:00 — Айбек, +996555123456 — чистка" in text
 
     # A restart at night must not send a "morning" summary.

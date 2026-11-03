@@ -71,8 +71,8 @@ def test_long_reply_echo_cut_by_channel_is_still_ours(business):
     llm = FakeLLM([AgentReply(long_reply)])
     with db.new_session() as s:
         b = s.get(Business, business.id)
-        handle_incoming(s, b, IncomingMessage("instagram", "igsid-7", "text", "Есть время?", "", "ig:a"), lambda: llm, NOW_UTC)
-        cut = clip_bytes(long_reply, 1000)
+        sent = handle_incoming(s, b, IncomingMessage("instagram", "igsid-7", "text", "Есть время?", "", "ig:a"), lambda: llm, NOW_UTC)
+        cut = clip_bytes(sent.reply, 1000)
         out = handle_incoming(s, b, IncomingMessage("instagram", "igsid-7", "echo", cut, "", "ig:b"), lambda: llm, NOW_UTC)
         assert out.skipped == "own_echo"
         short = handle_incoming(s, b, IncomingMessage("instagram", "igsid-7", "echo", "Здравствуйте!", "", "ig:c"), lambda: llm, NOW_UTC)
