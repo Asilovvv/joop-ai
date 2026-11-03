@@ -24,7 +24,19 @@ def _find(slug: str) -> Business | None:
 
 
 def _password(given: str | None) -> str | None:
-    password = given or getpass.getpass("Пароль для входа в панель (от 8 символов): ")
+    """--password, or an interactive prompt. `docker compose run` without -it has no terminal: say so instead of
+    crashing with EOFError, which the first server launch did."""
+    if given is None:
+        if not sys.stdin.isatty():
+            print("Нет терминала для ввода пароля. Передайте его параметром: --password 'ваш-пароль' "
+                  "(или запустите с docker compose run -it ...).")
+            return None
+        try:
+            given = getpass.getpass("Пароль для входа в панель (от 8 символов): ")
+        except EOFError:
+            print("Пароль не введён. Передайте его параметром --password.")
+            return None
+    password = given
     if len(password) < 8:
         print("Пароль должен быть не короче 8 символов.")
         return None
@@ -246,6 +258,7 @@ def cmd_chat(args) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.getLogger("alembic.runtime.plugins").setLevel(logging.WARNING)  # seven setup lines above every report
     parser = argparse.ArgumentParser(prog="python -m joop", description="Joop AI: ИИ-администратор для бизнеса")
     sub = parser.add_subparsers(dest="command", required=True)
 
