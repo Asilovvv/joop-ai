@@ -141,7 +141,7 @@ def signup(
     request.session.clear()
     request.session["bid"] = bid
     request.session["signup_at"] = time.time()
-    _flash(request, f"Готово! Ваш логин: {slug}. Мы заполнили пример прайса — замените его своими данными.")
+    _flash(request, f"Готово! Ваш логин: {slug} — или телефон {phone}. Мы заполнили пример прайса — замените его своими данными.")
     return _back("/panel/setup")
 
 
@@ -204,13 +204,14 @@ def setup_telegram(request: Request, token: str = Form(""), csrf: str = Form("")
             _flash(request, "Этот бот уже подключён к другой компании.", "error")
             return _back("/panel/setup#telegram")
         b.telegram_bot_token = token
+        client = _rt(request).telegram(b)
+        me = client.get_me() if client else None
+        if not me:  # checked before saving: a wrong token must not show as "connected" in the panel
+            s.rollback()
+            _flash(request, "Telegram не принял токен — бот не подключён. Проверьте токен у @BotFather и вставьте его целиком.", "error")
+            return _back("/panel/setup#telegram")
         s.add(b)
         s.commit()
-    client = _rt(request).telegram(b)
-    me = client.get_me() if client else None
-    if not me:
-        _flash(request, "Telegram не принял токен. Проверьте его у @BotFather.", "error")
-        return _back("/panel/setup#telegram")
     if not settings.public_base_url.startswith("https://"):
         _flash(request, f"Токен бота @{me.get('username', '')} сохранён. Чтобы бот отвечал, серверу нужен адрес https (PUBLIC_BASE_URL).", "error")
         return _back("/panel/setup")
