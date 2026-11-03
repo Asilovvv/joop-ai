@@ -190,38 +190,43 @@ def setup_page(request: Request):
     return _render(request, "setup.html", "setup", b, items=items, done=done, total=len(items), sub_state=st)
 
 
+TELEGRAM_BACK = ("/panel/setup", "/panel/channels")  # where the Telegram form may send the owner back
+
+
 @router.post("/panel/setup/telegram")
-def setup_telegram(request: Request, token: str = Form(""), csrf: str = Form("")):
-    """One step: paste the BotFather token -> token checked, saved, webhook set."""
+def setup_telegram(request: Request, token: str = Form(""), csrf: str = Form(""), back: str = Form("")):
+    """One step: paste the BotFather token -> token checked, saved, webhook set. Used by the launch checklist and by
+    «Каналы» (back=/panel/channels): the only way a bot token gets saved, so an unchecked token never shows as connected."""
     _check_csrf(request, csrf)
+    page = back if back in TELEGRAM_BACK else "/panel/setup"
     token = token.strip()
     if not re.fullmatch(r"\d{5,}:[A-Za-z0-9_-]{30,}", token):
         _flash(request, "Это не похоже на токен бота. Скопируйте его целиком из сообщения @BotFather.", "error")
-        return _back("/panel/setup#telegram")
+        return _back(page + "#telegram")
     settings = _settings(request)
     with new_session() as s:
         b = _business(s, request)
         others = s.exec(select(Business).where(Business.id != b.id, Business.telegram_bot_token != "")).all()
         if any(o.telegram_bot_token == token for o in others):  # tokens are encrypted: compare after decryption
             _flash(request, "Этот бот уже подключён к другой компании.", "error")
-            return _back("/panel/setup#telegram")
+            return _back(page + "#telegram")
         b.telegram_bot_token = token
         client = _rt(request).telegram(b)
         me = client.get_me() if client else None
         if not me:  # checked before saving: a wrong token must not show as "connected" in the panel
             s.rollback()
             _flash(request, "Telegram не принял токен — бот не подключён. Проверьте токен у @BotFather и вставьте его целиком.", "error")
-            return _back("/panel/setup#telegram")
+            return _back(page + "#telegram")
         s.add(b)
         s.commit()
     if not settings.public_base_url.startswith("https://"):
         _flash(request, f"Токен бота @{me.get('username', '')} сохранён. Чтобы бот отвечал, серверу нужен адрес https (PUBLIC_BASE_URL).", "error")
-        return _back("/panel/setup")
+        return _back(page)
     if client.set_webhook(f"{settings.public_base_url}/webhooks/telegram/{b.slug}", b.telegram_secret):
         _flash(request, f"Бот @{me.get('username', '')} подключён. Напишите ему — ИИ ответит.")
     else:
         _flash(request, "Не удалось подключить бота. Попробуйте ещё раз через минуту.", "error")
-    return _back("/panel/setup")
+    return _back(page)
 
 
 # --- test chat in the panel ------------------------------------------------------------------------------
