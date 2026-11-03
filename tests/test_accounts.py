@@ -101,6 +101,8 @@ def test_wrong_passwords_and_new_password(app, business):
         assert "Пароль для «Айгерим» изменён" in owner.post(f"/panel/accounts/{uid}/password",
                                                              data={"csrf": csrf_of(page), "password": "new-staff-pass"}).text
         assert staff_login(staff, password="new-staff-pass").headers["location"] == "/panel"
+        owner.post(f"/panel/accounts/{uid}/password", data={"csrf": csrf_of(page), "password": "newer-staff-pass"})
+        assert staff.get("/panel", follow_redirects=False).headers["location"] == "/login"  # the old session is over
     with TestClient(app) as guesser:
         for _ in range(5):
             staff_login(guesser, password="wrong-pass")
