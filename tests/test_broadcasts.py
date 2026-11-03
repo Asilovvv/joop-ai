@@ -10,7 +10,7 @@ from joop import broadcasts, db
 from joop.agent.engine import handle_incoming
 from joop.agent.llm import AgentReply
 from joop.channels.base import IncomingMessage
-from joop.models import Booking, Broadcast, BroadcastDelivery, Business, Conversation, Message
+from joop.models import Booking, Broadcast, BroadcastDelivery, Business, Conversation, Lead, Message
 from joop.scheduler import run_due_jobs
 from joop.timeutil import utc_to_local
 from joop.web.app import create_app
@@ -210,3 +210,31 @@ def test_panel_preview_test_send_and_stop(web, business, rt):
     r = web.post(f"/panel/broadcasts/{item.id}/stop", data={"csrf": csrf_of(page)}, follow_redirects=False)
     assert r.status_code == 303 and "остановлена: получили 0 из 5" in web.get("/panel/broadcasts").text
     assert web.post("/panel/broadcasts/9999/stop", data={"csrf": token}).status_code == 404
+
+
+def test_a_later_job_crashing_does_not_resend_the_broadcast(business, people, rt, monkeypatch):
+    """Each scheduler job commits its own marks: a crash in the CRM step must not roll the sent deliveries back."""
+    with db.new_session() as s:
+        broadcasts.start(s, s.get(Business, business.id), "Акция", "", "all", "", True, DAY)
+        s.commit()
+
+    class Boom:
+        def add_deal(self, deal):
+            raise RuntimeError("unexpected answer")
+
+    monkeypatch.setattr(rt, "crm", lambda b: Boom())
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.crm_domain = "x.amocrm.ru"
+        s.add(Lead(business_id=b.id, kind="handoff", summary="Жалоба", created_at=DAY))
+        s.commit()
+    with db.new_session() as s:
+        report = run_due_jobs(s, rt, s.get(Business, business.id), DAY)
+        s.commit()
+    assert report["broadcast"]["sent"] == 5 and "crm" not in report
+    sent_before = len(rt.tg.sent) + len(rt.wa.sent)
+    with db.new_session() as s:
+        run_due_jobs(s, rt, s.get(Business, business.id), DAY + timedelta(minutes=5))
+        s.commit()
+        assert s.exec(select(Broadcast)).one().status == "done"
+    assert len(rt.tg.sent) + len(rt.wa.sent) == sent_before  # nobody got it twice

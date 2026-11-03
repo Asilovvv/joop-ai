@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
+from sqlalchemy import update as sa_update
 from sqlmodel import Session, select
 
 from .channels.base import IncomingMessage
@@ -133,10 +134,15 @@ def capture(session: Session, business: Business, conv: Conversation, incoming: 
 # --- staff and the deadline --------------------------------------------------------------------
 
 
-def mark_paid(session: Session, rt: "Runtime", business: Business, booking: Booking, now_utc: datetime) -> bool:
-    """Staff saw the money. Tell the customer; returns whether the message went out."""
-    booking.deposit_status = "paid"
-    session.add(booking)
+def mark_paid(session: Session, rt: "Runtime", business: Business, booking: Booking, now_utc: datetime) -> bool | None:
+    """Staff saw the money. Tell the customer; returns whether the message went out, or None when the booking
+    is no longer waiting (the scheduler released it a moment ago, or another staff member already marked it)."""
+    changed = session.exec(sa_update(Booking).where(
+        Booking.id == booking.id, Booking.status == "booked", Booking.deposit_status.in_(["awaiting", "check", "overdue"]),
+    ).values(deposit_status="paid")).rowcount
+    if not changed:
+        return None
+    session.refresh(booking)
     conv = session.get(Conversation, booking.conversation_id) if booking.conversation_id else None
     if conv is None:
         return False
@@ -171,7 +177,12 @@ def check_deadlines(session: Session, rt: "Runtime", business: Business, now_utc
     for booking in late:
         who = f"{booking.customer_name}, {booking.customer_phone}"
         if business.deposit_auto_cancel:
-            booking.deposit_status = "expired"
+            claimed = session.exec(sa_update(Booking).where(
+                Booking.id == booking.id, Booking.status == "booked", Booking.deposit_status == "awaiting",
+            ).values(deposit_status="expired")).rowcount
+            if not claimed:
+                continue  # staff marked it paid between the query and now
+            session.refresh(booking)
             slot = _release(session, booking)
             conv = session.get(Conversation, booking.conversation_id) if booking.conversation_id else None
             kyrgyz = bool(conv) and _kyrgyz(session, conv.id)

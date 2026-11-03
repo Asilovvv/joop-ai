@@ -157,7 +157,8 @@ def _business(s: Session, request: Request) -> Business:
     uid = request.session.get("uid")
     if uid is not None:  # a staff login: still active, and only the daily-work sections
         user = s.get(PanelUser, uid)
-        if user is None or not user.active or user.business_id != business.id:
+        if user is None or not user.active or user.business_id != business.id \
+                or request.session.get("pw") != user.password_hash[-16:]:  # a new password ends old sessions
             request.session.clear()
             raise LoginRequired
         if request.url.path.startswith(OWNER_ONLY):
@@ -339,6 +340,7 @@ def login(request: Request, slug: str = Form(""), password: str = Form(""), user
         request.session["bid"] = business.id
         if account is not None:
             request.session["uid"], request.session["who"] = account.id, account.name
+            request.session["pw"] = account.password_hash[-16:]
             account.last_login_at = utcnow()
             s.add(account)
             s.commit()
@@ -819,9 +821,11 @@ def booking_paid(request: Request, item_id: int, csrf: str = Form("")):
     with new_session() as s:
         b = _business(s, request)
         booking = _own(s, Booking, item_id, b.id)
-        if booking.status == "booked" and booking.deposit_status in {"awaiting", "check", "overdue"}:
-            told = deposits.mark_paid(s, _rt(request), b, booking, utcnow())
-            s.commit()
+        told = deposits.mark_paid(s, _rt(request), b, booking, utcnow())
+        s.commit()
+        if told is None:
+            _flash(request, "Эта запись уже не ждёт предоплаты: она отмечена раньше или снята по сроку. Проверьте список.", "error")
+        else:
             _flash(request, "Предоплата отмечена." + (" Клиенту отправлено подтверждение." if told
                                                       else " Подтвердите клиенту сами: написать ему из системы сейчас нельзя."))
     return _back("/panel/bookings")
