@@ -6,7 +6,9 @@ import logging
 from datetime import datetime
 
 from . import voice
-from .agent.engine import Outcome, handle_incoming
+from .agent.engine import Outcome, _already_seen as already_seen, handle_incoming
+from .billing import access_ok
+from .timeutil import utcnow
 from .channels.base import IncomingMessage
 from .db import new_session
 from .models import Business
@@ -19,7 +21,10 @@ def process_incoming(rt: Runtime, business_id: int, incoming: IncomingMessage, n
     if incoming.kind == "media" and incoming.media_ref:  # a voice message: recognise it before the engine sees it
         with new_session() as session:
             found = session.get(Business, business_id)
-        if found is not None:
+            # Recognition costs money: not for a duplicate webhook delivery, a switched-off bot or a lapsed subscription.
+            worth = found is not None and found.bot_enabled and access_ok(session, found.id, now_utc or utcnow()) \
+                and not (incoming.external_id and already_seen(session, found.id, incoming.external_id))
+        if worth:
             incoming = voice.prepare(rt, found, incoming)
     with new_session() as session:
         business = session.get(Business, business_id)

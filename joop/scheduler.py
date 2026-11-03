@@ -266,14 +266,36 @@ def sync_altegio(session: Session, rt: Runtime, business: Business, now_utc: dat
 
 
 def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: datetime) -> dict:
+    """Every due job for one business. Each job is committed on its own as soon as it is done: a job that has
+    already sent messages (reminders, broadcasts, released bookings) must keep its marks even if a later job in
+    the same round fails, otherwise the next round would send the same messages again."""
     now_local = utc_to_local(now_utc, business.timezone)
     today = now_local.date().isoformat()
     report: dict = {}
-    if _due(now_local.hour, business.reminder_hour) and business.last_reminder_date != today:
+
+    def step(name: str, job) -> None:
+        try:
+            value = job()
+        except Exception:
+            session.rollback()
+            log.exception("Scheduled job %s failed for %s", name, business.slug)
+            return
+        if value is not None and value != {} and not (value == 0 and value is not False):
+            report[name] = value  # None, {} and 0 mean "nothing to do"; False means "tried and failed"
+        session.add(business)
+        session.commit()
+
+    def reminders():
+        if not (_due(now_local.hour, business.reminder_hour) and business.last_reminder_date != today):
+            return None
         business.last_reminder_date = today
         report["reminders"] = send_reminders(session, rt, business, now_utc)
         report["returns"] = send_return_invites(session, rt, business, now_utc)
-    if _due(now_local.hour, business.digest_hour) and business.last_digest_date != today:
+        return None
+
+    def digest():
+        if not (_due(now_local.hour, business.digest_hour) and business.last_digest_date != today):
+            return None
         business.last_digest_date = today
         texts = [t for t in [digest_text(session, business, now_utc)] if t]
         if now_local.weekday() == 0:  # Monday: the week in numbers
@@ -287,29 +309,21 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
                 texts.append(monthly)
                 report["monthly"] = True
         report["digest"] = bool(texts) and notify_admins(rt, business, texts) > 0
-    nudged = nudges.send(session, rt, business, now_utc)
-    if nudged:
-        report["nudged"] = nudged
-    late = deposits.check_deadlines(session, rt, business, now_utc)
-    if late:
-        report["deposits"] = late
-    broadcast = broadcasts.send_due(session, rt, business, now_utc)
-    if broadcast:
-        report["broadcast"] = broadcast
-    asked = send_review_requests(session, rt, business, now_utc)
-    if asked:
-        report["reviews"] = asked
-    client = rt.crm(business)
-    if client is not None:
-        pushed = crm.push_due(session, client, business, now_utc, rt.settings.public_base_url)
-        if pushed:
-            report["crm"] = pushed
-    if altegio.due(business, now_utc):
-        report["altegio"] = sync_altegio(session, rt, business, now_utc)
-    refreshed = refresh_instagram_token(rt, business, now_utc)
-    if refreshed is not None:
-        report["instagram_token"] = refreshed
-    session.add(business)
+        return None
+
+    def push_crm():
+        client = rt.crm(business)
+        return crm.push_due(session, client, business, now_utc, rt.settings.public_base_url) if client is not None else None
+
+    step("reminders_round", reminders)
+    step("digest_round", digest)
+    step("nudged", lambda: nudges.send(session, rt, business, now_utc))
+    step("deposits", lambda: deposits.check_deadlines(session, rt, business, now_utc))
+    step("broadcast", lambda: broadcasts.send_due(session, rt, business, now_utc))
+    step("reviews", lambda: send_review_requests(session, rt, business, now_utc))
+    step("crm", push_crm)
+    step("altegio", lambda: sync_altegio(session, rt, business, now_utc) if altegio.due(business, now_utc) else None)
+    step("instagram_token", lambda: refresh_instagram_token(rt, business, now_utc))
     return report
 
 
