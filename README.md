@@ -302,6 +302,11 @@ WhatsApp message fees for reminders.
 - **Retention on the pilot page** (`/owner/pilot`, "Удержание"): of the businesses signed up 30 and 90
   days ago, how many still pay, use the free plan or are in a trial; and how many of each business's
   first-week dialogues a person opened in the panel in that week (`Conversation.reviewed_at`).
+- **The founder's one line a week**: every Monday after 09:00 Bishkek the scheduler counts the week
+  that ended (paying businesses and their monthly sum, free and trial ones, bookings through the AI,
+  dialogues, handoffs, failures, sign-ups, cancellations, day-90 retention), keeps the line on the
+  pilot page as the journal and sends it to the founder's Telegram (`FOUNDER_BOT_TOKEN`,
+  `FOUNDER_CHAT_ID`). One line per week whatever restarts happen.
 
 ## Database migrations
 
@@ -329,7 +334,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 375 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 380 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

@@ -70,4 +70,11 @@
   </table></div>
   {% endif %}
 </section>
+<section class="card stack">
+  <h2>Одна цифра в неделю</h2>
+  <p class="muted small">Каждый понедельник в 09:00 сервер считает прошлую неделю, записывает строку сюда и отправляет её в Telegram основателя (FOUNDER_BOT_TOKEN, FOUNDER_CHAT_ID). Это журнал плана, который ведётся сам.</p>
+  {% if weekly %}
+  <ul class="list">{% for w in weekly %}<li>{{ w.text }}{% if not w.sent %} <span class="muted small">(в Telegram не ушло)</span>{% endif %}</li>{% endfor %}</ul>
+  {% else %}<p class="muted small">Первая строка появится в ближайший понедельник.</p>{% endif %}
+</section>
 {% endblock %}

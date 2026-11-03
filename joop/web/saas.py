@@ -565,7 +565,7 @@ def owner_home(request: Request):
         paid30 = s.exec(select(func.coalesce(func.sum(Payment.amount_som), 0)).where(Payment.status == "paid", Payment.paid_at >= since)).one()
         mrr = billing.mrr(s, now, settings.price_som)
     rows = []
-    counts = {"trial": 0, "active": 0, "grace": 0, "expired": 0, "suspended": 0, "none": 0}
+    counts = {"trial": 0, "active": 0, "free": 0, "grace": 0, "expired": 0, "suspended": 0, "none": 0}
     for b in businesses:
         sub = subs.get(b.id)
         st = billing.state(sub, now) if sub else None
@@ -737,14 +737,15 @@ def owner_pilot(request: Request):
 
     _owner(request)
     start, end, since, until = _pilot_period(request)
-    from .. import retention
+    from .. import founder_digest, retention
 
     now = utcnow()
     with new_session() as s:
         rows, total = pilot.report(s, since, until, now)
         kept_rows, kept = retention.report(s, now)
+        weekly = founder_digest.recent(s)
     return _owner_render(request, "owner_pilot.html", rows=rows, total=total, since=start, until=end,
-                         kept_rows=kept_rows, kept=kept, now=now)
+                         kept_rows=kept_rows, kept=kept, now=now, weekly=weekly)
 
 
 @router.get("/owner/pilot.csv")

@@ -530,6 +530,16 @@ class BroadcastDelivery(SQLModel, table=True):
     sent_at: Optional[NaiveDatetime] = None
 
 
+class FounderDigest(SQLModel, table=True):
+    """The founder's one line a week (joop/founder_digest.py): kept as the journal the strategy asks for."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    week_start: date_type = Field(index=True, unique=True)  # the Monday the week began
+    text: str
+    sent: bool = False  # went to the founder's Telegram (needs FOUNDER_BOT_TOKEN and FOUNDER_CHAT_ID)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
 class PanelUser(SQLModel, table=True):
     """A staff member's own login to the panel. The company password stays the owner's login.
 
