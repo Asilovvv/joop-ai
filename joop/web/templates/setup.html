@@ -3,7 +3,7 @@
 {% block content %}
 <div class="head">
   <h1>Запуск: {{ done }} из {{ total }}</h1>
-  {% if sub_state %}<span class="chip {{ 'ok' if sub_state.code in ('trial', 'active') else 'warn' }}">{{ sub_state.label }}{% if sub_state.active %} · {{ sub_state.days_left }} дн.{% endif %}</span>{% endif %}
+  {% if sub_state %}<span class="chip {{ 'ok' if sub_state.code in ('trial', 'active', 'free') else 'warn' }}">{{ sub_state.label }}{% if sub_state.active and sub_state.code != 'free' %} · {{ sub_state.days_left }} дн.{% endif %}</span>{% endif %}
 </div>
 <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ total }}" aria-valuenow="{{ done }}"><span style="width: {{ (100 * done / total) | round }}%"></span></div>
 <section class="card">

@@ -15,8 +15,8 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, deposits, health, trust, upsell, voice
-from ..billing import access_ok
+from .. import altegio, broadcasts, deposits, free_plan, health, trust, upsell, voice
+from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
 from ..lang import claims_confirmation, drop_claim_sentences, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
@@ -317,7 +317,8 @@ def _model_reply(
         if is_kyrgyz_message(text) and looks_kyrgyz(outcome.reply):
             outcome.reply = use_kyrgyz_names(outcome.reply, {sv.name: sv.name_ky for sv in services if sv.name_ky})
 
-    if outcome.reply and channel in trust.INTRO_CHANNELS and trust.first_contact(session, conv):
+    first_contact = bool(outcome.reply) and trust.first_contact(session, conv)
+    if outcome.reply and channel in trust.INTRO_CHANNELS and first_contact:
         outcome.reply = trust.with_intro(business, outcome.reply, is_kyrgyz_message(text))
 
     if booked is not None and outcome.reply:  # added after the guards so they cannot reword them
@@ -329,6 +330,11 @@ def _model_reply(
             outcome.admin_notes.append(f"Бонус: у {booked.customer_name} {booked.loyalty_visit}-й визит "
                                        f"({fmt_slot(booked.start)}) — {business.loyalty_reward.strip()}")
         session.add(booked)
+
+    # The free plan pays with one line: Joop's name on the first reply and on every booking (free_plan.py)
+    if outcome.reply and channel in free_plan.CHANNELS and (booked is not None or first_contact) \
+            and free_plan.is_free(get_subscription(session, business.id)):
+        outcome.reply = free_plan.with_signature(outcome.reply, base_url, is_kyrgyz_message(text))
 
     outcome.cost_usd = cost_usd(outcome.usage, getattr(llm, "model", ""))
     if outcome.reply and late:

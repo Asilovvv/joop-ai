@@ -68,7 +68,7 @@
     {% for r in rows %}
     <tr>
       <td><b>{{ r.b.name }}</b><br><span class="muted small">{{ r.b.slug }} · {{ r.pack }}{% if r.sub and r.sub.contact_phone %} · {{ r.sub.contact_name }} {{ r.sub.contact_phone }}{% endif %}</span>{% if r.sub and r.sub.note %}<br><span class="small">{{ r.sub.note }}</span>{% endif %}</td>
-      <td>{% if r.st %}<span class="chip {{ 'ok' if r.st.code in ('active', 'trial') else 'warn' }}">{{ r.st.label }}{% if r.st.active %} · {{ r.st.days_left }} дн.{% endif %}</span>{% else %}<span class="chip">вручную</span>{% endif %}</td>
+      <td>{% if r.st %}<span class="chip {{ 'ok' if r.st.code in ('active', 'trial', 'free') else 'warn' }}">{{ r.st.label }}{% if r.st.active and r.st.code != 'free' %} · {{ r.st.days_left }} дн.{% endif %}</span>{% else %}<span class="chip">вручную</span>{% endif %}</td>
       <td class="mono">{{ r.msgs }} / {{ r.results }}</td>
       <td class="mono">{{ '%.2f' | format(r.cost) }}</td>
       <td>
