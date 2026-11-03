@@ -5,7 +5,8 @@ customers with the polite fallback and nobody on the platform side notices (eval
 "Your credit balance is too low"). Every failed call is already stored as a lead of kind "error";
 this module adds the reason (kept in memory, the API's text never goes to a business) and tells the
 founder: a banner in the founder console, and a Telegram message when FOUNDER_BOT_TOKEN and
-FOUNDER_CHAT_ID are set.
+FOUNDER_CHAT_ID are set. When the model answers again after such an alert, the founder gets one more message:
+how many customers were left without an answer and how many of them the AI answered later (joop/recovery.py).
 """
 
 from __future__ import annotations
@@ -30,6 +31,8 @@ ALERT_EVERY = timedelta(hours=2)  # do not repeat the Telegram alert more often 
 _lock = threading.Lock()
 _recent: deque[tuple[datetime, str]] = deque(maxlen=50)
 _last_alert: datetime | None = None
+_last_success: datetime | None = None  # the model answered (in memory, like the reasons)
+_alert_open: datetime | None = None  # a "down" alert went out and its "back" message has not
 
 
 def reason_of(exc: BaseException) -> str:
@@ -54,6 +57,13 @@ def record_failure(exc: BaseException, now: datetime) -> None:
         _recent.append((now, reason_of(exc)))
 
 
+def record_success(now: datetime) -> None:
+    global _last_success
+    with _lock:
+        if _last_success is None or now > _last_success:
+            _last_success = now
+
+
 def last_reason(now: datetime) -> str:
     with _lock:
         recent = [r for t, r in _recent if now - t <= WINDOW]
@@ -65,17 +75,25 @@ class Status:
     failures: int  # failed model calls in the window, all businesses
     reason: str  # the latest known reason ("" after a restart)
     last_at: datetime | None
+    last_success: datetime | None = None
+
+    @property
+    def recovered(self) -> bool:
+        """The model answered after the last failure."""
+        return bool(self.failures and self.last_success and self.last_at and self.last_success > self.last_at)
 
     @property
     def down(self) -> bool:
-        return self.failures >= ALERT_AFTER
+        return self.failures >= ALERT_AFTER and not self.recovered
 
 
 def status(session: Session, now: datetime) -> Status:
     since = now - WINDOW
     failures = session.exec(select(func.count()).select_from(Lead).where(Lead.kind == "error", Lead.created_at >= since)).one()
     last_at = session.exec(select(func.max(Lead.created_at)).where(Lead.kind == "error", Lead.created_at >= since)).one()
-    return Status(failures=failures, reason=last_reason(now), last_at=last_at)
+    with _lock:
+        success = _last_success
+    return Status(failures=failures, reason=last_reason(now), last_at=last_at, last_success=success)
 
 
 def alert_text(st: Status) -> str:
@@ -85,23 +103,54 @@ def alert_text(st: Status) -> str:
             "ответ «Извините, сейчас не получается ответить», а заявки уходят администраторам.")
 
 
+def back_text(session: Session, since: datetime, back_at: datetime) -> str:
+    """The "AI is back" message: what the outage left and what the recovery answered (joop/recovery.py)."""
+    from .pilot import LATE
+    from .timeutil import utc_to_local
+
+    failed = session.exec(select(Lead).where(Lead.kind == "error", Lead.created_at >= since)).all()
+    later = sum(1 for lead in failed if lead.closed_by == LATE)
+    waiting = sum(1 for lead in failed if lead.status == "new")
+    at = utc_to_local(back_at, "Asia/Bishkek").strftime("%H:%M")
+    return (f"Joop AI: ИИ снова отвечает клиентам (с {at} по Бишкеку). За время сбоя без ответа остались "
+            f"{len(failed)} сообщений: на {later} ИИ ответил сам с извинением за задержку, "
+            f"{waiting} заявок ещё ждут сотрудников в панелях компаний.")
+
+
+def _send(rt, text: str) -> bool:
+    from .channels.telegram import TelegramClient
+
+    settings = rt.settings
+    return TelegramClient(rt.http, settings.telegram_api_base, settings.founder_bot_token).send_text(settings.founder_chat_id, text)
+
+
 def maybe_alert(session: Session, rt, now: datetime) -> bool:
-    """Send the founder a Telegram alert when the AI is down; at most once per ALERT_EVERY."""
-    global _last_alert
+    """Telegram for the founder: an alert when the AI is down (at most once per ALERT_EVERY), and one message when
+    it answers again after such an alert. Runs after the businesses' jobs, so late answers are already counted."""
+    global _last_alert, _alert_open
     settings = rt.settings
     token, chat = getattr(settings, "founder_bot_token", ""), getattr(settings, "founder_chat_id", "")
     if not (token and chat):
         return False
     st = status(session, now)
+    with _lock:
+        opened, success = _alert_open, _last_success
     if not st.down:
-        return False
+        if opened is None or success is None or success <= opened:
+            return False
+        with _lock:
+            _alert_open = None
+            _last_alert = None  # a new outage gets its own alert at once
+        ok = _send(rt, back_text(session, opened - WINDOW, success))
+        if not ok:
+            log.warning("Founder message that the AI is back was not delivered")
+        return ok
     with _lock:
         if _last_alert and now - _last_alert < ALERT_EVERY:
             return False
         _last_alert = now
-    from .channels.telegram import TelegramClient
-
-    ok = TelegramClient(rt.http, settings.telegram_api_base, token).send_text(chat, alert_text(st))
+        _alert_open = _alert_open or now
+    ok = _send(rt, alert_text(st))
     if not ok:
         log.warning("Founder alert about the AI was not delivered")
     return ok
@@ -109,7 +158,9 @@ def maybe_alert(session: Session, rt, now: datetime) -> bool:
 
 def reset() -> None:
     """For tests."""
-    global _last_alert
+    global _last_alert, _last_success, _alert_open
     with _lock:
         _recent.clear()
         _last_alert = None
+        _last_success = None
+        _alert_open = None

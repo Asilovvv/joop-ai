@@ -15,7 +15,7 @@
 <section class="card">
   <h2>Ваши бизнесы</h2>
   <div class="list">
-    {% for b in st.businesses %}<div class="item"><div class="main"><b>{{ b.name }}</b> <span class="muted small">с {{ b.created_at | dt }}</span></div><span class="chip">{{ b.state }}</span></div>
+    {% for b in st.businesses %}<div class="item"><div class="main"><b>{{ b.name }}</b> <span class="muted small">с {{ b.created_at | local("Asia/Bishkek") }}</span></div><span class="chip">{{ b.state }}</span></div>
     {% else %}<p class="muted">Пока никого. Отправьте ссылку знакомым владельцам клиник, салонов, кафе.</p>{% endfor %}
   </div>
 </section>

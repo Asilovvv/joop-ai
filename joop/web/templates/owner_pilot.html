@@ -34,7 +34,7 @@
         <td>{{ r.off_hours_messages }}{% if r.off_hours_pct is not none %} ({{ r.off_hours_pct }}%){% endif %}</td>
         <td>{{ r.completed }}<br><span class="muted small">записи {{ r.bookings }} · заявки {{ r.requests }} · заказы {{ r.orders }} · лиды {{ r.leads }}</span></td>
         <td>{{ r.handoffs }}</td>
-        <td>{{ r.failures }}</td>
+        <td>{{ r.failures }}{% if r.failures %}<br><span class="muted small">ответил позже: {{ r.answered_later }}</span>{% endif %}</td>
         <td>${{ '%.2f' | format(r.cost_usd) }}{% if r.cost_per_reply is not none %}<br><span class="muted small">${{ '%.5f' | format(r.cost_per_reply) }} за ответ</span>{% endif %}</td>
         <td>{{ r.status }}</td>
       </tr>
