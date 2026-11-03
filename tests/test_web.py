@@ -210,7 +210,7 @@ def test_whatsapp_and_instagram_webhooks(client, rt, business):
     }
     raw, headers = _signed(wa)
     assert client.post("/webhooks/meta", content=raw, headers=headers).text == "EVENT_RECEIVED"
-    assert rt.wa.sent == [("996555000111", "Здравствуйте! Чем помочь?")]
+    assert rt.wa.sent == [("996555000111", "Здравствуйте! Я ИИ-помощник «Ак-Тиш Дент»: отвечаю сразу, а если нужно — позову администратора.\n\nЧем помочь?")]  # first contact: the AI says it is an AI
     first_call = rt._llm.calls[0]["messages"]
     assert first_call == [{"role": "user", "content": "Здравствуйте\nсколько стоит чистка?"}]
 
@@ -230,7 +230,7 @@ def test_whatsapp_and_instagram_webhooks(client, rt, business):
     ]}]}
     raw, headers = _signed(ig)
     client.post("/webhooks/meta", content=raw, headers=headers)
-    assert rt.ig.sent == [("igsid-9", "Здравствуйте! Чем помочь?")]
+    assert rt.ig.sent == [("igsid-9", "Здравствуйте! Я ИИ-помощник «Ак-Тиш Дент»: отвечаю сразу, а если нужно — позову администратора.\n\nЧем помочь?")]
 
     staff_echo = {"object": "instagram", "entry": [{"id": "ig-1", "time": 2, "messaging": [
         {"sender": {"id": "ig-1"}, "recipient": {"id": "igsid-9"}, "timestamp": 2, "message": {"mid": "m-2", "text": "Перезвоню вам", "is_echo": True}}
