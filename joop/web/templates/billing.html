@@ -20,6 +20,23 @@
     {% if card %}<button class="btn" type="submit" name="method" value="card">Оплатить картой {{ price }} сом</button>{% endif %}
     <button class="btn {{ 'ghost' if card }}" type="submit" name="method" value="manual">Оплатить переводом или QR</button>
   </form>
+  {% if sub.cancelled_at %}
+  <div class="card stack">
+    <h2>Подписка отменена</h2>
+    <p class="muted small">ИИ отвечает до конца оплаченного или пробного периода, напоминаний об оплате не будет. Данные и прайс остаются — вернуться можно в любой момент.</p>
+    <form method="post" action="/panel/billing/resume"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn" type="submit">Возобновить</button></form>
+  </div>
+  {% else %}
+  <details class="card">
+    <summary class="muted small">Отменить подписку</summary>
+    <form method="post" action="/panel/billing/cancel" class="stack" style="margin-top: 10px">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <p class="muted small">Без звонков и уговоров: ИИ доработает оплаченный период и остановится, а прайс и диалоги останутся, если захотите вернуться.</p>
+      <label>Почему уходите? (необязательно, помогает нам)<textarea name="reason" rows="2" maxlength="500"></textarea></label>
+      <div><button class="btn danger" type="submit">Отменить подписку</button></div>
+    </form>
+  </details>
+  {% endif %}
   {% if instructions %}<div class="card"><h2>Реквизиты</h2><p style="white-space: pre-wrap">{{ instructions }}</p><p class="muted small">В назначении укажите номер заявки. Подписка продлится после подтверждения, обычно в тот же день.</p></div>{% endif %}
   {% endif %}
 </section>

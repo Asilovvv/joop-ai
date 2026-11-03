@@ -117,6 +117,14 @@ def back_text(session: Session, since: datetime, back_at: datetime) -> str:
             f"{waiting} заявок ещё ждут сотрудников в панелях компаний.")
 
 
+def tell_founder(rt, text: str) -> bool:
+    """One Telegram message to the founder, when the founder bot is set up; False otherwise."""
+    settings = rt.settings
+    if not (getattr(settings, "founder_bot_token", "") and getattr(settings, "founder_chat_id", "")):
+        return False
+    return _send(rt, text)
+
+
 def _send(rt, text: str) -> bool:
     from .channels.telegram import TelegramClient
 
