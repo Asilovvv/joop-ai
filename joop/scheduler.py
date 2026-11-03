@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, broadcasts, crm, deposits, health, nudges, ops
+from . import altegio, broadcasts, crm, deposits, health, nudges, ops, recovery
 from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
@@ -315,6 +315,8 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
         client = rt.crm(business)
         return crm.push_due(session, client, business, now_utc, rt.settings.public_base_url) if client is not None else None
 
+    # first: customers an outage left waiting get their answer before staff are reminded about their requests
+    step("answered_after_outage", lambda: recovery.answer_waiting(session, rt, business, now_utc))
     step("reminders_round", reminders)
     step("digest_round", digest)
     step("nudged", lambda: nudges.send(session, rt, business, now_utc))
