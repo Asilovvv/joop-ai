@@ -23,6 +23,9 @@
           {% for href, key, label in items %}<a href="{{ href }}" class="{{ 'on' if active == key else '' }}"{% if active == key %} aria-current="page"{% endif %}>{{ icon(key) }}<span>{{ label }}</span></a>{% endfor %}
         </nav>
         {% endfor %}
+        {% if support %}<div class="support"><b>Первый месяц — помогаем лично</b><span>Вопрос по настройке или ответам ИИ — пишите, отвечаем в течение часа в рабочее время.</span>
+          {% if support.phone %}<a href="https://wa.me/{{ support.wa }}" target="_blank" rel="noopener">WhatsApp {{ support.phone }}</a>{% endif %}
+          {% if support.telegram %}<a href="https://t.me/{{ support.telegram }}" target="_blank" rel="noopener">Telegram @{{ support.telegram }}</a>{% endif %}</div>{% endif %}
         <form method="post" action="/logout" class="logout">
           <input type="hidden" name="csrf" value="{{ csrf }}">
           {% if who %}<span class="who">{{ who }}</span>{% endif %}<button class="link" type="submit">Выйти</button>

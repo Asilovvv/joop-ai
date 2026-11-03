@@ -188,6 +188,21 @@ def _nav(request: Request, business: Business | None) -> list[tuple[str, str, st
     return items if _is_owner(request) else [i for i in items if i[1] not in OWNER_NAV]
 
 
+SUPPORT_DAYS = 30
+
+
+def _support(request: Request, business: Business | None) -> dict | None:
+    """The founder's own contacts, shown in the panel during a business's first month: a named person who
+    answers within an hour beats a help page (the strategy's "support is the product")."""
+    s = _settings(request)
+    if business is None or not (s.contact_phone or s.contact_telegram):
+        return None
+    if business.created_at and (utcnow() - business.created_at).days > SUPPORT_DAYS:
+        return None
+    return {"phone": s.contact_phone, "telegram": s.contact_telegram,
+            "wa": "".join(ch for ch in s.contact_phone if ch.isdigit())}
+
+
 def _render(request: Request, template: str, active: str, business: Business | None = None, **ctx: Any):
     ctx.update(
         request=request,
@@ -198,6 +213,7 @@ def _render(request: Request, template: str, active: str, business: Business | N
         nav_groups=nav_groups(_nav(request, business)),
         who=_who(request) if request.session.get("bid") else "",
         owner=_is_owner(request),
+        support=_support(request, business),
         pack=get_pack(business.niche if business else None),
         active=active,
     )

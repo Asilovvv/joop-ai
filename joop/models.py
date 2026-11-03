@@ -274,6 +274,8 @@ class Subscription(SQLModel, table=True):
     contact_phone: str = ""
     source: str = "signup"  # signup | owner | prospect
     note: str = ""  # the founder's private note
+    cancelled_at: Optional[NaiveDatetime] = None  # the owner cancelled: the AI works to the end of the paid period, no grace
+    cancel_reason: str = ""
     created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 

@@ -61,14 +61,27 @@ def _days(left: timedelta) -> int:
 def state(sub: Subscription, now: datetime) -> State:
     if sub.status == "suspended":
         return State("suspended", False, 0, "Приостановлено")
+    cancelled = sub.cancelled_at is not None
     if sub.paid_until and now <= sub.paid_until:
-        return State("active", True, _days(sub.paid_until - now), "Оплачено")
+        return State("active", True, _days(sub.paid_until - now), "Отменена, работает до конца оплаты" if cancelled else "Оплачено")
     if sub.status == "trial" and sub.trial_ends_at and now <= sub.trial_ends_at:
-        return State("trial", True, _days(sub.trial_ends_at - now), "Пробный период")
+        return State("trial", True, _days(sub.trial_ends_at - now), "Отменена, пробный период" if cancelled else "Пробный период")
     end = sub.paid_until or sub.trial_ends_at
-    if end and now <= end + timedelta(days=GRACE_DAYS):
+    if not cancelled and end and now <= end + timedelta(days=GRACE_DAYS):
         return State("grace", True, _days(end + timedelta(days=GRACE_DAYS) - now), "Ожидает оплаты")
-    return State("expired", False, 0, "Не оплачено")
+    return State("expired", False, 0, "Отменена" if cancelled else "Не оплачено")
+
+
+def cancel(sub: Subscription, now: datetime, reason: str = "") -> None:
+    """The owner stops the subscription: the AI answers to the end of what is paid or of the trial, then stops;
+    no waiting period after that, no reminders to pay. Resuming is one click (resume)."""
+    sub.cancelled_at = now
+    sub.cancel_reason = reason.strip()[:500]
+
+
+def resume(sub: Subscription) -> None:
+    sub.cancelled_at = None
+    sub.cancel_reason = ""
 
 
 def price_for(sub: Subscription | None, default_price: int) -> int:

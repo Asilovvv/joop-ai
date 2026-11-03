@@ -21,7 +21,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .. import billing, partners, pitch, waitlist
+from .. import billing, health, partners, pitch, waitlist
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
@@ -33,7 +33,7 @@ from ..niches import all_packs, get_pack
 from ..presets import SlugTaken, create_business
 from ..pricing import empty_usage
 from ..slots import release_slot, seats_needed
-from ..timeutil import utcnow
+from ..timeutil import utc_to_local, utcnow
 from .app import _back, _base_url, _business, _check_csrf, _csrf, _flash, _render, _rt, _settings, templates
 
 log = logging.getLogger(__name__)
@@ -338,6 +338,47 @@ def billing_page(request: Request):
         payments=payments, card=bool(settings.freedompay_merchant_id and settings.freedompay_secret_key),
         instructions=settings.billing_instructions,
     )
+
+
+@router.post("/panel/billing/cancel")
+def billing_cancel(request: Request, reason: str = Form(""), csrf: str = Form("")):
+    """One click, no call: the AI works to the end of the paid period or the trial, then stops."""
+    _check_csrf(request, csrf)
+    now = utcnow()
+    with new_session() as s:
+        b = _business(s, request)
+        sub = billing.get_subscription(s, b.id)
+        if sub is None:
+            raise HTTPException(status_code=404)
+        billing.cancel(sub, now, reason)
+        s.add(sub)
+        s.commit()
+        st = billing.state(sub, now)
+        end = sub.paid_until or sub.trial_ends_at
+        when = f" до {utc_to_local(end, b.timezone):%d.%m}" if st.active and end else ""
+        name, phone = b.name, sub.contact_phone or b.phone
+    _flash(request, f"Подписка отменена. ИИ продолжит отвечать{when}, потом остановится. Передумаете — нажмите «Возобновить».")
+    try:  # the founder hears it at once: a cancellation is the signal to call
+        health.tell_founder(_rt(request), f"Joop AI: «{name}» отменил подписку{(' — ' + reason.strip()[:200]) if reason.strip() else ''}. "
+                                          f"Телефон: {phone or 'нет'}.")
+    except Exception:
+        log.exception("Founder note about a cancellation failed")
+    return _back("/panel/billing")
+
+
+@router.post("/panel/billing/resume")
+def billing_resume(request: Request, csrf: str = Form("")):
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        sub = billing.get_subscription(s, b.id)
+        if sub is None:
+            raise HTTPException(status_code=404)
+        billing.resume(sub)
+        s.add(sub)
+        s.commit()
+    _flash(request, "Подписка возобновлена.")
+    return _back("/panel/billing")
 
 
 @router.post("/panel/billing/pay")
