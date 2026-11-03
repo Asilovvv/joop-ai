@@ -10,7 +10,7 @@ from joop.agent.llm import AgentReply
 from joop.channels.meta import InstagramClient, WhatsAppClient, parse_instagram, parse_whatsapp
 from joop.channels.telegram import TelegramClient, parse_update
 from joop.dispatch import process_incoming
-from joop.models import Lead, Message
+from joop.models import Business, Lead, Message
 from joop.ops import launch_checks
 
 from .conftest import NOW_UTC, FakeLLM
@@ -138,3 +138,18 @@ def test_launch_check_mentions_voice(settings):
     names = {c.name: c for c in launch_checks(settings, {}, live=False)}
     check = names["Голосовые сообщения (STT_PROVIDER, STT_API_KEY)"]
     assert not check.ok and not check.required
+
+
+def test_duplicate_delivery_and_switched_off_bot_do_not_pay_for_recognition(business, rt):
+    stt = wire(rt, "Сколько стоит?")
+    rt._llm = FakeLLM([AgentReply("500 сом."), AgentReply("500 сом.")])
+    process_incoming(rt, business.id, tg_voice(), NOW_UTC)
+    process_incoming(rt, business.id, tg_voice(), NOW_UTC)  # Telegram sent the same update twice
+    assert len(stt.calls) == 1
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.bot_enabled = False
+        s.add(b)
+        s.commit()
+    process_incoming(rt, business.id, dataclasses.replace(tg_voice(), external_id="tg:42:9"), NOW_UTC)
+    assert len(stt.calls) == 1

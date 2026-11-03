@@ -177,11 +177,16 @@ WIDGET_JS = """(function () {
 """
 
 
+PER_ADDRESS_POLLS = 20000  # /updates calls a day from one IP: the page asks every 15 s, so one visitor makes about 6,000
+
+
 @router.get("/c/{slug}/updates")
-def chat_updates(slug: str, visitor: str = "", after: int = 0):
+def chat_updates(request: Request, slug: str, visitor: str = "", after: int = 0):
     """Replies staff wrote from the panel (joop/staff_reply.py); the page asks while it is open."""
-    if not _TOKEN.match(visitor):
+    day, ip = time.strftime("%Y-%m-%d"), client_ip(request)
+    if not _TOKEN.match(visitor) or _count(f"poll:{ip}", day) >= PER_ADDRESS_POLLS:
         return JSONResponse({"messages": []}, headers={"Cache-Control": "no-store"})
+    _bump(f"poll:{ip}", day)
     with new_session() as s:
         try:
             b = _business(s, slug)

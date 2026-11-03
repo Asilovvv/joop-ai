@@ -153,3 +153,25 @@ def test_panel_settings_and_marking_the_payment(client, business, rt):
     assert any(chat == "c1" and text.startswith("Предоплата получена, спасибо! Ждём вас") for chat, text in rt.tg.sent)
     page = client.get("/panel/bookings").text
     assert "предоплата 500 сом получена" in page and f"/panel/bookings/{booking.id}/paid" not in page
+
+
+def test_paid_and_released_cannot_both_happen(business, rt):
+    turn_on(business.id, deposit_auto_cancel=True)
+    _, booking, slot = book(business.id, rt)
+    with db.new_session() as s:
+        deposits.check_deadlines(s, rt, s.get(Business, business.id), booking.deposit_deadline + timedelta(minutes=1))
+        s.commit()
+    with db.new_session() as s:  # staff press "paid" a moment later: refused, the slot stays free
+        b = s.get(Business, business.id)
+        assert deposits.mark_paid(s, rt, b, s.get(Booking, booking.id), NOW_UTC) is None
+        s.commit()
+        bk = s.get(Booking, booking.id)
+        assert (bk.status, bk.deposit_status, s.get(Slot, slot.id).status) == ("cancelled", "expired", "free")
+    _, second, _ = book(business.id, rt, now=NOW_UTC + timedelta(minutes=30))
+    with db.new_session() as s:  # the other order: paid first, then the deadline passes — nothing is released
+        b = s.get(Business, business.id)
+        assert deposits.mark_paid(s, rt, b, s.get(Booking, second.id), NOW_UTC) is True
+        s.commit()
+    with db.new_session() as s:
+        assert deposits.check_deadlines(s, rt, s.get(Business, business.id), second.deposit_deadline + timedelta(hours=1)) == {}
+        assert s.get(Booking, second.id).status == "booked"
