@@ -42,11 +42,16 @@
       <form method="post" action="/owner/prospects/{{ p.id }}" class="stack">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <label>Первое сообщение (отправляете вы сами)<textarea name="message" rows="5">{{ p.message }}</textarea></label>
+        <details><summary class="muted small">Демо на их прайсе: вставьте текст из поста или сайта</summary>
+          <textarea name="source" rows="4" maxlength="6000" placeholder="Маникюр с покрытием — 1 200 сом&#10;Педикюр — от 1 500&#10;Работаем с 9:00 до 21:00"></textarea>
+          <div class="actions" style="justify-content: flex-start; margin-top: 6px"><button class="btn small" name="action" value="pitch">Сделать демо на их прайсе</button></div>
+          <p class="muted small">ИИ соберёт прайс из текста (цены только из текста), спросит сам «сколько стоит» и «можно завтра?» и покажет диалог для скриншота в первое сообщение.</p>
+        </details>
         <div class="actions" style="justify-content: flex-start">
           <button class="btn small" name="action" value="draft">{{ 'Переписать ИИ' if p.message else 'Написать ИИ' }}</button>
           <button class="btn ghost small" name="action" value="draft_site">Предложить сайт</button>
           <button class="btn ghost small" name="action" value="save">Сохранить</button>
-          {% if not p.demo_business_id %}<button class="btn ghost small" name="action" value="demo">Создать демо</button>{% else %}<span class="chip ok">демо создано</span>{% endif %}
+          {% if not p.demo_business_id %}<button class="btn ghost small" name="action" value="demo">Создать демо</button>{% else %}<span class="chip ok">демо создано</span> <a class="btn ghost small" href="/owner/prospects/{{ p.id }}/pitch">Диалог для скриншота</a>{% endif %}
           {% if p.phone %}<a class="btn ghost small" href="https://wa.me/{{ p.phone | replace(' ', '') | replace('+', '') | replace('-', '') }}" target="_blank" rel="noopener">Открыть WhatsApp</a>{% endif %}
           <select name="status" aria-label="Статус" style="width: auto">{% for key, label in statuses.items() %}<option value="{{ key }}" {{ 'selected' if key == p.status }}>{{ label }}</option>{% endfor %}</select>
           <button class="btn ghost small" name="action" value="status">Сменить статус</button>

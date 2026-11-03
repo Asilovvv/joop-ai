@@ -21,7 +21,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .. import billing, partners
+from .. import billing, partners, pitch
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
@@ -706,7 +706,7 @@ def prospects_add(
 
 @router.post("/owner/prospects/{pid}")
 def prospect_action(request: Request, pid: int, action: str = Form(""), status: str = Form(""), message: str = Form(""),
-                    csrf: str = Form("")):
+                    source: str = Form(""), csrf: str = Form("")):
     _owner(request)
     _check_csrf(request, csrf)
     settings = _settings(request)
@@ -729,6 +729,28 @@ def prospect_action(request: Request, pid: int, action: str = Form(""), status: 
                 _flash(request, f"Демо создано. Логин: {b.slug}, пароль: {password} (покажется один раз).")
             else:
                 _flash(request, "Демо уже есть.", "error")
+        elif action == "pitch":  # a demo on the prospect's own price list (joop/pitch.py)
+            text = source.strip()[:6000]
+            if not text:
+                _flash(request, "Вставьте прайс из поста или сайта компании.", "error")
+                return _back(f"/owner/prospects#p{pid}")
+            rt = _rt(request)
+            try:
+                b, problem = pitch.build(s, rt.get_llm(), p, text, settings.trial_days, now)
+                if b is not None:
+                    pitch.run_dialogue(s, b, rt.get_llm, p.language, now, settings.public_base_url)
+            except Exception:
+                log.exception("Pitch demo failed")
+                b, problem = None, "ИИ сейчас недоступен. Проверьте ANTHROPIC_API_KEY и баланс."
+            if b is None:
+                s.rollback()
+                _flash(request, problem, "error")
+                return _back(f"/owner/prospects#p{pid}")
+            p.status = "demo" if p.status in {"new", "contacted", "replied"} else p.status
+            p.updated_at = now
+            s.add(p)
+            s.commit()
+            return _back(f"/owner/prospects/{pid}/pitch")
         elif action in {"draft", "draft_site"}:
             demo_link = ""
             if p.demo_business_id and settings.public_base_url:
@@ -754,6 +776,25 @@ def prospect_action(request: Request, pid: int, action: str = Form(""), status: 
         s.add(p)
         s.commit()
     return _back(f"/owner/prospects#p{pid}")
+
+
+@router.get("/owner/prospects/{pid}/pitch")
+def prospect_pitch(request: Request, pid: int):
+    """Phone-sized page of the demo dialogue, for the screenshot in the first message."""
+    _owner(request)
+    with new_session() as s:
+        p = s.get(Prospect, pid)
+        if p is None or not p.demo_business_id:
+            raise HTTPException(status_code=404)
+        b = s.get(Business, p.demo_business_id)
+        conv = s.exec(select(Conversation).where(Conversation.business_id == b.id, Conversation.channel == "console",
+                                                 Conversation.chat_id == pitch.PITCH_CHAT)).first()
+        messages = list(s.exec(select(Message).where(Message.conversation_id == conv.id).order_by(Message.id)).all()) if conv else []
+        services = s.exec(select(Service).where(Service.business_id == b.id).order_by(Service.sort)).all()
+        return templates.TemplateResponse(request, "owner_pitch.html", {
+            "request": request, "p": p, "b": b, "messages": messages, "services": services, "outreach": pitch.outreach(p),
+            "csrf": _csrf(request), "tz": b.timezone,
+        })
 
 
 # --- partners (referral program) ------------------------------------------------------------------
