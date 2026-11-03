@@ -152,6 +152,7 @@ class Conversation(SQLModel, table=True):
     last_message_at: NaiveDatetime = Field(default_factory=utcnow)
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     broadcast_opt_out: bool = False  # the customer answered "стоп" to a broadcast (joop/broadcasts.py)
+    reviewed_at: Optional[NaiveDatetime] = None  # a person first opened this dialogue in the panel (joop/retention.py)
 
 
 class Message(SQLModel, table=True):
