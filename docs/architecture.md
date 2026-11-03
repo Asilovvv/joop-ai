@@ -100,7 +100,9 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 2. **Structured output with a safety net.** Requests ask for a JSON schema. If the API rejects an
    optional setting, the client drops it and retries, and the parser also accepts JSON inside text.
    A failed call never leaves the customer without an answer: they get a fallback message and staff
-   get a lead.
+   get a lead. When the model answers again, customers still waiting (no staff reply, request still
+   open, at most 12 hours, Telegram/WhatsApp/Instagram) get a real answer that starts with an apology
+   for the delay, and their requests are closed (`joop/recovery.py`).
 3. **Staff can take over.** When a clinic replies by hand from its own Instagram or WhatsApp app,
    the channel sends an "echo". Echoes that match our own replies are ignored; any other echo pauses
    the AI in that conversation for 12 hours. Staff can also pause or resume the AI in the panel.
@@ -149,9 +151,10 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | **Operations** | |
 | `joop/scheduler.py` | Reminders, summaries, weekly and monthly reports, broadcast batches, prepayment deadlines, request reminders, amoCRM deals, Altegio sync, daily backup |
 | `joop/health.py` | Alerts for the founder when model calls keep failing |
+| `joop/recovery.py` | Answers the customers an outage left waiting, once the model works again |
 | `joop/ops.py` | Pre-launch check (`python -m joop check`) and database backups |
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 338 tests with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 344 tests with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
