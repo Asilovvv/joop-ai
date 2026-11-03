@@ -149,7 +149,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/web/demo.py`, `joop/web/studio.py`, `joop/web/menu.py` | Live demo on the site, AI-drafted business sites, online menu with QR codes |
 | `joop/altegio.py` | Altegio integration: prices, team and free times in, bookings out |
 | `joop/crm.py` | amoCRM / Kommo: bookings, requests and orders sent as deals with contact and note |
-| `joop/stats.py` | Numbers for the dashboard, reports and the pilot; the panel test chat is left out of all of them |
+| `joop/stats.py` | Numbers for the dashboard, reports and the pilot; the panel test chat (`TEST_CHANNEL`) is left out of all of them, and of Altegio, amoCRM and staff reminders |
 | **Operations** | |
 | `joop/scheduler.py` | Reminders, summaries, weekly, monthly and day-7 reports, broadcast batches, prepayment deadlines, request reminders, amoCRM deals, Altegio sync, daily backup |
 | `joop/health.py` | Alerts for the founder when model calls keep failing |
@@ -159,5 +159,5 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 359 tests with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 362 tests with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
