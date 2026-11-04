@@ -76,7 +76,8 @@ def text(session: Session, now_utc: datetime, price_som: int) -> str:
 
 def due(session: Session, now_utc: datetime) -> bool:
     local = utc_to_local(now_utc, TZ)
-    if local.weekday() != 0 or local.hour < SEND_HOUR:
+    monday = (local - timedelta(days=local.weekday())).replace(hour=SEND_HOUR, minute=0, second=0, microsecond=0)
+    if local < monday:  # before this week's Monday 09:00; a server down on Monday writes the line on Tuesday
         return False
     return session.exec(select(FounderDigest.id).where(FounderDigest.week_start == week_of(now_utc))).first() is None
 

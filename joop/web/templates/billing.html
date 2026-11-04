@@ -14,7 +14,8 @@
     <div class="stat"><b>{{ sub.trial_ends_at.strftime('%d.%m') if sub.trial_ends_at and not free else '—' }}</b><span>конец пробного периода</span></div>
     <div class="stat"><b>{{ sub.paid_until.strftime('%d.%m.%Y') if sub.paid_until else '—' }}</b><span>оплачено до</span></div>
   </div>
-  {% if st and not st.active %}<p class="flash error">ИИ сейчас не отвечает клиентам: сообщения приходят в панель, отвечайте вручную или оплатите подписку.</p>{% endif %}
+  {% if free and not solo %}<p class="flash error">ИИ сейчас не отвечает клиентам. На бесплатном тарифе один мастер, а в «Мастера» их больше: оставьте одного или оплатите тариф.</p>
+  {% elif st and not st.active %}<p class="flash error">ИИ сейчас не отвечает клиентам: сообщения приходят в панель, отвечайте вручную или оплатите подписку.</p>{% endif %}
   {% if free %}
   <div class="card stack">
     <h2>Вы на бесплатном тарифе</h2>
@@ -29,8 +30,8 @@
   {% if not free %}
   <div class="card stack">
     <h2>Бесплатный тариф для мастера-одиночки</h2>
-    <p class="muted small">Если вы работаете одна (один), ИИ бесплатен без срока: он подписывается «Joop AI» в первом сообщении диалога и при записи — так о нас узнают ваши клиенты.{% if not solo %} Сейчас у вас больше одного мастера, поэтому тариф недоступен.{% endif %}</p>
-    {% if solo %}<form method="post" action="/panel/billing/free"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn ghost" type="submit">Перейти на бесплатный тариф</button></form>{% endif %}
+    <p class="muted small">Если вы работаете одна (один), ИИ бесплатен без срока: он подписывается «Joop AI» в первом сообщении диалога и при записи — так о нас узнают ваши клиенты.{% if not solo %} Сейчас у вас больше одного мастера, поэтому тариф недоступен.{% elif st and st.code == 'active' %} Перейти можно после оплаченного периода.{% endif %}</p>
+    {% if solo and not (st and st.code == 'active') %}<form method="post" action="/panel/billing/free"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn ghost" type="submit">Перейти на бесплатный тариф</button></form>{% endif %}
   </div>
   {% endif %}
   {% if free %}{% elif sub.cancelled_at %}

@@ -44,13 +44,31 @@ def test_reasons():
             assert expected in health.reason_of(exc), text
 
 
+class _Alerts:
+    def __init__(self, posted):
+        self.posted = posted
+
+    def _items(self):
+        return [x for x in self.posted if not x[1].get("text", "").startswith("Joop AI, неделя")]
+
+    def __len__(self):
+        return len(self._items())
+
+    def __getitem__(self, i):
+        return self._items()[i]
+
+    def __bool__(self):
+        return bool(self._items())
+
+
 def test_founder_gets_one_telegram_alert_and_a_console_banner(business, settings, rt):
     health.reset()
     fail(business.id, 2)
     rt.settings = dataclasses.replace(settings, founder_bot_token="999:FOUNDER", founder_chat_id="42")
-    sent = []
-    rt.http = type("H", (), {"post": lambda self, url, json, timeout: sent.append((url, json)) or
+    posted = []
+    rt.http = type("H", (), {"post": lambda self, url, json, timeout: posted.append((url, json)) or
                              type("R", (), {"json": lambda self: {"ok": True, "result": {}}})()})()
+    sent = _Alerts(posted)  # the Monday digest (joop/founder_digest.py) also goes to the founder: not an alert
     sched = Scheduler(rt, 300)
     sched.tick(NOW_UTC)
     assert not sent  # two failures are not an outage yet
@@ -83,9 +101,10 @@ def test_founder_hears_once_when_the_ai_is_back(business, settings, rt, llm):
     health.reset()
     recovery.reset()
     rt.settings = dataclasses.replace(settings, founder_bot_token="999:FOUNDER", founder_chat_id="42")
-    sent = []
-    rt.http = type("H", (), {"post": lambda self, url, json, timeout: sent.append((url, json)) or
+    posted = []
+    rt.http = type("H", (), {"post": lambda self, url, json, timeout: posted.append((url, json)) or
                              type("R", (), {"json": lambda self: {"ok": True, "result": {}}})()})()
+    sent = _Alerts(posted)  # the Monday digest (joop/founder_digest.py) also goes to the founder: not an alert
     fail(business.id, 3)
     sched = Scheduler(rt, 300)
     llm.replies = [credit_error]  # still down at the first round: the waiting customers are tried and stay waiting
