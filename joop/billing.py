@@ -43,6 +43,11 @@ def access_ok(session: Session, business_id: int, now: datetime) -> bool:
     sub = get_subscription(session, business_id)
     if sub is None:
         return True  # created from the command line or before billing existed
+    if sub.plan == "free":
+        from . import free_plan  # the free plan is for one master; more (an Altegio sync, an import) and the AI waits
+
+        if not free_plan.eligible(session, business_id):
+            return False
     return state(sub, now).active
 
 
@@ -102,6 +107,7 @@ def mark_paid(session: Session, payment: Payment, now: datetime) -> Subscription
     sub.paid_until = start + timedelta(days=payment.period_days)
     sub.status = "active"
     sub.plan = "pro"  # a payment ends the free plan: no signature, any number of masters
+    sub.cancelled_at, sub.cancel_reason = None, ""  # paying is resuming
     session.add(payment)
     session.add(sub)
     return sub

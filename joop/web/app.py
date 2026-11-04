@@ -957,7 +957,7 @@ def conversation_page(request: Request, item_id: int):
     with new_session() as s:
         b = _business(s, request)
         conv = _own(s, Conversation, item_id, b.id)
-        if conv.reviewed_at is None:  # the first look by a person: the pilot's "dialogues checked in week one"
+        if conv.reviewed_at is None and request.session.get("owner") is not True:  # the owner's first look, not the founder's
             conv.reviewed_at = utcnow()
             s.add(conv)
             s.commit()
