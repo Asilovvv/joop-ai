@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, billing, broadcasts, crm, deposits, founder_digest, health, nudges, ops, recovery, trust
+from . import altegio, billing, broadcasts, confirm, crm, deposits, founder_digest, health, nudges, ops, recovery, trust
 from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
@@ -37,8 +37,7 @@ def reminder_text(business: Business, booking: Booking) -> str:
         parts.append(f"Специалист: {booking.staff_name}")
     if business.address:
         parts.append(f"Адрес: {business.address}")
-    parts.append("Если планы изменились, ответьте на это сообщение")
-    return ". ".join(parts) + "."
+    return ". ".join(parts) + ". " + confirm.ASK_RU
 
 
 def _send_reminder(session: Session, rt: Runtime, business: Business, booking: Booking, now_utc: datetime) -> bool:
@@ -114,9 +113,13 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
     still_open = nudges.open_count(session, business, now_utc)
     if still_open:
         lines.append(f"Не закрыто заявок: {still_open} — ответьте клиентам и отметьте «Готово» в разделе «Заявки».")
+    silent = confirm.unconfirmed(session, business, today)
+    if silent:
+        lines.append(confirm.digest_line(silent))
     if today:
         lines.append("Сегодня записаны:")
-        lines += [f"{b.start:%H:%M} — {b.customer_name}, {b.customer_phone} — {b.service or 'приём'} ({b.staff_name})" for b in today]
+        lines += [f"{b.start:%H:%M} — {b.customer_name}, {b.customer_phone} — {b.service or 'приём'} ({b.staff_name})"
+                  + (" ✓" if b.confirmed_at else "") for b in today]
     else:
         lines.append("Записей на сегодня в системе нет.")
     return "\n".join(lines)
@@ -376,6 +379,7 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
     step("digest_round", digest)
     step("nudged", lambda: nudges.send(session, rt, business, now_utc))
     step("deposits", lambda: deposits.check_deadlines(session, rt, business, now_utc))
+    step("unconfirmed", lambda: confirm.release_unconfirmed(session, rt, business, now_utc))
     step("broadcast", lambda: broadcasts.send_due(session, rt, business, now_utc))
     step("reviews", lambda: send_review_requests(session, rt, business, now_utc))
     step("crm", push_crm)

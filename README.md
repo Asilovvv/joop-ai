@@ -289,6 +289,12 @@ WhatsApp message fees for reminders.
   offers other free room types when needed. Panel "Брони номеров": two-week occupancy grid and cancel.
 - **Weekly report**: every Monday, with the morning summary, the owner gets the week in numbers:
   customers answered, how many outside working hours, bookings, requests and orders.
+- **Confirming a visit from the reminder**: the reminder ends with "Ответьте «да», если придёте"; a short
+  "да" / "приду" / "ооба" is taken by code and marks the booking confirmed. The morning summary lists today's
+  bookings nobody confirmed, so the administrator calls them first; the "Записи" page shows ✓ or "без ответа".
+  Optional (settings "Подтверждение записи", off by default): a reminded booking still unconfirmed N hours
+  before the visit is released, the customer is told, the waitlist gets the time, staff get a note. Only
+  bookings whose reminder was delivered are ever released.
 - **Cancel in one click** (`/panel/billing`): the owner cancels the subscription himself with a one-line
   reason; the AI keeps answering until the paid period ends, nothing is charged after, and "Возобновить"
   undoes it at any time. The founder gets a Telegram note with the reason and the phone.
@@ -334,7 +340,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 389 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 395 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
