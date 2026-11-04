@@ -113,7 +113,7 @@ def handle_incoming(
         conv.display_name = incoming.user_name[:120]
 
     if incoming.kind == "command":
-        handled = _handle_command(session, business, conv, incoming, text, now, off)
+        handled = _handle_command(session, business, conv, incoming, text, now, off, base_url)
         if handled is not None:
             return handled
 
@@ -507,12 +507,15 @@ def _handle_echo(
 
 
 def _handle_command(
-    session: Session, business: Business, conv: Conversation, incoming: IncomingMessage, text: str, now: datetime, off: bool
+    session: Session, business: Business, conv: Conversation, incoming: IncomingMessage, text: str, now: datetime, off: bool,
+    base_url: str = "",
 ) -> Outcome | None:
     command, _, argument = text.partition(" ")
     command = command.split("@", 1)[0].lower()
     if command == "/start":
         reply = (business.greeting or DEFAULT_GREETING).format(name=business.name)
+        if free_plan.is_free(get_subscription(session, business.id)):  # on Telegram this greeting is the first contact
+            reply = free_plan.with_signature(reply, base_url, False)
         _add_message(session, business, conv, "ai", reply, now, off)
         return Outcome(reply=reply)
     if command == "/admin":

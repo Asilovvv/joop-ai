@@ -160,7 +160,8 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     ).one()
     channel = bool(b.telegram_bot_token or (b.wa_phone_number_id and b.wa_access_token) or (b.ig_account_id and b.ig_access_token))
     sub = billing.get_subscription(s, b.id)
-    paid = bool(sub and billing.state(sub, now).code == "active")
+    code = billing.state(sub, now).code if sub else ""
+    paid, free = code == "active", code == "free"
     example = samples.left(s, b).services
     label = get_pack(b.niche).catalog_label
     return [
@@ -178,7 +179,8 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
          "hint": "Отправьте боту код из «Настроек», и новые записи будут приходить вам."},
         {"done": real > 0, "title": "Первый настоящий клиент", "href": "/panel/conversations",
          "hint": "Поставьте ссылку на бота в Instagram и 2ГИС."},
-        {"done": paid, "title": "Оплата", "href": "/panel/billing", "hint": "После пробного периода ИИ работает по подписке."},
+        {"done": paid or free, "title": "Бесплатный тариф: один мастер, без срока" if free else "Оплата", "href": "/panel/billing",
+         "hint": "Второй мастер и ответы без подписи Joop — на платном тарифе." if free else "После пробного периода ИИ работает по подписке."},
     ]
 
 
@@ -366,6 +368,9 @@ def billing_free(request: Request, csrf: str = Form("")):
         if not free_plan.eligible(s, b.id):
             _flash(request, free_plan.TOO_MANY, "error")
             return _back("/panel/billing")
+        if billing.state(sub, utcnow()).code == "active":
+            _flash(request, "Сначала доработает оплаченный период: перейти на бесплатный тариф можно после него.", "error")
+            return _back("/panel/billing")
         free_plan.switch(sub)
         s.add(sub)
         s.commit()
@@ -383,6 +388,9 @@ def billing_cancel(request: Request, reason: str = Form(""), csrf: str = Form(""
         sub = billing.get_subscription(s, b.id)
         if sub is None:
             raise HTTPException(status_code=404)
+        if free_plan.is_free(sub):
+            _flash(request, "На бесплатном тарифе нечего отменять: платежей нет, ИИ работает без срока.", "error")
+            return _back("/panel/billing")
         billing.cancel(sub, now, reason)
         s.add(sub)
         s.commit()
