@@ -15,7 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, confirm, deposits, free_plan, health, regulars, trust, upsell, voice
+from .. import altegio, broadcasts, confirm, deposits, free_plan, health, owner_commands, regulars, trust, upsell, voice
 from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -97,6 +97,10 @@ def handle_incoming(
 
     if incoming.external_id and _already_seen(session, business.id, incoming.external_id):
         return Outcome(skipped="duplicate")
+    if incoming.kind == "command" and owner_commands.is_admin_chat(business, incoming.channel, incoming.chat_id):
+        answer = owner_commands.answer(session, business, incoming.text or "", now)
+        if answer is not None:  # the owner's numbers: no conversation, no messages, no model
+            return Outcome(reply=answer)
 
     conv = _get_or_create_conversation(session, business, incoming, now)
 
