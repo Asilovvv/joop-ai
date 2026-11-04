@@ -76,6 +76,7 @@ class Business(SQLModel, table=True):
     deposit_details: str = ""  # how to pay: transfer by phone number, a payment link
     deposit_hours: int = 2  # hours the customer has to pay
     deposit_auto_cancel: bool = False
+    nudge_unfinished: bool = False  # follow up once with two free times when a customer asked and went quiet (joop/unfinished.py)
     release_unconfirmed_hours: int = 0  # free a reminded, unconfirmed booking this many hours before the visit; 0 = off  # release the booking when nothing came by the deadline
     lead_nudge_minutes: int = 30  # remind staff about a request nobody answered (joop/nudges.py); 0 = off
     first_week_report_at: Optional[NaiveDatetime] = None  # the day-7 report went out (scheduler.first_week_report_text)
@@ -154,6 +155,7 @@ class Conversation(SQLModel, table=True):
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     broadcast_opt_out: bool = False  # the customer answered "стоп" to a broadcast (joop/broadcasts.py)
     reviewed_at: Optional[NaiveDatetime] = None  # a person first opened this dialogue in the panel (joop/retention.py)
+    followup_at: Optional[NaiveDatetime] = None  # the one follow-up to a customer who asked and went quiet (joop/unfinished.py)
 
 
 class Message(SQLModel, table=True):
