@@ -13,6 +13,7 @@ assistant's booking conversion is reported at 55–65% against 15–20% for a fo
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -34,20 +35,24 @@ CHANNELS = ("telegram", "whatsapp", "instagram")
 PER_TICK = 20
 
 
+_CLOSER = re.compile(r"^\W*(спасибо|благодарю|рахмат|ок|окей|хорошо|понятно|ясно|ладно|пока|до свидания|жакшы|болду|👍)(?!\w)", re.I)
+
+
 def _text(session: Session, business: Business, conv: Conversation, now_local: datetime) -> str | None:
-    pair = free_slots(session, business.id, now_local, days=7, limit=2)
-    if not pair:
+    starts = list(dict.fromkeys(slot.start for slot, _ in free_slots(session, business.id, now_local, days=7, limit=40)))[:2]
+    if not starts:
         return None
-    times = " или ".join(fmt_slot(slot.start) for slot, _ in pair)
+    times = " или ".join(fmt_slot(at) for at in starts)
     if _kyrgyz(session, conv.id):
         return f"Ыңгайлуу болсо, жазып коёюн: {times}. «Ооба» деп же башка ыңгайлуу убакытты жазыңыз."
     return f"Если удобно, могу записать вас: {times}. Напишите «да» или другое удобное время."
 
 
 def _open(session: Session, conv: Conversation) -> bool:
-    """The customer asked, the AI answered last, and nothing came of it yet."""
-    last = session.exec(select(Message.role).where(Message.conversation_id == conv.id).order_by(Message.id.desc())).first()
-    if last != "ai":
+    """The customer asked (not "спасибо"), the AI answered last, and nothing came of it yet."""
+    rows = session.exec(select(Message.role, Message.text).where(Message.conversation_id == conv.id)
+                        .order_by(Message.id.desc()).limit(2)).all()
+    if len(rows) < 2 or rows[0][0] != "ai" or rows[1][0] != "customer" or _CLOSER.match(rows[1][1] or ""):
         return False
     if session.exec(select(Booking.id).where(Booking.conversation_id == conv.id)).first() is not None:
         return False
@@ -90,8 +95,13 @@ def week_numbers(session: Session, business: Business, since_utc: datetime) -> t
     convs = session.exec(select(Conversation).where(
         Conversation.business_id == business.id, Conversation.followup_at >= since_utc, Conversation.channel != TEST_CHANNEL,
     )).all()
-    booked = 0
+    chased = booked = 0
     for conv in convs:
+        delivered = session.exec(select(Message.id).where(Message.conversation_id == conv.id, Message.role == "ai",
+                                                          Message.created_at == conv.followup_at)).first() is not None
+        if not delivered:
+            continue  # tried, but nothing to offer or the channel refused: not a follow-up
+        chased += 1
         booked += session.exec(select(func.count()).select_from(Booking).where(
-            Booking.conversation_id == conv.id, Booking.created_at >= conv.followup_at)).one() > 0
-    return len(convs), booked
+            Booking.conversation_id == conv.id, Booking.status == "booked", Booking.created_at >= conv.followup_at)).one() > 0
+    return chased, booked

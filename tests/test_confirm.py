@@ -52,7 +52,7 @@ def test_yes_in_kyrgyz_and_yes_without_a_reminder_pending(business, rt):
     llm = FakeLLM([AgentReply("Жакшы")])
     assert _say(business.id, rt, "ооба", llm=llm).reply == "Жакшы"  # no reminder yet: an ordinary message
     _run(business, rt)
-    assert _say(business.id, rt, "Ооба, келем", llm=llm).reply == "Рахмат, Бш 05.11 10:00 күтөбүз!"
+    assert _say(business.id, rt, "Ооба, келем", llm=llm).reply == "Рахмат, бейш 05.11 10:00 күтөбүз!"
 
 
 def test_morning_summary_lists_who_did_not_confirm(business, rt):
