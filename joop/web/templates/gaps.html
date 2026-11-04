@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Пустые окна{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Пустые окна</h1>
+  <p class="muted">Свободное время на неделю вперёд и клиенты, которым пора: прошёл интервал услуги или давно не были. Для каждого готово сообщение с двумя ближайшими окнами у его мастера. Ничего не уходит без вашего нажатия. Кому нельзя написать первым (WhatsApp и Instagram спустя сутки после его сообщения) — позвоните, телефон рядом.</p>
+</section>
+<section class="card">
+  <div class="stats">
+    <div class="stat"><b>{{ free }}</b><span>свободных окон на 7 дней из {{ total }}</span></div>
+    <div class="stat"><b>{{ rows|length }}</b><span>клиентов пора пригласить</span></div>
+    <div class="stat"><b>{{ rows|selectattr('reachable')|list|length }}</b><span>из них можно написать сейчас</span></div>
+  </div>
+  {% if days %}<p class="muted small">{% for d in days %}{{ d.date.strftime('%d.%m') }}: свободно {{ d.free }} из {{ d.total }}{{ ' · ' if not loop.last }}{% endfor %}</p>{% endif %}
+</section>
+<section class="card stack">
+  <div class="head">
+    <h2>Кого пригласить</h2>
+    {% if rows|selectattr('reachable')|list %}<form method="post" action="/panel/gaps/send-all"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small" type="submit">Отправить всем, кому можно</button></form>{% endif %}
+  </div>
+  {% if rows %}
+  <div class="scroll"><table class="table">
+    <thead><tr><th>Клиент</th><th>Почему</th><th>Последний визит</th><th>Сообщение</th><th></th></tr></thead>
+    <tbody>
+    {% for c in rows %}
+      <tr>
+        <td>{{ c.name or 'клиент' }}<br><span class="muted small">{{ c.phone }} · {{ {'telegram': 'Telegram', 'whatsapp': 'WhatsApp', 'instagram': 'Instagram'}.get(c.channel, c.channel) }}</span></td>
+        <td>{{ c.reason }}</td>
+        <td>{{ c.last_visit.strftime('%d.%m.%Y') }}{% if c.service %}<br><span class="muted small">{{ c.service }}{% if c.staff %} · {{ c.staff }}{% endif %}</span>{% endif %}</td>
+        <td class="small" style="max-width: 420px">{{ c.text }}</td>
+        <td>{% if c.reachable %}<form method="post" action="/panel/gaps/{{ c.conversation_id }}/send"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small" type="submit">Отправить</button></form>{% else %}<span class="chip warn">позвонить</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <p class="muted">Пока некого приглашать: у всех постоянных клиентов есть запись, или ещё не прошёл интервал. Интервалы услуг — в разделе «Отзывы и возврат».</p>
+  {% endif %}
+</section>
+{% endblock %}
