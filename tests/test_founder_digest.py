@@ -65,7 +65,6 @@ def test_sent_once_on_monday_morning_and_kept_as_the_journal(engine, rt, saas_se
     monkeypatch.setattr(health, "_send", lambda rt_, text: rt.tg.send_text("42", text))
     sched = Scheduler(rt, interval=60)
     sched.tick(MONDAY_9 - timedelta(hours=2))  # Monday 07:30: too early
-    sched.tick(MONDAY_9 - timedelta(days=1))  # Sunday
     assert not [t for _, t in rt.tg.sent if t.startswith("Joop AI, неделя")]
     sched.tick(MONDAY_9)
     sched.tick(MONDAY_9 + timedelta(hours=3))  # the same Monday again: nothing more

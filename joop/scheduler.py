@@ -265,6 +265,9 @@ def first_week_report_text(session: Session, business: Business, now_utc: dateti
         tail.append(f"Пробный период: ещё {_ru(st.days_left, 'день', 'дня', 'дней')}.")
     if st and st.code == "free":
         tail.append("Вы на бесплатном тарифе для одного мастера — без срока.")
+    elif sub and sub.cancelled_at and sub.trial_ends_at:
+        tail.append(f"Подписка отменена: ИИ остановится {utc_to_local(sub.trial_ends_at, business.timezone):%d.%m}. "
+                    "Передумаете — «Возобновить» в панели, раздел «Оплата».")
     elif price_som:
         tail.append(f"Подписка — {_som(price_som)} сом в месяц, отменить можно в любой момент: панель → «Оплата».")
     tail.append("Если что-то отвечает не так — впишите ответ в «Вопросы» или напишите мне, поправлю в тот же день.")
