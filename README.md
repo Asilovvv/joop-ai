@@ -312,6 +312,12 @@ WhatsApp message fees for reminders.
 - **ROI calculator on the landing page** (`/#roi`): the visitor's own numbers — messages a day, share outside
   working hours, conversion, average ticket, an administrator's salary — give the bookings and som lost a month,
   the payback in days at the current price and the ratio to a salary. Arithmetic in the page, nothing sent.
+- **Empty slots** (`/panel/gaps`, "Пустые окна"): free times for the week ahead and the regulars to invite into
+  them — the service's repeat interval has passed, or a customer with two or more visits has not been seen for
+  a month — with no upcoming booking, no opt-out and no invitation in the last two weeks. For each, a drafted
+  message with the two nearest free times, preferring the specialist they last saw; one click sends it, or all
+  at once; WhatsApp and Instagram customers outside the 24-hour window are listed as calls with the phone. The
+  Monday report counts invitations and the bookings that followed.
 - **Cancel in one click** (`/panel/billing`): the owner cancels the subscription himself with a one-line
   reason; the AI keeps answering until the paid period ends, nothing is charged after, and "Возобновить"
   undoes it at any time. The founder gets a Telegram note with the reason and the phone.
@@ -357,7 +363,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 404 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 408 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
