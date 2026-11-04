@@ -318,6 +318,10 @@ WhatsApp message fees for reminders.
   message with the two nearest free times, preferring the specialist they last saw; one click sends it, or all
   at once; WhatsApp and Instagram customers outside the 24-hour window are listed as calls with the phone. The
   Monday report counts invitations and the bookings that followed.
+- **The owner's numbers by a command in Telegram**: in the chat linked with `/admin`, `/today` gives the
+  morning summary right now (bookings, who did not confirm, free slots), `/week` the last seven days, `/gaps`
+  the free times ahead and how many regulars are due, `/help` the list. Counted by code from the database;
+  only for chats on the business's admin list; no messages are stored.
 - **Cancel in one click** (`/panel/billing`): the owner cancels the subscription himself with a one-line
   reason; the AI keeps answering until the paid period ends, nothing is charged after, and "Возобновить"
   undoes it at any time. The founder gets a Telegram note with the reason and the phone.
@@ -363,7 +367,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 408 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 409 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
