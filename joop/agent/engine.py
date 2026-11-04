@@ -15,7 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, confirm, deposits, free_plan, health, trust, upsell, voice
+from .. import altegio, broadcasts, confirm, deposits, free_plan, health, regulars, trust, upsell, voice
 from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -210,6 +210,7 @@ def _model_reply(
         + ("\n".join(stays.prompt_lines(session, business, now_local.date()) + [stays.STAY_RULE]) if pack_has(business, "stay") else "")
         + _requested_slot_hint(session, conv, slots, now_local, now)
         + placement.prompt_hint(session, business, conv, base_url)
+        + regulars.prompt_hint(session, business, conv, now_local)
         + (memberships.prompt_hint(session, business, conv, now_local) if pack_offers(business, "memberships") else "")
         + (jobs.prompt_hint(session, business, conv, now, text) if pack_offers(business, "jobs") else ""),
     )
