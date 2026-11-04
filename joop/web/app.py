@@ -1099,6 +1099,11 @@ async def settings_save(request: Request):
                 amount = 0
                 _flash(request, "Предоплата не включена: напишите, как оплатить.", "error")
             b.deposit_amount = amount
+        if "release_unconfirmed_hours" in form:
+            try:
+                b.release_unconfirmed_hours = max(0, min(int(str(form.get("release_unconfirmed_hours") or 0)), 24))
+            except ValueError:
+                pass
         s.add(b)
         s.commit()
     _flash(request, "Настройки сохранены.")

@@ -75,7 +75,7 @@ Callback URL for both products: `https://<your domain>/webhooks/meta`.
 7. Reminder template: in WhatsApp Manager create a template named `appointment_reminder`,
    category Utility, language Russian, with three variables in the body, for example:
 
-   > Здравствуйте, {{1}}! Напоминаем о записи {{2}}, специалист: {{3}}. Если планы изменились, ответьте на это сообщение.
+   > Здравствуйте, {{1}}! Напоминаем о записи {{2}}, специалист: {{3}}. Ответьте «да», если придёте, или напишите, если планы изменились.
 
    Joop AI fills in the customer's name, the date and time, and the specialist. After approval, put
    the template name into the panel. Keep marketing content out of it, or Meta will recategorise it
