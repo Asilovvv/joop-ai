@@ -240,3 +240,4 @@ section.block > .wrap > .grid3 { margin-top: 12px; }
 .roi label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
 .roi input { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
 .roi-out { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin: 10px 0 18px; }
+.studio-form label.check { flex-direction: row; align-items: center; gap: 8px; }

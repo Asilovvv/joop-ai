@@ -5,8 +5,8 @@ the founder offers to count what the salon loses in its own chats. The owner exp
 («Ещё» → «Экспорт чата» → «Без файлов») and drops the .txt files on /audit. Code parses them, works out who the
 business is, and shows: how many customer messages came outside working hours, how long replies took, how many
 questions about the price waited more than an hour, how many dialogues ended with the customer's last message.
-No model call, nothing is stored: the parsed chats live in memory for a quarter of an hour so the owner can leave
-a phone number for the demo on their price list, then they are gone. Customers' names never appear in the report.
+No model call, nothing is stored: the chats are dropped once counted; only the numbers live in memory for a quarter
+of an hour so the owner can leave a phone number for the demo on their price list. Customers' names never appear.
 
 Export formats seen in the wild and parsed here: Android «04.11.2026, 12:03 - Имя: текст», iOS
 «[04.11.2026, 12:03:15] Имя: текст» (often with an invisible left-to-right mark first), US «11/4/26, 7:02 PM - Name:
@@ -61,9 +61,11 @@ def parse(text: str) -> list[Msg]:
             sender, sep, body = rest.partition(": ")
             if sep and 0 < len(sender.strip()) <= 60:
                 out.append(Msg(at, sender.strip(), body.strip()))
-            continue  # a system line
+                continue
+            if not out:
+                continue  # a system line before the first message («Сообщения защищены…»)
         if out and line.strip():
-            out[-1].text += "\n" + line.strip()
+            out[-1].text += "\n" + line.strip()  # a continuation line, even one that starts with a date
     return out
 
 
@@ -121,8 +123,17 @@ def _hhmm(value: str, default: time) -> time:
         return default
 
 
-def report(chats: list[list[Msg]], business: str, work_start: str, work_end: str) -> Report:
+_CLOSER = re.compile(r"^\W*(спасибо|благодарю|рахмат|ок|окей|хорошо|понятно|ясно|ладно|пока|до свидания|жакшы|болду|👍)(?!\w)", re.I)
+
+
+def report(chats: list[list[Msg]], business: str, work_start: str, work_end: str, weekend_off: bool = False) -> Report:
     start, end = _hhmm(work_start, time(10, 0)), _hhmm(work_end, time(20, 0))
+
+    def off(m: Msg) -> bool:
+        t = m.at.time()
+        in_hours = (start <= t < end) if start < end else not (end <= t < start)  # a bar open 20:00–04:00
+        return not in_hours or (weekend_off and m.at.weekday() >= 5)
+
     r = Report(business=business)
     replies: list[float] = []
     names: dict[str, int] = {}
@@ -142,17 +153,17 @@ def report(chats: list[list[Msg]], business: str, work_start: str, work_end: str
                 i += 1
                 continue
             r.customer_messages += 1
-            t = m.at.time()
-            if not (start <= t < end) if start < end else (end <= t < start):
-                r.off_hours += 1
+            r.off_hours += off(m)
             is_price = bool(_PRICE.search(m.text)) and not _MEDIA.match(m.text)
             r.price_questions += is_price
             # the customer's turn: this message and any that follow before the business speaks
             j = i
+            closer = bool(_CLOSER.match(m.text))  # «Спасибо!» at the end of a chat is not an unanswered question
             while j + 1 < len(chat) and chat[j + 1].sender != business:
                 j += 1
                 r.customer_messages += 1
-                r.off_hours += 1 if not (start <= chat[j].at.time() < end) else 0
+                r.off_hours += off(chat[j])
+                closer = closer and bool(_CLOSER.match(chat[j].text))
                 if _PRICE.search(chat[j].text) and not _MEDIA.match(chat[j].text):
                     r.price_questions += 1
                     is_price = True
@@ -163,7 +174,7 @@ def report(chats: list[list[Msg]], business: str, work_start: str, work_end: str
                 r.within_15_min += wait <= 15
                 r.over_an_hour += wait > 60
                 r.price_waited_over_an_hour += is_price and wait > 60
-            else:
+            elif not closer:
                 r.unanswered += 1
                 r.ended_by_customer += 1
                 r.price_waited_over_an_hour += is_price
@@ -176,21 +187,21 @@ def report(chats: list[list[Msg]], business: str, work_start: str, work_end: str
 
 # --- the parsed chats wait a quarter of an hour for the lead form --------------------------------
 
-_cache: dict[str, tuple[float, list[list[Msg]], Report]] = {}
+_cache: dict[str, tuple[float, Report]] = {}  # the report only: the chats themselves are dropped once counted
 _lock = Lock()
 _last = ""
 
 
-def keep(chats: list[list[Msg]], rep: Report) -> str:
+def keep(rep: Report) -> str:
     global _last
     token = secrets.token_urlsafe(12)
     with _lock:
         now = _time.monotonic()
-        for k in [k for k, (exp, _, _) in _cache.items() if exp < now]:
+        for k in [k for k, (exp, _) in _cache.items() if exp < now]:
             del _cache[k]
         while len(_cache) >= 40:
             del _cache[next(iter(_cache))]
-        _cache[token] = (now + TTL, chats, rep)
+        _cache[token] = (now + TTL, rep)
         _last = token
     return token
 
@@ -200,7 +211,7 @@ def take(token: str) -> Report | None:
         item = _cache.pop(token, None)
     if item is None or item[0] < _time.monotonic():
         return None
-    return item[2]
+    return item[1]
 
 
 def _last_token() -> str:  # tests only

@@ -13,7 +13,7 @@ from . import gaps as empty_slots
 from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
-from .followups import send_return_invites, send_review_requests
+from .followups import _kyrgyz, send_return_invites, send_review_requests
 from .models import Booking, Business, Conversation, Message
 from .runtime import Runtime
 from .stats import TEST_CHANNEL, activity, real_messages
@@ -30,7 +30,16 @@ def _due(hour_now: int, target: int) -> bool:
     return target <= hour_now < target + JOB_WINDOW_HOURS
 
 
-def reminder_text(business: Business, booking: Booking) -> str:
+def reminder_text(business: Business, booking: Booking, kyrgyz: bool = False) -> str:
+    if kyrgyz:
+        parts = [f"Эскертебиз: эртең, {confirm.fmt_slot_ky(booking.start)}, сиз «{business.name}» жазылгансыз"]
+        if booking.service:
+            parts[0] += f" ({booking.service})"
+        if booking.staff_name:
+            parts.append(f"Адис: {booking.staff_name}")
+        if business.address:
+            parts.append(f"Дарек: {business.address}")
+        return ". ".join(parts) + ". " + confirm.ASK_KY
     parts = [f"Напоминаем: завтра, {fmt_slot(booking.start)}, вы записаны в «{business.name}»"]
     if booking.service:
         parts[0] += f" ({booking.service})"
@@ -41,20 +50,21 @@ def reminder_text(business: Business, booking: Booking) -> str:
     return ". ".join(parts) + ". " + confirm.ASK_RU
 
 
-def _send_reminder(session: Session, rt: Runtime, business: Business, booking: Booking, now_utc: datetime) -> bool:
-    text = reminder_text(business, booking)
+def _send_reminder(session: Session, rt: Runtime, business: Business, booking: Booking, now_utc: datetime) -> str:
+    """"sent": the text with the question went out; "template": the approved WhatsApp template, which asks nothing; "": nothing."""
     conv = session.get(Conversation, booking.conversation_id) if booking.conversation_id else None
+    text = reminder_text(business, booking, bool(conv) and _kyrgyz(session, conv.id))
     in_window = bool(conv and conv.last_customer_at and now_utc - conv.last_customer_at < SERVICE_WINDOW)
-    sent = False
+    sent = ""
     if booking.channel == "telegram" or (booking.channel in {"whatsapp", "instagram"} and in_window):
         client = rt.channel_client(business, booking.channel)
-        sent = bool(client and client.send_text(booking.chat_id, text))
+        sent = "sent" if client and client.send_text(booking.chat_id, text) else ""
     if not sent and booking.channel == "whatsapp" and business.wa_reminder_template:
         # Outside the 24-hour window WhatsApp only allows approved templates.
         client = rt.whatsapp(business)
         params = [booking.customer_name or "клиент", fmt_slot(booking.start), booking.staff_name or business.name]
-        sent = bool(client and client.send_template(booking.chat_id, business.wa_reminder_template, business.wa_template_lang, params))
-    if sent and conv is not None:
+        sent = "template" if client and client.send_template(booking.chat_id, business.wa_reminder_template, business.wa_template_lang, params) else ""
+    if sent == "sent" and conv is not None:
         session.add(Message(business_id=business.id, conversation_id=conv.id, role="ai", text=text, created_at=now_utc))
     return sent
 
@@ -77,7 +87,7 @@ def send_reminders(session: Session, rt: Runtime, business: Business, now_utc: d
     manual: list[Booking] = []
     for booking in bookings:
         ok = _send_reminder(session, rt, business, booking, now_utc)
-        booking.reminder_status = "sent" if ok else "manual"
+        booking.reminder_status = ok or "manual"
         session.add(booking)
         if not ok:
             manual.append(booking)
@@ -114,7 +124,7 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
     still_open = nudges.open_count(session, business, now_utc)
     if still_open:
         lines.append(f"Не закрыто заявок: {still_open} — ответьте клиентам и отметьте «Готово» в разделе «Заявки».")
-    silent = confirm.unconfirmed(session, business, today)
+    silent = confirm.unconfirmed(today)
     if silent:
         lines.append(confirm.digest_line(silent))
     if today:
