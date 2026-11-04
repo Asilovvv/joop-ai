@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, billing, broadcasts, confirm, crm, deposits, founder_digest, health, nudges, ops, recovery, trust
+from . import altegio, billing, broadcasts, confirm, crm, deposits, founder_digest, health, nudges, ops, recovery, trust, unfinished
 from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
@@ -146,6 +146,10 @@ def weekly_report_text(session: Session, business: Business, now_utc: datetime) 
         lines.append("Оформил: " + ", ".join(parts) + ".")
     if st["leads"]:
         lines.append(f"Передал вам {st['leads']} вопросов, на которые нужен человек.")
+    chased, came = unfinished.week_numbers(session, business, now_utc - timedelta(days=7))
+    if chased:
+        lines.append(f"Напомнили о себе {_ru(chased, 'клиенту', 'клиентам', 'клиентам')}, "
+                     f"{'который спросил и замолчал' if chased == 1 else 'которые спросили и замолчали'}; записались после этого: {came}.")
     if results:
         lines.append(f"Итого {results} готовых обращений без участия администратора.")
     gaps = open_gaps(session, business, now_utc)
@@ -380,6 +384,7 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
     step("nudged", lambda: nudges.send(session, rt, business, now_utc))
     step("deposits", lambda: deposits.check_deadlines(session, rt, business, now_utc))
     step("unconfirmed", lambda: confirm.release_unconfirmed(session, rt, business, now_utc))
+    step("unfinished", lambda: unfinished.send_due(session, rt, business, now_utc))
     step("broadcast", lambda: broadcasts.send_due(session, rt, business, now_utc))
     step("reviews", lambda: send_review_requests(session, rt, business, now_utc))
     step("crm", push_crm)
