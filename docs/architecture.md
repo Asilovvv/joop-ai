@@ -143,6 +143,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/free_plan.py` | Free plan for one master: eligibility, the Joop signature on first replies and bookings |
 | `joop/trust.py` | AI self-disclosure at first contact; week-one dialogue review in the morning summary |
 | `joop/upsell.py` | One add-on offered by code after a booking; "да" adds it |
+| `joop/regulars.py` | The returning customer's last visits and upcoming booking, one line for the prompt |
 | `joop/unfinished.py` | One follow-up with two free times to a customer who asked and went quiet |
 | `joop/confirm.py` | "да" to the reminder confirms the visit; unconfirmed list for the morning summary; optional release |
 | `joop/deposits.py` | Prepayment after an AI booking: details and deadline, receipts to staff, release when unpaid |
@@ -166,5 +167,5 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 402 tests with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 404 tests with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
