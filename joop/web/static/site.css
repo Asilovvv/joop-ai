@@ -236,3 +236,7 @@ section.block > .wrap > .grid3 { margin-top: 12px; }
 .audit-next { margin-top: 28px; padding: 26px; border-radius: var(--radius); background: var(--accent-soft); }
 .audit-next h3 { margin-top: 0; }
 .audit-hours { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.roi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 22px 0; }
+.roi label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
+.roi input { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.roi-out { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin: 10px 0 18px; }
