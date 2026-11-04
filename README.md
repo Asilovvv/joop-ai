@@ -300,6 +300,11 @@ WhatsApp message fees for reminders.
   free times — "Если удобно, могу записать вас: … Напишите «да» или другое удобное время". Once per
   conversation; never to customers who booked, ordered, were handed to a person or opted out. The Monday
   report counts the follow-ups and the bookings made after them.
+- **Chat audit** (`/audit`, public): a prospect drops WhatsApp chat exports (.txt, Android / iOS / US formats)
+  and sees at once how many customer messages came outside working hours, the usual reply time, how many
+  questions stayed unanswered and how many price questions waited over an hour. No model call; files are parsed
+  in memory and kept at most 15 minutes for the lead form; customers' names never appear. A phone number
+  creates a prospect in the sales pipeline with the numbers and tells the founder in Telegram.
 - **Cancel in one click** (`/panel/billing`): the owner cancels the subscription himself with a one-line
   reason; the AI keeps answering until the paid period ends, nothing is charged after, and "Возобновить"
   undoes it at any time. The founder gets a Telegram note with the reason and the phone.
@@ -345,7 +350,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 399 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 402 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

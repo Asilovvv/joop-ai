@@ -1447,6 +1447,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .menu import router as menu_router
 
     app.include_router(menu_router)
+    from .audit import router as audit_router
+
+    app.include_router(audit_router)
     from .demo import router as demo_router
 
     app.include_router(demo_router)
