@@ -295,6 +295,11 @@ WhatsApp message fees for reminders.
   Optional (settings "Подтверждение записи", off by default): a reminded booking still unconfirmed N hours
   before the visit is released, the customer is told, the waitlist gets the time, staff get a note. Only
   bookings whose reminder was delivered are ever released.
+- **Follow-up to a customer who asked and went quiet** (settings "Клиент спросил и замолчал", off by
+  default): two hours after the customer's last message, in working hours, one message with the two nearest
+  free times — "Если удобно, могу записать вас: … Напишите «да» или другое удобное время". Once per
+  conversation; never to customers who booked, ordered, were handed to a person or opted out. The Monday
+  report counts the follow-ups and the bookings made after them.
 - **Cancel in one click** (`/panel/billing`): the owner cancels the subscription himself with a one-line
   reason; the AI keeps answering until the paid period ends, nothing is charged after, and "Возобновить"
   undoes it at any time. The founder gets a Telegram note with the reason and the phone.
@@ -340,7 +345,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 395 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 399 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
