@@ -309,6 +309,9 @@ WhatsApp message fees for reminders.
   database — how many visits, the last service and specialist, what they usually take — so the AI can offer
   "как в прошлый раз" instead of asking everything again; an upcoming booking is named so nobody is booked twice.
   Facts only; the prompt's rules are unchanged.
+- **ROI calculator on the landing page** (`/#roi`): the visitor's own numbers — messages a day, share outside
+  working hours, conversion, average ticket, an administrator's salary — give the bookings and som lost a month,
+  the payback in days at the current price and the ratio to a salary. Arithmetic in the page, nothing sent.
 - **Cancel in one click** (`/panel/billing`): the owner cancels the subscription himself with a one-line
   reason; the AI keeps answering until the paid period ends, nothing is charged after, and "Возобновить"
   undoes it at any time. The founder gets a Telegram note with the reason and the phone.
