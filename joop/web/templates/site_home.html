@@ -146,6 +146,29 @@
   </div>
 </section>
 
+<section class="block alt" id="roi">
+  <div class="wrap">
+    <h2>Сколько вы теряете сейчас</h2>
+    <p class="lead">Посчитайте на своих цифрах. Никакой магии: сообщения, которые пришли, когда некому было ответить, умножаем на долю тех, кто записался бы.</p>
+    <form class="roi" data-roi data-price="{{ price or 0 }}" onsubmit="return false">
+      <div class="roi-grid">
+        <label>Сообщений от клиентов в день<input name="msgs" type="number" min="1" max="500" value="20" inputmode="numeric"></label>
+        <label>Из них в нерабочее время, %<input name="off" type="number" min="0" max="100" value="30" inputmode="numeric"></label>
+        <label>Записались бы, если бы ответили сразу, %<input name="conv" type="number" min="0" max="100" value="20" inputmode="numeric"></label>
+        <label>Средний чек, сом<input name="check" type="number" min="0" max="1000000" value="1500" inputmode="numeric"></label>
+        <label>Зарплата администратора, сом в месяц<input name="salary" type="number" min="0" max="1000000" value="40000" inputmode="numeric"></label>
+      </div>
+      <div class="roi-out" data-roi-out>
+        <div class="audit-stat"><b data-roi="lost">—</b><span>записей в месяц уходит без ответа</span></div>
+        <div class="audit-stat"><b data-roi="money">—</b><span>сом выручки в месяц — по вашему среднему чеку</span></div>
+        {% if price %}<div class="audit-stat"><b data-roi="payback">—</b><span>окупается за столько дней при цене {{ '{:,}'.format(price).replace(',', ' ') }} сом/мес</span></div>
+        <div class="audit-stat"><b data-roi="vs">—</b><span>дешевле зарплаты администратора во столько раз — и он не нужен на вечер и выходные</span></div>{% endif %}
+      </div>
+      <p class="muted small">Доля сообщений в нерабочее время у наших пилотов — 25–40%; поставьте свою из <a href="/audit">аудита переписки</a>. Зарплата администратора салона в Бишкеке: 25–50 тыс. сом по вакансиям на hh.ru (2023), средняя по городу — 64 тыс. сом (2026). ИИ не заменяет человека днём: он закрывает вечер, ночь и выходные.</p>
+    </form>
+  </div>
+</section>
+
 <section class="block alt" id="partners">
   <div class="wrap split narrow">
     <div>
@@ -171,6 +194,23 @@
 </section>
 
 <script>
+/* ROI calculator: arithmetic on the visitor's own numbers, nothing sent anywhere. */
+(function () {
+  var form = document.querySelector('[data-roi]'); if (!form) return;
+  var price = Number(form.getAttribute('data-price')) || 0;
+  function num(name) { return Number(form.elements[name].value) || 0; }
+  function fmt(n) { return Math.round(n).toLocaleString('ru-RU'); }
+  function set(key, value) { var el = form.querySelector('[data-roi="' + key + '"]'); if (el) el.textContent = value; }
+  function calc() {
+    var lost = num('msgs') * (num('off') / 100) * 30 * (num('conv') / 100);
+    var money = lost * num('check');
+    set('lost', fmt(lost));
+    set('money', fmt(money));
+    set('payback', price && money > 0 ? fmt(Math.max(1, Math.ceil(price / (money / 30)))) : '—');
+    set('vs', price && num('salary') > 0 ? '×' + (num('salary') / price).toFixed(1).replace('.', ',') : '—');
+  }
+  form.addEventListener('input', calc); calc();
+})();
 /* Hero demo: the same moment in five kinds of business. Fictional examples. */
 (function () {
   var root = document.querySelector('[data-demo]'); if (!root) return;
