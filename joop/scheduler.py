@@ -9,6 +9,7 @@ from datetime import datetime, time, timedelta
 from sqlmodel import Session, select
 
 from . import altegio, billing, broadcasts, confirm, crm, deposits, founder_digest, health, nudges, ops, recovery, trust, unfinished
+from . import gaps as empty_slots
 from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
@@ -146,6 +147,9 @@ def weekly_report_text(session: Session, business: Business, now_utc: datetime) 
         lines.append("Оформил: " + ", ".join(parts) + ".")
     if st["leads"]:
         lines.append(f"Передал вам {st['leads']} вопросов, на которые нужен человек.")
+    invited, returned = empty_slots.week_numbers(session, business, now_utc - timedelta(days=7))
+    if invited:
+        lines.append(f"Пригласили в пустые окна: {invited}, записались: {returned}.")
     chased, came = unfinished.week_numbers(session, business, now_utc - timedelta(days=7))
     if chased:
         lines.append(f"Напомнили о себе {_ru(chased, 'клиенту', 'клиентам', 'клиентам')}, "

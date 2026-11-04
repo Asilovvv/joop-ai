@@ -30,7 +30,7 @@ from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order
                       WaitlistEntry)
 from ..niches import all_packs, get_pack
 from ..phone import normalize_phone
-from .. import billing, deposits, free_plan, samples, staff_reply, waitlist
+from .. import billing, deposits, free_plan, gaps, samples, staff_reply, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -67,6 +67,8 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     items.append(("/panel/menu", "menu", "QR-меню" if pack.has("order") else "Прайс онлайн"))
     if books:
         items.append(("/panel/followups", "followups", "Отзывы и возврат"))
+    if pack.has("booking"):
+        items.append(("/panel/gaps", "gaps", "Пустые окна"))
     items.append(("/panel/broadcasts", "broadcasts", "Рассылки"))
     if pack.offers("memberships"):
         items.append(("/panel/memberships", "memberships", "Абонементы"))
@@ -81,7 +83,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     return items
 NAV_GROUPS = (
     ("Работа", {"dashboard", "conversations", "orders", "bookings", "stays", "leads", "jobs"}),
-    ("Инструменты", {"slots", "tests", "menu", "followups", "broadcasts", "memberships"}),
+    ("Инструменты", {"slots", "tests", "menu", "followups", "gaps", "broadcasts", "memberships"}),
     ("Настройка", {"setup", "try", "services", "staff", "faq", "settings", "channels", "accounts", "billing"}),
 )
 
@@ -950,6 +952,48 @@ def conversations_page(request: Request):
             now=utcnow(),
             channel_names=CHANNEL_NAMES,
         )
+
+
+@router.get("/panel/gaps")
+def gaps_page(request: Request):
+    with new_session() as s:
+        b = _business(s, request)
+        now_local = _now_local(b)
+        days = gaps.week(s, b, now_local)
+        rows = gaps.candidates(s, b, now_local)
+        return _render(request, "gaps.html", "gaps", b, days=days, rows=rows, free=sum(d.free for d in days), total=sum(d.total for d in days))
+
+
+@router.post("/panel/gaps/{conv_id}/send")
+def gaps_send(request: Request, conv_id: int, csrf: str = Form("")):
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        _own(s, Conversation, conv_id, b.id)
+        cand = next((c for c in gaps.candidates(s, b, _now_local(b)) if c.conversation_id == conv_id), None)
+        if cand is None:
+            _flash(request, "Этого клиента уже не нужно приглашать: записался или получил приглашение.", "error")
+            return _back("/panel/gaps")
+        ok = gaps.send(s, _rt(request), b, cand, utcnow())
+        s.commit()
+    if ok:
+        _flash(request, "Приглашение отправлено.")
+    else:
+        _flash(request, "Не удалось отправить: в этом канале сейчас нельзя написать первым — позвоните.", "error")
+    return _back("/panel/gaps")
+
+
+@router.post("/panel/gaps/send-all")
+def gaps_send_all(request: Request, csrf: str = Form("")):
+    _check_csrf(request, csrf)
+    sent = 0
+    with new_session() as s:
+        b = _business(s, request)
+        for cand in [c for c in gaps.candidates(s, b, _now_local(b)) if c.reachable]:
+            sent += gaps.send(s, _rt(request), b, cand, utcnow())
+        s.commit()
+    _flash(request, f"Отправлено: {sent}.")
+    return _back("/panel/gaps")
 
 
 @router.get("/panel/conversations/{item_id}")
