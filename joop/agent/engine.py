@@ -15,7 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, deposits, free_plan, health, trust, upsell, voice
+from .. import altegio, broadcasts, confirm, deposits, free_plan, health, trust, upsell, voice
 from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -137,6 +137,12 @@ def handle_incoming(
         reply = broadcasts.opt_reply(opt, text)
         _add_message(session, business, conv, "ai", reply, now, off)
         return Outcome(reply=reply)
+
+    if incoming.kind == "text":
+        yes = confirm.capture(session, business, conv, text, now)
+        if yes is not None:  # "да" to the reminder: the visit is confirmed, no model call
+            _add_message(session, business, conv, "ai", yes.reply, now, off)
+            return Outcome(reply=yes.reply)
 
     paid = deposits.capture(session, business, conv, incoming, text, now)
     if paid is not None:  # a receipt or "оплатила" while a booking waits for prepayment

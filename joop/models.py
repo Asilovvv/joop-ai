@@ -75,7 +75,8 @@ class Business(SQLModel, table=True):
     deposit_amount: int = 0  # prepayment in som asked after an AI booking (joop/deposits.py); 0 = off
     deposit_details: str = ""  # how to pay: transfer by phone number, a payment link
     deposit_hours: int = 2  # hours the customer has to pay
-    deposit_auto_cancel: bool = False  # release the booking when nothing came by the deadline
+    deposit_auto_cancel: bool = False
+    release_unconfirmed_hours: int = 0  # free a reminded, unconfirmed booking this many hours before the visit; 0 = off  # release the booking when nothing came by the deadline
     lead_nudge_minutes: int = 30  # remind staff about a request nobody answered (joop/nudges.py); 0 = off
     first_week_report_at: Optional[NaiveDatetime] = None  # the day-7 report went out (scheduler.first_week_report_text)
     example_ok: bool = False  # the owner confirmed that rows still equal to the sign-up example are real (joop/samples.py)
@@ -192,6 +193,7 @@ class Booking(SQLModel, table=True):
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     created_off_hours: bool = False
     reminder_status: str = ""  # "" | sent | manual | failed
+    confirmed_at: Optional[NaiveDatetime] = None  # the customer answered "да" to the reminder (joop/confirm.py)
     review_status: str = ""  # "" | asked | rated | skipped
     review_asked_at: Optional[NaiveDatetime] = None
     rating: Optional[int] = None  # 1-5 from the customer after the visit
