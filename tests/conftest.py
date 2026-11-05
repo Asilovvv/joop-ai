@@ -104,6 +104,15 @@ def settings():
     )
 
 
+@pytest.fixture(autouse=True)
+def frozen_clock(monkeypatch):
+    """Every test sees the same "now" (NOW_UTC) wherever the code asks for the time, so fixtures with fixed dates
+    (tomorrow's slots, yesterday's visits) do not rot as the real calendar moves past them."""
+    from joop import timeutil
+
+    monkeypatch.setattr(timeutil, "clock", lambda: NOW_UTC)
+
+
 @pytest.fixture
 def engine(tmp_path):
     eng = db.make_engine(f"sqlite:///{tmp_path / 'test.db'}")

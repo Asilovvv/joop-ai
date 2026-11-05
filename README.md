@@ -324,6 +324,9 @@ WhatsApp message fees for reminders.
   morning summary right now (bookings, who did not confirm, free slots), `/week` the last seven days, `/gaps`
   the free times ahead and how many regulars are due, `/help` the list. Counted by code from the database;
   only for chats on the business's admin list; no messages are stored.
+- **A card for the counter** (`/panel/card`, "Табличка на стойку"): a printable A5 card with a QR code to the
+  chat the owner picks — the Telegram bot, WhatsApp or the web chat — "Запись 24/7 — напишите нам" in Russian
+  and Kyrgyz, the business's name and "Отвечает Joop AI". Every visitor who also runs a business sees it.
 - **Cancel in one click** (`/panel/billing`): the owner cancels the subscription himself with a one-line
   reason; the AI keeps answering until the paid period ends, nothing is charged after, and "Возобновить"
   undoes it at any time. The founder gets a Telegram note with the reason and the phone.
@@ -369,7 +372,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 418 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 420 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

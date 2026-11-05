@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Табличка на стойку — {{ b.name }}</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<style>
+@page { size: A5; margin: 8mm; }
+body { margin: 0; background: #f4f3ee; color: #10201f; font: 15px/1.35 "Golos Text", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+.tools { padding: 14px 18px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.tools a, .tools button { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 999px; border: 1px solid #10201f; background: #fff; color: #10201f; text-decoration: none; cursor: pointer; }
+.tools a.on, .tools button { background: #10201f; color: #fff; }
+.tools .back { border: 0; background: none; color: #5d6b69; font-weight: 500; }
+.note { margin: 0 18px 10px; color: #b3261e; }
+.sheet { width: 148mm; min-height: 200mm; margin: 0 auto 24px; background: #fff; border-radius: 6mm; box-shadow: 0 16px 40px -24px rgba(0,0,0,.4); padding: 14mm 12mm; display: flex; flex-direction: column; align-items: center; text-align: center; box-sizing: border-box; }
+.brand { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: #0e8a72; font-weight: 700; }
+h1 { font-size: 26px; line-height: 1.15; margin: 6mm 0 2mm; }
+.ky { color: #5d6b69; margin: 0 0 8mm; }
+.sheet svg { width: 78mm; height: 78mm; display: block; }
+.how { margin: 7mm 0 0; color: #5d6b69; font-size: 14px; }
+.name { margin-top: 8mm; font-weight: 700; font-size: 18px; }
+.joop { margin-top: auto; padding-top: 8mm; color: #5d6b69; font-size: 13px; }
+.joop b { color: #0e8a72; }
+@media print { body { background: #fff; } .tools, .note { display: none; } .sheet { box-shadow: none; margin: 0; border-radius: 0; width: auto; min-height: 0; } }
+</style>
+</head>
+<body>
+<div class="tools">
+  <a class="back" href="/panel">← В панель</a>
+  {% for key, title in choices %}<a href="/panel/card?via={{ key }}" class="{{ 'on' if key == chosen }}">{{ title }}</a>{% endfor %}
+  <button type="button" onclick="window.print()">Печать (A5)</button>
+</div>
+{% if note %}<p class="note">{{ note }}</p>{% endif %}
+<div class="sheet">
+  <div class="brand">{{ label }} · {{ url.replace('https://', '') }}</div>
+  <h1>Запись 24/7 — напишите нам</h1>
+  <p class="ky">Жазылуу 24/7 — бизге жазыңыз</p>
+  {{ qr }}
+  <p class="how">Наведите камеру на код: ответим в ту же минуту, ночью и в выходные тоже, и запишем на свободное время.</p>
+  <div class="name">{{ b.name }}</div>
+  <div class="joop">Отвечает <b>Joop AI</b>, ИИ-администратор для бизнеса</div>
+</div>
+</body>
+</html>
