@@ -233,7 +233,8 @@ class FollowupStats:
 
 
 def stats(session: Session, business_id: int, since: datetime) -> FollowupStats:
-    rows = list(session.exec(select(Booking).where(Booking.business_id == business_id, Booking.start >= since)).all())
+    rows = list(session.exec(select(Booking).where(Booking.business_id == business_id, Booking.start >= since,
+                                                   Booking.channel != TEST_CHANNEL)).all())
     everything = list(session.exec(select(Booking).where(Booking.business_id == business_id, Booking.status == "booked")).all())
     ratings = [b.rating for b in rows if b.rating]
     invited = [b for b in rows if b.return_status in {"sent", "manual"}]

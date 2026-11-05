@@ -45,13 +45,13 @@
     <div class="stat"><b>{{ c.conversations }}</b><span>{{ 'клиентов написали' if c.lang == 'ru' else 'кардар жазды' }}</span></div>
     <div class="stat"><b>{{ c.off_pct }}%</b><span>{{ 'из них в нерабочее время' if c.lang == 'ru' else 'жумуш убактысынан тышкары' }}</span></div>
     <div class="stat"><b>{{ c.bookings }}</b><span>{{ 'записей сделал ИИ' if c.lang == 'ru' else 'ИИ жазды' }}{% if c.off_bookings %} · {{ c.off_bookings }} {{ 'ночью и в выходные' if c.lang == 'ru' else 'түнкүсүн жана дем алышта' }}{% endif %}</span></div>
-    {% if c.value_som %}<div class="stat"><b>{{ '{:,}'.format(c.value_som).replace(',', ' ') }}</b><span>{{ 'сом по прайсу салона' if c.lang == 'ru' else 'сом прайс боюнча' }}</span></div>{% endif %}
+    {% if c.value_som %}<div class="stat"><b>{{ '{:,}'.format(c.value_som).replace(',', ' ') }}</b><span>{{ 'сом по прайсу компании' if c.lang == 'ru' else 'сом прайс боюнча' }}</span></div>{% endif %}
     {% if c.orders %}<div class="stat"><b>{{ c.orders }}</b><span>{{ 'заказов' if c.lang == 'ru' else 'заказ' }}</span></div>{% endif %}
-    {% if c.average_rating %}<div class="stat"><b>{{ c.average_rating }}</b><span>{{ 'средняя оценка, %d оценок' % c.rated if c.lang == 'ru' else 'орточо баа, %d баа' % c.rated }}</span></div>{% endif %}
+    {% if c.average_rating %}<div class="stat"><b>{{ c.average_rating }}</b><span>{{ 'средняя оценка, ' ~ c.rated_text() if c.lang == 'ru' else 'орточо баа, %d баа' % c.rated }}</span></div>{% endif %}
     {% if c.returned %}<div class="stat"><b>{{ c.returned }}</b><span>{{ 'вернулись после приглашения' if c.lang == 'ru' else 'чакыруудан кийин кайтып келди' }}</span></div>{% endif %}
     <div class="stat"><b>{{ c.handoffs }}</b><span>{{ 'вопросов передано людям' if c.lang == 'ru' else 'суроо адамдарга өткөрүлдү' }}</span></div>
   </div>
-  <p class="note">{% if c.lang == 'ru' %}Только цифры из базы Joop за период: диалоги, записи и заявки, которые принял ИИ; стоимость — по ценам прайса компании{% if c.bookings > c.valued %}, ещё {{ c.bookings - c.valued }} записей без точной цены не посчитаны{% endif %}. Тестовые чаты не входят.{% else %}Joop базасындагы цифралар гана: ИИ кабыл алган диалогдор жана жазуулар; наркы — компаниянын прайсы боюнча{% if c.bookings > c.valued %}, так баасы жок {{ c.bookings - c.valued }} жазуу эсептелген жок{% endif %}. Тесттик чаттар кирбейт.{% endif %}</p>
+  <p class="note">{% if c.lang == 'ru' %}Только цифры из базы Joop за период: диалоги, записи и заявки, которые принял ИИ; стоимость — по ценам прайса компании{% if c.bookings > c.valued %}, {{ c.not_valued_text() }}{% endif %}. Тестовые чаты не входят.{% else %}Joop базасындагы цифралар гана: ИИ кабыл алган диалогдор жана жазуулар; наркы — компаниянын прайсы боюнча{% if c.bookings > c.valued %}, так баасы жок {{ c.bookings - c.valued }} жазуу эсептелген жок{% endif %}. Тесттик чаттар кирбейт.{% endif %}</p>
   {% else %}
   <p class="head">{{ 'За этот период клиенты не писали — кейса пока нет.' if c.lang == 'ru' else 'Бул мезгилде кардарлар жазган жок — кейс азырынча жок.' }}</p>
   {% endif %}
