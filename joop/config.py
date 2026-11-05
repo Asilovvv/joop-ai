@@ -65,6 +65,7 @@ class Settings:
     contact_email: str = ""
     contact_phone: str = ""
     contact_telegram: str = ""
+    instagram_handle: str = ""  # Joop's own Instagram, shown in the stories' pill (joop/stories.py)
     # SaaS: self-serve sign-up, billing, founder console
     signup_enabled: bool = True
     trial_days: int = 14
@@ -122,6 +123,7 @@ def settings_from_env() -> Settings:
         contact_email=env.get("CONTACT_EMAIL", "").strip(),
         contact_phone=env.get("CONTACT_PHONE", "").strip(),
         contact_telegram=env.get("CONTACT_TELEGRAM", "").strip().lstrip("@"),
+        instagram_handle=env.get("INSTAGRAM_HANDLE", "").strip().lstrip("@"),
         signup_enabled=_flag(env.get("SIGNUP_ENABLED"), True),
         trial_days=_int(env.get("TRIAL_DAYS"), 14),
         price_som=_int(env.get("PRICE_SOM"), 0),
