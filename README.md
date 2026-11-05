@@ -292,9 +292,11 @@ WhatsApp message fees for reminders.
 - **Confirming a visit from the reminder**: the reminder ends with "Ответьте «да», если придёте"; a short
   "да" / "приду" / "ооба" is taken by code and marks the booking confirmed. The morning summary lists today's
   bookings nobody confirmed, so the administrator calls them first; the "Записи" page shows ✓ or "без ответа".
-  Optional (settings "Подтверждение записи", off by default): a reminded booking still unconfirmed N hours
-  before the visit is released, the customer is told, the waitlist gets the time, staff get a note. Only
-  bookings whose reminder was delivered are ever released.
+  A "да" counts only while the reminder's question is the AI's last word in the chat — a "да" to a later
+  question goes to the AI as usual, and a "да, перевела" is a payment first. Optional (settings
+  "Подтверждение записи", off by default): a booking still unconfirmed N hours (at most 12) before the visit is
+  released, the customer is told, the waitlist gets the time, staff get a note — only when the text with the
+  question was delivered (not a WhatsApp template) at least three hours earlier and no prepayment came.
 - **Follow-up to a customer who asked and went quiet** (settings "Клиент спросил и замолчал", off by
   default): two hours after the customer's last message, in working hours, one message with the two nearest
   free times — "Если удобно, могу записать вас: … Напишите «да» или другое удобное время". Once per
@@ -367,7 +369,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 409 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 418 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

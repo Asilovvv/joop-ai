@@ -15,7 +15,7 @@
 <section class="block" id="result">
   <div class="wrap">
     <h2>Что в ваших чатах{% if report.days %} за {{ report.days }} дн.{% endif %}</h2>
-    <p class="muted">Мы считали, что бизнес в чатах — это «{{ report.business }}». Рабочие часы: {{ work_start }}–{{ work_end }}. Если это не так — впишите ниже, как вы подписаны в чате, и загрузите файлы снова.</p>
+    <p class="muted">Мы считали, что бизнес в чатах — это «{{ report.business }}». Рабочие часы: {{ work_start }}–{{ work_end }}{% if weekend_off %}, выходные — сб и вс{% endif %}. Если это не так — впишите ниже, как вы подписаны в чате, и загрузите файлы снова.</p>
     <div class="audit-grid">
       <div class="audit-stat"><b>{{ report.off_hours_pct }}%</b><span>сообщений клиентов пришли в нерабочее время — {{ report.off_hours }} из {{ report.customer_messages }}</span></div>
       <div class="audit-stat"><b>{% if report.median_reply_minutes is not none %}{% if report.median_reply_minutes < 60 %}{{ report.median_reply_minutes }} мин{% else %}{{ report.median_reply_minutes // 60 }} ч {{ report.median_reply_minutes % 60 }} мин{% endif %}{% else %}—{% endif %}</b><span>обычное время ответа; дольше часа ждали {{ report.over_an_hour }} из {{ report.answered }}</span></div>
@@ -29,14 +29,15 @@
       {% if thanks %}
       <p class="flash">Спасибо! Сделаем демо на вашем прайсе и напишем в WhatsApp в ближайший рабочий день.</p>
       {% elif token %}
-      {% for kind, text in flashes %}<p class="flash {{ kind }}" role="status">{{ text }}</p>{% endfor %}
       {% if error %}<p class="flash error">{{ error }}</p>{% endif %}
       <form method="post" action="/audit/lead" class="contact studio-form">
         <input type="hidden" name="csrf" value="{{ csrf }}">
         <input type="hidden" name="token" value="{{ token }}">
         <label>Название бизнеса<input name="business" required maxlength="120" value="{{ report.business }}"></label>
+        <label>Сфера<select name="niche">{% for key, p in packs.items() %}<option value="{{ key }}" {{ 'selected' if key == 'beauty' }}>{{ p.label }}</option>{% endfor %}</select></label>
         <label>Ваше имя<input name="contact_name" maxlength="80" autocomplete="name"></label>
         <label>Телефон или WhatsApp<input name="phone" required inputmode="tel" autocomplete="tel"></label>
+        <label class="hp" aria-hidden="true">Сайт<input name="website" tabindex="-1" autocomplete="off"></label>
         <button class="cta" type="submit">Хочу демо на своём прайсе</button>
         <p class="muted small">Мы сами соберём демо из вашего прайса и пришлём скриншот диалога. Файлы чатов уже удалены из памяти через 15 минут после разбора.</p>
       </form>
@@ -56,6 +57,7 @@
         <label>Начало рабочего дня<input name="work_start" value="{{ work_start }}" inputmode="numeric" placeholder="10:00"></label>
         <label>Конец<input name="work_end" value="{{ work_end }}" inputmode="numeric" placeholder="20:00"></label>
       </div>
+      <label class="check"><input type="checkbox" name="weekend_off" value="1" {{ 'checked' if weekend_off }}> Суббота и воскресенье — выходные (считать их нерабочим временем)</label>
       <label>Как вы подписаны в чате (необязательно: обычно определяем сами)<input name="me" maxlength="60" value="{{ report.business if report else '' }}" placeholder="Салон «Гүл»"></label>
       <button class="cta" type="submit">Посчитать</button>
       <p class="muted small">Как сделать экспорт: откройте диалог в WhatsApp → «Ещё» (⋮) → «Экспорт чата» → «Без файлов» → отправьте себе и сохраните .txt. Лучше 5–10 чатов за последний месяц. Файлы разбираются в памяти и не сохраняются. <a href="/privacy">Политика конфиденциальности</a>.</p>

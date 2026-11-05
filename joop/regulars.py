@@ -14,6 +14,7 @@ import re
 from collections import Counter
 from datetime import datetime, timedelta
 
+import sqlalchemy as sa
 from sqlmodel import Session, select
 
 from .models import Booking, Business, Conversation
@@ -31,11 +32,16 @@ def _key(phone: str) -> str:
 
 
 def _bookings(session: Session, business: Business, conv: Conversation) -> list[Booking]:
+    """This chat's own bookings, plus bookings from other chats with the same phone AND the same name: a friend's
+    number typed into a chat must not open the friend's history to the model."""
     key = _key(conv.customer_phone)
+    own = Booking.conversation_id == conv.id if conv.id else sa.false()
+    match = sa.or_(own, Booking.customer_phone.like(f"%{key}")) if key else own  # phones are stored normalised, +E.164
     rows = session.exec(select(Booking).where(
-        Booking.business_id == business.id, Booking.status == "booked", Booking.channel != TEST_CHANNEL,
-    ).order_by(Booking.start.desc()).limit(400)).all()
-    return [b for b in rows if (key and _key(b.customer_phone) == key) or (not key and conv.id and b.conversation_id == conv.id)]
+        Booking.business_id == business.id, Booking.status == "booked", Booking.channel != TEST_CHANNEL, match,
+    ).order_by(Booking.start.desc()).limit(LAST * 3)).all()
+    me = (conv.customer_name or conv.display_name or "").strip().casefold()
+    return [b for b in rows if b.conversation_id == conv.id or (me and (b.customer_name or "").strip().casefold() == me)]
 
 
 def _what(b: Booking) -> str:
