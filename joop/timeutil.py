@@ -15,8 +15,15 @@ WEEKDAYS_SHORT = ("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
 WEEKDAYS_FULL = ("понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье")
 
 
-def utcnow() -> datetime:
+def _real_utcnow() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+clock = _real_utcnow  # tests freeze the clock here; everything that asks "what time is it" goes through utcnow()
+
+
+def utcnow() -> datetime:
+    return clock()
 
 
 def get_tz(name: str | None) -> ZoneInfo:

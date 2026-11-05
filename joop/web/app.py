@@ -69,6 +69,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
         items.append(("/panel/followups", "followups", "Отзывы и возврат"))
     if pack.has("booking"):
         items.append(("/panel/gaps", "gaps", "Пустые окна"))
+    items.append(("/panel/card", "card", "Табличка на стойку"))
     items.append(("/panel/broadcasts", "broadcasts", "Рассылки"))
     if pack.offers("memberships"):
         items.append(("/panel/memberships", "memberships", "Абонементы"))
@@ -83,7 +84,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     return items
 NAV_GROUPS = (
     ("Работа", {"dashboard", "conversations", "orders", "bookings", "stays", "leads", "jobs"}),
-    ("Инструменты", {"slots", "tests", "menu", "followups", "gaps", "broadcasts", "memberships"}),
+    ("Инструменты", {"slots", "tests", "menu", "followups", "gaps", "broadcasts", "memberships", "card"}),
     ("Настройка", {"setup", "try", "services", "staff", "faq", "settings", "channels", "accounts", "billing"}),
 )
 
@@ -954,6 +955,33 @@ def conversations_page(request: Request):
         )
 
 
+@router.get("/panel/card")
+def counter_card(request: Request, via: str = ""):
+    """A printable card for the counter: a QR to the chat the owner picks, with Joop's name on it."""
+    from markupsafe import Markup
+
+    from ..studio import phone_digits
+    from .menu import qr_svg
+
+    base = _base_url(request)
+    with new_session() as s:
+        b = _business(s, request)
+    options = {"web": (f"{base}/c/{b.slug}", "Чат на сайте")}
+    if b.telegram_bot_username:
+        options["telegram"] = (f"https://t.me/{b.telegram_bot_username}", "Telegram")
+    if phone_digits(b.phone):
+        options["whatsapp"] = (f"https://wa.me/{phone_digits(b.phone)}", "WhatsApp")
+    notes = {"telegram": "Telegram-бот ещё не подключён — подключите его в «Каналах», и ссылка появится.",
+             "whatsapp": "Укажите телефон для клиентов в «Настройках» — на него поведёт ссылка WhatsApp."}
+    note = "" if via in options or via not in notes else notes[via]
+    chosen = via if via in options else ("telegram" if "telegram" in options else "whatsapp" if "whatsapp" in options else "web")
+    url, label = options[chosen]
+    return templates.TemplateResponse(request, "counter_card.html", {
+        "request": request, "b": b, "url": url, "label": label, "chosen": chosen, "qr": Markup(qr_svg(url)), "note": note,
+        "choices": [("telegram", "Telegram"), ("whatsapp", "WhatsApp"), ("web", "Чат на сайте")],
+    })
+
+
 @router.get("/panel/gaps")
 def gaps_page(request: Request):
     with new_session() as s:
@@ -1387,6 +1415,11 @@ def telegram_connect(request: Request, csrf: str = Form("")):
     if not me:
         _flash(request, "Telegram не принял токен. Проверьте его у @BotFather.", "error")
         return _back("/panel/channels")
+    with new_session() as s:
+        b = _business(s, request)
+        b.telegram_bot_username = str(me.get("username") or "")
+        s.add(b)
+        s.commit()
     if client.set_webhook(f"{settings.public_base_url}/webhooks/telegram/{b.slug}", b.telegram_secret):
         _flash(request, f"Бот @{me.get('username', '')} подключён. Напишите ему, чтобы проверить.")
     else:
