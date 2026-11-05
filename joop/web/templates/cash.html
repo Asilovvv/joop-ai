@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Касса{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Касса</h1>
+  <p class="muted">После визита мастер отмечает, сколько заплатил клиент и как — сумма уже подставлена из прайса. Остальное считает Joop: день, месяц, по мастерам и услугам. Это ваш учёт, не налоговый документ.</p>
+  <div class="row" style="display:flex;gap:10px;align-items:center;border:0">
+    <a class="btn ghost small" href="/panel/cash?date={{ prev }}">← {{ prev[8:] }}.{{ prev[5:7] }}</a>
+    <b>{{ chosen.strftime('%d.%m.%Y') }}</b>
+    <a class="btn ghost small" href="/panel/cash?date={{ next }}">{{ next[8:] }}.{{ next[5:7] }} →</a>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>{{ '{:,}'.format(d.total).replace(',', ' ') }}</b><span>сом за день</span></div>
+    {% for k, v in d.by_method.items() %}<div class="stat"><b>{{ '{:,}'.format(v).replace(',', ' ') }}</b><span>{{ methods.get(k, k) }}</span></div>{% endfor %}
+    <div class="stat"><b>{{ '{:,}'.format(m.total).replace(',', ' ') }}</b><span>сом за месяц, {{ m.visits }} визитов</span></div>
+  </div>
+</section>
+{% if d.unpaid %}
+<section class="card">
+  <h2>Визиты без оплаты ({{ d.unpaid | length }})</h2>
+  <div class="list">
+    {% for b in d.unpaid %}
+    <div class="item">
+      <div class="main">{{ b.start.strftime('%H:%M') }} — {{ b.customer_name }} · {{ b.service or 'визит' }}{% if b.staff_name %} у {{ b.staff_name }}{% endif %}</div>
+      <form method="post" action="/panel/bookings/{{ b.id }}/pay" class="actions"><input type="hidden" name="csrf" value="{{ csrf }}">
+        <input name="amount" type="number" min="0" step="1" value="{{ suggested.get(b.id) or '' }}" placeholder="сом" style="width:110px">
+        <select name="method">{% for k, v in methods.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+        <button class="btn small" type="submit">Оплачено</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+<section class="card">
+  <h2>Оплаты за день</h2>
+  {% set paid = d.rows | selectattr('paid_som') | list %}
+  {% if paid %}
+  <div class="scroll"><table class="table">
+    <tr><th>Время</th><th>Клиент</th><th>Услуга</th><th>Мастер</th><th>Сумма</th><th>Как</th><th></th></tr>
+    {% for b in paid %}
+    <tr><td class="mono">{{ b.start.strftime('%H:%M') }}</td><td>{{ b.customer_name }}</td><td>{{ b.service or 'визит' }}</td><td>{{ b.staff_name }}</td>
+      <td class="mono">{{ '{:,}'.format(b.paid_som).replace(',', ' ') }}</td><td>{{ methods.get(b.paid_method, b.paid_method) }}</td>
+      <td><form method="post" action="/panel/bookings/{{ b.id }}/pay" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="amount" value="0"><button class="btn small ghost" type="submit">Убрать</button></form></td></tr>
+    {% endfor %}
+  </table></div>
+  {% if d.by_staff %}<p class="muted small">По мастерам: {% for k, v in d.by_staff.items() %}{{ k }} — {{ '{:,}'.format(v).replace(',', ' ') }}{% if not loop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+  {% else %}<p class="muted">За этот день оплат не отмечено.</p>{% endif %}
+</section>
+<section class="card">
+  <h2>Месяц: {{ chosen.strftime('%m.%Y') }}</h2>
+  {% if m.total %}
+  <div class="scroll"><table class="table">
+    <tr><th>Мастер</th><th>Сом</th></tr>
+    {% for k, v in m.by_staff %}<tr><td>{{ k }}</td><td class="mono">{{ '{:,}'.format(v).replace(',', ' ') }}</td></tr>{% endfor %}
+  </table></div>
+  <div class="scroll"><table class="table">
+    <tr><th>Услуга</th><th>Сом</th></tr>
+    {% for k, v in m.by_service %}<tr><td>{{ k }}</td><td class="mono">{{ '{:,}'.format(v).replace(',', ' ') }}</td></tr>{% endfor %}
+  </table></div>
+  {% else %}<p class="muted">В этом месяце оплат ещё нет.</p>{% endif %}
+</section>
+{% endblock %}

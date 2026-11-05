@@ -30,7 +30,7 @@ from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order
                       Staff, WaitlistEntry)
 from ..niches import all_packs, get_pack
 from ..phone import normalize_phone
-from .. import billing, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, samples, staff_reply, waitlist
+from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, samples, staff_reply, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -62,6 +62,8 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
         items.append(("/panel/stays", "stays", "Брони номеров"))
     items.append(("/panel/leads", "leads", "Заявки"))
     items.append(("/panel/funnel", "funnel", "Воронка"))
+    if pack.has("booking"):
+        items.append(("/panel/cash", "cash", "Касса"))
     if pack.offers("level_test"):
         items.append(("/panel/tests", "tests", "Тест на уровень"))
     items.append(("/panel/services", "services", pack.catalog_label))
@@ -84,7 +86,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     items.append(("/panel/billing", "billing", "Оплата"))
     return items
 NAV_GROUPS = (
-    ("Работа", {"dashboard", "conversations", "customers", "orders", "bookings", "stays", "leads", "funnel", "jobs"}),
+    ("Работа", {"dashboard", "conversations", "customers", "orders", "bookings", "stays", "leads", "funnel", "cash", "jobs"}),
     ("Инструменты", {"slots", "tests", "menu", "followups", "gaps", "broadcasts", "memberships", "card"}),
     ("Настройка", {"setup", "try", "services", "staff", "faq", "settings", "channels", "accounts", "billing"}),
 )
@@ -979,6 +981,43 @@ def lead_done(request: Request, item_id: int, csrf: str = Form("")):
         s.add(lead)
         s.commit()
     return _back("/panel/leads")
+
+
+@router.get("/panel/cash")
+def cash_page(request: Request, date: str = ""):
+    """The day's cash and the month: payments recorded on visits, by method, master and service."""
+    with new_session() as s:
+        b = _business(s, request)
+        now_local = _now_local(b)
+        try:
+            chosen = datetime.strptime(date, "%Y-%m-%d") if date else now_local
+        except ValueError:
+            chosen = now_local
+        d = cash.day(s, b, chosen, now_local)
+        m = cash.month(s, b, chosen)
+        suggested = {x.id: cash.suggested(s, x) for x in d.unpaid}
+        return _render(request, "cash.html", "cash", b, d=d, m=m, methods=cash.METHODS, suggested=suggested, chosen=chosen,
+                       prev=(chosen - timedelta(days=1)).strftime("%Y-%m-%d"), next=(chosen + timedelta(days=1)).strftime("%Y-%m-%d"))
+
+
+@router.post("/panel/bookings/{item_id}/pay")
+def booking_pay(request: Request, item_id: int, amount: str = Form("0"), method: str = Form("cash"), csrf: str = Form("")):
+    """One tap after the visit: the amount is pre-filled from the price list, the method is a choice."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        row = s.get(Booking, item_id)
+        if row is None or row.business_id != b.id:
+            raise HTTPException(status_code=404)
+        try:
+            value = int(str(amount).replace(" ", "") or 0)
+        except ValueError:
+            value = 0
+        cash.record(row, value, method, utcnow())
+        s.add(row)
+        s.commit()
+        when = row.start.strftime("%Y-%m-%d")
+    return _back(f"/panel/cash?date={when}")
 
 
 @router.get("/panel/funnel")

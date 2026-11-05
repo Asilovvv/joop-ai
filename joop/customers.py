@@ -101,7 +101,9 @@ def cards(session: Session, business: Business) -> dict[str, Card]:
         c.bookings.append(b)
         c.name = c.name or b.customer_name
         c.phone = c.phone or b.customer_phone
-        if b.status == "booked" and b.service and b.service.casefold() in prices:
+        if b.status == "booked" and b.paid_som:
+            c.spend_som += b.paid_som  # what was actually paid beats the price list
+        elif b.status == "booked" and b.service and b.service.casefold() in prices:
             c.spend_som += prices[b.service.casefold()]
     for o in session.exec(select(Order).where(Order.business_id == business.id, Order.status != "cancelled", Order.channel != TEST_CHANNEL)).all():
         key = key_of(o.customer_phone, o.channel, "") or _conv_key(out, o.conversation_id)
