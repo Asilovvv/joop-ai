@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from . import billing, health, retention
+from . import annual, billing, health, retention
 from .models import Booking, Business, FounderDigest, Lead, Message, Subscription
 from .pilot import DEMO_PREFIX
 from .stats import TEST_CHANNEL, real_messages
@@ -38,7 +38,7 @@ def week_of(now_utc: datetime) -> date:
     return today - timedelta(days=today.weekday() + 7)
 
 
-def text(session: Session, now_utc: datetime, price_som: int) -> str:
+def text(session: Session, now_utc: datetime, price_som: int, annual_months: int = 0) -> str:
     start = week_of(now_utc)
     since = local_to_utc(datetime.combine(start, datetime.min.time()), TZ)
     until = since + timedelta(days=7)
@@ -71,7 +71,8 @@ def text(session: Session, now_utc: datetime, price_som: int) -> str:
     end = start + timedelta(days=6)
     return (f"Joop AI, неделя {start:%d.%m}–{end:%d.%m}. Платящих {paying} ({_som(mrr)} сом/мес), бесплатных {free}, в пробном {trial}. "
             f"Записей через ИИ {bookings}, диалогов {conversations}, передано людям {leads('handoff')}, сбоев {leads('error')}. "
-            f"Новых регистраций {signups}, отмен {cancels}. Удержание через 90 дней: {kept_line}.")
+            f"Новых регистраций {signups}, отмен {cancels}. Удержание через 90 дней: {kept_line}."
+            + annual.digest_line(session, now_utc, price_som, annual_months))
 
 
 def due(session: Session, now_utc: datetime) -> bool:
@@ -86,7 +87,7 @@ def maybe_send(session: Session, rt, now_utc: datetime) -> FounderDigest | None:
     """On Monday morning: write the week's line once and send it to the founder when the bot is set up."""
     if not due(session, now_utc):
         return None
-    row = FounderDigest(week_start=week_of(now_utc), text=text(session, now_utc, rt.settings.price_som))
+    row = FounderDigest(week_start=week_of(now_utc), text=text(session, now_utc, rt.settings.price_som, rt.settings.annual_months))
     session.add(row)
     session.commit()  # the lock first: a failed send is not resent, the line is in the console
     try:
