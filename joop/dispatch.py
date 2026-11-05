@@ -48,10 +48,14 @@ def deliver(rt: Runtime, business: Business, channel: str, chat_id: str, outcome
         if client is None:
             log.warning("No %s credentials for %s; reply not sent", channel, business.slug)
         elif reply_to and channel == "instagram":  # a comment: Direct opens through the comment, then a public pointer under it
-            if not client.send_private_reply(reply_to, outcome.reply):
-                log.warning("Instagram private reply for %s was not delivered", business.slug)
-            elif business.ig_comment_public_reply.strip():
-                client.reply_to_comment(reply_to, business.ig_comment_public_reply.strip())
+            # The private reply fails when the permission is missing, the person closed message requests, or the comment is
+            # older than seven days; a person who wrote to Direct before can still be reached by id. Otherwise staff answer.
+            if client.send_private_reply(reply_to, outcome.reply) or client.send_text(chat_id, outcome.reply):
+                if business.ig_comment_public_reply.strip():
+                    client.reply_to_comment(reply_to, business.ig_comment_public_reply.strip())
+            else:
+                log.warning("Instagram comment reply for %s was not delivered", business.slug)
+                outcome.admin_notes.append("Не удалось ответить в Директ на комментарий в Instagram — ответьте под ним сами.")
         elif not client.send_text(chat_id, outcome.reply):
             log.warning("Reply to %s via %s was not delivered", business.slug, channel)
     if outcome.admin_notes:

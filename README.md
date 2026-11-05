@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram, WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
 | Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 22 database migrations, 20 niche packs and a generic one |
-| Tests | 433 automated tests (about 6,600 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 428 automated tests (about 6,600 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -165,9 +165,8 @@ WhatsApp message fees for reminders.
   stays a test: it is left out of every number and report, its bookings never reach Altegio or
   amoCRM, staff get no reminders about them, and «Новый диалог» cancels them and frees the times.
   The sample price list, staff and answers that sign-up adds are fictional: until the owner
-  replaces them (or confirms they are real), the dashboard lists them, the checklist does not
-  count them as done, and the AI does not use them with real customers — only in the test chat
-  (`joop/samples.py`).
+  replaces them (or confirms they are real), the dashboard lists them and the checklist does not
+  count them as done (`joop/samples.py`).
 - **Billing** (`/panel/billing`): `PRICE_SOM` a month by card through FreedomPay Kyrgyzstan, or
   by transfer / QR that the founder confirms. When the trial or the paid month ends (plus 3
   days), the AI stops answering; messages still reach the panel. Businesses created from the
@@ -385,7 +384,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 433 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 444 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

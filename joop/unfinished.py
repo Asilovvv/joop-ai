@@ -13,7 +13,6 @@ assistant's booking conversion is reported at 55–65% against 15–20% for a fo
 
 from __future__ import annotations
 
-import re
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -21,6 +20,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from .followups import _kyrgyz, deliver_to_chat
+from .lang import closing
 from .models import Booking, Business, Conversation, Lead, Message, Order
 from .slots import free_slots
 from .stats import TEST_CHANNEL
@@ -35,7 +35,6 @@ CHANNELS = ("telegram", "whatsapp", "instagram")
 PER_TICK = 20
 
 
-_CLOSER = re.compile(r"^\W*(спасибо|благодарю|рахмат|ок|окей|хорошо|понятно|ясно|ладно|пока|до свидания|жакшы|болду|👍)(?!\w)", re.I)
 
 
 def _text(session: Session, business: Business, conv: Conversation, now_local: datetime) -> str | None:
@@ -52,7 +51,7 @@ def _open(session: Session, conv: Conversation) -> bool:
     """The customer asked (not "спасибо"), the AI answered last, and nothing came of it yet."""
     rows = session.exec(select(Message.role, Message.text).where(Message.conversation_id == conv.id)
                         .order_by(Message.id.desc()).limit(2)).all()
-    if len(rows) < 2 or rows[0][0] != "ai" or rows[1][0] != "customer" or _CLOSER.match(rows[1][1] or ""):
+    if len(rows) < 2 or rows[0][0] != "ai" or rows[1][0] != "customer" or closing(rows[1][1]):
         return False
     if session.exec(select(Booking.id).where(Booking.conversation_id == conv.id)).first() is not None:
         return False

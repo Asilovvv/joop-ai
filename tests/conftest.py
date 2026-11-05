@@ -85,6 +85,9 @@ class FakeSender:
         self.refreshes = getattr(self, "refreshes", 0) + 1
         return "refreshed-token" if self.ok else None
 
+    def get_me(self):  # Telegram getMe / Instagram /me: tests set `me` when the username matters
+        return dict(getattr(self, "me", {}) or {})
+
 
 class FakeRuntime(Runtime):
     def __init__(self, settings, llm=None):

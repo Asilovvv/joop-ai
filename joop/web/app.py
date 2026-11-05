@@ -30,7 +30,7 @@ from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order
                       WaitlistEntry)
 from ..niches import all_packs, get_pack
 from ..phone import normalize_phone
-from .. import billing, deposits, free_plan, gaps, ig_comments, samples, staff_reply, waitlist
+from .. import billing, confirm, deposits, free_plan, gaps, ig_comments, samples, staff_reply, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -966,13 +966,24 @@ def counter_card(request: Request, via: str = ""):
     base = _base_url(request)
     with new_session() as s:
         b = _business(s, request)
+    if b.telegram_bot_token and not b.telegram_bot_username:  # connected before the username was kept: ask Telegram once
+        client = _rt(request).telegram(b)
+        me = client.get_me() if client else None
+        if me and me.get("username"):
+            with new_session() as s:
+                b = _business(s, request)
+                b.telegram_bot_username = str(me["username"])
+                s.add(b)
+                s.commit()
     options = {"web": (f"{base}/c/{b.slug}", "Чат на сайте")}
-    if b.telegram_bot_username:
+    if b.telegram_bot_token and b.telegram_bot_username:  # only where Joop actually answers
         options["telegram"] = (f"https://t.me/{b.telegram_bot_username}", "Telegram")
-    if phone_digits(b.phone):
+    whatsapp_on = bool(b.wa_phone_number_id and b.wa_access_token)
+    if whatsapp_on and phone_digits(b.phone):
         options["whatsapp"] = (f"https://wa.me/{phone_digits(b.phone)}", "WhatsApp")
     notes = {"telegram": "Telegram-бот ещё не подключён — подключите его в «Каналах», и ссылка появится.",
-             "whatsapp": "Укажите телефон для клиентов в «Настройках» — на него поведёт ссылка WhatsApp."}
+             "whatsapp": ("Укажите телефон для клиентов в «Настройках» — тот, что подключён к WhatsApp: на него поведёт ссылка."
+                          if whatsapp_on else "WhatsApp ещё не подключён — подключите его в «Каналах», и ссылка появится.")}
     note = "" if via in options or via not in notes else notes[via]
     chosen = via if via in options else ("telegram" if "telegram" in options else "whatsapp" if "whatsapp" in options else "web")
     url, label = options[chosen]
@@ -1175,7 +1186,7 @@ async def settings_save(request: Request):
             b.nudge_unfinished = bool(form.get("nudge_unfinished"))
         if "release_unconfirmed_hours" in form:
             try:
-                b.release_unconfirmed_hours = max(0, min(int(str(form.get("release_unconfirmed_hours") or 0)), 12))
+                b.release_unconfirmed_hours = max(0, min(int(str(form.get("release_unconfirmed_hours") or 0)), confirm.MAX_RELEASE_HOURS))
             except ValueError:
                 pass
         s.add(b)
@@ -1376,6 +1387,11 @@ async def channels_save(request: Request):
             if account and s.exec(select(Business).where(column == account, Business.id != b.id)).first():
                 _flash(request, "Этот аккаунт уже подключён к другой компании.", "error")
                 return _back("/panel/channels")
+        if not (b.ig_account_id and b.ig_access_token):
+            b.ig_username = ""
+        elif value("ig_access_token") or not b.ig_username:  # a new token, or connected before the username was kept
+            client = _rt(request).instagram(b)
+            b.ig_username = str((client.get_me() if client else {}).get("username") or "")
         s.add(b)
         s.commit()
     _flash(request, "WhatsApp и Instagram сохранены.")
@@ -1395,6 +1411,7 @@ def telegram_disconnect(request: Request, csrf: str = Form("")):
             except Exception:  # noqa: BLE001 - Telegram unreachable: the token is removed anyway
                 log.warning("Telegram webhook not deleted for %s", b.slug)
         b.telegram_bot_token = ""
+        b.telegram_bot_username = ""  # the counter card must not point at a bot that no longer answers
         s.add(b)
         s.commit()
     _flash(request, "Бот отключён: в Telegram ИИ больше не отвечает. Подключить снова — вставьте токен.")
@@ -1481,8 +1498,9 @@ async def meta_events(request: Request, background: BackgroundTasks):
                 if business is None:
                     log.warning("No business is connected to %s account %s", channel, account_id)
                     continue
-                if incoming.reply_to and not ig_comments.wanted(business, incoming.text):
-                    continue  # a comment that asks nothing («Красиво!»), or the feature is off
+                if incoming.reply_to and (ig_comments.own(business, incoming.text, incoming.user_name)
+                                          or not ig_comments.wanted(business, incoming.text)):
+                    continue  # the business's own comment (the pointer Joop posted), one that asks nothing («Красиво!»), or the feature is off
                 background.add_task(process_incoming, _rt(request), business.id, incoming)
     return PlainTextResponse("EVENT_RECEIVED")
 
