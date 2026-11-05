@@ -21,6 +21,7 @@ from .models import Business
 DEFAULT_KEYWORDS = "цена, прайс, сколько, запись, записаться, запиши, свободно, окно, канча, баасы, жазыл"
 DEFAULT_PUBLIC_REPLY = "Ответили вам в Директ"
 _CLOSING = re.compile(r"^\W*(спасибо|благодарю|рахмат|записал)", re.I)  # «Спасибо, запись прошла отлично», «Записалась!»
+_ASKING = re.compile(r"скажите|подскажите|можно|есть|хочу|хотим|сколько|какая|какой|когда|канча|барбы|болобу", re.I)
 
 
 def keywords(business: Business) -> list[str]:
@@ -37,9 +38,17 @@ def wanted(business: Business, text: str) -> bool:
         return False
     if "?" in t:
         return True
-    if _CLOSING.match(t):
-        return False
-    return any(re.search(r"(?<!\w)" + re.escape(k), t) for k in keywords(business))
+    m = _CLOSING.match(t)
+    if m:  # «Спасибо, скажите цену» still asks; «Записалась, спасибо!» and «Спасибо, запись прошла отлично» do not
+        t = t[m.end():]
+        if not _ASKING.search(t):
+            return False
+    return any(re.search(r"(?<!\w)" + re.escape(_stem(k)), t) for k in keywords(business))
+
+
+def _stem(k: str) -> str:
+    """«цена» matches «цену», «запись» matches «записи»: the keyword without its ending, for words long enough."""
+    return k.rstrip("аяыиеуюоьй") if len(k) >= 4 else k
 
 
 def own(business: Business, text: str, user_name: str) -> bool:

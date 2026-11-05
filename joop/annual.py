@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from sqlmodel import Session, select
 
 from . import billing
-from .case import _som, build
+from .case import build, som
 from .models import Business, Payment, Subscription
 
 SECOND_MONTH_ENDS_WITHIN = timedelta(days=14)
@@ -69,8 +69,9 @@ def offer_text(session: Session, c: Candidate, now: datetime) -> str:
     case = build(session, c.business, now, days=days)
     until = max(c.sub.paid_until, now) + timedelta(days=YEAR_DAYS)  # the year starts where the paid month ends
     name = c.business.name if c.business.name.startswith("«") else f"«{c.business.name}»"
-    return (f"{name}, вы с Joop AI уже {c.months_paid}-й месяц: с первой оплаты ИИ ответил {case.conversations} клиентам и записал "
-            f"{case.bookings}. Предложение на год: {_som(c.annual_price)} сом за 12 месяцев вместо {_som(c.price * 12)} — "
+    numbers = f": с первой оплаты ИИ ответил {case.conversations} клиентам и записал {case.bookings}" if case.conversations else ""
+    return (f"{name}, вы с Joop AI уже {c.months_paid}-й месяц{numbers}. Предложение на год: {som(c.annual_price)} сом за 12 месяцев "
+            f"вместо {som(c.price * 12)} — "
             f"{c.annual_months} месяцев по цене, {12 - c.annual_months} в подарок, и цена не меняется до {until:%d.%m.%Y}. "
             "Если удобно — ответьте «да», и я пришлю счёт.")
 
