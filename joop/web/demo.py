@@ -118,7 +118,7 @@ async def demo_chat(request: Request):
         raise HTTPException(status_code=400)
 
     now_s, ip = time.time(), client_ip(request)
-    day = time.strftime("%Y-%m-%d")
+    day = local_now(None).strftime("%Y-%m-%d")  # the day in Bishkek, not on the server clock
     if request.session.get("demo_day") != day:
         request.session["demo_day"], request.session["demo_used"] = day, 0
     if int(request.session.get("demo_used", 0)) >= PER_SESSION:
