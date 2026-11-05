@@ -419,3 +419,10 @@ def test_whatsapp_and_instagram_fields_only_when_the_server_is_set_up_for_meta(s
     with TestClient(create_app(saas_settings, rt, init=False)) as c:
         signup(c, name="Салон Два", phone="0555 765 432")
         assert 'name="wa_phone_number_id"' in c.get("/panel/channels").text
+
+
+def test_playbook_page_for_the_founder(app_client):
+    assert app_client.get("/owner/playbook", follow_redirects=False).headers["location"] == "/owner/login"
+    owner_login(app_client)
+    page = app_client.get("/owner/playbook").text
+    assert "Как продавать: первые 10" in page and "Видео-разбор" in page and "Возражения" in page and "3 000 сом" in page
