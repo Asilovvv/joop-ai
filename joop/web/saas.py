@@ -21,7 +21,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .. import annual, billing, free_plan, health, partners, pitch, samples, waitlist
+from .. import annual, billing, free_plan, health, partners, pitch, samples, stories, waitlist
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
@@ -918,6 +918,58 @@ def prospect_action(request: Request, pid: int, action: str = Form(""), status: 
         s.add(p)
         s.commit()
     return _back(f"/owner/prospects#p{pid}")
+
+
+# --- stories for Joop's own Instagram --------------------------------------------------------------------
+
+
+def _story_context(request: Request) -> dict:
+    import random
+
+    settings = _settings(request)
+    host = (settings.public_base_url or "").removeprefix("https://").removeprefix("http://")
+    rnd = random.Random(7)  # the same sprinkle of stars on every render
+    return {"handle": f"@{settings.instagram_handle}" if settings.instagram_handle else (host or "Joop AI"),
+            "site": host or "joop.kg", "dots": [(rnd.randint(40, 1040), rnd.randint(200, 1800)) for _ in range(70)], "mark": stories.mark}
+
+
+@router.get("/owner/stories")
+def stories_page(request: Request):
+    """Every story slide, scaled down, with a link to the full 1080 × 1920 page the founder screenshots or exports."""
+    _owner(request)
+    with new_session() as s:
+        real = s.exec(select(Business).where(Business.slug.not_like("site-demo-%")).order_by(Business.id)).all()
+    return _owner_render(request, "owner_stories.html", sets=stories.SETS, slides=stories.all_slides(), businesses=real,
+                         handle=_story_context(request)["handle"])
+
+
+@router.get("/owner/stories/case/{bid}")
+def story_case(request: Request, bid: int, days: int = 30):
+    """The case slide, from the database: appears only for a real business with real numbers."""
+    from .. import case
+
+    _owner(request)
+    with new_session() as s:
+        b = s.get(Business, bid)
+        if b is None:
+            raise HTTPException(status_code=404)
+        c = case.build(s, b, utcnow(), days=days)
+    stats = [(str(c.conversations), "клиентов ответил ИИ"), (f"{c.off_pct}%", "из них в нерабочее время"), (str(c.bookings), "записей сделал")]
+    if c.value_som:
+        stats.append((case.som(c.value_som) + " сом", "по прайсу компании"))
+    slide = {"kind": "case", "set_title": "Кейсы", "n": 0, "head": b.name, "initial": (b.name.strip("«» ")[:1] or "J").upper(),
+             "sub": f"{c.niche} · {c.days} дней с Joop AI", "stats": stats,
+             "note": "Цифры из базы Joop за период, тестовые чаты не входят" if c.conversations else "Клиенты ещё не писали — кейса пока нет"}
+    return templates.TemplateResponse(request, "story.html", {"request": request, "s": slide, **_story_context(request)})
+
+
+@router.get("/owner/stories/{name}")
+def story_slide(request: Request, name: str):
+    _owner(request)
+    slide = next((x for x in stories.all_slides() if x["name"] == name), None)
+    if slide is None:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse(request, "story.html", {"request": request, "s": slide, **_story_context(request)})
 
 
 @router.get("/owner/business/{bid}/case")
