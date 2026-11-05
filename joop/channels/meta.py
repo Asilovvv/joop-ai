@@ -296,6 +296,22 @@ class InstagramClient(_GraphClient):
         response = self._get(url, auth=False)
         return response.content if response is not None else None
 
+    def get_me(self) -> dict[str, Any]:
+        """The connected account's own id and username — to recognise the business's own comments under its posts."""
+        try:
+            response = self.http.get(f"{self._base}/{self._version}/me", params={"fields": "id,username"}, headers=self._headers, timeout=20.0)
+        except httpx.HTTPError as exc:
+            log.warning("Instagram /me failed: %s", type(exc).__name__)
+            return {}
+        if response.status_code >= 400:
+            log.warning("Instagram /me failed: HTTP %s %s", response.status_code, _error_text(response))
+            return {}
+        try:
+            data = response.json()
+        except ValueError:
+            return {}
+        return data if isinstance(data, dict) and data.get("username") else {}
+
     def refresh_token(self) -> str | None:
         """Instagram user tokens live 60 days; a token older than 24 hours can be exchanged for a new one."""
         try:

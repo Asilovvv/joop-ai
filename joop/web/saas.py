@@ -775,8 +775,7 @@ def playbook_page(request: Request):
     _owner(request)
     s = _settings(request)
     price = f"{s.price_som:,}".replace(",", " ") if s.price_som else "— (PRICE_SOM не задан)"
-    return _owner_render(request, "owner_playbook.html", base=s.public_base_url or "https://…", price=price,
-                         trial_days=s.trial_days, founder=(s.company_legal_name or "Бектур").split()[0] if s.company_legal_name else "Бектур")
+    return _owner_render(request, "owner_playbook.html", base=s.public_base_url or "https://…", price=price, trial_days=s.trial_days)
 
 
 @router.get("/owner/prospects")
