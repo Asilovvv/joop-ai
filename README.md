@@ -332,6 +332,9 @@ WhatsApp message fees for reminders.
   reply through the comment — Meta opens the Direct thread that way, one reply per comment within seven days —
   plus a short public pointer under the comment ("Ответили вам в Директ"); anything further is the usual
   dialogue. "Красиво!" is left alone. Needs the `comments` webhook field and `instagram_manage_comments`.
+- **Sales playbook** (`/owner/playbook`, founder console): the first-ten moves from the strategy and the
+  competitor research — the 60–90-second video teardown script, what to offer and the price anchor (an
+  administrator's salary, not a competitor's plan), objections with answers, where to look, the first week.
 - **Cancel in one click** (`/panel/billing`): the owner cancels the subscription himself with a one-line
   reason; the AI keeps answering until the paid period ends, nothing is charged after, and "Возобновить"
   undoes it at any time. The founder gets a Telegram note with the reason and the phone.
@@ -377,7 +380,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 425 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 426 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
