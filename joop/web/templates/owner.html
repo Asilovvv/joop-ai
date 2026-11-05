@@ -47,6 +47,23 @@
 
 {% if not price %}<p class="flash error">Цена не задана (PRICE_SOM). Регистрация работает, но оплатить картой нельзя. Можно задать цену каждой компании отдельно.</p>{% endif %}
 
+{% if year %}
+<section class="card">
+  <h2>Предложить год</h2>
+  <p class="muted small">Второй оплаченный месяц заканчивается — самое время предложить год: кто заплатил дважды, видел, что ИИ делает.{% if not annual_months %} Текст появится, когда зададите годовую цену: <code>ANNUAL_MONTHS=10</code> в <code>.env</code> — год по цене десяти месяцев.{% endif %}</p>
+  <div class="list">
+    {% for c, text in year %}
+    <div class="item"><div class="main"><b>{{ c.business.name }}</b> · оплачено до {{ c.sub.paid_until.strftime('%d.%m.%Y') }} · {{ c.months_paid }} оплат по {{ c.price }} сом{% if annual_months %} · год {{ '{:,}'.format(c.annual_price).replace(',', ' ') }} сом, экономия {{ '{:,}'.format(c.saves).replace(',', ' ') }}{% endif %}
+      {% if text %}<textarea class="small" rows="4" readonly onclick="this.select()">{{ text }}</textarea>{% endif %}</div>
+      <div class="actions">
+        <form method="post" action="/owner/business/{{ c.business.id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small" name="action" value="year_offered">Предложено</button></form>
+        {% if annual_months %}<form method="post" action="/owner/business/{{ c.business.id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small" name="action" value="paid_year">Оплачен год</button></form>{% endif %}
+      </div></div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 {% if pending %}
 <section class="card">
   <h2>Ждут подтверждения оплаты</h2>

@@ -171,6 +171,9 @@ WhatsApp message fees for reminders.
   by transfer / QR that the founder confirms. When the trial or the paid month ends (plus 3
   days), the AI stops answering; messages still reach the panel. Businesses created from the
   command line are never blocked.
+  At the end of a business's second paid month the console reminds the founder to offer a year
+  (`ANNUAL_MONTHS`: a year for that many months' price) with a ready message in the business's
+  own numbers (`joop/annual.py`).
 - **Founder console** (`/owner`, password `OWNER_PASSWORD`): every business with status, usage,
   AI cost and price; monthly revenue; payments waiting for confirmation; actions: open the
   business's panel, +7 days, mark paid, pause, resume, set an individual price.
@@ -384,7 +387,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 444 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 448 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
