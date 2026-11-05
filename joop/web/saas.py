@@ -21,7 +21,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .. import billing, free_plan, health, partners, pitch, samples, waitlist
+from .. import annual, billing, free_plan, health, partners, pitch, samples, waitlist
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
@@ -592,7 +592,9 @@ def owner_home(request: Request):
         site = funnel(s, since)
         asked = recent_questions(s, since)
         ai = health.status(s, now)
-    return _owner_render(request, "owner.html", rows=rows, counts=counts, mrr=mrr, paid30=paid30, pending=pending,
+        year = [(c, annual.offer_text(s, c, now)) for c in annual.candidates(s, now, settings.price_som, settings.annual_months)]
+    return _owner_render(request, "owner.html", rows=rows, counts=counts, mrr=mrr, paid30=paid30, pending=pending, year=year,
+                         annual_months=settings.annual_months,
                          names=names, price=settings.price_som, trial_days=settings.trial_days,
                          total_cost=sum(cost.values()), site=site, asked=asked, ai=ai, alerts_on=bool(settings.founder_bot_token and settings.founder_chat_id))
 
@@ -616,18 +618,26 @@ def owner_business_action(
             sub.trial_ends_at = base + timedelta(days=max(1, min(days or 7, 90)))
             sub.status = "trial" if sub.status != "active" else sub.status
             msg = f"{b.name}: пробный период до {sub.trial_ends_at:%d.%m.%Y}."
-        elif action == "paid":
+        elif action in ("paid", "paid_year"):
             amount = billing.price_for(sub, settings.price_som)
             if amount <= 0:
                 _flash(request, "Сначала задайте цену.", "error")
                 return _back("/owner")
+            if action == "paid_year":  # the year offer accepted: a year for ANNUAL_MONTHS months' price
+                if settings.annual_months <= 0:
+                    _flash(request, "Годовая цена не задана (ANNUAL_MONTHS).", "error")
+                    return _back("/owner")
+                amount *= settings.annual_months
             s.add(sub)
             s.flush()
-            pay = Payment(business_id=bid, amount_som=amount, method="manual")
+            pay = Payment(business_id=bid, amount_som=amount, method="manual", period_days=annual.YEAR_DAYS if action == "paid_year" else 30)
             s.add(pay)
             s.flush()
             billing.mark_paid(s, pay, now)
             msg = f"{b.name}: оплата {amount} сом отмечена, оплачено до {sub.paid_until:%d.%m.%Y}."
+        elif action == "year_offered":
+            sub.year_offered_at = now
+            msg = f"{b.name}: предложение на год отмечено как отправленное."
         elif action == "suspend":
             sub.status = "suspended"
             msg = f"{b.name}: ИИ приостановлен."
