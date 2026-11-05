@@ -58,14 +58,15 @@ class Month:
     by_method: dict[str, int] = field(default_factory=dict)
 
 
-def _visits(session: Session, business: Business, start: datetime, end: datetime) -> list[Booking]:
+def _visits(session: Session, business: Business, start: datetime, end: datetime, staff_id: int | None = None) -> list[Booking]:
+    own = [Booking.staff_id == staff_id] if staff_id else []
     return session.exec(select(Booking).where(Booking.business_id == business.id, Booking.status == "booked", Booking.channel != TEST_CHANNEL,
-                                              Booking.start >= start, Booking.start < end).order_by(Booking.start)).all()
+                                              Booking.start >= start, Booking.start < end, *own).order_by(Booking.start)).all()
 
 
-def day(session: Session, business: Business, date_local: datetime, now_local: datetime) -> Day:
+def day(session: Session, business: Business, date_local: datetime, now_local: datetime, staff_id: int | None = None) -> Day:
     start = datetime.combine(date_local.date(), time.min)
-    rows = _visits(session, business, start, start + timedelta(days=1))
+    rows = _visits(session, business, start, start + timedelta(days=1), staff_id)
     d = Day(date=start, rows=rows)
     for b in rows:
         if b.paid_som:
@@ -77,13 +78,13 @@ def day(session: Session, business: Business, date_local: datetime, now_local: d
     return d
 
 
-def month(session: Session, business: Business, date_local: datetime) -> Month:
+def month(session: Session, business: Business, date_local: datetime, staff_id: int | None = None) -> Month:
     start = datetime.combine(date_local.date().replace(day=1), time.min)
     end = (start + timedelta(days=32)).replace(day=1)
     m = Month()
     staff: Counter = Counter()
     services: Counter = Counter()
-    for b in _visits(session, business, start, end):
+    for b in _visits(session, business, start, end, staff_id):
         if not b.paid_som:
             continue
         m.total += b.paid_som

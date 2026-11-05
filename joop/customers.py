@@ -132,9 +132,11 @@ def _conv_key(out: dict[str, Card], conversation_id: int | None) -> str:
     return ""
 
 
-def listing(session: Session, business: Business, query: str = "", tag: str = "") -> list[Card]:
+def listing(session: Session, business: Business, query: str = "", tag: str = "", staff_id: int | None = None) -> list[Card]:
     rows = [c for c in cards(session, business).values()
             if c.phone or c.bookings or c.orders or c.channels - {"web"}]  # an anonymous site visitor is not a customer yet
+    if staff_id:
+        rows = [c for c in rows if any(b.staff_id == staff_id for b in c.bookings)]  # a master's login: her own customers
     q = query.strip().casefold()
     qd = _DIGITS.sub("", query)
     if q:
