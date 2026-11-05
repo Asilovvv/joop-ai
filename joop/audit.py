@@ -56,6 +56,7 @@ def _parse_ts(raw: str) -> datetime | None:
 def parse(text: str) -> list[Msg]:
     """Messages of one exported chat, in order; system lines dropped; continuation lines joined."""
     out: list[Msg] = []
+    tails: list[list[str]] = []  # continuation lines, joined once at the end: += on the text would be quadratic
     for line in text.splitlines():
         m = _LINE.match(line.strip("﻿"))
         if m and (at := _parse_ts(m.group("ts"))) is not None:
@@ -63,11 +64,15 @@ def parse(text: str) -> list[Msg]:
             sender, sep, body = rest.partition(": ")
             if sep and 0 < len(sender.strip()) <= 60:
                 out.append(Msg(at, sender.strip(), body.strip()))
+                tails.append([])
                 continue
             if not out:
                 continue  # a system line before the first message («Сообщения защищены…»)
         if out and line.strip():
-            out[-1].text += "\n" + line.strip()  # a continuation line, even one that starts with a date
+            tails[-1].append(line.strip())  # a continuation line, even one that starts with a date
+    for msg, tail in zip(out, tails):
+        if tail:
+            msg.text = "\n".join([msg.text, *tail])
     return out
 
 
