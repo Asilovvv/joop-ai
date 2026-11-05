@@ -174,6 +174,9 @@ WhatsApp message fees for reminders.
   At the end of a business's second paid month the console reminds the founder to offer a year
   (`ANNUAL_MONTHS`: a year for that many months' price) with a ready message in the business's
   own numbers (`joop/annual.py`).
+- **Booking page** (`/m/<slug>` for booking niches): the public price page also shows the masters, the three
+  nearest free times and «написать и записаться» buttons for every connected channel where the AI answers;
+  the bottom button leads there too, never to a landline. A link for the Instagram bio and the counter card.
 - **A master's login**: in «Входы» a staff login can be tied to a master; then bookings, customers and
   the cash page show only hers. Ordinary staff logins and the owner see everything.
 - **Cash** (`/panel/cash`): after a visit, one tap records what the customer paid and how (the amount
@@ -404,7 +407,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 473 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 474 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
