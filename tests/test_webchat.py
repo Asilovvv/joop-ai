@@ -137,3 +137,18 @@ def test_chat_links_a_privacy_policy_that_names_what_the_code_does(web):
         assert name in policy, name
     assert "Голосовые сообщения и фото сервис не распознаёт" not in policy  # untrue once speech-to-text is on
     assert "не сохраняются и не передаются модели" in policy  # the chat audit (joop/audit.py) keeps only numbers
+
+
+def test_daily_limit_resets_at_midnight_in_bishkek_not_on_the_server_clock(web, monkeypatch):
+    """The server runs in UTC: a day counted on its clock would end at 06:00 in Bishkek, mid-morning for a salon."""
+    from datetime import datetime
+
+    from joop import timeutil
+
+    monkeypatch.setattr(webchat, "PER_VISITOR", 1)
+    visitor = "0123456789abcdef0123"
+    monkeypatch.setattr(timeutil, "clock", lambda: datetime(2026, 11, 4, 17, 50))  # 23:50 in Bishkek
+    assert say(web, "Здравствуйте", visitor).status_code == 200
+    assert say(web, "Ещё вопрос", visitor).status_code == 429
+    monkeypatch.setattr(timeutil, "clock", lambda: datetime(2026, 11, 4, 18, 10))  # 00:10 the next day in Bishkek, same UTC day
+    assert say(web, "Доброй ночи", visitor).status_code == 200
