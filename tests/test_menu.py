@@ -75,5 +75,24 @@ def test_print_sheet_needs_enabled_menu_and_login(client):
 def test_order_link_label_depends_on_niche(engine):
     b = Business(slug="x", name="X", niche="dental", phone="0555 123 456")
     url, label = order_link(b, "ru", 2)
-    assert label == "Задать вопрос" and url.startswith("https://wa.me/")
+    assert label == "Записаться" and url.startswith("https://wa.me/")  # a booking niche: the button books
     assert order_link(Business(slug="y", name="Y", niche="dental"), "ru", None) == ("", "")
+
+
+def test_booking_page_shows_masters_nearest_times_and_where_to_write(settings, rt, business):
+    """For a booking niche the public price page is the booking page: masters, three nearest free times, the connected channels."""
+    from .test_web import login as panel_login
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.menu_enabled, b.telegram_bot_username = True, "aktish_bot"
+        s.add(b)
+        s.commit()
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        page = c.get("/m/aktish").text
+        assert "Ближайшее свободное время" in page and "Мастера" in page and "Написать и записаться · Telegram" in page
+        assert "Чат на сайте" in page and "wa.me" not in page  # WhatsApp is not connected: no link to a landline
+        assert "Отвечает ИИ-администратор" in page and 'name="description"' in page
+        assert page.count('class="chips"') == 1 and page.split('class="chips"')[1].count("<span>") == 3
+        panel_login(c)
+        assert "публичная страница записи" in c.get("/panel/menu").text
