@@ -50,24 +50,24 @@
     <div class="msg ai" id="hello">Здравствуйте! Напишите ваш вопрос: цены, свободное время, запись.</div>
   </div>
   <form id="form">
-    <label for="text" class="note" style="position:absolute;left:-9999px">Сообщение</label>
+    <label for="text" id="text-label" class="note" style="position:absolute;left:-9999px">Сообщение</label>
     <textarea id="text" rows="1" maxlength="1000" placeholder="Напишите сообщение…" required></textarea>
     <button type="submit" id="send">Отправить</button>
   </form>
-  <footer><span id="by">Работает на</span> <a href="/" target="_blank" rel="noopener">Joop AI</a></footer>
+  <footer><span id="by">Работает на</span> <a href="/" target="_blank" rel="noopener">Joop AI</a> · <a id="privacy" href="/privacy" target="_blank" rel="noopener">Конфиденциальность</a></footer>
 </main>
 <script>
 (function () {
   var slug = {{ b.slug | tojson }}, key = 'joop-chat-' + slug, visitor = '', lang = 'ru';
   var T = {
     ru: {sub: 'Отвечает ИИ-администратор, сразу и в любое время', hello: 'Здравствуйте! Напишите ваш вопрос: цены, свободное время, запись.',
-         ph: 'Напишите сообщение…', send: 'Отправить', by: 'Работает на', off: 'Нет связи. Попробуйте ещё раз.', staff: 'Администратор'},
+         ph: 'Напишите сообщение…', send: 'Отправить', by: 'Работает на', off: 'Нет связи. Попробуйте ещё раз.', staff: 'Администратор', label: 'Сообщение', privacy: 'Конфиденциальность'},
     ky: {sub: 'ИИ-администратор дароо жана каалаган убакта жооп берет', hello: 'Саламатсызбы! Сурооңузду жазыңыз: баалар, бош убакыт, жазылуу.',
-         ph: 'Билдирүү жазыңыз…', send: 'Жөнөтүү', by: 'Иштетет', off: 'Байланыш жок. Кайра аракет кылыңыз.', staff: 'Администратор'},
+         ph: 'Билдирүү жазыңыз…', send: 'Жөнөтүү', by: 'Иштетет', off: 'Байланыш жок. Кайра аракет кылыңыз.', staff: 'Администратор', label: 'Билдирүү', privacy: 'Купуялуулук'},  // ky: проверить носителю
     en: {sub: 'An AI assistant replies right away, any time', hello: 'Hello! Ask us anything: prices, free times, booking.',
-         ph: 'Type a message…', send: 'Send', by: 'Powered by', off: 'No connection. Please try again.', staff: 'Staff'},
+         ph: 'Type a message…', send: 'Send', by: 'Powered by', off: 'No connection. Please try again.', staff: 'Staff', label: 'Message', privacy: 'Privacy'},
     zh: {sub: 'AI 助理随时立即回复', hello: '您好！请提出您的问题：价格、空闲时间、预约。',
-         ph: '输入消息…', send: '发送', by: '技术支持', off: '无网络连接，请重试。', staff: '工作人员'}
+         ph: '输入消息…', send: '发送', by: '技术支持', off: '无网络连接，请重试。', staff: '工作人员', label: '消息', privacy: '隐私政策'}
   };
   try { visitor = localStorage.getItem(key) || ''; lang = localStorage.getItem('joop-lang') || ''; } catch (e) {}
   if (!T[lang]) {
@@ -86,6 +86,8 @@
     text.placeholder = T[lang].ph;
     send.textContent = T[lang].send;
     document.getElementById('by').textContent = T[lang].by;
+    document.getElementById('text-label').textContent = T[lang].label;
+    document.getElementById('privacy').textContent = T[lang].privacy;
     Array.prototype.forEach.call(document.querySelectorAll('.langs button'), function (b) {
       b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === lang));
     });
