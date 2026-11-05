@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1080">
+<title>{{ s.set_title }} · {{ s.n }}</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<style>
+:root { --bg: #0e0f11; --ink: #f4f3ee; --mute: #a7aab0; --red: #e3432c; --line: rgba(255,255,255,.12); }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); }
+body { width: 1080px; height: 1920px; overflow: hidden; color: var(--ink); font: 400 40px/1.3 "Golos Text", system-ui, sans-serif; position: relative;
+  background: radial-gradient(1200px 900px at 50% 20%, #1b1c20 0%, var(--bg) 60%); }
+.grid { position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 180px 180px; opacity: .35;
+  -webkit-mask-image: radial-gradient(700px 500px at 100% 0%, #000 0%, transparent 70%), radial-gradient(700px 500px at 0% 100%, #000 0%, transparent 70%);
+  mask-image: radial-gradient(700px 500px at 100% 0%, #000 0%, transparent 70%), radial-gradient(700px 500px at 0% 100%, #000 0%, transparent 70%); }
+.chevron { position: absolute; right: -120px; bottom: 120px; width: 760px; height: 760px; opacity: .07; pointer-events: none; }
+.dots { position: absolute; inset: 0; pointer-events: none; }
+.dots i { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #fff; opacity: .5; }
+.pill { position: absolute; top: 120px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 16px 30px 16px 20px;
+  border: 2px solid rgba(255,255,255,.25); border-radius: 999px; font-size: 30px; color: #d6d8dc; background: rgba(0,0,0,.25); white-space: nowrap; }
+.pill b { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--red); color: #fff; font: 700 26px/1 "Unbounded", sans-serif; }
+.left .pill { left: 90px; transform: none; }
+.num { position: absolute; top: 110px; right: 90px; font: 500 110px/1 "Unbounded", sans-serif; color: #e9e9ea; letter-spacing: -.04em; }
+.body { position: absolute; left: 90px; right: 90px; top: 560px; }
+.center .body { text-align: center; }
+h1 { margin: 0 0 40px; font: 500 96px/1.06 "Unbounded", sans-serif; letter-spacing: -.02em; text-transform: uppercase; }
+.features h1, .table h1, .grid-slide h1 { font-size: 72px; }
+i.r, i.w { font-style: normal; display: inline; padding: 0 .14em; border-radius: 8px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+i.r { background: var(--red); color: #fff; }
+i.w { background: #fff; color: #111; }
+p.line { margin: 0 0 36px; font-size: 46px; line-height: 1.32; }
+p.line i.r, p.line i.w { padding: 0 .12em; }
+.bullets { list-style: none; margin: 0; padding: 0; }
+.bullets li { display: flex; gap: 26px; align-items: flex-start; margin: 0 0 44px; font-size: 44px; line-height: 1.3; }
+.bullets li::before { content: ""; flex: 0 0 22px; width: 22px; height: 22px; margin-top: 18px; background: var(--red); transform: rotate(45deg); border-radius: 3px; }
+.steps { display: grid; gap: 34px; }
+.step { display: grid; grid-template-columns: 120px 1fr; gap: 24px; align-items: start; padding: 30px 0; border-top: 2px solid var(--line); }
+.step b { font: 500 60px/1 "Unbounded", sans-serif; color: var(--red); }
+.step h3 { margin: 0 0 8px; font: 600 44px/1.2 "Golos Text", sans-serif; }
+.step p { margin: 0; font-size: 36px; color: var(--mute); }
+.group { margin: 0 0 44px; padding-top: 30px; border-top: 2px solid var(--line); }
+.group h2 { margin: 0 0 24px; font: 500 48px/1.1 "Unbounded", sans-serif; text-transform: uppercase; }
+.group ul { list-style: none; margin: 0; padding: 0; }
+.group li { position: relative; padding-left: 58px; margin: 0 0 16px; font-size: 38px; line-height: 1.3; }
+.group li::before { content: ""; position: absolute; left: 10px; top: 16px; width: 18px; height: 18px; background: var(--red); transform: rotate(45deg); border-radius: 3px; }
+.cells { display: grid; grid-template-columns: 1fr 1fr; gap: 44px 40px; margin-top: 20px; }
+.cell { display: flex; align-items: center; gap: 26px; font-size: 40px; }
+.cell b { display: inline-grid; place-items: center; width: 110px; height: 110px; border-radius: 28px; font: 700 30px/1 "Unbounded", sans-serif; color: #fff; }
+table { width: 100%; border-collapse: collapse; font-size: 28px; table-layout: fixed; }
+th, td { padding: 20px 12px; border-bottom: 2px solid var(--line); text-align: left; vertical-align: top; }
+th { font-weight: 600; color: var(--mute); font-size: 28px; text-transform: uppercase; letter-spacing: .04em; }
+td:first-child, th:first-child { color: var(--mute); width: 28%; }
+td.joop { color: #fff; font-weight: 600; }
+.note { margin-top: 30px; font-size: 26px; color: var(--mute); }
+.case { display: flex; gap: 40px; align-items: center; margin: 0 0 50px; }
+.case .logo { flex: 0 0 220px; width: 220px; height: 220px; border-radius: 50%; border: 6px solid #e9e9ea; display: grid; place-items: center; font: 500 90px/1 "Unbounded", sans-serif; background: #1d1f24; }
+.case h1 { margin: 0; font-size: 80px; }
+.stat { font-size: 44px; margin: 0 0 30px; }
+.stat b { font: 500 64px/1 "Unbounded", sans-serif; display: block; margin-bottom: 8px; }
+.foot { position: absolute; left: 90px; right: 90px; bottom: 120px; display: flex; justify-content: space-between; font-size: 30px; color: var(--mute); }
+.foot b { color: #fff; }
+.cta-box { margin-top: 80px; padding: 36px 44px; border-radius: 28px; background: var(--red); color: #fff; font: 600 44px/1.25 "Golos Text", sans-serif; }
+</style>
+</head>
+<body class="{{ 'center' if s.kind in ('text', 'cta', 'grid') else 'left' }} {{ 'features' if s.kind == 'features' }} {{ 'table' if s.kind == 'table' }} {{ 'grid-slide' if s.kind == 'grid' }}">
+<div class="grid"></div>
+<svg class="chevron" viewBox="0 0 100 100" aria-hidden="true"><path d="M70 0 L30 50 L70 100 L100 100 L60 50 L100 0 Z M35 0 L-5 50 L35 100 L65 100 L25 50 L65 0 Z" fill="#fff"/></svg>
+<div class="dots">{% for x, y in dots %}<i style="left:{{ x }}px;top:{{ y }}px"></i>{% endfor %}</div>
+<div class="pill"><b>J</b>{{ handle }}</div>
+{% if s.num %}<div class="num">{{ s.num }}</div>{% endif %}
+<div class="body">
+{% if s.kind == 'case' %}
+  <div class="case"><div class="logo">{{ s.initial }}</div><h1>{{ s.head }}</h1></div>
+  <p class="line" style="color:var(--mute);font-size:38px">{{ s.sub }}</p>
+  {% for value, label in s.stats %}<p class="stat"><b>{{ value }}</b>{{ label }}</p>{% endfor %}
+  <p class="note">{{ s.note }}</p>
+{% else %}
+  <h1{% if s.head | length > 22 %} style="font-size:76px"{% endif %}>{{ mark(s.head) }}</h1>
+  {% for line in s.lines or [] %}<p class="line">{{ mark(line) }}</p>{% endfor %}
+  {% if s.bullets %}<ul class="bullets">{% for b in s.bullets %}<li><span>{{ mark(b) }}</span></li>{% endfor %}</ul>{% endif %}
+  {% if s.steps %}<div class="steps">{% for n, title, text in s.steps %}<div class="step"><b>{{ n }}</b><div><h3>{{ title }}</h3><p>{{ text }}</p></div></div>{% endfor %}</div>{% endif %}
+  {% if s.groups %}{% for title, items in s.groups %}<div class="group"><h2>{{ mark(title) }}</h2><ul>{% for it in items %}<li>{{ it }}</li>{% endfor %}</ul></div>{% endfor %}{% endif %}
+  {% if s.cells %}<div class="cells">{% for code, label, color in s.cells %}<div class="cell"><b style="background:{{ color }}">{{ code }}</b><span>{{ label }}</span></div>{% endfor %}</div>{% endif %}
+  {% if s.rows %}<table><tr>{% for c in s.cols %}<th>{{ c }}</th>{% endfor %}</tr>
+    {% for row in s.rows %}<tr>{% for c in row %}<td class="{{ 'joop' if loop.index == 2 }}">{{ c }}</td>{% endfor %}</tr>{% endfor %}</table>
+    {% if s.note %}<p class="note">{{ s.note }}</p>{% endif %}{% endif %}
+  {% if s.kind == 'cta' %}<div class="cta-box">{{ site }}</div>{% endif %}
+{% endif %}
+</div>
+<div class="foot"><span>Отвечает <b>Joop AI</b> · ИИ-администратор</span><span>{{ site }}</span></div>
+</body>
+</html>
