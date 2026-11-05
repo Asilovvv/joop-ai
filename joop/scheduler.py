@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, billing, broadcasts, confirm, crm, deposits, founder_digest, health, nudges, ops, recovery, trust, unfinished
+from . import altegio, billing, broadcasts, confirm, crm, deposits, founder_digest, funnel, health, nudges, ops, recovery, trust, unfinished
 from . import gaps as empty_slots
 from .db import new_session
 from .dispatch import notify_admins
@@ -399,6 +399,7 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
     step("deposits", lambda: deposits.check_deadlines(session, rt, business, now_utc))
     step("unconfirmed", lambda: confirm.release_unconfirmed(session, rt, business, now_utc))
     step("unfinished", lambda: unfinished.send_due(session, rt, business, now_utc))
+    step("funnel", lambda: funnel.advance(session, business, now_utc))
     step("broadcast", lambda: broadcasts.send_due(session, rt, business, now_utc))
     step("reviews", lambda: send_review_requests(session, rt, business, now_utc))
     step("crm", push_crm)

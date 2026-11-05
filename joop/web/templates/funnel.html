@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Воронка{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Воронка заявок</h1>
+  <p class="muted">Заявки за 30 дней по этапам. Этапы двигает ИИ сам: ответил человек — «связались», появилась запись или заказ — «записан», время визита прошло без отмены — «пришёл». Человек отмечает только «потерян».</p>
+  <div class="stats">
+    {% for st in stages %}<div class="stat"><b>{{ f.counts[st] }}</b><span>{{ labels[st] }}</span></div>{% endfor %}
+    <div class="stat"><b>{{ f.booked_pct if f.booked_pct is not none else '—' }}{% if f.booked_pct is not none %}%{% endif %}</b><span>заявок стали записью</span></div>
+    <div class="stat"><b>{{ f.visited_pct if f.visited_pct is not none else '—' }}{% if f.visited_pct is not none %}%{% endif %}</b><span>записей дошли до визита</span></div>
+  </div>
+</section>
+{% for st in stages %}
+{% if f.rows[st] %}
+<section class="card">
+  <h2>{{ labels[st] }} <span class="muted">({{ f.counts[st] }})</span></h2>
+  <div class="list">
+    {% for l in f.rows[st] %}
+    <div class="item">
+      <div class="main">
+        <div>{% if l.kind == 'request' %}<span class="chip ok">запись</span> {% elif l.kind == 'lead' %}<span class="chip ok">лид</span> {% else %}<span class="chip">вопрос</span> {% endif %}{{ l.summary }}</div>
+        <div class="muted small">{{ l.customer_name or 'без имени' }} {{ l.customer_phone }} · {{ channel_names.get(l.channel, l.channel) }} · {{ l.created_at|local(business.timezone) }}{% if l.conversation_id %} · <a href="/panel/conversations/{{ l.conversation_id }}">диалог</a>{% endif %}</div>
+      </div>
+      <form method="post" action="/panel/funnel/{{ l.id }}" class="actions"><input type="hidden" name="csrf" value="{{ csrf }}">
+        {% if st in ('new', 'contacted') %}<button class="btn small ghost" name="stage" value="booked" type="submit">Записан</button>{% endif %}
+        {% if st == 'booked' %}<button class="btn small ghost" name="stage" value="visited" type="submit">Пришёл</button>{% endif %}
+        {% if st != 'lost' %}<button class="btn small ghost" name="stage" value="lost" type="submit">Потерян</button>{% else %}<button class="btn small ghost" name="stage" value="new" type="submit">Вернуть</button>{% endif %}
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endfor %}
+{% if not f.total %}<section class="card"><p class="muted">За 30 дней заявок не было.</p></section>{% endif %}
+{% endblock %}

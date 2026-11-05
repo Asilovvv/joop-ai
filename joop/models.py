@@ -234,6 +234,7 @@ class Lead(SQLModel, table=True):
     off_hours: bool = False
     nudged_at: Optional[NaiveDatetime] = None  # staff were reminded that nobody answered (joop/nudges.py)
     closed_by: str = ""  # who marked it done
+    stage: str = "new"  # sales funnel: new | contacted | booked | visited | lost (joop/funnel.py)
     crm_id: str = ""  # deal id in amoCRM ("-" = the CRM rejected it), joop/crm.py
 
 

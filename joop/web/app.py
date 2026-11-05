@@ -30,7 +30,7 @@ from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order
                       Staff, WaitlistEntry)
 from ..niches import all_packs, get_pack
 from ..phone import normalize_phone
-from .. import billing, confirm, customers, deposits, free_plan, gaps, ig_comments, samples, staff_reply, waitlist
+from .. import billing, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, samples, staff_reply, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -61,6 +61,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     if pack.has("stay"):
         items.append(("/panel/stays", "stays", "Брони номеров"))
     items.append(("/panel/leads", "leads", "Заявки"))
+    items.append(("/panel/funnel", "funnel", "Воронка"))
     if pack.offers("level_test"):
         items.append(("/panel/tests", "tests", "Тест на уровень"))
     items.append(("/panel/services", "services", pack.catalog_label))
@@ -83,7 +84,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     items.append(("/panel/billing", "billing", "Оплата"))
     return items
 NAV_GROUPS = (
-    ("Работа", {"dashboard", "conversations", "orders", "bookings", "stays", "leads", "jobs"}),
+    ("Работа", {"dashboard", "conversations", "customers", "orders", "bookings", "stays", "leads", "funnel", "jobs"}),
     ("Инструменты", {"slots", "tests", "menu", "followups", "gaps", "broadcasts", "memberships", "card"}),
     ("Настройка", {"setup", "try", "services", "staff", "faq", "settings", "channels", "accounts", "billing"}),
 )
@@ -978,6 +979,35 @@ def lead_done(request: Request, item_id: int, csrf: str = Form("")):
         s.add(lead)
         s.commit()
     return _back("/panel/leads")
+
+
+@router.get("/panel/funnel")
+def funnel_page(request: Request):
+    """Requests of the last 30 days by stage; the AI moves them, a person only marks «потерян»."""
+    with new_session() as s:
+        b = _business(s, request)
+        funnel.advance(s, b, utcnow())
+        s.commit()
+        f = funnel.report(s, b, utcnow())
+        return _render(request, "funnel.html", "funnel", b, f=f, stages=funnel.STAGES, labels=funnel.LABELS, channel_names=CHANNEL_NAMES)
+
+
+@router.post("/panel/funnel/{item_id}")
+def funnel_move(request: Request, item_id: int, stage: str = Form(""), csrf: str = Form("")):
+    _check_csrf(request, csrf)
+    if stage not in funnel.STAGES:
+        raise HTTPException(status_code=400)
+    with new_session() as s:
+        b = _business(s, request)
+        lead = s.get(Lead, item_id)
+        if lead is None or lead.business_id != b.id:
+            raise HTTPException(status_code=404)
+        lead.stage = stage
+        if stage in ("visited", "lost", "booked") and lead.status == "new":
+            lead.status, lead.closed_by = "done", _who(request)
+        s.add(lead)
+        s.commit()
+    return _back("/panel/funnel")
 
 
 @router.get("/panel/customers")

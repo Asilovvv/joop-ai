@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 from sqlmodel import Session, select
 
 from .agent.engine import STAFF_TAKEOVER_PAUSE
+from . import funnel
 from .followups import SERVICE_WINDOW
 from .models import Business, Conversation, Lead, Message
 
@@ -67,6 +68,7 @@ def send(session: Session, rt: "Runtime", business: Business, conv: Conversation
     for lead in session.exec(select(Lead).where(Lead.conversation_id == conv.id, Lead.status == "new")).all():
         lead.status, lead.closed_by = "done", author[:80]
         session.add(lead)
+    funnel.contacted(session, conv.id)
     return True, ""
 
 
