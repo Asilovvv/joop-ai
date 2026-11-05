@@ -37,7 +37,7 @@ from ..scheduler import Scheduler
 from ..security import hash_password, new_link_code, verify_password
 from ..slots import add_slots, generate_slots, parse_times, release_slot, resize_group, seats_needed
 from ..stats import activity, by_hour, hour_bars
-from ..timeutil import WEEKDAYS_SHORT, fmt_date_long, fmt_dt, fmt_slot, parse_days_off, parse_hhmm, utc_to_local, utcnow
+from ..timeutil import WEEKDAYS_SHORT, fmt_date_long, fmt_dt, fmt_slot, local_now, parse_days_off, parse_hhmm, utc_to_local, utcnow
 
 log = logging.getLogger(__name__)
 
@@ -264,15 +264,39 @@ def _site(request: Request, template: str, **ctx: Any):
     return templates.TemplateResponse(request, template, ctx)
 
 
+_daily: dict[str, tuple[str, int]] = {}  # small in-memory counters keyed by day: signature clicks per address, comment openings
+SIGNATURE_PER_ADDRESS = 20  # clicks a day counted from one address: a loop must not inflate the master's number
+PREVIEW_AGENTS = ("TelegramBot", "WhatsApp", "facebookexternalhit", "Twitterbot", "Slackbot", "LinkedInBot")
+
+
+def daily_count(key: str, day: str) -> int:
+    d, n = _daily.get(key, (day, 0))
+    return n if d == day else 0
+
+
+def daily_bump(key: str, day: str) -> None:
+    if len(_daily) > 20000:
+        _daily.clear()
+    _daily[key] = (day, daily_count(key, day) + 1)
+
+
 @router.get("/ai/{slug}")
 def from_signature(request: Request, slug: str):
-    """The link in a free business's AI signature: count the visit, remember where it came from, show the site."""
+    """The link in a free business's AI signature: count the visit (once per browser a day, not for link-preview
+    crawlers, at most a few per address), remember where it came from, show the site."""
+    day = local_now(None).strftime("%Y-%m-%d")
+    agent = request.headers.get("user-agent", "")
+    crawler = any(x.lower() in agent.lower() for x in PREVIEW_AGENTS)
+    seen = request.session.get("from_ai") == slug and request.session.get("from_ai_day") == day
     with new_session() as s:
         b = s.exec(select(Business).where(Business.slug == slug)).first()
-        if b is not None:
-            s.add(SignatureClick(business_id=b.id))
-            s.commit()
-            request.session["from_ai"] = slug
+        if b is not None and not crawler:
+            ip = client_ip(request)
+            if not seen and daily_count(f"ai:{ip}", day) < SIGNATURE_PER_ADDRESS:
+                daily_bump(f"ai:{ip}", day)
+                s.add(SignatureClick(business_id=b.id))
+                s.commit()
+            request.session["from_ai"], request.session["from_ai_day"] = slug, day
     return RedirectResponse("/", status_code=303)
 
 
@@ -1513,6 +1537,11 @@ async def meta_events(request: Request, background: BackgroundTasks):
                 if incoming.reply_to and (ig_comments.own(business, incoming.text, incoming.user_name)
                                           or not ig_comments.wanted(business, incoming.text)):
                     continue  # the business's own comment (the pointer Joop posted), one that asks nothing («Красиво!»), or the feature is off
+                if incoming.reply_to:  # one Direct opening per commenter a day: 300 «?» comments must not become 300 public replies
+                    key, day = f"igc:{business.id}:{incoming.chat_id}", local_now(business.timezone).strftime("%Y-%m-%d")
+                    if daily_count(key, day) >= 1:
+                        continue
+                    daily_bump(key, day)
                 background.add_task(process_incoming, _rt(request), business.id, incoming)
     return PlainTextResponse("EVENT_RECEIVED")
 

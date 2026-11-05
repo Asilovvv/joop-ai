@@ -259,6 +259,8 @@ def cmd_chat(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     logging.getLogger("alembic.runtime.plugins").setLevel(logging.WARNING)  # seven setup lines above every report
+    for noisy in ("httpx", "httpcore"):  # their INFO line prints the full URL, and bot tokens live in the path or query
+        logging.getLogger(noisy).setLevel(logging.WARNING)
     parser = argparse.ArgumentParser(prog="python -m joop", description="Joop AI: ИИ-администратор для бизнеса")
     sub = parser.add_subparsers(dest="command", required=True)
 
