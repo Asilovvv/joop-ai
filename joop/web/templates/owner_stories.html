@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Сторис{% endblock %}
+{% set active = 'stories' %}
+{% block content %}
+{% include "owner_nav.html" %}
+<section class="stack">
+  <h1>Сторис для Instagram Joop</h1>
+  <p class="muted">Хайлайты, как у интеграторов CRM, но про наш продукт: что это, как работает, функции, сравнение, услуги, советы. Каждый слайд — страница 1080 × 1920: откройте, сделайте снимок экрана или выгрузите PNG скриптом <code>scripts/export_stories.py</code>. Подпись в пилюле — <b>{{ handle }}</b> (<code>INSTAGRAM_HANDLE</code>). Кейс строится из базы для реальной компании и появляется, когда есть цифры.</p>
+</section>
+{% for g in sets %}
+<section class="card stack">
+  <h2>{{ g.title }}</h2>
+  <div class="stories">
+    {% for sl in slides if sl.set == g.key %}
+    <a class="story" href="/owner/stories/{{ sl.name }}" target="_blank" title="{{ sl.name }}">
+      <iframe src="/owner/stories/{{ sl.name }}" loading="lazy" tabindex="-1"></iframe>
+      <span>{{ sl.name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+<section class="card stack">
+  <h2>Кейсы</h2>
+  {% if businesses %}
+  <div class="stories">
+    {% for b in businesses %}
+    <a class="story" href="/owner/stories/case/{{ b.id }}" target="_blank" title="{{ b.name }}">
+      <iframe src="/owner/stories/case/{{ b.id }}" loading="lazy" tabindex="-1"></iframe>
+      <span>{{ b.name }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted">Пока нет компаний — кейс появится с первым клиентом.</p>{% endif %}
+</section>
+<style>
+.stories { display: flex; flex-wrap: wrap; gap: 16px; }
+.story { position: relative; width: 216px; height: 384px; border-radius: 14px; overflow: hidden; background: #0e0f11; border: 1px solid var(--line); display: block; }
+.story iframe { width: 1080px; height: 1920px; border: 0; transform: scale(0.2); transform-origin: 0 0; pointer-events: none; }
+.story span { position: absolute; left: 8px; bottom: 8px; font-size: 12px; color: #fff; background: rgba(0,0,0,.55); padding: 2px 8px; border-radius: 999px; }
+</style>
+{% endblock %}
