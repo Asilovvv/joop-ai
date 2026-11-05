@@ -48,6 +48,7 @@ class Business(SQLModel, table=True):
 
     telegram_bot_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
     telegram_secret: str = ""
+    telegram_bot_username: str = ""  # from getMe when the bot is connected: for t.me links on the counter card
     wa_phone_number_id: str = Field(default="", index=True)
     wa_access_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
     wa_reminder_template: str = ""

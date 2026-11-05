@@ -223,6 +223,7 @@ def setup_telegram(request: Request, token: str = Form(""), csrf: str = Form("")
             s.rollback()
             _flash(request, "Telegram не принял токен — бот не подключён. Проверьте токен у @BotFather и вставьте его целиком.", "error")
             return _back(page + "#telegram")
+        b.telegram_bot_username = str(me.get("username") or "")
         s.add(b)
         s.commit()
     if not settings.public_base_url.startswith("https://"):
