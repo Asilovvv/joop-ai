@@ -22,10 +22,14 @@ router = APIRouter()
 MAX_TABLES = 60
 
 TEXT = {
-    "ru": {"order": "Заказать", "ask": "Задать вопрос", "none": "Сейчас нет", "table": "Стол", "free": "бесплатно",
-           "som": "сом", "other": "Другое", "hours": "Часы работы", "address": "Адрес", "phone": "Телефон"},
-    "ky": {"order": "Буйрутма берүү", "ask": "Суроо берүү", "none": "Азыр жок", "table": "Үстөл", "free": "акысыз",
-           "som": "сом", "other": "Башкалар", "hours": "Иш убактысы", "address": "Дарек", "phone": "Телефон"},
+    "ru": {"order": "Заказать", "ask": "Задать вопрос", "book": "Записаться", "none": "Сейчас нет", "table": "Стол", "free": "бесплатно",
+           "som": "сом", "other": "Другое", "hours": "Часы работы", "address": "Адрес", "phone": "Телефон",
+           "masters": "Мастера", "nearest": "Ближайшее свободное время", "write": "Написать и записаться", "web": "Чат на сайте",
+           "answers": "Отвечает ИИ-администратор — в любое время, записывает в свободное окно"},
+    "ky": {"order": "Буйрутма берүү", "ask": "Суроо берүү", "book": "Жазылуу", "none": "Азыр жок", "table": "Үстөл", "free": "акысыз",
+           "som": "сом", "other": "Башкалар", "hours": "Иш убактысы", "address": "Дарек", "phone": "Телефон",
+           "masters": "Усталар", "nearest": "Жакынкы бош убакыт", "write": "Жазып, жазылуу", "web": "Сайттагы чат",
+           "answers": "ИИ-администратор жооп берет — каалаган убакта, бош убакытка жазат"},  # проверить носителем
 }
 
 
@@ -58,10 +62,40 @@ def order_link(business: Business, lang: str, table: int | None) -> tuple[str, s
     if not url:
         return "", ""
     pack = get_pack(business.niche)
-    label = TEXT[lang]["order"] if pack.has("order") else TEXT[lang]["ask"]
+    label = TEXT[lang]["order"] if pack.has("order") else TEXT[lang]["book"] if pack.has("booking") else TEXT[lang]["ask"]
     if url.startswith("https://wa.me/") and table:
         url += ("&" if "?" in url else "?") + "text=" + quote(f"{TEXT[lang]['table']} {table}: ")
     return url, label
+
+
+def channel_links(business: Business, base: str, lang: str) -> list[tuple[str, str]]:
+    """Where a customer can write and the AI answers: the connected channels only, as the counter card does."""
+    out: list[tuple[str, str]] = []
+    if business.telegram_bot_token and business.telegram_bot_username:
+        out.append((f"https://t.me/{business.telegram_bot_username}", "Telegram"))
+    if business.wa_phone_number_id and business.wa_access_token and phone_digits(business.phone):
+        out.append((f"https://wa.me/{phone_digits(business.phone)}", "WhatsApp"))
+    if business.bot_enabled:
+        out.append((f"{base}/c/{business.slug}", TEXT[lang]["web"]))
+    return out
+
+
+def booking_extras(session, business: Business, base: str, lang: str) -> dict:
+    """What a booking page adds to the price list: masters, the nearest free times, where to write."""
+    from ..models import Staff
+    from ..slots import free_slots
+    from ..timeutil import fmt_slot, local_now
+
+    pack = get_pack(business.niche)
+    if not pack.has("booking"):
+        return {"masters": [], "nearest": [], "links": channel_links(business, base, lang)}
+    masters = session.exec(select(Staff).where(Staff.business_id == business.id, Staff.active == True).order_by(Staff.name)).all()  # noqa: E712
+    seen: dict = {}
+    for slot, staff in free_slots(session, business.id, local_now(business.timezone), days=7, limit=60):
+        seen.setdefault(slot.start, staff.name)
+        if len(seen) == 3:
+            break
+    return {"masters": masters, "nearest": [fmt_slot(at) for at in sorted(seen)], "links": channel_links(business, base, lang)}
 
 
 def _groups(items: list[Service], lang: str) -> list[tuple[str, list[Service]]]:
@@ -89,11 +123,18 @@ def public_menu(request: Request, slug: str, t: int = 0, lang: str = "ru"):
     with new_session() as s:
         b = _enabled_business(s, slug)
         items = s.exec(select(Service).where(Service.business_id == b.id).order_by(Service.sort, Service.id)).all()
+        from .app import _base_url
+
+        extras = booking_extras(s, b, _base_url(request), lang)
     url, label = order_link(b, lang, table)
+    pack = get_pack(b.niche)
+    if extras["links"] and (not url or (pack.has("booking") and not pack.has("order") and not b.menu_chat_url)):
+        url = extras["links"][0][0]  # a booking niche: the button leads where the AI answers, not to the landline
+        label = TEXT[lang]["book"] if pack.has("booking") else TEXT[lang]["ask"]
     return templates.TemplateResponse(request, "menu_public.html", {
         "request": request, "b": b, "groups": _groups(list(items), lang), "lang": lang, "tx": TEXT[lang], "table": table,
         "order_url": url, "order_label": label, "price": price_label, "title": get_pack(b.niche).catalog_label,
-        "has_ky": any(i.name_ky for i in items),
+        "has_ky": any(i.name_ky for i in items), "booking": get_pack(b.niche).has("booking"), **extras,
     })
 
 

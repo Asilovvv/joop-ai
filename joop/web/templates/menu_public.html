@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ b.name }} — {{ title }}</title>
+<meta name="description" content="{{ b.name }}{% if b.address %}, {{ b.address }}{% endif %}: {{ title | lower }}{% if booking %}, {{ tx.masters | lower }}, {{ tx.nearest | lower }}{% endif %}. {{ tx.answers }}.">
 <link rel="stylesheet" href="/static/fonts/fonts.css">
 <style>
 :root { --bg: #f6f4ef; --paper: #fff; --ink: #1d1f1c; --muted: #5f645c; --line: #e2ded4; --accent: #0d7a68; --accent-ink: #fff; color-scheme: light; }
@@ -25,6 +26,14 @@ h2 { font-size: 20px; margin: 26px 0 10px; }
 .price { white-space: nowrap; font-weight: 600; font-variant-numeric: tabular-nums; }
 .off { opacity: .45; } .off .price { font-weight: 400; }
 .info { margin-top: 32px; font-size: 15px; } .info p { margin: 4px 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
+.chips span { background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 15px; }
+.masters { display: grid; gap: 8px; }
+.master { padding: 10px 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; }
+.master small { display: block; color: var(--muted); font-size: 14px; }
+.links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.links a { text-decoration: none; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 15px; }
+.ai { margin-top: 10px; font-size: 14px; color: var(--muted); }
 .bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, var(--bg) 30%); }
 .bar a { display: block; max-width: 608px; margin: 0 auto; text-align: center; background: var(--accent); color: var(--accent-ink); text-decoration: none; font-weight: 600; padding: 14px; border-radius: 12px; }
 </style>
@@ -37,6 +46,8 @@ h2 { font-size: 20px; margin: 26px 0 10px; }
   </div>
   <h1>{{ b.name }}</h1>
   {% if table %}<span class="table">{{ tx.table }} {{ table }}</span>{% endif %}
+  {% if booking and nearest %}<p class="muted small" style="margin:12px 0 0">{{ tx.nearest }}</p><div class="chips">{% for t in nearest %}<span>{{ t }}</span>{% endfor %}</div>{% endif %}
+  {% if booking and links %}<div class="links">{% for href, name in links %}<a href="{{ href }}" rel="noopener">{{ tx.write }} · {{ name }}</a>{% endfor %}</div><p class="ai">{{ tx.answers }}</p>{% endif %}
   {% if groups|length > 1 %}<nav class="cats">{% for name, _ in groups %}<a href="#c{{ loop.index }}">{{ name }}</a>{% endfor %}</nav>{% endif %}
   {% for name, items in groups %}
   {% if name %}<h2 id="c{{ loop.index }}">{{ name }}</h2>{% endif %}
@@ -47,6 +58,10 @@ h2 { font-size: 20px; margin: 26px 0 10px; }
   </div>
   {% endfor %}
   {% endfor %}
+  {% if masters %}
+  <h2>{{ tx.masters }}</h2>
+  <div class="masters">{% for m in masters %}<div class="master">{{ m.name }}{% if m.role or m.handles %}<small>{{ m.role }}{% if m.role and m.handles %} · {% endif %}{{ m.handles }}</small>{% endif %}</div>{% endfor %}</div>
+  {% endif %}
   <div class="info muted">
     {% if b.address %}<p>{{ tx.address }}: {{ b.address }}</p>{% endif %}
     {% if b.hours_text %}<p>{{ tx.hours }}: {{ b.hours_text }}</p>{% endif %}
