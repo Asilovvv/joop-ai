@@ -1,0 +1,22 @@
+{
+  "name": "Joop AI — панель",
+  "short_name": "Joop",
+  "description": "ИИ-администратор для бизнеса: диалоги, записи, заявки и клиенты",
+  "lang": "ru",
+  "start_url": "/panel?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f1c20",
+  "theme_color": "#0f1c20",
+  "icons": [
+    {"src": "/static/pwa/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/static/pwa/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "/static/pwa/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+    {"src": "/static/pwa/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Диалоги", "url": "/panel/conversations"},
+    {"name": "Записи", "url": "/panel/bookings"},
+    {"name": "Заявки", "url": "/panel/leads"}
+  ]
+}
