@@ -10,7 +10,7 @@
   {% if users %}
   <div class="list">{% for u in users %}
     <div class="item"><div class="main">
-      <div><b>{{ u.name }}</b> <span class="mono muted">{{ u.login }}</span>{% if not u.active %} <span class="chip">выключен</span>{% endif %}</div>
+      <div><b>{{ u.name }}</b> <span class="mono muted">{{ u.login }}</span>{% if u.staff_id %} <span class="chip ok">мастер: {{ staff_names.get(u.staff_id, '—') }}</span>{% endif %}{% if not u.active %} <span class="chip">выключен</span>{% endif %}</div>
       <div class="muted small">{% if u.last_login_at %}последний вход {{ u.last_login_at|local(business.timezone) }}{% else %}ещё не входил(а){% endif %}</div>
     </div>
     <div class="actions">
@@ -32,6 +32,7 @@
       <label>Имя<input name="name" maxlength="60" required placeholder="Айгерим"></label>
       <label>Логин<input name="login" maxlength="32" required autocomplete="off" placeholder="aigerim" pattern="[a-z0-9][a-z0-9._\-]{2,31}"></label>
       <label>Пароль, не короче {{ min_password }} символов<input name="password" type="password" minlength="{{ min_password }}" autocomplete="new-password" required></label>
+      {% if staff %}<label>Это мастер<select name="staff_id"><option value="">Нет — видит всё, как администратор</option>{% for st in staff %}<option value="{{ st.id }}">{{ st.name }} — только свои записи, клиенты и касса</option>{% endfor %}</select></label>{% endif %}
     </div>
     <div><button class="btn" type="submit">Создать вход</button></div>
   </form>
