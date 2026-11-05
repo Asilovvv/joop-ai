@@ -769,6 +769,16 @@ def owner_pilot_csv(request: Request):
                     headers={"Content-Disposition": f'attachment; filename="joop-pilot-{start}-{end}.csv"'})
 
 
+@router.get("/owner/playbook")
+def playbook_page(request: Request):
+    """The founder's sales playbook: the first-ten moves, prices, objections, where to look, week one."""
+    _owner(request)
+    s = _settings(request)
+    price = f"{s.price_som:,}".replace(",", " ") if s.price_som else "— (PRICE_SOM не задан)"
+    return _owner_render(request, "owner_playbook.html", base=s.public_base_url or "https://…", price=price,
+                         trial_days=s.trial_days, founder=(s.company_legal_name or "Бектур").split()[0] if s.company_legal_name else "Бектур")
+
+
 @router.get("/owner/prospects")
 def prospects_page(request: Request, status: str = ""):
     _owner(request)
