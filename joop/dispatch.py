@@ -38,15 +38,20 @@ def process_incoming(rt: Runtime, business_id: int, incoming: IncomingMessage, n
             session.rollback()
             log.exception("Failed to process a %s message for %s", incoming.channel, business.slug)
             return Outcome(skipped="error")
-    deliver(rt, business, incoming.channel, incoming.chat_id, outcome)
+    deliver(rt, business, incoming.channel, incoming.chat_id, outcome, reply_to=incoming.reply_to)
     return outcome
 
 
-def deliver(rt: Runtime, business: Business, channel: str, chat_id: str, outcome: Outcome) -> None:
+def deliver(rt: Runtime, business: Business, channel: str, chat_id: str, outcome: Outcome, reply_to: str = "") -> None:
     if outcome.reply:
         client = rt.channel_client(business, channel)
         if client is None:
             log.warning("No %s credentials for %s; reply not sent", channel, business.slug)
+        elif reply_to and channel == "instagram":  # a comment: Direct opens through the comment, then a public pointer under it
+            if not client.send_private_reply(reply_to, outcome.reply):
+                log.warning("Instagram private reply for %s was not delivered", business.slug)
+            elif business.ig_comment_public_reply.strip():
+                client.reply_to_comment(reply_to, business.ig_comment_public_reply.strip())
         elif not client.send_text(chat_id, outcome.reply):
             log.warning("Reply to %s via %s was not delivered", business.slug, channel)
     if outcome.admin_notes:

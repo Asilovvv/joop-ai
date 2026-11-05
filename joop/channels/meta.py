@@ -136,6 +136,17 @@ def parse_instagram(payload: dict[str, Any]) -> list[tuple[str, IncomingMessage]
     out: list[tuple[str, IncomingMessage]] = []
     for entry in payload.get("entry") or []:
         account_id = str(entry.get("id") or "")
+        for change in entry.get("changes") or []:  # a comment under a post or a reel (webhook field "comments")
+            value = change.get("value") if change.get("field") == "comments" else None
+            if not isinstance(value, dict):
+                continue
+            sender = str((value.get("from") or {}).get("id") or "")
+            text = (value.get("text") or "").strip()
+            comment_id = str(value.get("id") or "")
+            if not sender or not text or not comment_id or sender == account_id:  # the business under its own post
+                continue
+            out.append((account_id, IncomingMessage("instagram", sender, "text", text, str((value.get("from") or {}).get("username") or ""),
+                                                   f"igc:{comment_id}", reply_to=comment_id)))
         for event in entry.get("messaging") or []:
             msg = event.get("message")
             if not isinstance(msg, dict) or msg.get("is_deleted") or msg.get("is_unsupported"):
@@ -257,6 +268,25 @@ class InstagramClient(_GraphClient):
     def send_text(self, recipient_id: str, text: str) -> bool:
         payload = {"recipient": {"id": recipient_id}, "message": {"text": clip_bytes(text, INSTAGRAM_MAX_BYTES)}}
         return self._post(payload, "Instagram")
+
+    def send_private_reply(self, comment_id: str, text: str) -> bool:
+        """The first Direct message to someone who commented: Instagram opens the thread through the comment
+        (one private reply per comment, within seven days); after that the person's id works as usual."""
+        payload = {"recipient": {"comment_id": comment_id}, "message": {"text": clip_bytes(text, INSTAGRAM_MAX_BYTES)}}
+        return self._post(payload, "Instagram private reply")
+
+    def reply_to_comment(self, comment_id: str, text: str) -> bool:
+        """A public reply under the comment («Ответили вам в Директ»), so the person looks at Direct."""
+        try:
+            response = self.http.post(f"{self._base}/{self._version}/{comment_id}/replies", json={"message": clip_bytes(text, INSTAGRAM_MAX_BYTES)},
+                                      headers=self._headers, timeout=20.0)
+        except httpx.HTTPError as exc:
+            log.warning("Instagram comment reply failed: %s", type(exc).__name__)
+            return False
+        if response.status_code >= 400:
+            log.warning("Instagram comment reply failed: HTTP %s %s", response.status_code, _error_text(response))
+            return False
+        return True
 
     def download(self, url: str) -> bytes | None:
         """An audio attachment: Instagram gives a direct CDN link."""
