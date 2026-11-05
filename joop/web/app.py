@@ -259,7 +259,7 @@ def _site(request: Request, template: str, **ctx: Any):
         email=s.contact_email,
         phone=s.contact_phone,
         telegram=s.contact_telegram,
-        updated="29.10.2026",
+        updated=ctx.pop("updated", "29.10.2026"),
     )
     return templates.TemplateResponse(request, template, ctx)
 
@@ -274,7 +274,7 @@ def landing(request: Request):
 
 @router.get("/privacy")
 def privacy(request: Request):
-    return _site(request, "site_privacy.html")
+    return _site(request, "site_privacy.html", updated="05.11.2026")
 
 
 @router.get("/data-deletion")
