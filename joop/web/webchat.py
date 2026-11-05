@@ -16,7 +16,6 @@ import json
 import logging
 import re
 import secrets
-import time
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -112,7 +111,7 @@ async def chat_message(request: Request, slug: str):
         visitor = secrets.token_hex(12)
     if not text:
         return JSONResponse({"error": "empty"}, status_code=400)
-    day, ip = time.strftime("%Y-%m-%d"), client_ip(request)
+    day, ip = local_now(None).strftime("%Y-%m-%d"), client_ip(request)  # the day in Bishkek, not on the server clock
     if _count(f"v:{visitor}", day) >= PER_VISITOR or _count(f"ip:{ip}", day) >= PER_ADDRESS:
         return JSONResponse({"error": _t("limit", lang), "visitor": visitor},
                             status_code=429)
@@ -183,7 +182,7 @@ PER_ADDRESS_POLLS = 20000  # /updates calls a day from one IP: the page asks eve
 @router.get("/c/{slug}/updates")
 def chat_updates(request: Request, slug: str, visitor: str = "", after: int = 0):
     """Replies staff wrote from the panel (joop/staff_reply.py); the page asks while it is open."""
-    day, ip = time.strftime("%Y-%m-%d"), client_ip(request)
+    day, ip = local_now(None).strftime("%Y-%m-%d"), client_ip(request)  # the day in Bishkek, not on the server clock
     if not _TOKEN.match(visitor) or _count(f"poll:{ip}", day) >= PER_ADDRESS_POLLS:
         return JSONResponse({"messages": []}, headers={"Cache-Control": "no-store"})
     _bump(f"poll:{ip}", day)
