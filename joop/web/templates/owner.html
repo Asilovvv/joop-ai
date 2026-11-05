@@ -76,6 +76,7 @@
         <form method="post" action="/owner/business/{{ r.b.id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="price"><input name="price" type="number" min="0" step="100" value="{{ r.sub.price_som if r.sub and r.sub.price_som else '' }}" placeholder="{{ price or '' }}" style="width: 90px" aria-label="Цена в месяц"></form>
       </td>
       <td><div class="actions" style="justify-content: flex-start">
+        <a class="btn ghost small" href="/owner/business/{{ r.b.id }}/case">Кейс</a>
         {% for action, label in [('login', 'Открыть панель'), ('extend', '+7 дней'), ('paid', 'Оплатил'), ('suspend', 'Пауза'), ('resume', 'Включить')] %}
         <form method="post" action="/owner/business/{{ r.b.id }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="days" value="7"><button class="btn {{ 'small' if action in ('login', 'paid') else 'ghost small' }}" name="action" value="{{ action }}">{{ label }}</button></form>
         {% endfor %}

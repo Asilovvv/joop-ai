@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="{{ c.lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Кейс: {{ b.name }} — Joop AI</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<style>
+  :root { --bg: #f4f3ee; --surface: #fff; --ink: #10201f; --muted: #5d6b69; --line: #dde3df; --accent: #0e8a72; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0b1719; --surface: #122326; --ink: #e4eeeb; --muted: #9fb3af; --line: #233a3d; --accent: #3fc2a5; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Golos Text', system-ui, sans-serif; background: var(--bg); color: var(--ink); }
+  .tools { max-width: 720px; margin: 0 auto; padding: 14px 16px 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 14px; }
+  .tools a { color: var(--ink); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; }
+  .tools a.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .tools .back { border: 0; color: var(--muted); }
+  .card { max-width: 720px; margin: 14px auto 40px; background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 32px 28px; box-shadow: 0 16px 40px -24px rgba(0,0,0,.4); }
+  .brand { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  h1 { font-size: 26px; line-height: 1.15; margin: 10px 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 18px; }
+  .head { font-size: 20px; line-height: 1.3; margin: 0 0 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .stat { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  .stat b { display: block; font-size: 28px; line-height: 1; letter-spacing: -.02em; margin-bottom: 6px; }
+  .stat span { color: var(--muted); font-size: 13px; }
+  .note { color: var(--muted); font-size: 13px; margin-top: 18px; }
+  .foot { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+  .foot b { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="tools">
+  <a class="back" href="/owner">← К компаниям</a>
+  {% for d in (14, 30, 90) %}<a href="/owner/business/{{ b.id }}/case?days={{ d }}&lang={{ c.lang }}" class="{{ 'on' if c.days == d }}">{{ d }} дн.</a>{% endfor %}
+  <a href="/owner/business/{{ b.id }}/case?days={{ c.days }}&lang={{ 'ru' if c.lang == 'ky' else 'ky' }}">{{ 'По-русски' if c.lang == 'ky' else 'Кыргызча' }}</a>
+</div>
+<div class="card">
+  <div class="brand">Joop AI · {{ c.days }} {{ 'дней с ИИ-администратором' if c.lang == 'ru' else 'күн ИИ-администратор менен' }}</div>
+  <h1>Кейс: {{ b.name }}</h1>
+  <p class="sub">{{ c.niche }}{% if b.address %} · {{ b.address.split(',')[0] }}{% endif %} · {{ period }}</p>
+  {% if c.conversations %}
+  <p class="head">{{ c.headline() }}</p>
+  <div class="grid">
+    <div class="stat"><b>{{ c.conversations }}</b><span>{{ 'клиентов написали' if c.lang == 'ru' else 'кардар жазды' }}</span></div>
+    <div class="stat"><b>{{ c.off_pct }}%</b><span>{{ 'из них в нерабочее время' if c.lang == 'ru' else 'жумуш убактысынан тышкары' }}</span></div>
+    <div class="stat"><b>{{ c.bookings }}</b><span>{{ 'записей сделал ИИ' if c.lang == 'ru' else 'ИИ жазды' }}{% if c.off_bookings %} · {{ c.off_bookings }} {{ 'ночью и в выходные' if c.lang == 'ru' else 'түнкүсүн жана дем алышта' }}{% endif %}</span></div>
+    {% if c.value_som %}<div class="stat"><b>{{ '{:,}'.format(c.value_som).replace(',', ' ') }}</b><span>{{ 'сом по прайсу салона' if c.lang == 'ru' else 'сом прайс боюнча' }}</span></div>{% endif %}
+    {% if c.orders %}<div class="stat"><b>{{ c.orders }}</b><span>{{ 'заказов' if c.lang == 'ru' else 'заказ' }}</span></div>{% endif %}
+    {% if c.average_rating %}<div class="stat"><b>{{ c.average_rating }}</b><span>{{ 'средняя оценка, %d оценок' % c.rated if c.lang == 'ru' else 'орточо баа, %d баа' % c.rated }}</span></div>{% endif %}
+    {% if c.returned %}<div class="stat"><b>{{ c.returned }}</b><span>{{ 'вернулись после приглашения' if c.lang == 'ru' else 'чакыруудан кийин кайтып келди' }}</span></div>{% endif %}
+    <div class="stat"><b>{{ c.handoffs }}</b><span>{{ 'вопросов передано людям' if c.lang == 'ru' else 'суроо адамдарга өткөрүлдү' }}</span></div>
+  </div>
+  <p class="note">{% if c.lang == 'ru' %}Только цифры из базы Joop за период: диалоги, записи и заявки, которые принял ИИ; стоимость — по ценам прайса компании{% if c.bookings > c.valued %}, ещё {{ c.bookings - c.valued }} записей без точной цены не посчитаны{% endif %}. Тестовые чаты не входят.{% else %}Joop базасындагы цифралар гана: ИИ кабыл алган диалогдор жана жазуулар; наркы — компаниянын прайсы боюнча{% if c.bookings > c.valued %}, так баасы жок {{ c.bookings - c.valued }} жазуу эсептелген жок{% endif %}. Тесттик чаттар кирбейт.{% endif %}</p>
+  {% else %}
+  <p class="head">{{ 'За этот период клиенты не писали — кейса пока нет.' if c.lang == 'ru' else 'Бул мезгилде кардарлар жазган жок — кейс азырынча жок.' }}</p>
+  {% endif %}
+  <div class="foot"><span>{{ 'Отвечает' if c.lang == 'ru' else 'Жооп берет' }} <b>Joop AI</b>, {{ 'ИИ-администратор для бизнеса' if c.lang == 'ru' else 'бизнес үчүн ИИ-администратор' }}</span><span>{{ 'Бишкек' }}</span></div>
+</div>
+</body>
+</html>
