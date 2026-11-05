@@ -589,5 +589,6 @@ class PanelUser(SQLModel, table=True):
     login: str
     password_hash: str
     active: bool = True
+    staff_id: Optional[int] = Field(default=None, foreign_key="staff.id")  # a master's own login: sees only her bookings, customers and cash
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     last_login_at: Optional[NaiveDatetime] = None

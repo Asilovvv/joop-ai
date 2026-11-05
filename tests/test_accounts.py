@@ -110,3 +110,36 @@ def test_wrong_passwords_and_new_password(app, business):
                                          "csrf": csrf_of(guesser.get("/login").text)})
         assert "Слишком много неудачных попыток" in r.text
         login(guesser)  # the owner's login is counted apart from the staff member's
+
+
+def test_a_masters_login_sees_only_her_own_bookings_customers_and_cash(app, business):
+    """A login linked to a Staff row: bookings, customers and the cash page are hers only; the owner sees everything."""
+    from datetime import timedelta
+
+    from joop.models import Booking, Staff
+    from .conftest import NOW_UTC
+
+    with db.new_session() as s:
+        masters = s.exec(select(Staff).where(Staff.business_id == business.id).order_by(Staff.id)).all()
+        a, b2 = masters[0], masters[1]
+        s.add(Booking(business_id=business.id, staff_id=a.id, staff_name=a.name, customer_name="Клиент А", customer_phone="+996555000001",
+                      service="Консультация", start=NOW_UTC + timedelta(days=1), channel="telegram"))
+        s.add(Booking(business_id=business.id, staff_id=b2.id, staff_name=b2.name, customer_name="Клиент Б", customer_phone="+996555000002",
+                      service="Консультация", start=NOW_UTC + timedelta(days=1), channel="telegram", paid_som=700, paid_method="cash"))
+        s.commit()
+    with TestClient(app) as owner:
+        login(owner)
+        page = owner.get("/panel/accounts").text
+        assert "Это мастер" in page and a.name in page
+        assert f"мастер: {a.name}" in add(owner, staff_id=str(a.id))
+        assert "Клиент А" in owner.get("/panel/bookings").text and "Клиент Б" in owner.get("/panel/bookings").text
+    with TestClient(app) as master:
+        assert staff_login(master).status_code == 303
+        bookings = master.get("/panel/bookings").text
+        assert "Клиент А" in bookings and "Клиент Б" not in bookings
+        customers = master.get("/panel/customers").text
+        assert "Клиент А" in customers and "Клиент Б" not in customers
+        assert master.get("/panel/customers/555000002").status_code == 404
+        assert master.get("/panel/customers/555000001").status_code == 200
+        cash_page = master.get("/panel/cash").text
+        assert "700" not in cash_page
