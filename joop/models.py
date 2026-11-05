@@ -293,6 +293,14 @@ class Subscription(SQLModel, table=True):
     created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
+class SignatureClick(SQLModel, table=True):
+    """Someone followed the «отвечает Joop AI» line of a free business to Joop's site (joop/free_plan.py)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
 class Payment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     business_id: int = Field(foreign_key="business.id", index=True)

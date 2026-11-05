@@ -78,11 +78,11 @@ def test_free_plan_signs_the_first_reply_and_bookings(settings, rt, business):
         s.commit()
     rt._llm = FakeLLM([AgentReply("Здравствуйте! Консультация — 500 сом."), AgentReply("Да, завтра есть 10:00.")])
     first = say(business.id, rt, "Сколько стоит консультация?")
-    assert first.reply.endswith("\n\nКонсультация — 500 сом.\n\n— отвечает Joop AI, ИИ-администратор для бизнеса · https://joop.test")
+    assert first.reply.endswith("\n\nКонсультация — 500 сом.\n\n— отвечает Joop AI, ИИ-администратор для бизнеса · https://joop.test/ai/aktish")
     assert say(business.id, rt, "А завтра можно?").reply == "Да, завтра есть 10:00."  # only the first reply
     rt._llm = FakeLLM([AgentReply("Саламатсызбы! Консультация 500 сом.")])
     ky = say(business.id, rt, "Саламатсызбы, консультация канча турат?", chat="996555000222")
-    assert ky.reply.endswith("\n\n— Joop AI жооп берет, бизнес үчүн ИИ-администратор · https://joop.test")
+    assert ky.reply.endswith("\n\n— Joop AI жооп берет, бизнес үчүн ИИ-администратор · https://joop.test/ai/aktish")
     rt._llm = FakeLLM([AgentReply("Чем помочь?")])
     assert say(business.id, rt, "Привет", channel="web", chat="web-abc").reply == "Чем помочь?"  # the page carries Joop's name
 
@@ -99,10 +99,10 @@ def test_signature_follows_a_booking_on_the_free_plan(settings, rt, business):
                    AgentReply("Записала вас на четверг 05.11 в 09:00.",
                               booking={"slot_id": slot.id, "name": "Айбек", "phone": "0555 123 456", "service": "лечение кариеса"})])
     assert say(business.id, rt, "Привет", "telegram", "1001", llm).reply.endswith(
-        "Чем помочь?\n\n— отвечает Joop AI, ИИ-администратор для бизнеса · https://joop.test")
+        "Чем помочь?\n\n— отвечает Joop AI, ИИ-администратор для бизнеса · https://joop.test/ai/aktish")
     assert say(business.id, rt, "Болит зуб, можно завтра?", "telegram", "1001", llm).reply == "Есть завтра в 09:00. Записать?"
     out = say(business.id, rt, "Да, Айбек 0555 123 456", "telegram", "1001", llm)
-    assert out.booking_id is not None and out.reply.endswith("· https://joop.test") and "— отвечает Joop AI" in out.reply
+    assert out.booking_id is not None and out.reply.endswith("· https://joop.test/ai/aktish") and "— отвечает Joop AI" in out.reply
 
 
 def test_owner_console_counts_free_businesses(business, app_client):
@@ -113,3 +113,35 @@ def test_owner_console_counts_free_businesses(business, app_client):
     owner_login(app_client)
     page = app_client.get("/owner").text
     assert "<b>1</b><span>бесплатно</span>" in page and "Бесплатно: один мастер" in page
+
+
+def test_signature_link_counts_the_visit_and_the_signup_that_follows(business, rt, settings):
+    """The free plan pays with distribution: the link says which business's AI the reader saw, the console counts it."""
+    import dataclasses
+
+    from fastapi.testclient import TestClient
+
+    from joop.models import SignatureClick
+    from joop.web.app import create_app
+    from joop.web.demo import funnel
+    from .test_saas import signup
+    from .test_web import login
+
+    rt.settings = dataclasses.replace(settings, owner_password="owner-pass-123", signup_enabled=True)
+    with TestClient(create_app(rt.settings, rt, init=False)) as c:
+        assert c.get("/ai/aktish", follow_redirects=False).headers["location"] == "/"
+        assert c.get("/ai/nobody", follow_redirects=False).headers["location"] == "/"  # unknown slug: the site, no count
+        with db.new_session() as s:
+            assert [x.business_id for x in s.exec(select(SignatureClick)).all()] == [business.id]
+        assert signup(c, name="Салон Гүл", niche="beauty").status_code == 303
+        with db.new_session() as s:
+            assert sorted(x.source for x in s.exec(select(Subscription)).all()) == ["signup-ai"]
+            f = funnel(s, NOW_UTC - timedelta(days=1))
+            assert f.ai_clicks == 1 and f.ai_signups == 1 and f.signups == 1
+    _one_master(business.id)
+    with db.new_session() as s:
+        free_plan.switch(billing.start_trial(s, s.get(Business, business.id), 14, NOW_UTC))
+        s.commit()
+    with TestClient(create_app(rt.settings, rt, init=False)) as c:
+        login(c)
+        assert "по вашей подписи на сайт Joop перешли 1 чел." in c.get("/panel/billing").text
