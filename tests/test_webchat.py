@@ -123,3 +123,17 @@ def test_page_offers_four_languages_and_errors_follow_the_choice(web, rt, monkey
 
 def say_lang(client, text, lang):
     return client.post("/c/aktish/chat", json={"text": text, "visitor": "", "lang": lang})
+
+
+def test_chat_links_a_privacy_policy_that_names_what_the_code_does(web):
+    """A public chat collects names and phones: it links the policy, and the policy covers this chat and every service
+    the code can send a customer's data to (Altegio, amoCRM, ElevenLabs), not only the messengers."""
+    page = web.get("/c/aktish").text
+    assert 'id="privacy" href="/privacy"' in page and "Купуялуулук" in page and "Privacy" in page
+    assert "label: 'Message'" in page  # the screen-reader label follows the chosen language too
+    policy = web.get("/privacy").text
+    assert "веб-чата" in policy and "cookie чат не ставит" in policy
+    for name in ("Altegio", "amoCRM", "ElevenLabs", "теста уровня"):
+        assert name in policy, name
+    assert "Голосовые сообщения и фото сервис не распознаёт" not in policy  # untrue once speech-to-text is on
+    assert "не сохраняются и не передаются модели" in policy  # the chat audit (joop/audit.py) keeps only numbers
