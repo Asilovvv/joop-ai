@@ -34,17 +34,19 @@ ASK_RU = "Ответьте «да», если придёте, или напиш�
 ASK_KY = "Келсеңиз «ооба» деп жооп бериңиз, пландар өзгөрсө — жазыңыз."
 HORIZON = timedelta(hours=48)  # a "да" confirms a reminded visit within two days, not a booking next month
 GRACE = timedelta(hours=3)  # the customer gets at least this long after the question before a release
+MAX_RELEASE_HOURS = 12  # the settings page caps it here; a larger value saved before the cap counts as the cap
 WEEKDAYS_KY = ("дүй", "шейш", "шарш", "бейш", "жума", "ишм", "жек")  # CLDR ky abbreviations; проверить носителем
 _YES = re.compile(r"^\W*(да|ага|приду|буду|будем|придём|придем|ок|окей|хорошо|конечно|подтверждаю|обязательно|"
                   r"ооба|келем|келебиз|макул|барам|барабыз|\+|👍)(?!\w)", re.I)
-_NO = re.compile(r"\b(не|нет|жок|отмен|перенес|перенос|позже|другой|другое|башка)\w*", re.I)
+_NO = re.compile(r"\b(не|нет|жок|отмен|перенес|перенос|позже|другой|другое|башка|сколько|когда|где|куда|какой|какая|можно|"
+                 r"канча|качан|кайда|болобу)\w*", re.I)  # a question without its «?» is still not a yes
 ASKS = (ASK_RU, ASK_KY)
 
 
 def says_yes(text: str) -> bool:
-    """A short plain yes: "да", "Да, приду", "ооба келем", "👍" — not "да, а можно перенести?", not "да, запишите на 10:00"."""
+    """A short plain yes: "да", "Да, приду", "Да да, буду обязательно", "👍" — not "да, а можно перенести?", not "да, запишите на 10:00"."""
     t = (text or "").strip()
-    return (0 < len(t) <= 40 and "?" not in t and len(t.split()) <= 3 and not re.search(r"\d", t)
+    return (0 < len(t) <= 40 and "?" not in t and len(t.split()) <= 4 and not re.search(r"\d", t)
             and bool(_YES.match(t)) and not _NO.search(t))
 
 
@@ -55,6 +57,22 @@ def asked_at(session: Session, conv: Conversation) -> datetime | None:
     if last is None or not any(ask in (last.text or "") for ask in ASKS):
         return None
     return last.created_at
+
+
+def silent_since_ask(session: Session, conv: Conversation) -> datetime | None:
+    """When the reminder's question went out, if the customer wrote nothing since; None otherwise.
+
+    For a release the question is "did the customer answer", not "was the question the AI's last word": after one
+    booking of a chat is released (or a broadcast goes out), the AI has spoken again, but the silence is still silence.
+    """
+    rows = session.exec(select(Message.role, Message.text, Message.created_at).where(Message.conversation_id == conv.id)
+                        .order_by(Message.id.desc()).limit(20)).all()
+    for role, text, at in rows:
+        if role == "customer":
+            return None
+        if role == "ai" and any(ask in (text or "") for ask in ASKS):
+            return at
+    return None
 
 
 def fmt_slot_ky(dt: datetime) -> str:
@@ -103,7 +121,7 @@ def digest_line(bookings: list[Booking]) -> str:
 
 def release_unconfirmed(session: Session, rt: "Runtime", business: Business, now_utc: datetime) -> dict[str, int]:
     """The business chose to free times nobody confirmed: N hours before the visit the booking is released."""
-    hours = business.release_unconfirmed_hours
+    hours = min(business.release_unconfirmed_hours, MAX_RELEASE_HOURS)
     if hours <= 0:
         return {}
     now_local = utc_to_local(now_utc, business.timezone)
@@ -123,9 +141,9 @@ def release_unconfirmed(session: Session, rt: "Runtime", business: Business, now
     released = 0
     for booking in due:
         conv = session.get(Conversation, booking.conversation_id) if booking.conversation_id else None
-        asked = asked_at(session, conv) if conv else None
+        asked = silent_since_ask(session, conv) if conv else None
         if asked is None or now_utc - asked < GRACE:
-            continue  # the question is not the last word, or it was asked too recently to blame the silence
+            continue  # the customer wrote back (the model handled it), or the question is too recent to blame the silence
         released += 1
         slot = _release(session, booking)
         kyrgyz = bool(conv) and _kyrgyz(session, conv.id)

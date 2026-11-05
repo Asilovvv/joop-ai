@@ -154,7 +154,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/broadcasts.py`, `joop/web/broadcasts.py` | Broadcasts to customer groups within channel rules, "стоп" to unsubscribe, batches in day hours |
 | **Platform** | |
 | `joop/web/app.py` | FastAPI app: the owner's panel and the channel webhooks |
-| `joop/samples.py` | Which rows are still the sign-up example (fictional prices, staff, answers): flagged on the dashboard, not counted as done, kept from real customers (test chat only) |
+| `joop/samples.py` | Which rows are still the sign-up example (fictional prices, staff, answers): flagged on the dashboard, not counted as done |
 | `joop/web/saas.py`, `joop/billing.py`, `joop/partners.py` | Sign-up, test chat, billing (FreedomPay, transfers, cancel/resume), founder console, referrals |
 | `joop/web/demo.py`, `joop/web/studio.py`, `joop/web/menu.py` | Live demo on the site, AI-drafted business sites, online menu with QR codes |
 | `joop/altegio.py` | Altegio integration: prices, team and free times in, bookings out |
@@ -171,6 +171,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 433 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 444 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |

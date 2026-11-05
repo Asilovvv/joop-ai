@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from threading import Lock
 
+from .lang import closing
+
 _LINE = re.compile(r"^‎?\[?(?P<ts>\d{1,4}[./-]\d{1,2}[./-]\d{2,4},? \d{1,2}:\d{2}(?::\d{2})?(?:\s?[AaPp][Mm])?)\]?\s?[-–]?\s?"
                    r"(?P<rest>.*)$")
 _FORMATS = ("%d.%m.%Y, %H:%M:%S", "%d.%m.%Y, %H:%M", "%d.%m.%y, %H:%M:%S", "%d.%m.%y, %H:%M", "%d/%m/%Y, %H:%M:%S", "%d/%m/%Y, %H:%M",
@@ -123,9 +125,6 @@ def _hhmm(value: str, default: time) -> time:
         return default
 
 
-_CLOSER = re.compile(r"^\W*(спасибо|благодарю|рахмат|ок|окей|хорошо|понятно|ясно|ладно|пока|до свидания|жакшы|болду|👍)(?!\w)", re.I)
-
-
 def report(chats: list[list[Msg]], business: str, work_start: str, work_end: str, weekend_off: bool = False) -> Report:
     start, end = _hhmm(work_start, time(10, 0)), _hhmm(work_end, time(20, 0))
 
@@ -158,12 +157,12 @@ def report(chats: list[list[Msg]], business: str, work_start: str, work_end: str
             r.price_questions += is_price
             # the customer's turn: this message and any that follow before the business speaks
             j = i
-            closer = bool(_CLOSER.match(m.text))  # «Спасибо!» at the end of a chat is not an unanswered question
+            closer = closing(m.text)  # «Спасибо!» at the end of a chat is not an unanswered question
             while j + 1 < len(chat) and chat[j + 1].sender != business:
                 j += 1
                 r.customer_messages += 1
                 r.off_hours += off(chat[j])
-                closer = closer and bool(_CLOSER.match(chat[j].text))
+                closer = closer and closing(chat[j].text)
                 if _PRICE.search(chat[j].text) and not _MEDIA.match(chat[j].text):
                     r.price_questions += 1
                     is_price = True
