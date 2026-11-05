@@ -33,4 +33,3 @@ joop = ["web/templates/*.html", "web/static/*", "niches/*/*.yaml", "migrations/*
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["real_clock: run on the real clock instead of the frozen 4 Nov 2026 (tests/conftest.py)"]
