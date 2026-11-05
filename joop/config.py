@@ -69,6 +69,7 @@ class Settings:
     signup_enabled: bool = True
     trial_days: int = 14
     price_som: int = 0  # monthly price; 0 = not published yet, sign-up still works with a trial
+    annual_months: int = 0  # a year for the price of this many months, offered at the end of the second paid month; 0 = no offer text
     owner_password: str = ""  # founder console password; empty = console disabled
     site_demo_daily_limit: int = 300  # visitor messages a day to the live demo on the site; 0 = demo off
     founder_bot_token: str = ""  # Telegram bot that alerts the founder when the AI stops answering (joop/health.py)
@@ -124,6 +125,7 @@ def settings_from_env() -> Settings:
         signup_enabled=_flag(env.get("SIGNUP_ENABLED"), True),
         trial_days=_int(env.get("TRIAL_DAYS"), 14),
         price_som=_int(env.get("PRICE_SOM"), 0),
+        annual_months=max(0, min(_int(env.get("ANNUAL_MONTHS"), 0), 12)),
         owner_password=env.get("OWNER_PASSWORD", "").strip(),
         site_demo_daily_limit=_int(env.get("SITE_DEMO_DAILY_LIMIT"), 300),
         founder_bot_token=env.get("FOUNDER_BOT_TOKEN", "").strip(),
