@@ -38,11 +38,11 @@ def process_incoming(rt: Runtime, business_id: int, incoming: IncomingMessage, n
             session.rollback()
             log.exception("Failed to process a %s message for %s", incoming.channel, business.slug)
             return Outcome(skipped="error")
-    deliver(rt, business, incoming.channel, incoming.chat_id, outcome, reply_to=incoming.reply_to)
+    deliver(rt, business, incoming.channel, incoming.chat_id, outcome, reply_to=incoming.reply_to, who=incoming.user_name or incoming.chat_id)
     return outcome
 
 
-def deliver(rt: Runtime, business: Business, channel: str, chat_id: str, outcome: Outcome, reply_to: str = "") -> None:
+def deliver(rt: Runtime, business: Business, channel: str, chat_id: str, outcome: Outcome, reply_to: str = "", who: str = "") -> None:
     if outcome.reply:
         client = rt.channel_client(business, channel)
         if client is None:
@@ -55,7 +55,8 @@ def deliver(rt: Runtime, business: Business, channel: str, chat_id: str, outcome
                     client.reply_to_comment(reply_to, business.ig_comment_public_reply.strip())
             else:
                 log.warning("Instagram comment reply for %s was not delivered", business.slug)
-                outcome.admin_notes.append("Не удалось ответить в Директ на комментарий в Instagram — ответьте под ним сами.")
+                outcome.admin_notes.append(f"Не удалось ответить в Директ на комментарий в Instagram от {who or chat_id}: "
+                                           f"«{outcome.reply[:120]}» — ответьте под ним сами.")
         elif not client.send_text(chat_id, outcome.reply):
             log.warning("Reply to %s via %s was not delivered", business.slug, channel)
     if outcome.admin_notes:

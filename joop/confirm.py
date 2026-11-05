@@ -38,8 +38,9 @@ MAX_RELEASE_HOURS = 12  # the settings page caps it here; a larger value saved b
 WEEKDAYS_KY = ("дүй", "шейш", "шарш", "бейш", "жума", "ишм", "жек")  # CLDR ky abbreviations; проверить носителем
 _YES = re.compile(r"^\W*(да|ага|приду|буду|будем|придём|придем|ок|окей|хорошо|конечно|подтверждаю|обязательно|"
                   r"ооба|келем|келебиз|макул|барам|барабыз|\+|👍)(?!\w)", re.I)
-_NO = re.compile(r"\b(не|нет|жок|отмен|перенес|перенос|позже|другой|другое|башка|сколько|когда|где|куда|какой|какая|можно|"
+_NO = re.compile(r"\b(не(?!пременно)|нет|жок|отмен|перенес|перенос|позже|другой|другое|башка|сколько|когда|где|куда|какой|какая|можно|"
                  r"канча|качан|кайда|болобу)\w*", re.I)  # a question without its «?» is still not a yes
+_YES_THEN_OK = re.compile(r"^\W*(да|ооба|ага)\W+(можно|конечно|непременно|болот|макул)\W*$", re.I)  # «Да, можно» is a plain yes
 ASKS = (ASK_RU, ASK_KY)
 
 
@@ -47,7 +48,7 @@ def says_yes(text: str) -> bool:
     """A short plain yes: "да", "Да, приду", "Да да, буду обязательно", "👍" — not "да, а можно перенести?", not "да, запишите на 10:00"."""
     t = (text or "").strip()
     return (0 < len(t) <= 40 and "?" not in t and len(t.split()) <= 4 and not re.search(r"\d", t)
-            and bool(_YES.match(t)) and not _NO.search(t))
+            and bool(_YES.match(t)) and (not _NO.search(t) or bool(_YES_THEN_OK.match(t))))
 
 
 def asked_at(session: Session, conv: Conversation) -> datetime | None:
@@ -68,7 +69,7 @@ def silent_since_ask(session: Session, conv: Conversation) -> datetime | None:
     rows = session.exec(select(Message.role, Message.text, Message.created_at).where(Message.conversation_id == conv.id)
                         .order_by(Message.id.desc()).limit(20)).all()
     for role, text, at in rows:
-        if role == "customer":
+        if role in ("customer", "staff"):  # the customer answered, or a person took the chat over
             return None
         if role == "ai" and any(ask in (text or "") for ask in ASKS):
             return at
