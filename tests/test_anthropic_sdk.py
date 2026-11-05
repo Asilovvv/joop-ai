@@ -13,6 +13,8 @@ import pytest
 
 from joop.agent.llm import AnthropicLLM
 
+pytestmark = pytest.mark.real_clock  # see tests/conftest.py frozen_clock
+
 
 class _MockApi:
     def __init__(self, reject_structured: bool = False):
