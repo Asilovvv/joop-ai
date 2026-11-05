@@ -1147,7 +1147,7 @@ async def settings_save(request: Request):
             b.nudge_unfinished = bool(form.get("nudge_unfinished"))
         if "release_unconfirmed_hours" in form:
             try:
-                b.release_unconfirmed_hours = max(0, min(int(str(form.get("release_unconfirmed_hours") or 0)), 24))
+                b.release_unconfirmed_hours = max(0, min(int(str(form.get("release_unconfirmed_hours") or 0)), 12))
             except ValueError:
                 pass
         s.add(b)

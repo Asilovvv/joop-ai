@@ -56,7 +56,7 @@ def test_reminders_by_channel(business, rt):
     assert manual_note[0] == "-5001" and manual_note[1].startswith("Напомните вручную")
     with db.new_session() as s:
         statuses = sorted(b.reminder_status for b in s.exec(select(Booking)).all())
-        assert statuses == ["manual", "sent", "sent"]
+        assert statuses == ["manual", "sent", "template"]  # the WhatsApp template asks no question: not "sent"
         assert s.exec(select(Message).where(Message.text.startswith("Напоминаем"))).all()
 
     # Same day again: nothing is sent twice.

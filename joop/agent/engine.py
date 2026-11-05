@@ -142,16 +142,16 @@ def handle_incoming(
         _add_message(session, business, conv, "ai", reply, now, off)
         return Outcome(reply=reply)
 
-    if incoming.kind == "text":
-        yes = confirm.capture(session, business, conv, text, now)
-        if yes is not None:  # "да" to the reminder: the visit is confirmed, no model call
-            _add_message(session, business, conv, "ai", yes.reply, now, off)
-            return Outcome(reply=yes.reply)
-
     paid = deposits.capture(session, business, conv, incoming, text, now)
     if paid is not None:  # a receipt or "оплатила" while a booking waits for prepayment
         _add_message(session, business, conv, "ai", paid.reply, now, off)
         return Outcome(reply=paid.reply, admin_notes=[paid.note])
+
+    if incoming.kind == "text":
+        yes = confirm.capture(session, business, conv, text, now)
+        if yes is not None:  # "да" to the reminder's question, which was the AI's last word: confirmed, no model call
+            _add_message(session, business, conv, "ai", yes.reply, now, off)
+            return Outcome(reply=yes.reply)
 
     if incoming.kind == "media":
         label = incoming.media_label or "вложение"
