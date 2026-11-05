@@ -327,6 +327,11 @@ WhatsApp message fees for reminders.
 - **A card for the counter** (`/panel/card`, "Табличка на стойку"): a printable A5 card with a QR code to the
   chat the owner picks — the Telegram bot, WhatsApp or the web chat — "Запись 24/7 — напишите нам" in Russian
   and Kyrgyz, the business's name and "Отвечает Joop AI". Every visitor who also runs a business sees it.
+- **Instagram comments answered in Direct** ("Каналы", off by default): a question left as a comment under a
+  post or reel ("Сколько стоит?", a "?" or one of the business's keywords) gets the AI's answer as a private
+  reply through the comment — Meta opens the Direct thread that way, one reply per comment within seven days —
+  plus a short public pointer under the comment ("Ответили вам в Директ"); anything further is the usual
+  dialogue. "Красиво!" is left alone. Needs the `comments` webhook field and `instagram_manage_comments`.
 - **Cancel in one click** (`/panel/billing`): the owner cancels the subscription himself with a one-line
   reason; the AI keeps answering until the paid period ends, nothing is charged after, and "Возобновить"
   undoes it at any time. The founder gets a Telegram note with the reason and the phone.
@@ -372,7 +377,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 420 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 425 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

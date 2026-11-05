@@ -30,7 +30,7 @@ from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order
                       WaitlistEntry)
 from ..niches import all_packs, get_pack
 from ..phone import normalize_phone
-from .. import billing, deposits, free_plan, gaps, samples, staff_reply, waitlist
+from .. import billing, deposits, free_plan, gaps, ig_comments, samples, staff_reply, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -1367,6 +1367,9 @@ async def channels_save(request: Request):
                     b.ig_token_refreshed_at = utcnow()  # a freshly pasted token is valid for 60 days
         for field in ("wa_phone_number_id", "wa_reminder_template", "ig_account_id"):
             setattr(b, field, value(field))
+        b.ig_comments = bool(form.get("ig_comments"))
+        b.ig_comment_keywords = value("ig_comment_keywords")[:300]
+        b.ig_comment_public_reply = value("ig_comment_public_reply")[:200]
         b.wa_template_lang = value("wa_template_lang") or "ru"
         for field, column in (("wa_phone_number_id", Business.wa_phone_number_id), ("ig_account_id", Business.ig_account_id)):
             account = getattr(b, field)
@@ -1478,6 +1481,8 @@ async def meta_events(request: Request, background: BackgroundTasks):
                 if business is None:
                     log.warning("No business is connected to %s account %s", channel, account_id)
                     continue
+                if incoming.reply_to and not ig_comments.wanted(business, incoming.text):
+                    continue  # a comment that asks nothing («Красиво!»), or the feature is off
                 background.add_task(process_incoming, _rt(request), business.id, incoming)
     return PlainTextResponse("EVENT_RECEIVED")
 
