@@ -14,6 +14,7 @@ def test_card_points_to_the_chat_the_owner_picks_and_carries_joops_name(business
     with db.new_session() as s:
         b = s.get(Business, business.id)
         b.phone, b.telegram_bot_username = "+996 555 000 111", "aktish_bot"
+        b.wa_phone_number_id, b.wa_access_token = "pn1", "tok"  # the WhatsApp link only where Joop answers in WhatsApp
         s.add(b)
         s.commit()
     with TestClient(create_app(settings, rt, init=False)) as c:

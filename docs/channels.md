@@ -96,7 +96,11 @@ No Facebook Page is needed with this setup.
    For questions left as comments under posts («Сколько стоит?»), also subscribe `comments` and
    request the `instagram_manage_comments` permission: Joop AI then answers the person in Direct
    through the comment (Meta's private reply, one per comment within seven days) and leaves a short
-   public pointer under the comment. Off by default; the business turns it on in «Каналы».
+   public pointer under the comment. Off by default; the business turns it on in «Каналы». When the
+   token is saved, Joop asks `/me` for the account's username and ignores comments from it (the owner
+   answering under a post, Joop's own pointer), so nothing loops. If the private reply fails (missing
+   permission, message requests closed, comment older than seven days), Joop tries Direct by the
+   person's id and otherwise tells staff to answer under the comment themselves.
 6. Panel → "Каналы": Instagram account ID and token.
 7. To serve real patients, request Advanced Access through App Review and complete Business
    Verification, then switch the app to Live.

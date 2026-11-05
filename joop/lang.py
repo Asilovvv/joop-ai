@@ -111,3 +111,17 @@ def use_kyrgyz_names(text: str, names: dict[str, str]) -> str:
 
         text = re.sub(re.escape(ru), repl, text, flags=re.IGNORECASE)
     return text
+
+
+_CLOSER = re.compile(r"^\W*(спасибо|благодарю|рахмат|ок|окей|хорошо|понятно|ясно|ладно|пока|до свидания|жакшы|болду|👍)(?!\w)", re.I)
+_ASKING = re.compile(r"запи[сш]|можно|хочу|хотим|нужн|надо|давайте|перенес|отмен|жазы|болобу|керек|сколько|канча|адрес|где", re.I)
+
+
+def closing(text: str) -> bool:
+    """The customer closing the chat — «Спасибо!», «Ок, понятно», «Хорошо, до встречи».
+
+    Not «Ок, а сколько стоит?», «Спасибо, а на завтра можно записаться?», «Хорошо, запишите меня на 10:00»: a
+    question mark, a number or a request word after the polite opener means they still want something.
+    """
+    t = (text or "").strip()
+    return 0 < len(t) <= 40 and "?" not in t and not re.search(r"\d", t) and not _ASKING.search(t) and bool(_CLOSER.match(t))

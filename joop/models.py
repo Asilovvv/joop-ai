@@ -52,6 +52,7 @@ class Business(SQLModel, table=True):
     ig_comments: bool = False  # answer questions left as comments under posts in Direct (joop/ig_comments.py)
     ig_comment_keywords: str = ""  # comma-separated; empty = the default list
     ig_comment_public_reply: str = "Ответили вам в Директ"  # the public pointer under the comment; empty = none
+    ig_username: str = ""  # the business's own Instagram username (from /me): its own comments are not questions
     wa_phone_number_id: str = Field(default="", index=True)
     wa_access_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
     wa_reminder_template: str = ""

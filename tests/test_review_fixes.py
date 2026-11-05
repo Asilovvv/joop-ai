@@ -337,7 +337,9 @@ def test_audit_thanks_is_not_an_unanswered_question_and_weekends_count_when_aske
                        "10.11.2026, 15:00 - подойдёт?\n")
     assert len(chat) == 3 and chat[-1].text == "Спасибо!\n10.11.2026, 15:00 - подойдёт?"  # a continuation line with a date
     r = audit.report([chat], "Салон", "10:00", "20:00")
-    assert r.unanswered == 0 and r.answered == 1
+    assert r.unanswered == 1 and r.answered == 1  # «15:00 — подойдёт?» after the thanks is a question that waited
+    thanks = audit.parse("04.11.2026, 11:00 - Клиент: Сколько стоит?\n04.11.2026, 11:10 - Салон: 800 сом\n04.11.2026, 11:12 - Клиент: Спасибо!\n")
+    assert audit.report([thanks], "Салон", "10:00", "20:00").unanswered == 0
     sat = audit.parse("07.11.2026, 12:00 - Клиент: Есть окно?\n07.11.2026, 12:05 - Салон: Да\n")  # Saturday noon
     assert audit.report([sat], "Салон", "10:00", "20:00").off_hours == 0
     assert audit.report([sat], "Салон", "10:00", "20:00", weekend_off=True).off_hours == 1
