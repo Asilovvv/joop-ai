@@ -144,6 +144,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/trust.py` | AI self-disclosure at first contact; week-one dialogue review in the morning summary |
 | `joop/upsell.py` | One add-on offered by code after a booking; "да" adds it |
 | `joop/owner_commands.py` | /today, /week, /gaps, /help in the staff Telegram chat: the numbers by code |
+| `joop/ig_comments.py` | Which Instagram comments get a Direct reply (questions, keywords); the client sends through the comment |
 | `joop/gaps.py` | Empty slots for the week and the regulars to invite into them; the owner sends with one click |
 | `joop/regulars.py` | The returning customer's last visits and upcoming booking, one line for the prompt |
 | `joop/unfinished.py` | One follow-up with two free times to a customer who asked and went quiet |
@@ -169,5 +170,5 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 420 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 425 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |

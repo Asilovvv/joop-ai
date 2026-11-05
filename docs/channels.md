@@ -93,6 +93,10 @@ No Facebook Page is needed with this setup.
    Joop AI uses it to find the business.
 5. Subscribe the webhook fields `messages` and `message_echoes`. Echoes let Joop AI notice when
    staff answer from the Instagram app and pause the AI in that conversation for 12 hours.
+   For questions left as comments under posts («Сколько стоит?»), also subscribe `comments` and
+   request the `instagram_manage_comments` permission: Joop AI then answers the person in Direct
+   through the comment (Meta's private reply, one per comment within seven days) and leaves a short
+   public pointer under the comment. Off by default; the business turns it on in «Каналы».
 6. Panel → "Каналы": Instagram account ID and token.
 7. To serve real patients, request Advanced Access through App Review and complete Business
    Verification, then switch the app to Live.
