@@ -109,6 +109,13 @@
       </label>
     </div>
     {% if business.ig_access_token %}<label class="check"><input type="checkbox" name="clear_ig_access_token" value="1"> Удалить токен Instagram</label>{% endif %}
+    <h3>Комментарии под постами</h3>
+    <p class="small muted">«Сколько стоит?» под рилсом — ИИ ответит человеку в Директ (Instagram открывает переписку через комментарий), а под комментарием оставит короткую пометку, куда смотреть. Отвечаем только на вопросы и ключевые слова; «Красиво!» не трогаем. Нужна подписка на поле comments в вебхуке Meta и разрешение instagram_manage_comments.</p>
+    <label class="check"><input type="checkbox" name="ig_comments" value="1" {{ 'checked' if business.ig_comments }}> Отвечать в Директ на вопросы в комментариях</label>
+    <div class="grid2">
+      <label for="c-ig-kw">Ключевые слова через запятую (пусто — стандартный список)<input id="c-ig-kw" name="ig_comment_keywords" value="{{ business.ig_comment_keywords }}" placeholder="цена, прайс, сколько, запись, канча, баасы"></label>
+      <label for="c-ig-pub">Пометка под комментарием (пусто — не писать)<input id="c-ig-pub" name="ig_comment_public_reply" value="{{ business.ig_comment_public_reply }}" maxlength="200"></label>
+    </div>
     <div><button class="btn" type="submit">Сохранить WhatsApp и Instagram</button></div>
   </form>
   {% else %}

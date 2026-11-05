@@ -60,6 +60,8 @@ class FakeSender:
         self.ok = ok
         self.sent: list[tuple[str, str]] = []
         self.templates: list[tuple[str, str, str, list[str]]] = []
+        self.private: list[tuple[str, str]] = []
+        self.public: list[tuple[str, str]] = []
 
     def send_text(self, chat_id, text):
         self.sent.append((str(chat_id), text))
@@ -67,6 +69,16 @@ class FakeSender:
 
     def send_template(self, to, name, lang, params):
         self.templates.append((to, name, lang, list(params)))
+        return self.ok
+
+    def send_private_reply(self, comment_id, text):  # Instagram: Direct opened through a comment
+        self.private = getattr(self, "private", [])
+        self.private.append((comment_id, text))
+        return self.ok
+
+    def reply_to_comment(self, comment_id, text):
+        self.public = getattr(self, "public", [])
+        self.public.append((comment_id, text))
         return self.ok
 
     def refresh_token(self):

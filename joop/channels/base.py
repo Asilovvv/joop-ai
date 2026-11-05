@@ -16,6 +16,7 @@ class IncomingMessage:
     media_label: str = ""  # e.g. "голосовое сообщение"
     media_ref: str = ""  # where to download a voice message: Telegram file_id, WhatsApp media id, Instagram URL
     transcribed: bool = False  # the text was recognised from a voice message (joop/voice.py)
+    reply_to: str = ""  # an Instagram comment id: the reply opens Direct through the comment (joop/ig_comments.py)
 
 
 MAX_MEDIA_BYTES = 10 * 1024 * 1024  # larger voice files are not downloaded: staff answer them by hand
