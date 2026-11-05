@@ -60,3 +60,76 @@ def test_connecting_the_bot_says_what_is_still_the_example(app_client, rt):  # n
     token = csrf_of(app_client.get("/panel/setup").text)
     r = app_client.post("/panel/setup/telegram", data={"token": "123456789:" + "D" * 35, "csrf": token})
     assert "Бот @clinic_bot подключён" in r.text and "Ещё из примера — прайс:" in r.text
+
+
+def _clinic():
+    from joop.presets import create_business
+
+    from .conftest import NOW_UTC
+
+    with db.new_session() as s:  # signed up a minute ago: everything is still the example
+        b = create_business(s, slug="new-clinic", name="Новая клиника", password="secret-pass", niche="dental", demo=True,
+                            now_utc=NOW_UTC)
+        s.commit()
+        return b.id
+
+
+def _ask(bid, channel, text="Сколько стоит чистка и когда можно прийти?", llm=None):
+    from joop.agent.engine import handle_incoming
+    from joop.channels.base import IncomingMessage
+
+    from .conftest import NOW_UTC, FakeLLM
+
+    llm = llm or FakeLLM()
+    with db.new_session() as s:
+        out = handle_incoming(s, s.get(Business, bid), IncomingMessage(channel, "c1", "text", text, "", f"{channel}:{text}"),
+                              lambda: llm, NOW_UTC)
+        s.commit()
+    return out, (llm.calls[0]["system"] if llm.calls else "")
+
+
+def test_real_customers_never_get_the_example_but_the_test_chat_does(engine):
+    bid = _clinic()
+    with db.new_session() as s:
+        found = samples.left(s, s.get(Business, bid))
+        answers = [f.answer for f in s.exec(select(Faq)).all()]
+    _, system = _ask(bid, "telegram")
+    assert not any(name in system for name in found.services + found.staff + answers)
+    assert "список не заполнен, цены уточняет администратор" in system and "Свободного времени в системе нет" in system
+    _, system = _ask(bid, "console")  # the owner trying the AI sees how it works with the example
+    assert all(name in system for name in found.services[:3] + found.staff)
+
+
+def test_a_time_of_an_example_person_cannot_be_booked_by_a_real_customer(engine):
+    from joop.agent.llm import AgentReply
+    from joop.models import Slot
+
+    from .conftest import FakeLLM
+
+    bid = _clinic()
+    with db.new_session() as s:
+        slot = s.exec(select(Slot).where(Slot.status == "free").order_by(Slot.start)).first()
+    llm = FakeLLM([AgentReply("Записала!", booking={"slot_id": slot.id, "name": "Айбек", "phone": "0555123456"})])
+    out, _ = _ask(bid, "telegram", "Запишите меня, Айбек, 0555123456", llm)
+    assert out.booking_id is None
+    with db.new_session() as s:
+        assert s.get(Slot, slot.id).status == "free"
+
+
+def test_an_edited_price_reaches_customers_and_a_confirmed_example_too(engine):
+    bid = _clinic()
+    with db.new_session() as s:
+        rows = s.exec(select(Service).order_by(Service.id)).all()
+        rows[0].price = "4 000"
+        s.add(rows[0])
+        s.commit()
+        own, example = rows[0].name, rows[1].name
+    _, system = _ask(bid, "telegram")
+    assert own in system and "4 000" in system and example not in system
+    with db.new_session() as s:
+        b = s.get(Business, bid)
+        b.example_ok = True
+        s.add(b)
+        s.commit()
+    _, system = _ask(bid, "telegram", "А ещё вопрос")
+    assert example in system

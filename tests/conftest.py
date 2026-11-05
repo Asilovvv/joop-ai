@@ -142,6 +142,7 @@ def engine(tmp_path):
 def business(engine) -> Business:
     with db.new_session() as s:
         b = create_business(s, slug="aktish", name="Ак-Тиш Дент", password="secret-pass", demo=True, now_utc=NOW_UTC)
+        b.example_ok = True  # this clinic's price list, doctors and answers are its own (they equal the dental example)
         b.telegram_bot_token = "123:TEST"
         s.add(b)
         s.commit()
