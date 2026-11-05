@@ -29,6 +29,8 @@
     <div class="stat"><b>{{ site.signups }}</b><span>регистраций всего</span></div>
     <div class="stat"><b>{{ site.after_demo }}</b><span>из них после демо</span></div>
     <div class="stat"><b>{{ site.conversion if site.conversion is not none else '—' }}{% if site.conversion is not none %}%{% endif %}</b><span>посетителей демо зарегистрировались</span></div>
+    <div class="stat"><b>{{ site.ai_clicks }}</b><span>пришли по подписи «отвечает Joop AI»</span></div>
+    <div class="stat"><b>{{ site.ai_signups }}</b><span>из них зарегистрировались</span></div>
   </div>
   <p class="muted small" style="margin-top:10px">Расход на ИИ в демо: ${{ '%.2f' | format(site.cost_usd) }}. Регистрация считается «после демо», если с этого браузера сначала писали в демо.</p>
   {% if asked.items %}

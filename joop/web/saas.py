@@ -131,7 +131,8 @@ def signup(
         # The demo profile brings a sample price list and hours; its address and phone are fake.
         business.address = ""
         business.phone = phone
-        source = "signup-demo" if request.session.get("demo_tried") else "signup"  # wrote to the live demo first
+        source = ("signup-ai" if request.session.get("from_ai")  # came through a free business's AI signature
+                  else "signup-demo" if request.session.get("demo_tried") else "signup")  # wrote to the live demo first
         billing.start_trial(s, business, settings.trial_days, now, source, contact_name, phone)
         partner = partners.find_active(s, request.session.get("ref", ""))
         if partner is not None:
@@ -349,8 +350,9 @@ def billing_page(request: Request):
         sub = billing.get_subscription(s, b.id)
         payments = s.exec(select(Payment).where(Payment.business_id == b.id).order_by(Payment.id.desc())).all()[:12]
         solo = free_plan.eligible(s, b.id)
+        brought = free_plan.clicks(s, b.id, now - timedelta(days=30))
     return _render(
-        request, "billing.html", "billing", b,
+        request, "billing.html", "billing", b, brought=brought,
         sub=sub, st=billing.state(sub, now) if sub else None, price=billing.price_for(sub, settings.price_som),
         payments=payments, card=bool(settings.freedompay_merchant_id and settings.freedompay_secret_key),
         instructions=settings.billing_instructions, free=free_plan.is_free(sub), solo=solo,
