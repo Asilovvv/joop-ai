@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Клиенты{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Клиенты</h1>
+  <p class="muted">Карточки собирает ИИ из записей, заказов и диалогов — вести ничего не нужно. Человек добавляет только заметку и теги. Клиент — это телефон; чаты без телефона показаны по имени из мессенджера.</p>
+  <form method="get" action="/panel/customers" class="row">
+    <input name="q" value="{{ q }}" placeholder="Имя или телефон">
+    {% if tags %}<select name="tag"><option value="">Все теги</option>{% for t in tags %}<option value="{{ t }}"{% if t == tag %} selected{% endif %}>{{ t }}</option>{% endfor %}</select>{% endif %}
+    <button class="btn ghost" type="submit">Найти</button>
+    <a class="btn ghost" href="/panel/customers.csv">Скачать CSV</a>
+  </form>
+</section>
+<section class="card">
+  <h2>{{ total }} {{ 'клиент' if total % 10 == 1 and total % 100 != 11 else 'клиента' if 2 <= total % 10 <= 4 and not 12 <= total % 100 <= 14 else 'клиентов' }}</h2>
+  {% if rows %}
+  <div class="scroll"><table class="table">
+    <tr><th>Клиент</th><th>Визитов</th><th>Последний визит</th><th>Последнее обращение</th><th>По прайсу, сом</th><th>Оценка</th><th>Теги</th></tr>
+    {% for c in rows %}
+    <tr>
+      <td><a href="/panel/customers/{{ c.key }}"><b>{{ c.name or 'без имени' }}</b></a><br><span class="muted small">{{ c.phone or '—' }} · {% for ch in c.channels | sort %}{{ channel_names.get(ch, ch) }}{% if not loop.last %}, {% endif %}{% endfor %}</span></td>
+      <td class="mono">{{ c.visits }}</td>
+      <td>{{ c.last_visit.strftime('%d.%m.%Y') if c.last_visit else '—' }}</td>
+      <td>{{ c.last_contact | local(business.timezone) if c.last_contact else '—' }}</td>
+      <td class="mono">{{ '{:,}'.format(c.spend_som).replace(',', ' ') if c.spend_som else '—' }}</td>
+      <td class="mono">{{ c.rating or '—' }}</td>
+      <td>{% for t in c.tag_list %}<span class="chip">{{ t }}</span> {% endfor %}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% else %}<p class="muted">Пока никого: карточки появятся с первыми диалогами и записями.</p>{% endif %}
+</section>
+{% endblock %}
