@@ -335,6 +335,10 @@ WhatsApp message fees for reminders.
 - **Sales playbook** (`/owner/playbook`, founder console): the first-ten moves from the strategy and the
   competitor research — the 60–90-second video teardown script, what to offer and the price anchor (an
   administrator's salary, not a competitor's plan), objections with answers, where to look, the first week.
+- **A case with real numbers** (founder console → "Кейс" next to a business): one page for 14/30/90 days —
+  customers answered, share outside working hours, bookings the AI made and their worth at the business's own
+  price list, ratings, returns, handoffs — in Russian or Kyrgyz, to screenshot for Instagram or send as a link.
+  Only numbers from the database; bookings without an exact price are named as not counted.
 - **Cancel in one click** (`/panel/billing`): the owner cancels the subscription himself with a one-line
   reason; the AI keeps answering until the paid period ends, nothing is charged after, and "Возобновить"
   undoes it at any time. The founder gets a Telegram note with the reason and the phone.
@@ -380,7 +384,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 426 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 428 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
