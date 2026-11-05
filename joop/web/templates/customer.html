@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ c.name or 'Клиент' }}{% endblock %}
+{% block content %}
+<section class="stack">
+  <p><a class="small" href="/panel/customers">← Клиенты</a></p>
+  <h1>{{ c.name or 'Без имени' }}</h1>
+  <p class="muted">{{ c.phone or 'телефон не известен' }} · {% for ch in c.channels | sort %}{{ channel_names.get(ch, ch) }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+  <div class="stats">
+    <div class="stat"><b>{{ c.visits }}</b><span>визитов</span></div>
+    <div class="stat"><b>{{ '{:,}'.format(c.spend_som).replace(',', ' ') if c.spend_som else '—' }}</b><span>сом по прайсу</span></div>
+    <div class="stat"><b>{{ c.rating or '—' }}</b><span>средняя оценка</span></div>
+    <div class="stat"><b>{{ c.last_visit.strftime('%d.%m') if c.last_visit else '—' }}</b><span>последний визит</span></div>
+  </div>
+</section>
+<section class="card stack">
+  <h2>Заметка и теги</h2>
+  <form method="post" action="/panel/customers/{{ c.key }}" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Теги через запятую<input name="tags" value="{{ c.tags }}" placeholder="VIP, аллергия на краску, приходит с ребёнком"></label>
+    <label>Заметка<textarea name="note" rows="3">{{ c.note }}</textarea></label>
+    <button class="btn" type="submit">Сохранить</button>
+  </form>
+</section>
+<section class="card">
+  <h2>Визиты и заказы</h2>
+  {% if c.bookings or c.orders %}
+  <div class="list">
+    {% for b in c.bookings %}
+    <div class="item"><div class="main">{{ b.start.strftime('%d.%m.%Y %H:%M') }} — {{ b.service or 'визит' }}{% if b.staff_name %} у {{ b.staff_name }}{% endif %}
+      {% if b.status == 'cancelled' %}<span class="chip warn">отменено</span>{% endif %}{% if b.rating %} · оценка {{ b.rating }}{% endif %}
+      <span class="muted small"> · {{ channel_names.get(b.channel, b.channel) }}{% if b.source != 'ai' %}, записал человек{% endif %}</span></div></div>
+    {% endfor %}
+    {% for o in c.orders %}
+    <div class="item"><div class="main">{{ o.created_at | local(business.timezone) }} — заказ{% if o.total %} на {{ o.total }} сом{% endif %} <span class="muted small">· {{ o.status }}</span></div></div>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted">Записей и заказов пока нет.</p>{% endif %}
+</section>
+<section class="card">
+  <h2>Диалоги</h2>
+  {% if c.conversations %}
+  <div class="list">
+    {% for conv in c.conversations %}
+    <div class="item"><div class="main"><a href="/panel/conversations/{{ conv.id }}">{{ channel_names.get(conv.channel, conv.channel) }}</a> <span class="muted small">· последнее сообщение {{ conv.last_message_at | local(business.timezone) }}</span></div></div>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted">Диалогов нет — записал человек.</p>{% endif %}
+</section>
+{% endblock %}

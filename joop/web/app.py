@@ -30,7 +30,7 @@ from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order
                       Staff, WaitlistEntry)
 from ..niches import all_packs, get_pack
 from ..phone import normalize_phone
-from .. import billing, confirm, deposits, free_plan, gaps, ig_comments, samples, staff_reply, waitlist
+from .. import billing, confirm, customers, deposits, free_plan, gaps, ig_comments, samples, staff_reply, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -51,7 +51,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     """Panel sections for this business's niche: a cafe gets orders, a wholesaler has no slots."""
     pack = get_pack(business.niche if business else None)
     books = pack.has("booking") or pack.has("request")
-    items = [("/panel", "dashboard", "Сводка"), ("/panel/conversations", "conversations", "Диалоги")]
+    items = [("/panel", "dashboard", "Сводка"), ("/panel/conversations", "conversations", "Диалоги"), ("/panel/customers", "customers", "Клиенты")]
     if pack.has("order"):
         items.append(("/panel/orders", "orders", "Заказы"))
     if books:
@@ -967,6 +967,49 @@ def lead_done(request: Request, item_id: int, csrf: str = Form("")):
         s.add(lead)
         s.commit()
     return _back("/panel/leads")
+
+
+@router.get("/panel/customers")
+def customers_page(request: Request, q: str = "", tag: str = ""):
+    """Every customer, assembled by the AI from bookings, orders and dialogues: nobody types a card."""
+    with new_session() as s:
+        b = _business(s, request)
+        rows = customers.listing(s, b, q, tag)
+        tags = sorted({t for c in rows for t in c.tag_list})
+        return _render(request, "customers.html", "customers", b, rows=rows[:300], total=len(rows), q=q, tag=tag, tags=tags,
+                       channel_names=CHANNEL_NAMES)
+
+
+@router.get("/panel/customers.csv")
+def customers_csv(request: Request):
+    with new_session() as s:
+        b = _business(s, request)
+        text = customers.export_csv(customers.listing(s, b), b.timezone)
+    return PlainTextResponse(text, media_type="text/csv; charset=utf-8",
+                             headers={"Content-Disposition": 'attachment; filename="customers.csv"'})
+
+
+@router.get("/panel/customers/{key}")
+def customer_card(request: Request, key: str):
+    with new_session() as s:
+        b = _business(s, request)
+        card = customers.cards(s, b).get(key)
+        if card is None:
+            raise HTTPException(status_code=404)
+        return _render(request, "customer.html", "customers", b, c=card, channel_names=CHANNEL_NAMES)
+
+
+@router.post("/panel/customers/{key}")
+def customer_save(request: Request, key: str, note: str = Form(""), tags: str = Form(""), csrf: str = Form("")):
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        if key not in customers.cards(s, b):
+            raise HTTPException(status_code=404)
+        customers.save_note(s, b, key, note, tags)
+        s.commit()
+    _flash(request, "Заметка сохранена.")
+    return _back(f"/panel/customers/{key}")
 
 
 @router.get("/panel/conversations")

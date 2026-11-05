@@ -301,6 +301,17 @@ class SignatureClick(SQLModel, table=True):
     created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
+class Customer(SQLModel, table=True):
+    """What a person adds to a customer card the AI assembled: a note and tags (joop/customers.py)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    key: str = Field(index=True)  # nine digits of the phone, or «channel:chat_id» for a chat without one
+    note: str = ""
+    tags: str = ""  # comma-separated
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
 class Payment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     business_id: int = Field(foreign_key="business.id", index=True)

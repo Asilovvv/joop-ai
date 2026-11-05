@@ -174,6 +174,9 @@ WhatsApp message fees for reminders.
   At the end of a business's second paid month the console reminds the founder to offer a year
   (`ANNUAL_MONTHS`: a year for that many months' price) with a ready message in the business's
   own numbers (`joop/annual.py`).
+- **Customers** (`/panel/customers`): a card per phone, assembled by the AI from bookings, orders and
+  dialogues — visits, spend by the price list, ratings, last contact; staff add only a note and tags;
+  CSV export. Nothing is typed in by hand (`joop/customers.py`).
 - **Stories** (`/owner/stories`): Instagram highlight slides about Joop — what it is, how it works,
   features, comparison, services, tips — in one dark style, 1080 × 1920, exported with
   `scripts/export_stories.py`; the case slide is built from a real business's numbers.
@@ -390,7 +393,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 464 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 467 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
