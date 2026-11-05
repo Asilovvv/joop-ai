@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 
 import pytest
+from freezegun import freeze_time
 from sqlmodel import select
 
 os.environ.setdefault("SESSION_SECRET", "test-session-secret-0123456789abcdef")
@@ -112,6 +113,18 @@ def engine(tmp_path):
     yield eng
     eng.dispose()
     db.set_engine(None)
+
+
+@pytest.fixture(autouse=True)
+def frozen_clock(request):
+    """Every test runs on 4 Nov 2026 (NOW_UTC), the day the fixtures' slots and dates are built around. Code that asks
+    the real clock (web pages, rate limits) would otherwise see the fixtures in the past once that day has gone: on
+    5 Nov 2026 five tests started failing for that reason alone. The clock still ticks, so durations work."""
+    if request.node.get_closest_marker("real_clock"):  # the Anthropic SDK's pydantic models reject freezegun's datetime
+        yield
+        return
+    with freeze_time(NOW_UTC, tick=True):
+        yield
 
 
 @pytest.fixture
