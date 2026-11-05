@@ -177,6 +177,15 @@ def _is_owner(request: Request) -> bool:
     return request.session.get("uid") is None
 
 
+def _staff_scope(s: Session, request: Request) -> int | None:
+    """The master's own Staff id when this login is a master's; None for the owner and ordinary staff logins."""
+    uid = request.session.get("uid")
+    if uid is None:
+        return None
+    user = s.get(PanelUser, uid)
+    return user.staff_id if user and user.staff_id else None
+
+
 def _who(request: Request) -> str:
     """The name shown next to what this person did: a staff login's name, or "Владелец"."""
     return str(request.session.get("who") or "Владелец")
@@ -862,12 +871,14 @@ def bookings_page(request: Request):
     with new_session() as s:
         b = _business(s, request)
         today = datetime.combine(_now_local(b).date(), time.min)
+        mine = _staff_scope(s, request)
+        own = [Booking.staff_id == mine] if mine else []  # a master's login sees her own bookings only
         upcoming = s.exec(
-            select(Booking).where(Booking.business_id == b.id, Booking.start >= today).order_by(Booking.start)
+            select(Booking).where(Booking.business_id == b.id, Booking.start >= today, *own).order_by(Booking.start)
         ).all()
         past = s.exec(
             select(Booking)
-            .where(Booking.business_id == b.id, Booking.start < today, Booking.start >= today - timedelta(days=30))
+            .where(Booking.business_id == b.id, Booking.start < today, Booking.start >= today - timedelta(days=30), *own)
             .order_by(Booking.start.desc())
         ).all()
         waiting = s.exec(select(WaitlistEntry).where(WaitlistEntry.business_id == b.id,
@@ -993,8 +1004,9 @@ def cash_page(request: Request, date: str = ""):
             chosen = datetime.strptime(date, "%Y-%m-%d") if date else now_local
         except ValueError:
             chosen = now_local
-        d = cash.day(s, b, chosen, now_local)
-        m = cash.month(s, b, chosen)
+        mine = _staff_scope(s, request)
+        d = cash.day(s, b, chosen, now_local, staff_id=mine)
+        m = cash.month(s, b, chosen, staff_id=mine)
         suggested = {x.id: cash.suggested(s, x) for x in d.unpaid}
         return _render(request, "cash.html", "cash", b, d=d, m=m, methods=cash.METHODS, suggested=suggested, chosen=chosen,
                        prev=(chosen - timedelta(days=1)).strftime("%Y-%m-%d"), next=(chosen + timedelta(days=1)).strftime("%Y-%m-%d"))
@@ -1054,7 +1066,7 @@ def customers_page(request: Request, q: str = "", tag: str = ""):
     """Every customer, assembled by the AI from bookings, orders and dialogues: nobody types a card."""
     with new_session() as s:
         b = _business(s, request)
-        rows = customers.listing(s, b, q, tag)
+        rows = customers.listing(s, b, q, tag, staff_id=_staff_scope(s, request))
         tags = sorted({t for c in rows for t in c.tag_list})
         return _render(request, "customers.html", "customers", b, rows=rows[:300], total=len(rows), q=q, tag=tag, tags=tags,
                        channel_names=CHANNEL_NAMES)
@@ -1074,7 +1086,8 @@ def customer_card(request: Request, key: str):
     with new_session() as s:
         b = _business(s, request)
         card = customers.cards(s, b).get(key)
-        if card is None:
+        mine = _staff_scope(s, request)
+        if card is None or (mine and not any(x.staff_id == mine for x in card.bookings)):
             raise HTTPException(status_code=404)
         return _render(request, "customer.html", "customers", b, c=card, channel_names=CHANNEL_NAMES)
 

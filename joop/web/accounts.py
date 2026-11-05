@@ -14,7 +14,7 @@ from fastapi import APIRouter, Form, Request
 from sqlmodel import select
 
 from ..db import new_session
-from ..models import PanelUser
+from ..models import PanelUser, Staff
 from ..security import hash_password
 from .app import _back, _business, _check_csrf, _flash, _own, _render
 
@@ -29,11 +29,14 @@ def accounts_page(request: Request):
     with new_session() as s:
         b = _business(s, request)
         users = s.exec(select(PanelUser).where(PanelUser.business_id == b.id).order_by(PanelUser.id)).all()
-        return _render(request, "accounts.html", "accounts", b, users=users, min_password=MIN_PASSWORD)
+        staff = s.exec(select(Staff).where(Staff.business_id == b.id, Staff.active == True).order_by(Staff.name)).all()  # noqa: E712
+        names = {x.id: x.name for x in staff}
+        return _render(request, "accounts.html", "accounts", b, users=users, min_password=MIN_PASSWORD, staff=staff, staff_names=names)
 
 
 @router.post("/panel/accounts")
-def accounts_add(request: Request, name: str = Form(""), login: str = Form(""), password: str = Form(""), csrf: str = Form("")):
+def accounts_add(request: Request, name: str = Form(""), login: str = Form(""), password: str = Form(""), staff_id: str = Form(""),
+                 csrf: str = Form("")):
     _check_csrf(request, csrf)
     name, login = " ".join(name.split())[:60], login.strip().lower()
     with new_session() as s:
@@ -50,7 +53,9 @@ def accounts_add(request: Request, name: str = Form(""), login: str = Form(""), 
         elif len(users) >= MAX_USERS:
             _flash(request, f"Не больше {MAX_USERS} входов на компанию.", "error")
         else:
-            s.add(PanelUser(business_id=b.id, name=name, login=login, password_hash=hash_password(password)))
+            master = s.get(Staff, int(staff_id)) if staff_id.isdigit() else None
+            linked = master.id if master and master.business_id == b.id else None
+            s.add(PanelUser(business_id=b.id, name=name, login=login, password_hash=hash_password(password), staff_id=linked))
             s.commit()
             _flash(request, f"Вход для «{name}» создан. Сотрудник входит с логином компании «{b.slug}», своим логином «{login}» и паролем.")
     return _back("/panel/accounts")
