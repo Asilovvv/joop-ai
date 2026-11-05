@@ -10,6 +10,15 @@
   </div>
 </section>
 
+<section class="card install" id="install" hidden>
+  <b>Поставьте Joop на телефон</b> — панель откроется как приложение, с иконкой на экране.
+  <div class="actions">
+    <button class="btn small android" type="button">Установить</button>
+    <span class="ios small muted" hidden>В Safari: «Поделиться» → «На экран Домой».</span>
+    <button class="btn small ghost later" type="button">Позже</button>
+  </div>
+</section>
+
 {% set books = pack.has('booking') or pack.has('request') %}
 {% set ready = [counts.services > 0 and not example.services, (counts.staff > 0 or not books) and not example.staff, counts.free_slots > 0 or not pack.has('booking'), channels[0][1] or channels[1][1] or channels[2][1], admins > 0] %}
 {% if owner and example.any %}
