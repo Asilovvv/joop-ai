@@ -6,7 +6,8 @@ import logging
 import re
 import time
 
-from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from starlette.concurrency import run_in_threadpool
 from sqlmodel import select
 
 from .. import audit, health
@@ -14,7 +15,7 @@ from ..db import new_session
 from ..models import Prospect
 from ..niches import all_packs
 from ..timeutil import utcnow
-from .app import _check_csrf, _csrf, _rt, _site
+from .app import _check_csrf, _csrf, _rt, _site, client_ip
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -27,6 +28,8 @@ def _page(request: Request, **ctx):
     base.update(ctx)
     return _site(request, "site_audit.html", **base)
 
+_lead_by_ip: dict[str, float] = {}  # the cooldown by address: dropping the cookie must not reset it
+
 
 @router.get("/audit")
 def audit_form(request: Request):
@@ -37,6 +40,12 @@ def audit_form(request: Request):
 async def audit_run(request: Request, chats: list[UploadFile] = File(default=[]), work_start: str = Form("10:00"), work_end: str = Form("20:00"),
                     weekend_off: str = Form(""), me: str = Form(""), csrf: str = Form("")):
     _check_csrf(request, csrf)
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except ValueError:
+        declared = 0
+    if declared > audit.MAX_FILES * audit.MAX_BYTES:  # Caddy caps the body too; this holds without it
+        raise HTTPException(status_code=413)
     parsed = []
     total = 0
     for f in chats[:audit.MAX_FILES]:
@@ -44,7 +53,7 @@ async def audit_run(request: Request, chats: list[UploadFile] = File(default=[])
         total += len(raw)
         if total > audit.MAX_BYTES:
             break
-        msgs = audit.parse(raw.decode("utf-8", errors="replace"))
+        msgs = await run_in_threadpool(audit.parse, raw.decode("utf-8", errors="replace"))  # off the event loop: webhooks keep flowing
         if msgs:
             parsed.append(msgs)
     weekend = bool(weekend_off)
@@ -63,8 +72,13 @@ async def audit_run(request: Request, chats: list[UploadFile] = File(default=[])
 def audit_lead(request: Request, token: str = Form(""), business: str = Form(""), contact_name: str = Form(""), phone: str = Form(""),
                niche: str = Form("other"), website: str = Form(""), csrf: str = Form("")):
     _check_csrf(request, csrf)
-    if website or time.time() - float(request.session.get("audit_lead_at", 0) or 0) < COOLDOWN:  # honeypot and the cooldown
+    ip = client_ip(request)
+    if website or time.time() - float(request.session.get("audit_lead_at", 0) or 0) < COOLDOWN \
+            or time.time() - _lead_by_ip.get(ip, 0.0) < COOLDOWN:  # honeypot and the cooldown, by cookie and by address
         return _page(request)
+    _lead_by_ip[ip] = time.time()
+    if len(_lead_by_ip) > 5000:
+        _lead_by_ip.clear()
     rep = audit.take(token)
     if rep is None:
         return _page(request, error="Разбор устарел — загрузите файлы ещё раз, это секунда.")

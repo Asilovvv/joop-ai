@@ -128,6 +128,16 @@ def frozen_clock(monkeypatch):
     monkeypatch.setattr(timeutil, "clock", lambda: NOW_UTC)
 
 
+@pytest.fixture(autouse=True)
+def fresh_counters():
+    """In-memory daily counters (signature clicks per address, comment openings, lead cooldown) start empty for every test."""
+    from joop.web import app as web_app, audit as web_audit
+
+    web_app._daily.clear()
+    web_audit._lead_by_ip.clear()
+    yield
+
+
 @pytest.fixture
 def engine(tmp_path):
     eng = db.make_engine(f"sqlite:///{tmp_path / 'test.db'}")
