@@ -174,6 +174,9 @@ WhatsApp message fees for reminders.
   At the end of a business's second paid month the console reminds the founder to offer a year
   (`ANNUAL_MONTHS`: a year for that many months' price) with a ready message in the business's
   own numbers (`joop/annual.py`).
+- **Cash** (`/panel/cash`): after a visit, one tap records what the customer paid and how (the amount
+  is pre-filled from the price list plus the accepted add-on); the page shows the day and the month by
+  method, master and service, the morning summary carries yesterday's total (`joop/cash.py`).
 - **Funnel** (`/panel/funnel`): requests of the last 30 days by stage — the AI moves them (a staff
   reply → «связались», a booking or order → «записан», the visit time passing → «пришёл»); a person
   only marks «потерян». Two conversions: requests → bookings, bookings → visits (`joop/funnel.py`).
@@ -399,7 +402,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 470 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 472 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
