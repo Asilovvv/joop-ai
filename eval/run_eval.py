@@ -115,6 +115,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
             s, slug=f"eval{index}", name=profile["name"], password="eval-only-password", niche=profile.get("niche", "other")
         )
         apply_profile(s, business, profile)
+        business.example_ok = True  # the profile is this test business's real data, not the sign-up example (joop/samples.py)
         s.commit()
         business_id = business.id
 

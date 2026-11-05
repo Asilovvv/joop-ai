@@ -15,7 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, confirm, deposits, free_plan, health, owner_commands, regulars, trust, upsell, voice
+from .. import altegio, broadcasts, confirm, deposits, free_plan, health, owner_commands, regulars, samples, trust, upsell, voice
 from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -195,11 +195,14 @@ def _model_reply(
     storing the fallback reply and another request, and the stored reply starts with an apology."""
     now_local = utc_to_local(now, business.timezone)
     off = is_off_hours(now_local, business.work_start, business.work_end, business.days_off)
-    services = list(session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort, Service.id)).all())
+    hidden = samples.hidden_from_customers(session, business, channel)  # the sign-up example is not for customers
+    services = [r for r in session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort, Service.id)).all()
+                if r.id not in hidden.services]
     services, catalog_hint = _catalog_for_prompt(session, conv, services, text)
-    staff = session.exec(select(Staff).where(Staff.business_id == business.id).order_by(Staff.id)).all()
-    faqs = session.exec(select(Faq).where(Faq.business_id == business.id).order_by(Faq.id)).all()
-    slots = free_slots(session, business.id, now_local)
+    staff = [r for r in session.exec(select(Staff).where(Staff.business_id == business.id).order_by(Staff.id)).all()
+             if r.id not in hidden.staff]
+    faqs = [r for r in session.exec(select(Faq).where(Faq.business_id == business.id).order_by(Faq.id)).all() if r.id not in hidden.faq]
+    slots = [(slot, m) for slot, m in free_slots(session, business.id, now_local) if m.id not in hidden.staff]
     system = build_system_prompt(
         business=business,
         services=services,
@@ -279,7 +282,8 @@ def _model_reply(
                       else None)
             try:
                 outcome.reply, booking = _try_booking(
-                    session, business, conv, result.booking, result.reply, now, now_local, off, channel, pack, client
+                    session, business, conv, result.booking, result.reply, now, now_local, off, channel, pack, client,
+                    hidden.staff,
                 )
             except _ExternalDown as down:  # the salon's own booking system did not answer: staff confirm the time
                 data = dict(result.booking, preferred_time=down.when)
@@ -588,12 +592,13 @@ def _requested_slot_hint(
 
 def _alternatives(
     session: Session, business: Business, now_local: datetime, staff_id: int | None, min_capacity: int = 0,
-    min_seats: int = 1,
+    min_seats: int = 1, hidden_staff: frozenset[int] = frozenset(),
 ) -> list[str]:
-    rows = free_slots(session, business.id, now_local, staff_id=staff_id, limit=50) if staff_id else []
+    rows = free_slots(session, business.id, now_local, staff_id=staff_id, limit=50) if staff_id and staff_id not in hidden_staff else []
     rows = [(slot, m) for slot, m in rows if seats_left(slot) >= min_seats][:3]
     if not rows:
-        rows = [(slot, m) for slot, m in free_slots(session, business.id, now_local, limit=200) if seats_left(slot) >= min_seats]
+        rows = [(slot, m) for slot, m in free_slots(session, business.id, now_local, limit=200)
+                if seats_left(slot) >= min_seats and m.id not in hidden_staff]
     if min_capacity:
         rows = [(slot, m) for slot, m in rows if not m.capacity or m.capacity >= min_capacity]
     return [f"{fmt_slot(slot.start)} ({member.name})" for slot, member in rows[:3]]
@@ -617,6 +622,7 @@ def _try_booking(
     channel: str,
     pack: Pack | None = None,
     external: "altegio.AltegioClient | None" = None,
+    hidden_staff: frozenset[int] = frozenset(),
 ) -> tuple[str, Booking | None]:
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
@@ -633,24 +639,25 @@ def _try_booking(
         and slot.start > now_local
         and member is not None
         and member.active
+        and member.id not in hidden_staff  # a person from the sign-up example: nobody to come to
     )
     party = int(data.get("party_size") or 0)
     if usable and pack is not None and pack.party_size:
         if party <= 0:
             return "Сколько будет гостей? Подберу стол нужного размера.", None
         if member.capacity and party > member.capacity:
-            options = _alternatives(session, business, now_local, None, min_capacity=party)
+            options = _alternatives(session, business, now_local, None, min_capacity=party, hidden_staff=hidden_staff)
             text = f"Этот стол рассчитан на {member.capacity} гостей."
             text += (" Подойдут: " + "; ".join(options) + ". Какое время удобно?") if options else " Оставьте телефон — администратор подберёт стол."
             return text, None
     if usable and slot.seats > 1 and seats_needed(slot, party) > seats_left(slot):
         left = seats_left(slot)
-        options = _alternatives(session, business, now_local, slot.staff_id, min_seats=seats_needed(slot, party))
+        options = _alternatives(session, business, now_local, slot.staff_id, min_seats=seats_needed(slot, party), hidden_staff=hidden_staff)
         text = f"На это занятие осталось мест: {left}."
         text += (" Есть места: " + "; ".join(options) + ". Какое время удобно?") if options else " Оставьте телефон — администратор подберёт время."
         return text, None
     if not usable or not claim_slot(session, slot.id, seats_needed(slot, party)):
-        options = _alternatives(session, business, now_local, slot.staff_id if slot else None)
+        options = _alternatives(session, business, now_local, slot.staff_id if slot else None, hidden_staff=hidden_staff)
         if options:
             text = "Извините, это время уже занято. Свободно: " + "; ".join(options) + ". Какое удобно?"
         else:
@@ -670,7 +677,7 @@ def _try_booking(
                 release_slot(session, slot.id, seats_needed(slot, party))
                 raise _ExternalDown(fmt_slot(slot.start)) from exc
             # Taken in Altegio (someone booked by phone or in the widget): the slot stays closed here as well.
-            options = _alternatives(session, business, now_local, slot.staff_id)
+            options = _alternatives(session, business, now_local, slot.staff_id, hidden_staff=hidden_staff)
             text = "Извините, это время уже занято. " + ("Свободно: " + "; ".join(options) + ". Какое удобно?" if options
                                                          else "Оставьте удобное время — администратор подберёт запись.")
             return text, None
