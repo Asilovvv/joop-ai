@@ -23,7 +23,7 @@ from sqlmodel import Session, select
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
-from ..models import Booking, Business, Conversation, Lead, Message, Order, Staff, Subscription
+from ..models import Booking, Business, Conversation, Lead, Message, Order, SignatureClick, Staff, Subscription
 from ..niches import get_pack
 from ..presets import create_business
 from ..profile import load_profile
@@ -173,6 +173,8 @@ class Funnel:
     cost_usd: float
     signups: int  # self-serve sign-ups in the same period
     after_demo: int  # of them, from a browser that used the demo first
+    ai_clicks: int = 0  # visits through the «отвечает Joop AI» signature of free businesses
+    ai_signups: int = 0  # sign-ups that came that way
 
     @property
     def conversion(self) -> int | None:
@@ -237,6 +239,8 @@ def funnel(session: Session, since: datetime) -> Funnel:
             actions += session.exec(select(func.count()).select_from(model).where(
                 model.business_id.in_(ids), model.created_at >= since)).one()
     sources = session.exec(select(Subscription.source).where(
-        Subscription.source.in_(["signup", "signup-demo"]), Subscription.created_at >= since)).all()
+        Subscription.source.in_(["signup", "signup-demo", "signup-ai"]), Subscription.created_at >= since)).all()
+    ai_clicks = session.exec(select(func.count()).select_from(SignatureClick).where(SignatureClick.created_at >= since)).one()
     return Funnel(visitors=len(visitors), messages=messages, actions=actions, cost_usd=float(cost or 0),
-                  signups=len(sources), after_demo=sum(1 for x in sources if x == "signup-demo"))
+                  signups=len(sources), after_demo=sum(1 for x in sources if x == "signup-demo"),
+                  ai_clicks=ai_clicks, ai_signups=sum(1 for x in sources if x == "signup-ai"))

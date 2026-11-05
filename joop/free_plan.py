@@ -5,14 +5,17 @@ works alone would not pay for an administrator, but her customers see the AI ans
 came from. So the plan is free for one master, never expires, and the AI adds one line with Joop's name and
 address to the first reply in each conversation and to every reply that books a visit — the two moments a
 customer reads to the end. A second master needs the paid plan; paying moves the business to it, and the
-signature goes away. The line is added by code after the model's reply, so the prompt is unchanged.
+signature goes away. The line is added by code after the model's reply, so the prompt is unchanged. Its link is
+`/ai/<slug>`: every visit is counted per business (`SignatureClick`), a sign-up that follows is `signup-ai`, and the
+founder console shows both — the only honest measure of whether the free plan brings customers (docs: tactics,
+"powered-by loop"). The master sees her own count on the billing page.
 """
 
 from __future__ import annotations
 
 from sqlmodel import Session, select
 
-from .models import Staff, Subscription
+from .models import SignatureClick, Staff, Subscription
 
 FREE, PRO = "free", "pro"
 MAX_STAFF = 1
@@ -38,13 +41,23 @@ def switch(sub: Subscription) -> None:
     sub.cancelled_at, sub.cancel_reason = None, ""
 
 
-def signature(base_url: str, kyrgyz: bool) -> str:
+def signature(base_url: str, kyrgyz: bool, slug: str = "") -> str:
+    """One line with Joop's name and a link that says which business's AI the reader saw (counted in signature_link)."""
     line = "— Joop AI жооп берет, бизнес үчүн ИИ-администратор" if kyrgyz else "— отвечает Joop AI, ИИ-администратор для бизнеса"
-    return f"\n\n{line} · {base_url}" if base_url else f"\n\n{line}"
+    link = f"{base_url}/ai/{slug}" if base_url and slug else base_url
+    return f"\n\n{line} · {link}" if link else f"\n\n{line}"
 
 
-def with_signature(reply: str, base_url: str, kyrgyz: bool) -> str:
-    return reply.rstrip() + signature(base_url, kyrgyz)
+def with_signature(reply: str, base_url: str, kyrgyz: bool, slug: str = "") -> str:
+    return reply.rstrip() + signature(base_url, kyrgyz, slug)
+
+
+def clicks(session: Session, business_id: int, since) -> int:
+    """How many people followed this business's signature to Joop's site since `since`: the master sees her own number."""
+    from sqlalchemy import func
+
+    return session.exec(select(func.count()).select_from(SignatureClick).where(
+        SignatureClick.business_id == business_id, SignatureClick.created_at >= since)).one() or 0
 
 
 TOO_MANY = "На бесплатном тарифе один мастер. Чтобы добавить второго, перейдите на платный тариф в разделе «Оплата»."
