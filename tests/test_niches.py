@@ -20,6 +20,7 @@ ALL = sorted(all_packs())
 def make(niche):
     with db.new_session() as s:
         b = create_business(s, slug=f"t-{niche}", name="", password="x" * 8, niche=niche, demo=True, now_utc=NOW_UTC)
+        b.example_ok = True  # the niche's demo data stands for a real business here (joop/samples.py)
         s.commit()
         return b
 
@@ -238,6 +239,7 @@ def test_kyrgyz_faq_wording_reaches_the_prompt(engine):
     llm = FakeLLM()
     with db.new_session() as s:
         b = create_business(s, slug="photo", name="Фото", password="photo-pass", niche="photo", demo=True, now_utc=NOW_UTC)
+        b.example_ok = True
         handle_incoming(s, b, IncomingMessage("telegram", "1", "text", "Итим менен келсем болобу?", "", "x1"), lambda: llm, NOW_UTC)
     system = llm.calls[0]["system"]
     assert "Можно с животными? (по-кыргызски: Үй жаныбарлары менен келсе болобу?)" in system and "по смыслу" in system
