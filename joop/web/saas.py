@@ -909,6 +909,21 @@ def prospect_action(request: Request, pid: int, action: str = Form(""), status: 
     return _back(f"/owner/prospects#p{pid}")
 
 
+@router.get("/owner/business/{bid}/case")
+def business_case(request: Request, bid: int, days: int = 30, lang: str = "ru"):
+    """A case with real numbers for one business: a page to screenshot for Instagram or send as a link."""
+    from .. import case
+
+    _owner(request)
+    with new_session() as s:
+        b = s.get(Business, bid)
+        if b is None:
+            raise HTTPException(status_code=404)
+        c = case.build(s, b, utcnow(), days=days, lang=lang)
+        period = f"{utc_to_local(c.since, b.timezone):%d.%m.%Y} — {utc_to_local(c.until, b.timezone):%d.%m.%Y}"
+        return templates.TemplateResponse(request, "owner_case.html", {"request": request, "c": c, "b": b, "period": period})
+
+
 @router.get("/owner/prospects/{pid}/pitch")
 def prospect_pitch(request: Request, pid: int):
     """Phone-sized page of the demo dialogue, for the screenshot in the first message."""
