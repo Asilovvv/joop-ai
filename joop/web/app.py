@@ -26,8 +26,8 @@ from ..config import Settings, get_settings
 from ..db import init_db, new_session
 from ..dispatch import admin_chat_ids, process_incoming
 from ..catalog import parse_price
-from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, PanelUser, Service, Slot, Staff,
-                      WaitlistEntry)
+from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, PanelUser, Service, SignatureClick, Slot,
+                      Staff, WaitlistEntry)
 from ..niches import all_packs, get_pack
 from ..phone import normalize_phone
 from .. import billing, confirm, deposits, free_plan, gaps, ig_comments, samples, staff_reply, waitlist
@@ -262,6 +262,18 @@ def _site(request: Request, template: str, **ctx: Any):
         updated=ctx.pop("updated", "29.10.2026"),
     )
     return templates.TemplateResponse(request, template, ctx)
+
+
+@router.get("/ai/{slug}")
+def from_signature(request: Request, slug: str):
+    """The link in a free business's AI signature: count the visit, remember where it came from, show the site."""
+    with new_session() as s:
+        b = s.exec(select(Business).where(Business.slug == slug)).first()
+        if b is not None:
+            s.add(SignatureClick(business_id=b.id))
+            s.commit()
+            request.session["from_ai"] = slug
+    return RedirectResponse("/", status_code=303)
 
 
 @router.get("/")

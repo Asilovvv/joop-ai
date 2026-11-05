@@ -349,7 +349,7 @@ def _model_reply(
     # The free plan pays with one line: Joop's name on the first reply and on every booking (free_plan.py)
     if outcome.reply and channel in free_plan.CHANNELS and (booked is not None or first_contact) \
             and free_plan.is_free(get_subscription(session, business.id)):
-        outcome.reply = free_plan.with_signature(outcome.reply, base_url, is_kyrgyz_message(text))
+        outcome.reply = free_plan.with_signature(outcome.reply, base_url, is_kyrgyz_message(text), business.slug)
 
     outcome.cost_usd = cost_usd(outcome.usage, getattr(llm, "model", ""))
     if outcome.reply and late:
@@ -530,7 +530,7 @@ def _handle_command(
     if command == "/start":
         reply = (business.greeting or DEFAULT_GREETING).format(name=business.name)
         if free_plan.is_free(get_subscription(session, business.id)):  # on Telegram this greeting is the first contact
-            reply = free_plan.with_signature(reply, base_url, False)
+            reply = free_plan.with_signature(reply, base_url, False, business.slug)
         _add_message(session, business, conv, "ai", reply, now, off)
         return Outcome(reply=reply)
     if command == "/admin":

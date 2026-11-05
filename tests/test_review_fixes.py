@@ -94,7 +94,7 @@ def test_telegram_start_greeting_carries_the_free_signature(business, rt):
         free_plan.switch(billing.start_trial(s, s.get(Business, business.id), 14, NOW_UTC))
         s.commit()
     out = say(business.id, rt, "/start", "telegram", "1001")
-    assert out.reply.endswith("\n\n— отвечает Joop AI, ИИ-администратор для бизнеса · https://joop.test")
+    assert out.reply.endswith("\n\n— отвечает Joop AI, ИИ-администратор для бизнеса · https://joop.test/ai/aktish")
     rt._llm = FakeLLM([AgentReply("Чем помочь?")])
     assert say(business.id, rt, "Привет", "telegram", "1001").reply == "Чем помочь?"  # not twice
 
