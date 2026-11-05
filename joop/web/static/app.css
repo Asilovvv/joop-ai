@@ -256,3 +256,7 @@ form.row.chat-input > span:empty { display: none; }
 .hours-table { margin-top: 10px; font-size: 14px; }
 .hours-table summary { font-size: 13px; }
 @media (max-width: 560px) { .hours-chart .tick { font-size: 24px; } .hours-chart .tick.minor { display: none; } }  /* the SVG scales down ~2x on phones */
+
+/* PWA install hint on the dashboard */
+.install { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.install .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -278,6 +278,17 @@ def daily_bump(key: str, day: str) -> None:
     if len(_daily) > 20000:
         _daily.clear()
     _daily[key] = (day, daily_count(key, day) + 1)
+
+
+@router.get("/sw.js")
+def service_worker():
+    """The service worker must live at the root so its scope covers /panel; the file itself sits in static/pwa."""
+    return FileResponse(BASE_DIR / "static" / "pwa" / "sw.js", media_type="application/javascript", headers={"Cache-Control": "no-cache"})
+
+
+@router.get("/offline")
+def offline_page(request: Request):
+    return templates.TemplateResponse(request, "offline.html", {"request": request})
 
 
 @router.get("/ai/{slug}")

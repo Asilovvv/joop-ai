@@ -7,6 +7,12 @@
 <title>{% block title %}Joop AI{% endblock %}{% if business %} · {{ business.name }}{% endif %}</title>
 <link rel="stylesheet" href="/static/fonts/fonts.css">
 <link rel="stylesheet" href="/static/app.css">
+<link rel="manifest" href="/static/pwa/manifest.webmanifest">
+<link rel="icon" href="/static/pwa/icon-192.png">
+<link rel="apple-touch-icon" href="/static/pwa/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Joop">
 </head>
 <body class="{{ 'has-side' if business else 'bare' }}">
 {% if business %}
@@ -49,5 +55,21 @@
   d.querySelector('summary').addEventListener('click', function (e) { if (mq.matches) e.preventDefault(); });
 })();
 </script>
+{% if business %}<script>
+if ("serviceWorker" in navigator) { navigator.serviceWorker.register("/sw.js").catch(function () {}); }
+(function () {
+  var box = document.getElementById("install");
+  if (!box) return;
+  var standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  var hidden = false; try { hidden = localStorage.getItem("joop-install-hidden") === "1"; } catch (e) {}
+  if (standalone || hidden) return;
+  var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  var prompt = null;
+  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); prompt = e; box.hidden = false; box.querySelector(".ios").hidden = true; });
+  if (ios) { box.hidden = false; box.querySelector(".android").hidden = true; }
+  box.querySelector(".android").addEventListener("click", function () { if (prompt) { prompt.prompt(); prompt = null; box.hidden = true; } });
+  box.querySelector(".later").addEventListener("click", function () { box.hidden = true; try { localStorage.setItem("joop-install-hidden", "1"); } catch (e) {} });
+})();
+</script>{% endif %}
 </body>
 </html>
