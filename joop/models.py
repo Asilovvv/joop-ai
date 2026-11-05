@@ -216,6 +216,9 @@ class Booking(SQLModel, table=True):
     upsell_status: str = ""  # "" | offered | accepted | declined (joop/upsell.py)
     upsell_service: str = ""
     upsell_price: int = 0
+    paid_som: int = 0  # what the customer paid after the visit, recorded by staff (joop/cash.py); 0 = not recorded
+    paid_method: str = ""  # cash | card | transfer
+    paid_at: Optional[NaiveDatetime] = None
 
 
 class Lead(SQLModel, table=True):

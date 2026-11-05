@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, billing, broadcasts, confirm, crm, deposits, founder_digest, funnel, health, nudges, ops, recovery, trust, unfinished
+from . import altegio, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, nudges, ops, recovery, trust, unfinished
 from . import gaps as empty_slots
 from .db import new_session
 from .dispatch import notify_admins
@@ -127,6 +127,9 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
     silent = confirm.unconfirmed(today)
     if silent:
         lines.append(confirm.digest_line(silent))
+    money = cash.digest_line(session, business, now_local)
+    if money:
+        lines.append(money)
     if today:
         lines.append("Сегодня записаны:")
         lines += [f"{b.start:%H:%M} — {b.customer_name}, {b.customer_phone} — {b.service or 'приём'} ({b.staff_name})"
