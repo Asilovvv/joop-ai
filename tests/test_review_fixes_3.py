@@ -238,7 +238,7 @@ def test_private_reply_falls_back_to_direct_by_id_or_tells_staff(business, rt):
     out = Outcome(reply="Маникюр — 800 сом.")
     deliver(rt, b, "instagram", "igsid-7", out, reply_to="c-2")
     assert rt.ig.public == [("c-1", "Ответили вам в Директ")]
-    assert out.admin_notes == ["Не удалось ответить в Директ на комментарий в Instagram — ответьте под ним сами."]
+    assert out.admin_notes == ["Не удалось ответить в Директ на комментарий в Instagram от igsid-7: «Маникюр — 800 сом.» — ответьте под ним сами."]
     assert ("999", out.admin_notes[0]) in rt.tg.sent
 
 
@@ -249,3 +249,60 @@ def test_playbook_names_its_sources(app_client):
     assert "Откуда цифры" in page and "docs/sales-sources.md" in page and "forbes.kz" in page
     assert "это Бектур из Joop" in page and "ИП из Joop" not in page
     assert "20–25 живых" not in page and "В тесте сервисной компании" not in page
+
+
+# --- fourth review (PRs #102–#106) ---------------------------------------------------------------------
+
+
+def test_staff_taking_the_chat_over_stops_the_release_and_a_yes_with_mozhno_confirms(business, rt):
+    """Findings 4 and 7."""
+    assert confirm.says_yes("Да, можно") and confirm.says_yes("Ооба, болот") and confirm.says_yes("Да, непременно")
+    assert not confirm.says_yes("Да, а можно позже") and not confirm.says_yes("да а сколько стоит") and not confirm.says_yes("можно")
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.release_unconfirmed_hours = 3
+        s.add(b)
+        s.commit()
+    _book(business, "telegram", "1001")
+    _run(business, rt)
+    with db.new_session() as s:
+        conv = s.exec(select(Conversation).where(Conversation.chat_id == "1001")).one()
+        s.add(Message(business_id=business.id, conversation_id=conv.id, role="staff", text="Ждём вас завтра, подтвердили по телефону",
+                      created_at=EVENING_UTC + timedelta(minutes=30)))
+        s.commit()
+        assert confirm.silent_since_ask(s, conv) is None
+    assert "unconfirmed" not in _run(business, rt, datetime(2026, 11, 5, 1, 0))
+    with db.new_session() as s:
+        assert s.exec(select(Booking).where(Booking.channel == "telegram")).one().status == "booked"
+
+
+def test_thanks_with_a_request_after_it_still_opens_a_thread():
+    """Finding 10."""
+    b = Business(slug="x", name="X", ig_comments=True)
+    assert ig_comments.wanted(b, "Спасибо, скажите цену") and ig_comments.wanted(b, "Записалась бы, есть окно на завтра")
+    assert not ig_comments.wanted(b, "Записалась, спасибо!") and not ig_comments.wanted(b, "Спасибо большое")
+    assert ig_comments.wanted(b, "цену скажите") and ig_comments.wanted(b, "Какие окна есть")
+
+
+def test_failed_comment_reply_note_names_the_commenter_and_the_text(business, rt):
+    """Finding 5."""
+    from joop.agent.engine import Outcome
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.ig_account_id, b.ig_access_token, b.admin_chat_ids = "ig-1", "tok", "999"
+        s.add(b)
+        s.commit()
+        b = s.get(Business, business.id)
+    rt.ig.ok = False
+    out = Outcome(reply="Маникюр — 800 сом.")
+    deliver(rt, b, "instagram", "igsid-7", out, reply_to="c-2", who="aigerim_nails")
+    assert out.admin_notes == ["Не удалось ответить в Директ на комментарий в Instagram от aigerim_nails: «Маникюр — 800 сом.» — ответьте под ним сами."]
+
+
+def test_privacy_pages_promise_only_what_the_code_does(client):
+    """Finding 9."""
+    privacy = client.get("/privacy").text
+    assert "по его запросу в течение 30 дней" in privacy and "удаляются в течение 30 дней" not in privacy
+    deletion = client.get("/data-deletion").text
+    assert "в чате на сайте" in deletion and "имя и телефон, которые вы написали в чате" in deletion
