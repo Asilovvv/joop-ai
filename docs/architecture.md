@@ -163,6 +163,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/stats.py` | Numbers for the dashboard, reports and the pilot; the panel test chat (`TEST_CHANNEL`) is left out of all of them, and of Altegio, amoCRM and staff reminders |
 | **Operations** | |
 | `joop/scheduler.py` | Reminders, summaries, weekly, monthly and day-7 reports, broadcast batches, prepayment deadlines, request reminders, amoCRM deals, Altegio sync, daily backup |
+| `joop/funnel.py` | Sales funnel for requests (new → contacted → booked → visited / lost) moved from bookings, orders and staff replies; 30-day conversions |
 | `joop/customers.py` | Customer cards assembled from bookings, orders and dialogues by phone; notes and tags; CSV export |
 | `joop/stories.py` | Instagram stories for Joop's own account: slide texts, rendered by `story.html` at 1080 × 1920, exported by `scripts/export_stories.py` |
 | `joop/annual.py` | The year offer at the end of the second paid month: who is due, the text in their numbers, the console reminder |
@@ -174,6 +175,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 468 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 470 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |
