@@ -680,6 +680,9 @@ def staff_delete(request: Request, item_id: int, csrf: str = Form("")):
         row = _own(s, Staff, item_id, b.id)
         row.active = False  # kept for booking history
         s.add(row)
+        for user in s.exec(select(PanelUser).where(PanelUser.business_id == b.id, PanelUser.staff_id == row.id)).all():
+            user.active = False  # her own login goes with her
+            s.add(user)
         for slot in s.exec(select(Slot).where(Slot.staff_id == row.id, Slot.status == "free", Slot.taken == 0)).all():
             s.delete(slot)
         s.commit()
@@ -913,6 +916,8 @@ def bookings_page(request: Request):
                                                      WaitlistEntry.status.in_(["waiting", "notified"]),
                                                      WaitlistEntry.created_at >= utcnow() - waitlist.KEEP)
                          .order_by(WaitlistEntry.created_at)).all()
+        if own:
+            waiting = []  # the waiting list is the whole business's customers, not a master's
         return _render(request, "bookings.html", "bookings", b, upcoming=upcoming, past=past, channel_names=CHANNEL_NAMES,
                        waiting=waiting)
 
@@ -1045,7 +1050,7 @@ def stock_save(request: Request, item_id: int, counted: str = Form(""), minimum:
         b = _business(s, request)
         item = _own(s, Service, item_id, b.id)
         value, low_mark = counted.strip().replace(" ", ""), minimum.strip()
-        if (value and not value.isdigit()) or (low_mark and not low_mark.isdigit()):
+        if (value and not (value.isascii() and value.isdigit())) or (low_mark and not (low_mark.isascii() and low_mark.isdigit())):
             _flash(request, "Остаток и минимум — целое число штук. Пустое поле — не отслеживать.", "error")
             return _back("/panel/stock")
         stock.recount(s, item, int(value) if value else None, int(low_mark) if low_mark else 0, _who(request), utcnow())
@@ -1094,7 +1099,8 @@ def booking_pay(request: Request, item_id: int, amount: str = Form("0"), method:
 
 @router.get("/panel/funnel")
 def funnel_page(request: Request):
-    """Requests of the last 30 days by stage; the AI moves them, a person only marks «потерян»."""
+    """Requests of the last 30 days by stage; the AI moves them as it sees replies, bookings and visits, and a person
+    can mark one «записан», «пришёл» or «потерян» (or bring it back) when that happened outside the chat."""
     with new_session() as s:
         b = _business(s, request)
         funnel.advance(s, b, utcnow())
@@ -1147,9 +1153,11 @@ def customer_card(request: Request, key: str):
         b = _business(s, request)
         card = customers.cards(s, b).get(key)
         mine = _staff_scope(s, request)
-        if card is None or (mine and not any(x.staff_id == mine for x in card.bookings)):
+        if card is not None and mine:
+            card = customers.for_staff(card, mine)  # her visits only
+        if card is None:
             raise HTTPException(status_code=404)
-        return _render(request, "customer.html", "customers", b, c=card, channel_names=CHANNEL_NAMES)
+        return _render(request, "customer.html", "customers", b, c=card, channel_names=CHANNEL_NAMES, master=bool(mine))
 
 
 @router.post("/panel/customers/{key}")

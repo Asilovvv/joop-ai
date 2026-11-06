@@ -232,3 +232,43 @@ def test_the_last_piece_cannot_be_taken_twice(engine):
         s.commit()
         assert first and any("просили 1 шт., а осталось 0" in n for n in notes)
         assert s.get(Service, plov.id).stock == 0
+
+
+def test_sixth_review_master_sees_no_waitlist_no_other_masters_and_loses_access_with_her_staff_record(business, rt, settings):
+    """Sixth review (PRs #111–#120), findings 3, 4 and the master login that outlived her staff record."""
+    from joop.models import WaitlistEntry
+
+    _login_fails.clear()
+    mine, theirs = _two_masters(business.id)
+    with db.new_session() as s:
+        other = s.get(Booking, theirs)
+        other.customer_phone = "+996555000001"  # the same customer also goes to another master
+        other.paid_som, other.status = 9000, "booked"
+        s.add(other)
+        s.add(WaitlistEntry(business_id=business.id, customer_name="Ожидает Чужой", customer_phone="+996555999999", channel="telegram",
+                            chat_id="1", service="Консультация"))
+        s.commit()
+        a_id = s.get(Booking, mine).staff_id
+    app = create_app(settings, rt, init=False)
+    with _master_client(app) as c:
+        assert "Ожидает Чужой" not in c.get("/panel/bookings").text
+        card = c.get("/panel/customers/555000001").text
+        assert "9000" not in card and "9 000" not in card and other.staff_name not in card and "Диалоги" not in card
+        assert "9000" not in c.get("/panel/customers.csv").text
+    with TestClient(app) as owner:
+        login(owner)
+        assert "Ожидает Чужой" in owner.get("/panel/bookings").text
+        token = csrf_of(owner.get("/panel/staff").text)
+        owner.post(f"/panel/staff/{a_id}/delete", data={"csrf": token})
+        assert "9 000" in owner.get("/panel/customers/555000001").text or "9000" in owner.get("/panel/customers/555000001").text
+    with db.new_session() as s:
+        assert s.exec(select(PanelUser).where(PanelUser.login == "master")).one().active is False
+
+
+def test_sixth_review_unicode_digits_are_a_message_not_a_crash(client):  # noqa: F811
+    login(client)
+    with db.new_session() as s:
+        item_id = s.exec(select(Service)).first().id
+    token = csrf_of(client.get("/panel/stock").text)
+    r = client.post(f"/panel/stock/{item_id}", data={"csrf": token, "counted": "²", "minimum": ""}, follow_redirects=True)
+    assert r.status_code == 200 and "целое число" in r.text
