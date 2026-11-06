@@ -23,7 +23,8 @@ router = APIRouter()
 def api_page(request: Request):
     with new_session() as s:
         b = _business(s, request)
-        return _render(request, "api.html", "api", b, new_key="", new_secret="", base=_base_url(request))
+        waiting, lost = api.undelivered(s, b, utcnow())
+        return _render(request, "api.html", "api", b, new_key="", new_secret="", base=_base_url(request), waiting=waiting, lost=lost)
 
 
 @router.post("/panel/api")
@@ -61,7 +62,9 @@ def api_save(request: Request, action: str = Form(""), url: str = Form(""), csrf
         s.commit()
         s.refresh(b)
         if new_key or new_secret:  # shown on this page only, never stored in clear or put in the session
-            return _render(request, "api.html", "api", b, new_key=new_key, new_secret=new_secret, base=_base_url(request))
+            page = _render(request, "api.html", "api", b, new_key=new_key, new_secret=new_secret, base=_base_url(request), waiting=0, lost=0)
+            page.headers["Cache-Control"] = "no-store"  # not kept by the browser or a proxy
+            return page
     return _back("/panel/api")
 
 
