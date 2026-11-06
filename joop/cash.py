@@ -6,6 +6,12 @@ total by master. Joop asks for exactly that: on a past booking the amount is pre
 the accepted add-on) and one tap with the method records it. The «Касса» page shows the day and the month by
 method, master and service; the morning summary carries yesterday's total. Nothing is a tax document — it is the
 owner's own count, exported like the customers.
+
+The fiscal receipt is not Joop's: in Kyrgyzstan settlements with individuals go through a cash register (ККМ) from the
+State Tax Service registry (Tax Code art. 128), and Joop is not one. What Joop does is keep the master from forgetting
+it: each payment carries a «чек ККМ пробит» mark, the day counts the payments without one, and once the business uses
+the mark the morning summary does too.
+See docs/kkm-kg.md.
 """
 
 from __future__ import annotations
@@ -34,10 +40,16 @@ def suggested(session: Session, booking: Booking) -> int:
     return (prices.get(name.casefold(), 0) or 0) + extra
 
 
-def record(booking: Booking, amount: int, method: str, now_utc: datetime) -> None:
+def record(booking: Booking, amount: int, method: str, now_utc: datetime, receipt: bool = False) -> None:
     booking.paid_som = max(0, amount)
     booking.paid_method = method if method in METHODS else ""
     booking.paid_at = now_utc if amount > 0 else None
+    booking.receipt_at = now_utc if amount > 0 and receipt else None
+
+
+def mark_receipt(booking: Booking, now_utc: datetime) -> None:
+    if booking.paid_som:
+        booking.receipt_at = now_utc
 
 
 @dataclass
@@ -48,6 +60,7 @@ class Day:
     by_method: dict[str, int] = field(default_factory=dict)
     by_staff: dict[str, int] = field(default_factory=dict)
     unpaid: list[Booking] = field(default_factory=list)  # visits that passed without a payment: ask the master
+    no_receipt: list[Booking] = field(default_factory=list)  # paid, but no fiscal receipt marked
 
 
 @dataclass
@@ -74,6 +87,8 @@ def day(session: Session, business: Business, date_local: datetime, now_local: d
             d.total += b.paid_som
             d.by_method[b.paid_method] = d.by_method.get(b.paid_method, 0) + b.paid_som
             d.by_staff[b.staff_name or "—"] = d.by_staff.get(b.staff_name or "—", 0) + b.paid_som
+            if b.receipt_at is None:
+                d.no_receipt.append(b)
         elif b.start < now_local:
             d.unpaid.append(b)
     return d
@@ -103,7 +118,17 @@ def digest_line(session: Session, business: Business, now_local: datetime) -> st
     if not d.total:
         return ""
     parts = ", ".join(f"{METHODS.get(k, k)} {som(v)}" for k, v in d.by_method.items())
-    return f"Касса за вчера: {som(d.total)} сом ({parts}), оплачено визитов {sum(1 for b in d.rows if b.paid_som)}."
+    line = f"Касса за вчера: {som(d.total)} сом ({parts}), оплачено визитов {sum(1 for b in d.rows if b.paid_som)}."
+    if d.no_receipt and _marks_receipts(session, business, now_local):
+        line += f" Без отметки о чеке ККМ: {len(d.no_receipt)} — проверьте, что чек пробит."
+    return line
+
+
+def _marks_receipts(session: Session, business: Business, now_local: datetime) -> bool:
+    """The business uses the «чек ККМ» mark (some payment this month or last carries it): only then is a missing one news."""
+    since = datetime.combine((now_local.date().replace(day=1) - timedelta(days=1)).replace(day=1), time.min)
+    return session.exec(select(Booking.id).where(Booking.business_id == business.id, Booking.receipt_at != None,  # noqa: E711
+                                                 Booking.start >= since)).first() is not None
 
 
 def som(n: int) -> str:

@@ -229,6 +229,7 @@ class Booking(SQLModel, table=True):
     paid_som: int = 0  # what the customer paid after the visit, recorded by staff (joop/cash.py); 0 = not recorded
     paid_method: str = ""  # cash | card | transfer
     paid_at: Optional[NaiveDatetime] = None
+    receipt_at: Optional[NaiveDatetime] = None  # staff marked that the fiscal receipt was printed on the business's own ККМ
 
 
 class Lead(SQLModel, table=True):

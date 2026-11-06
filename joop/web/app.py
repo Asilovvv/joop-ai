@@ -1078,7 +1078,8 @@ def cash_page(request: Request, date: str = ""):
 
 
 @router.post("/panel/bookings/{item_id}/pay")
-def booking_pay(request: Request, item_id: int, amount: str = Form("0"), method: str = Form("cash"), csrf: str = Form("")):
+def booking_pay(request: Request, item_id: int, amount: str = Form("0"), method: str = Form("cash"), receipt: str = Form(""),
+                csrf: str = Form("")):
     """One tap after the visit: the amount is pre-filled from the price list, the method is a choice."""
     _check_csrf(request, csrf)
     with new_session() as s:
@@ -1090,7 +1091,23 @@ def booking_pay(request: Request, item_id: int, amount: str = Form("0"), method:
             value = -1
         if row.status != "booked" or method not in cash.METHODS or not 0 <= value <= cash.MAX_PAYMENT:
             raise HTTPException(status_code=400)
-        cash.record(row, value, method, utcnow())
+        cash.record(row, value, method, utcnow(), receipt=receipt == "1")
+        s.add(row)
+        s.commit()
+        when = row.start.strftime("%Y-%m-%d")
+    return _back(f"/panel/cash?date={when}")
+
+
+@router.post("/panel/bookings/{item_id}/receipt")
+def booking_receipt(request: Request, item_id: int, csrf: str = Form("")):
+    """The fiscal receipt for this payment was printed on the business's ККМ (Joop only keeps the mark)."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        row = _own_booking(s, request, item_id, b.id)
+        if not row.paid_som:
+            raise HTTPException(status_code=400)
+        cash.mark_receipt(row, utcnow())
         s.add(row)
         s.commit()
         when = row.start.strftime("%Y-%m-%d")
