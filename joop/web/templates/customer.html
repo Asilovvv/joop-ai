@@ -36,7 +36,7 @@
   </div>
   {% else %}<p class="muted">Записей и заказов пока нет.</p>{% endif %}
 </section>
-<section class="card">
+{% if not master %}<section class="card">
   <h2>Диалоги</h2>
   {% if c.conversations %}
   <div class="list">
@@ -45,5 +45,5 @@
     {% endfor %}
   </div>
   {% else %}<p class="muted">Диалогов нет — записал человек.</p>{% endif %}
-</section>
+</section>{% endif %}
 {% endblock %}

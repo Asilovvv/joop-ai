@@ -13,7 +13,7 @@ from __future__ import annotations
 import csv
 import io
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from sqlmodel import Session, select
@@ -102,9 +102,10 @@ def cards(session: Session, business: Business) -> dict[str, Card]:
         c.phone = c.phone or conv.customer_phone
         if conv.last_customer_at and (c.last_contact is None or conv.last_customer_at > c.last_contact):
             c.last_contact = conv.last_customer_at
+    by_conv = {conv.id: key for key, c in out.items() for conv in c.conversations}
     prices = _prices(session, business.id)
     for b in session.exec(select(Booking).where(Booking.business_id == business.id, Booking.channel != TEST_CHANNEL)).all():
-        key = key_of(b.customer_phone, b.channel, "") or _conv_key(out, b.conversation_id)
+        key = key_of(b.customer_phone, b.channel, "") or by_conv.get(b.conversation_id or 0, "")
         if not key:
             continue
         c = card(key)
@@ -116,7 +117,7 @@ def cards(session: Session, business: Business) -> dict[str, Card]:
         elif b.status == "booked" and b.service and b.service.casefold() in prices:
             c.spend_som += prices[b.service.casefold()]
     for o in session.exec(select(Order).where(Order.business_id == business.id, Order.status != "cancelled", Order.channel != TEST_CHANNEL)).all():
-        key = key_of(o.customer_phone, o.channel, "") or _conv_key(out, o.conversation_id)
+        key = key_of(o.customer_phone, o.channel, "") or by_conv.get(o.conversation_id or 0, "")
         if not key:
             continue
         c = card(key)
@@ -135,20 +136,21 @@ def cards(session: Session, business: Business) -> dict[str, Card]:
     return out
 
 
-def _conv_key(out: dict[str, Card], conversation_id: int | None) -> str:
-    if not conversation_id:
-        return ""
-    for key, c in out.items():
-        if any(conv.id == conversation_id for conv in c.conversations):
-            return key
-    return ""
+def for_staff(c: Card, staff_id: int) -> Card | None:
+    """What a master's login sees of a card: her own visits and what they brought; no other masters' visits,
+    no orders, no dialogues. None when the customer never came to her."""
+    mine = [b for b in c.bookings if b.staff_id == staff_id]
+    if not mine:
+        return None
+    return replace(c, bookings=mine, orders=[], conversations=[], last_contact=None,
+                   spend_som=sum(b.paid_som for b in mine if b.status == "booked"))
 
 
 def listing(session: Session, business: Business, query: str = "", tag: str = "", staff_id: int | None = None) -> list[Card]:
     rows = [c for c in cards(session, business).values()
             if c.phone or c.bookings or c.orders or c.channels - {"web"}]  # an anonymous site visitor is not a customer yet
     if staff_id:
-        rows = [c for c in rows if any(b.staff_id == staff_id for b in c.bookings)]  # a master's login: her own customers
+        rows = [v for v in (for_staff(c, staff_id) for c in rows) if v is not None]  # a master's login: her own customers
     q = query.strip().casefold()
     qd = _DIGITS.sub("", query)
     if q:
