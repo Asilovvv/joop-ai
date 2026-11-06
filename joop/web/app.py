@@ -82,14 +82,14 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     if books or pack.has("stay"):
         items.append(("/panel/staff", "staff", pack.resource_label))
     items += [("/panel/faq", "faq", "Вопросы"), ("/panel/settings", "settings", "Настройки"), ("/panel/channels", "channels", "Каналы"),
-              ("/panel/accounts", "accounts", "Доступ сотрудников")]
+              ("/panel/accounts", "accounts", "Доступ сотрудников"), ("/panel/api", "api", "API и вебхуки")]
     items[1:1] = [("/panel/setup", "setup", "Запуск"), ("/panel/try", "try", "Проверить ИИ")]
     items.append(("/panel/billing", "billing", "Оплата"))
     return items
 NAV_GROUPS = (
     ("Работа", {"dashboard", "conversations", "customers", "orders", "bookings", "stays", "leads", "funnel", "cash", "jobs"}),
     ("Инструменты", {"slots", "tests", "menu", "followups", "gaps", "broadcasts", "memberships", "card", "stock"}),
-    ("Настройка", {"setup", "try", "services", "staff", "faq", "settings", "channels", "accounts", "billing"}),
+    ("Настройка", {"setup", "try", "services", "staff", "faq", "settings", "channels", "accounts", "api", "billing"}),
 )
 
 
@@ -152,9 +152,9 @@ def _bid(request: Request) -> int:
 
 
 # Panel sections only the owner (the company password) opens; staff logins (PanelUser) do the daily work.
-OWNER_ONLY = ("/panel/settings", "/panel/channels", "/panel/altegio", "/panel/crm", "/panel/setup", "/panel/billing",
+OWNER_ONLY = ("/panel/settings", "/panel/channels", "/panel/altegio", "/panel/crm", "/panel/api", "/panel/setup", "/panel/billing",
               "/panel/accounts", "/panel/broadcasts", "/panel/example")
-OWNER_NAV = {"settings", "channels", "setup", "billing", "accounts", "broadcasts"}
+OWNER_NAV = {"settings", "channels", "setup", "billing", "accounts", "broadcasts", "api"}
 # A master's own login (PanelUser.staff_id) opens only her bookings, customers and cash; everything else is the
 # whole business's data. "/panel" sends her to her bookings.
 MASTER_PATHS = ("/panel/bookings", "/panel/customers", "/panel/cash")
@@ -1816,6 +1816,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .accounts import router as accounts_router
 
     app.include_router(accounts_router)
+    from .api import router as api_router
+
+    app.include_router(api_router)
 
     @app.exception_handler(OwnerRequired)
     async def _owner_required(_request: Request, _exc: OwnerRequired):
