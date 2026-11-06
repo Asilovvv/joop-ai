@@ -107,6 +107,11 @@ def test_rate_limit():
     assert api.allow("h", now=161.0)
 
 
+def test_ipv4_mapped_loopback_is_refused(monkeypatch):
+    monkeypatch.setattr(api.socket, "getaddrinfo", lambda *a, **k: [(socket.AF_INET6, socket.SOCK_STREAM, 6, "", ("::ffff:127.0.0.1", 443, 0, 0))])
+    assert api._public_ip("evil.example") == ""
+
+
 def test_url_check_blocks_internal_and_plain_http():
     assert api.check_url("https://hook.eu1.make.com/abc") == ""
     assert "https" in api.check_url("http://hook.eu1.make.com/abc")
@@ -144,6 +149,8 @@ def test_webhooks_are_signed_sent_once_and_skip_test_chat(business, rt):
         events = [r.headers["x-joop-event"] for r in rx.got]
         assert events == ["booking.created", "order.created", "lead.created"]  # an internal error is not a lead
         first = rx.got[0]
+        assert first.url.host == PUBLIC and first.headers["host"] == "hook.example.com"  # pinned to the checked address
+        assert first.extensions.get("sni_hostname") == "hook.example.com"
         assert first.headers["x-joop-signature"] == "sha256=" + hmac.new(b"s3cret", first.content, hashlib.sha256).hexdigest()
         body = json.loads(first.content)
         assert body["business"] == "aktish" and body["data"]["id"] == ids[0]

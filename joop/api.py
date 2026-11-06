@@ -145,14 +145,27 @@ def rows(session: Session, business: Business, what: str, since: str = "", after
 # --- webhooks ---------------------------------------------------------------------------------------------
 
 
-def _public_host(host: str) -> bool:
-    """Every address the host resolves to is a public one: no loopback, private, link-local or reserved ranges."""
+def _public_ip(host: str, port: int = 443) -> str:
+    """The address to connect to when every address the host resolves to is public, else "".
+
+    Loopback, private, link-local, reserved and multicast ranges are refused, IPv4-mapped IPv6 included.
+    """
     try:
-        infos = socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)
-    except (socket.gaierror, UnicodeError):
-        return False
-    addresses = {ipaddress.ip_address(info[4][0]) for info in infos}
-    return bool(addresses) and all(a.is_global and not a.is_multicast for a in addresses)
+        infos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+    except (socket.gaierror, UnicodeError, OSError):
+        return ""
+    found = []
+    for info in infos:
+        a = ipaddress.ip_address(info[4][0].split("%")[0])
+        plain = a.ipv4_mapped if a.version == 6 and a.ipv4_mapped else a
+        if not plain.is_global or plain.is_multicast:
+            return ""
+        found.append(str(plain))
+    return found[0] if found else ""
+
+
+def _public_host(host: str) -> bool:
+    return bool(_public_ip(host))
 
 
 def check_url(url: str) -> str:
@@ -203,13 +216,19 @@ def _events(session: Session, business: Business, now_utc: datetime) -> list[tup
 def post(http: httpx.Client, business: Business, event: str, data: dict, now_utc: datetime) -> tuple[bool, str]:
     body = json.dumps({"event": event, "business": business.slug, "sent_at": _iso(now_utc), "data": data},
                       ensure_ascii=False, separators=(",", ":")).encode()
-    host = urlparse(business.webhook_url).hostname or ""
-    if not _public_host(host):  # checked again at send time: an address can start resolving inward later
+    url = httpx.URL(business.webhook_url)
+    host = url.host
+    ip = _public_ip(host, url.port or 443)  # checked again at send time: an address can start resolving inward later
+    if not ip:
         return False, "адрес указывает во внутреннюю сеть"
+    # connect to the address just checked, not to a second lookup: a DNS answer that changes between the check and
+    # the connection (rebinding) cannot point the request inward. TLS still verifies the certificate of `host`;
+    # the connection is not kept, so a pooled one to the same address never carries another host's events.
+    pinned = url.copy_with(host=ip)
     try:
-        r = http.post(business.webhook_url, content=body, timeout=10.0, follow_redirects=False, headers={
-            "Content-Type": "application/json", "User-Agent": "Joop-Webhooks/1", "X-Joop-Event": event,
-            "X-Joop-Signature": sign(business.webhook_secret, body)})
+        r = http.post(pinned, content=body, timeout=10.0, follow_redirects=False, extensions={"sni_hostname": host}, headers={
+            "Host": url.netloc.decode("ascii"), "Connection": "close", "Content-Type": "application/json", "User-Agent": "Joop-Webhooks/1",
+            "X-Joop-Event": event, "X-Joop-Signature": sign(business.webhook_secret, body)})
     except httpx.HTTPError as exc:
         return False, type(exc).__name__
     return (200 <= r.status_code < 300), f"HTTP {r.status_code}"
