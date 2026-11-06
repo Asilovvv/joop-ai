@@ -765,6 +765,7 @@ def _try_order(
 
     lines: list[tuple[Service, int, str]] = []
     problems: list[str] = []
+    wanted: dict[int, int] = {}  # the same item on two lines counts once against the shelf
     for line in data.get("lines") or []:
         item = session.get(Service, line.get("item_id")) if line.get("item_id") else None
         qty = int(line.get("quantity") or 0)
@@ -774,9 +775,10 @@ def _try_order(
             problems.append(f"«{item.name}» сейчас нет в наличии")
         elif not 1 <= qty <= MAX_QUANTITY:
             problems.append(f"количество «{item.name}» должно быть от 1 до {MAX_QUANTITY}")
-        elif stock.short(item, qty):
-            problems.append(stock.short(item, qty))  # code counts the shelf, not the model
+        elif stock.short(item, wanted.get(item.id, 0) + qty):
+            problems.append(stock.short(item, wanted.get(item.id, 0) + qty))  # code counts the shelf, not the model
         else:
+            wanted[item.id] = wanted.get(item.id, 0) + qty
             lines.append((item, qty, (line.get("note") or "").strip()[:200]))
     if problems or not lines:
         detail = "; ".join(dict.fromkeys(problems)) or "в заказе нет позиций"

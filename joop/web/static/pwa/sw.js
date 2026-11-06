@@ -1,6 +1,6 @@
 /* Joop panel service worker: the shell (fonts, styles, icons) is cached; pages are always fetched from the
    network, because they hold customers' data, and only the «нет сети» page is shown when the network is gone. */
-const SHELL = "joop-shell-v1";
+const SHELL = "joop-shell-v2";
 const ASSETS = ["/static/app.css", "/static/fonts/fonts.css", "/static/pwa/icon-192.png", "/offline"];
 
 self.addEventListener("install", (e) => {
@@ -16,11 +16,11 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.pathname.startsWith("/static/")) {
-    e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(SHELL).then((c) => c.put(req, copy));
+    // network first: a deploy's new styles arrive at once; the cache is only the offline fallback
+    e.respondWith(fetch(req).then((res) => {
+      if (res.ok) { const copy = res.clone(); caches.open(SHELL).then((c) => c.put(req, copy)); }
       return res;
-    })));
+    }).catch(() => caches.match(req)));
     return;
   }
   if (req.mode === "navigate") {

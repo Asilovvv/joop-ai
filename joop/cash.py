@@ -20,6 +20,7 @@ from .models import Booking, Business, Service
 from .stats import TEST_CHANNEL
 
 METHODS = {"cash": "наличные", "card": "карта", "transfer": "перевод"}
+MAX_PAYMENT = 10_000_000  # som; anything above is a typo
 
 
 def suggested(session: Session, booking: Booking) -> int:

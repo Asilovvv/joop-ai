@@ -30,11 +30,13 @@ def advance(session: Session, business: Business, now_utc: datetime) -> int:
     now_local = utc_to_local(now_utc, business.timezone)
     moved = 0
     leads = session.exec(select(Lead).where(Lead.business_id == business.id, Lead.kind.in_(KINDS), Lead.stage.in_(["new", "contacted", "booked"]),
-                                           Lead.conversation_id != None)).all()  # noqa: E711
+                                           Lead.conversation_id != None, Lead.created_at >= now_utc - WINDOW)).all()  # noqa: E711
     for lead in leads:
-        booking = session.exec(select(Booking).where(Booking.conversation_id == lead.conversation_id, Booking.created_at >= lead.created_at,
+        booking = session.exec(select(Booking).where(Booking.business_id == business.id, Booking.conversation_id == lead.conversation_id,
+                                                     Booking.created_at >= lead.created_at,
                                                      Booking.status == "booked").order_by(Booking.start)).first()
-        order = None if booking else session.exec(select(Order).where(Order.conversation_id == lead.conversation_id, Order.created_at >= lead.created_at,
+        order = None if booking else session.exec(select(Order).where(Order.business_id == business.id, Order.conversation_id == lead.conversation_id,
+                                                                       Order.created_at >= lead.created_at,
                                                                        Order.status != "cancelled")).first()
         if lead.stage in ("new", "contacted") and (booking or order):
             lead.stage = "booked"
