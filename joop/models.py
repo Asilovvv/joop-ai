@@ -112,6 +112,7 @@ class Service(SQLModel, table=True):
     upsell_id: int = 0  # another service offered right after a booking for this one (joop/upsell.py); 0 = none
     stock: Optional[int] = None  # pieces on the shelf; None = not tracked (joop/stock.py)
     stock_min: int = 0  # tell the staff when the stock falls to this
+    sold_out: bool = False  # taken off sale by the stock reaching zero (not by the owner's stop list)
 
 
 class Staff(SQLModel, table=True):
@@ -187,7 +188,7 @@ class Booking(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     business_id: int = Field(foreign_key="business.id", index=True)
     slot_id: Optional[int] = Field(default=None, foreign_key="slot.id")
-    conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.id")
+    conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.id", index=True)
     staff_id: Optional[int] = Field(default=None, foreign_key="staff.id")
     staff_name: str = ""
     start: NaiveDatetime = Field(index=True)
