@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}API и вебхуки{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>API и вебхуки</h1>
+  <p class="muted">Записи, заказы, заявки и клиенты сами уходят в 1С, Google Таблицы, Make, n8n или вашу программу — без ручного копирования. Оба способа выключены, пока вы их не включите здесь. Тестовый чат «Проверить ИИ» не передаётся.</p>
+</section>
+
+<section class="card stack">
+  <h2>Ключ API {% if business.api_key_hash %}<span class="chip ok">активен · …{{ business.api_key_hint }}</span>{% endif %}</h2>
+  {% if new_key %}
+  <p class="flash ok">Скопируйте ключ сейчас — больше он показан не будет. Мы храним только его отпечаток.</p>
+  <input class="mono" value="{{ new_key }}" readonly aria-label="Новый ключ API" onfocus="this.select()">
+  {% endif %}
+  <p class="small muted">Программа читает данные запросом с заголовком <span class="mono">Authorization: Bearer &lt;ключ&gt;</span>. Ключ только читает — изменить или удалить что-то через него нельзя.</p>
+  <div class="list">
+    {% for path, what in [('bookings', 'записи'), ('orders', 'заказы с товарами'), ('leads', 'заявки и обращения'), ('customers', 'карточки клиентов')] %}
+    <div class="item"><div class="main"><span class="mono small">GET {{ base }}/api/v1/{{ path }}</span><div class="muted small">{{ what }}</div></div></div>
+    {% endfor %}
+  </div>
+  <p class="small muted">По 200 строк за запрос, старые первыми. Следующая страница: <span class="mono">?after_id=</span>последний id (для клиентов — <span class="mono">?offset=200</span>). Только новые: <span class="mono">?since=2026-11-01T00:00:00Z</span>. Не больше {{ 120 }} запросов в минуту.</p>
+  <form method="post" action="/panel/api" class="row-tail">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn" type="submit" name="action" value="new_key">{{ 'Выпустить новый ключ' if business.api_key_hash else 'Создать ключ' }}</button>
+    {% if business.api_key_hash %}<button class="btn ghost" type="submit" name="action" value="revoke_key">Отозвать</button>{% endif %}
+  </form>
+  {% if business.api_key_hash %}<p class="small muted">Новый ключ сразу заменяет старый.</p>{% endif %}
+</section>
+
+<section class="card stack">
+  <h2>Вебхуки {% if business.webhook_url %}<span class="chip ok">включены</span>{% endif %}</h2>
+  <p class="small muted">Как только ИИ записал клиента, принял заказ или заявку, или вы отметили оплату в кассе, Joop отправляет событие POST-запросом на ваш адрес: <span class="mono">booking.created</span>, <span class="mono">booking.paid</span>, <span class="mono">order.created</span>, <span class="mono">lead.created</span>. Если адрес не ответил, Joop повторит до 5 раз.</p>
+  {% if new_secret %}
+  <p class="flash ok">Секрет подписи — скопируйте его в свою программу сейчас, больше он показан не будет.</p>
+  <input class="mono" value="{{ new_secret }}" readonly aria-label="Секрет подписи" onfocus="this.select()">
+  {% endif %}
+  {% if business.webhook_error %}<p class="flash error">Последняя ошибка: {{ business.webhook_error }}</p>{% endif %}
+  <form method="post" action="/panel/api" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="w-url">Адрес (только https)<input id="w-url" name="url" type="url" value="{{ business.webhook_url }}" placeholder="https://hook.eu1.make.com/…" autocomplete="off" maxlength="500"></label>
+    <div class="row-tail">
+      <button class="btn" type="submit" name="action" value="save_webhook">{{ 'Сохранить' if business.webhook_url else 'Включить вебхуки' }}</button>
+      {% if business.webhook_url %}
+      <button class="btn ghost" type="submit" name="action" value="test_webhook" formnovalidate>Отправить тест</button>
+      <button class="btn ghost" type="submit" name="action" value="new_secret" formnovalidate>Новый секрет</button>
+      <button class="btn ghost" type="submit" name="action" value="off_webhook" formnovalidate>Выключить</button>
+      {% endif %}
+    </div>
+  </form>
+  <details><summary class="small">Как проверить, что запрос от Joop</summary>
+    <p class="small muted">В заголовке <span class="mono">X-Joop-Signature</span> приходит <span class="mono">sha256=</span> и HMAC-SHA256 тела запроса, посчитанный вашим секретом. Посчитайте так же у себя и сравните. Тип события — в заголовке <span class="mono">X-Joop-Event</span> и в поле <span class="mono">event</span>.</p>
+  </details>
+</section>
+{% endblock %}
