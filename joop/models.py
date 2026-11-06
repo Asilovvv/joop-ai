@@ -110,6 +110,8 @@ class Service(SQLModel, table=True):
     repeat_days: int = 0  # invite the customer back this many days after the visit (0 = never)
     external_id: str = ""  # id in the booking system the price list comes from (Altegio)
     upsell_id: int = 0  # another service offered right after a booking for this one (joop/upsell.py); 0 = none
+    stock: Optional[int] = None  # pieces on the shelf; None = not tracked (joop/stock.py)
+    stock_min: int = 0  # tell the staff when the stock falls to this
 
 
 class Staff(SQLModel, table=True):
@@ -313,6 +315,20 @@ class Customer(SQLModel, table=True):
     key: str = Field(index=True)  # nine digits of the phone, or «channel:chat_id» for a chat without one
     note: str = ""
     tags: str = ""  # comma-separated
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
+class StockMove(SQLModel, table=True):
+    """One change of a tracked item's stock: an order, a cancellation, a recount (joop/stock.py)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    service_id: int = Field(foreign_key="service.id", index=True)
+    delta: int
+    left: int
+    reason: str  # order | return | recount
+    who: str = ""
+    order_id: Optional[int] = Field(default=None, index=True)
     created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 

@@ -174,6 +174,9 @@ WhatsApp message fees for reminders.
   At the end of a business's second paid month the console reminds the founder to offer a year
   (`ANNUAL_MONTHS`: a year for that many months' price) with a ready message in the business's
   own numbers (`joop/annual.py`).
+- **Stock** (`/panel/stock`): type how many pieces there are and the item is tracked — the AI's order
+  checks the count in code («осталось 2 шт.»), takes it, returns it when the order is cancelled, takes the
+  item off sale at zero and warns the staff at the minimum; a recount is the inventory, with history.
 - **Booking page** (`/m/<slug>` for booking niches): the public price page also shows the masters, the three
   nearest free times and «написать и записаться» buttons for every connected channel where the AI answers;
   the bottom button leads there too, never to a landline. A link for the Instagram bio and the counter card.
@@ -407,7 +410,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 474 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 476 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
