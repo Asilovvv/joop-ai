@@ -30,7 +30,7 @@ from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order
                       Staff, StockMove, WaitlistEntry)
 from ..niches import all_packs, get_pack
 from ..phone import normalize_phone
-from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, samples, staff_reply, stock, waitlist
+from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, quick_replies, samples, staff_reply, stock, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -73,6 +73,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
         items.append(("/panel/followups", "followups", "Отзывы и возврат"))
     if pack.has("booking"):
         items.append(("/panel/gaps", "gaps", "Пустые окна"))
+    items.append(("/panel/replies", "replies", "Готовые ответы"))
     items.append(("/panel/card", "card", "Табличка на стойку"))
     items.append(("/panel/broadcasts", "broadcasts", "Рассылки"))
     if pack.offers("memberships"):
@@ -88,7 +89,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     return items
 NAV_GROUPS = (
     ("Работа", {"dashboard", "conversations", "customers", "orders", "bookings", "stays", "leads", "funnel", "cash", "jobs"}),
-    ("Инструменты", {"slots", "tests", "menu", "followups", "gaps", "broadcasts", "memberships", "card", "stock"}),
+    ("Инструменты", {"slots", "tests", "menu", "followups", "gaps", "broadcasts", "memberships", "card", "stock", "replies"}),
     ("Настройка", {"setup", "try", "services", "staff", "faq", "settings", "channels", "accounts", "api", "billing"}),
 )
 
@@ -1295,7 +1296,7 @@ def gaps_send_all(request: Request, csrf: str = Form("")):
 
 
 @router.get("/panel/conversations/{item_id}")
-def conversation_page(request: Request, item_id: int):
+def conversation_page(request: Request, item_id: int, t: int = 0):
     with new_session() as s:
         b = _business(s, request)
         conv = _own(s, Conversation, item_id, b.id)
@@ -1317,6 +1318,8 @@ def conversation_page(request: Request, item_id: int):
             paused=bool(conv.ai_paused_until and conv.ai_paused_until > utcnow()),
             channel_names=CHANNEL_NAMES,
             reply_blocked=staff_reply.blocked(conv, utcnow()),
+            replies=quick_replies.listing(s, b),
+            draft=next((quick_replies.fill(r.text, b, conv) for r in quick_replies.listing(s, b) if r.id == t), ""),
         )
 
 
@@ -1844,6 +1847,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .api import router as api_router
 
     app.include_router(api_router)
+    from .replies import router as replies_router
+
+    app.include_router(replies_router)
 
     @app.exception_handler(OwnerRequired)
     async def _owner_required(_request: Request, _exc: OwnerRequired):

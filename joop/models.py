@@ -341,6 +341,16 @@ class StockMove(SQLModel, table=True):
     created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
+class QuickReply(SQLModel, table=True):
+    """A ready answer staff put into the reply box of a dialogue (joop/quick_replies.py)."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    title: str
+    text: str
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
 class WebhookDelivery(SQLModel, table=True):
     """One event sent (or being retried) to the business's webhook address (joop/api.py)."""
 
