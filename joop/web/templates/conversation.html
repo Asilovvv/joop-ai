@@ -25,7 +25,8 @@
   {% else %}
   <form method="post" action="/panel/conversations/{{ conv.id }}/reply" class="stack">
     <input type="hidden" name="csrf" value="{{ csrf }}">
-    <textarea name="text" rows="3" maxlength="2000" required aria-label="Ответ клиенту" placeholder="Здравствуйте! Это администратор…"></textarea>
+    {% if replies %}<div class="chips" aria-label="Готовые ответы">{% for r in replies %}<a class="chip" href="/panel/conversations/{{ conv.id }}?t={{ r.id }}#reply">{{ r.title }}</a>{% endfor %}<a class="chip" href="/panel/replies">+ свои</a></div>{% else %}<p class="small muted">Частые ответы можно сохранить в <a href="/panel/replies">«Готовых ответах»</a> и вставлять сюда одним нажатием.</p>{% endif %}
+    <textarea id="reply" name="text" rows="3" maxlength="2000" required aria-label="Ответ клиенту" placeholder="Здравствуйте! Это администратор…">{{ draft }}</textarea>
     <div class="actions" style="justify-content: flex-start"><button class="btn" type="submit">Отправить клиенту</button></div>
   </form>
   <p class="muted small">Сообщение уйдёт от имени {{ business.name }}{% if conv.channel == 'web' %}: клиент увидит его в чате на сайте, пока страница открыта, или когда откроет её снова{% endif %}. После ответа ИИ 12 часов не вмешивается в этот диалог.</p>
