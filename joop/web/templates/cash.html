@@ -1,9 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Касса{% endblock %}
+{% block title %}Касса<style>
+.pay-row { flex-wrap: wrap; }
+.pay-row .main { flex: 1 1 220px; min-width: 0; }
+.pay-row .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pay-row .actions select { width: auto; }
+.pay-row .actions label { display: inline-flex !important; flex-direction: row; gap: 6px; align-items: center; margin: 0; white-space: nowrap; }
+.pay-row .actions input[type=checkbox] { width: auto; margin: 0; }
+@media (max-width: 640px) { .pay-row .actions { width: 100%; } .pay-row .actions select { flex: 1 1 120px; } }
+</style>
+{% endblock %}
 {% block content %}
 <section class="stack">
   <h1>Касса</h1>
-  <p class="muted">После визита мастер отмечает, сколько заплатил клиент и как — сумма уже подставлена из прайса. Остальное считает Joop: день, месяц, по мастерам и услугам. Это ваш учёт, не налоговый документ.</p>
+  <p class="muted">После визита мастер отмечает, сколько заплатил клиент и как — сумма уже подставлена из прайса. Остальное считает Joop: день, месяц, по мастерам и услугам. Это ваш учёт, не налоговый документ: фискальный чек клиенту пробивает ваша ККМ, а Joop напоминает, где отметки о чеке нет.</p>
   <div class="row" style="display:flex;gap:10px;align-items:center;border:0">
     <a class="btn ghost small" href="/panel/cash?date={{ prev }}">← {{ prev[8:] }}.{{ prev[5:7] }}</a>
     <b>{{ chosen.strftime('%d.%m.%Y') }}</b>
@@ -13,6 +22,7 @@
     <div class="stat"><b>{{ '{:,}'.format(d.total).replace(',', ' ') }}</b><span>сом за день</span></div>
     {% for k, v in d.by_method.items() %}<div class="stat"><b>{{ '{:,}'.format(v).replace(',', ' ') }}</b><span>{{ methods.get(k, k) }}</span></div>{% endfor %}
     <div class="stat"><b>{{ '{:,}'.format(m.total).replace(',', ' ') }}</b><span>сом за месяц, {{ m.visits }} визитов</span></div>
+    {% if d.no_receipt %}<div class="stat"><b>{{ d.no_receipt | length }}</b><span>оплат без отметки о чеке ККМ</span></div>{% endif %}
   </div>
 </section>
 {% if d.unpaid %}
@@ -20,11 +30,12 @@
   <h2>Визиты без оплаты ({{ d.unpaid | length }})</h2>
   <div class="list">
     {% for b in d.unpaid %}
-    <div class="item">
+    <div class="item pay-row">
       <div class="main">{{ b.start.strftime('%H:%M') }} — {{ b.customer_name }} · {{ b.service or 'визит' }}{% if b.staff_name %} у {{ b.staff_name }}{% endif %}</div>
       <form method="post" action="/panel/bookings/{{ b.id }}/pay" class="actions"><input type="hidden" name="csrf" value="{{ csrf }}">
         <input name="amount" type="number" min="0" step="1" value="{{ suggested.get(b.id) or '' }}" placeholder="сом" style="width:110px">
-        <select name="method">{% for k, v in methods.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+        <select name="method" aria-label="Как оплатил">{% for k, v in methods.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+        <label class="small"><input type="checkbox" name="receipt" value="1"> чек ККМ</label>
         <button class="btn small" type="submit">Оплачено</button>
       </form>
     </div>
@@ -37,10 +48,11 @@
   {% set paid = d.rows | selectattr('paid_som') | list %}
   {% if paid %}
   <div class="scroll"><table class="table">
-    <tr><th>Время</th><th>Клиент</th><th>Услуга</th><th>Мастер</th><th>Сумма</th><th>Как</th><th></th></tr>
+    <tr><th>Время</th><th>Клиент</th><th>Услуга</th><th>Мастер</th><th>Сумма</th><th>Как</th><th>Чек ККМ</th><th></th></tr>
     {% for b in paid %}
     <tr><td class="mono">{{ b.start.strftime('%H:%M') }}</td><td>{{ b.customer_name }}</td><td>{{ b.service or 'визит' }}</td><td>{{ b.staff_name }}</td>
       <td class="mono">{{ '{:,}'.format(b.paid_som).replace(',', ' ') }}</td><td>{{ methods.get(b.paid_method, b.paid_method) }}</td>
+      <td>{% if b.receipt_at %}<span class="chip ok">пробит</span>{% else %}<form method="post" action="/panel/bookings/{{ b.id }}/receipt" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small ghost" type="submit" title="Чек ККМ пробит">Отметить</button></form>{% endif %}</td>
       <td><form method="post" action="/panel/bookings/{{ b.id }}/pay" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="amount" value="0"><button class="btn small ghost" type="submit">Убрать</button></form></td></tr>
     {% endfor %}
   </table></div>
@@ -60,4 +72,13 @@
   </table></div>
   {% else %}<p class="muted">В этом месяце оплат ещё нет.</p>{% endif %}
 </section>
+<style>
+.pay-row { flex-wrap: wrap; }
+.pay-row .main { flex: 1 1 220px; min-width: 0; }
+.pay-row .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pay-row .actions select { width: auto; }
+.pay-row .actions label { display: inline-flex !important; flex-direction: row; gap: 6px; align-items: center; margin: 0; white-space: nowrap; }
+.pay-row .actions input[type=checkbox] { width: auto; margin: 0; }
+@media (max-width: 640px) { .pay-row .actions { width: 100%; } .pay-row .actions select { flex: 1 1 120px; } }
+</style>
 {% endblock %}
