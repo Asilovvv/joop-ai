@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from sqlalchemy import update
 from sqlmodel import Session, select
 
 from .models import OrderLine, Service, StockMove
@@ -29,40 +30,65 @@ def short(item: Service, qty: int) -> str:
 
 
 def _move(session: Session, item: Service, delta: int, reason: str, who: str, now_utc: datetime, order_id: int | None = None) -> None:
-    item.stock = max(0, (item.stock or 0) + delta)
-    if item.stock == 0:
-        item.available = False  # sold out: off the list the AI offers
-    elif delta > 0 and not item.available and reason in ("recount", "return", "arrival"):
-        item.available = True
+    new = max(0, (item.stock or 0) + delta)
+    delta, item.stock = new - (item.stock or 0), new  # what really changed: a clamp never invents stock on a return
+    if item.stock == 0 and item.available:
+        item.available, item.sold_out = False, True  # sold out: off the list the AI offers
+    elif item.stock > 0 and item.sold_out:
+        item.available, item.sold_out = True, False  # back in stock; an item the owner stopped stays stopped
     session.add(item)
     session.add(StockMove(business_id=item.business_id, service_id=item.id, delta=delta, left=item.stock, reason=reason,
                           who=who[:80], order_id=order_id, created_at=now_utc))
 
 
-def take_for_order(session: Session, order_id: int, now_utc: datetime) -> list[str]:
+def _held(session: Session, order_id: int) -> dict[int, int]:
+    """Pieces this order holds now, per item: takes minus returns."""
+    out: dict[int, int] = {}
+    for m in session.exec(select(StockMove).where(StockMove.order_id == order_id)).all():
+        out[m.service_id] = out.get(m.service_id, 0) - m.delta
+    return out
+
+
+def take_for_order(session: Session, order_id: int, now_utc: datetime, who: str = "ИИ") -> list[str]:
     """Take the ordered goods off the shelf; notes for the staff when an item reaches its minimum or runs out."""
     notes: list[str] = []
+    wanted: dict[int, int] = {}
     for line in session.exec(select(OrderLine).where(OrderLine.order_id == order_id)).all():
-        item = session.get(Service, line.item_id) if line.item_id else None
-        if item is None or not tracked(item):
+        if line.item_id:
+            wanted[line.item_id] = wanted.get(line.item_id, 0) + line.quantity
+    held = _held(session, order_id)
+    for item_id, qty in wanted.items():
+        item = session.get(Service, item_id)
+        need = qty - held.get(item_id, 0)
+        if item is None or not tracked(item) or need <= 0:
             continue
         before = item.stock
-        _move(session, item, -line.quantity, "order", "ИИ", now_utc, order_id)
+        # one statement that only succeeds while the pieces are there: two chats ordering the last piece at once
+        # cannot both take it
+        took = session.execute(update(Service).where(Service.id == item.id, Service.stock >= need)
+                               .values(stock=Service.stock - need)).rowcount
+        session.refresh(item)
+        if took:
+            item.stock += need  # _move writes the change and its history from the count before
+            before = item.stock
+        else:
+            notes.append(f"Склад: заказ #{order_id} — «{item.name}» просили {need} шт., а осталось {item.stock}. Свяжитесь с клиентом.")
+            before = item.stock
+        _move(session, item, -need, "order", who, now_utc, order_id)
         if item.stock == 0:
             notes.append(f"Склад: «{item.name}» закончился — ИИ больше его не предлагает. Пополните остаток в разделе «Склад».")
-        elif item.stock_min and before > item.stock_min >= item.stock:
+            continue
+        if item.stock_min and before > item.stock_min >= item.stock:
             notes.append(f"Склад: «{item.name}» осталось {item.stock} шт. (минимум {item.stock_min}).")
     return notes
 
 
 def return_for_order(session: Session, order_id: int, who: str, now_utc: datetime) -> None:
-    """A cancelled order puts its goods back, once."""
-    taken = session.exec(select(StockMove).where(StockMove.order_id == order_id, StockMove.reason == "order")).all()
-    returned = {m.service_id for m in session.exec(select(StockMove).where(StockMove.order_id == order_id, StockMove.reason == "return")).all()}
-    for move in taken:
-        item = session.get(Service, move.service_id)
-        if item is not None and move.service_id not in returned:
-            _move(session, item, -move.delta, "return", who, now_utc, order_id)
+    """A cancelled order puts back what it holds — never more, however often it is cancelled and restored."""
+    for item_id, qty in _held(session, order_id).items():
+        item = session.get(Service, item_id)
+        if item is not None and qty > 0:
+            _move(session, item, qty, "return", who, now_utc, order_id)
 
 
 def recount(session: Session, item: Service, counted: int | None, minimum: int, who: str, now_utc: datetime) -> None:

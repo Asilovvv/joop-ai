@@ -180,8 +180,9 @@ WhatsApp message fees for reminders.
 - **Booking page** (`/m/<slug>` for booking niches): the public price page also shows the masters, the three
   nearest free times and «написать и записаться» buttons for every connected channel where the AI answers;
   the bottom button leads there too, never to a landline. A link for the Instagram bio and the counter card.
-- **A master's login**: in «Входы» a staff login can be tied to a master; then bookings, customers and
-  the cash page show only hers. Ordinary staff logins and the owner see everything.
+- **A master's login**: in «Входы» a staff login can be tied to a master; she then opens only bookings,
+  customers and the cash page, each showing only hers (the CSV too), and can change only her own bookings
+  and customers; every other section answers 403. Ordinary staff logins and the owner see everything.
 - **Cash** (`/panel/cash`): after a visit, one tap records what the customer paid and how (the amount
   is pre-filled from the price list plus the accepted add-on); the page shows the day and the month by
   method, master and service, the morning summary carries yesterday's total (`joop/cash.py`).
@@ -410,7 +411,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 476 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 487 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
