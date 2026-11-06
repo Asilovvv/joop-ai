@@ -118,6 +118,15 @@ def test_url_check_blocks_internal_and_plain_http():
     assert api.check_url("https://localhost/x") and api.check_url("https://127.0.0.1/x") and api.check_url("https://db.internal/x")
     assert api.check_url("https://nowhere.example/x")
     assert api.check_url("https://user:pass@hook.eu1.make.com/x")
+    assert "латиницей" in api.check_url("https://straße.example/x")  # IDNA 2003 and 2008 would name different hosts
+    assert api.check_url("https://xn--strae-oqa.example/x") == ""
+    assert "443" in api.check_url("https://hook.eu1.make.com:6379/x") and api.check_url("https://hook.eu1.make.com:8443/x") == ""
+    assert api.check_url("https://hook.eu1.make.com:99999/x")
+
+
+def test_since_honours_an_offset():
+    assert api._since("2026-11-05T06:00:00+06:00") == api._since("2026-11-05T00:00:00Z") == api._since("2026-11-05T00:00:00")
+    assert api._since("вчера") is None
 
 
 class Receiver:
@@ -147,7 +156,7 @@ def test_webhooks_are_signed_sent_once_and_skip_test_chat(business, rt):
         assert api.send_due(s, http, b, NOW_UTC) == {"sent": 3, "failed": 0}
         s.commit()
         events = [r.headers["x-joop-event"] for r in rx.got]
-        assert events == ["booking.created", "order.created", "lead.created"]  # an internal error is not a lead
+        assert events == ["booking.created", "lead.created", "order.created"]  # by time; an internal error is not a lead
         first = rx.got[0]
         assert first.url.host == PUBLIC and first.headers["host"] == "hook.example.com"  # pinned to the checked address
         assert first.extensions.get("sni_hostname") == "hook.example.com"
@@ -163,23 +172,44 @@ def test_webhooks_are_signed_sent_once_and_skip_test_chat(business, rt):
         assert rx.got[-1].headers["x-joop-event"] == "booking.paid" and json.loads(rx.got[-1].content)["data"]["paid"]["som"] == 3000
 
 
-def test_webhooks_retry_then_give_up_and_skip_the_backlog(business, rt):
+def test_webhooks_retry_for_a_day_then_give_up_and_skip_the_backlog(business, rt):
     _seed(business.id)
     _hooked(business.id, since=NOW_UTC - timedelta(minutes=4, seconds=30))  # switched on after the first booking
     rx = Receiver(status=500)
     http = httpx.Client(transport=httpx.MockTransport(rx.handler))
     with db.new_session() as s:
         b = s.get(Business, business.id)
-        for i in range(api.MAX_ATTEMPTS):
-            assert api.send_due(s, http, b, NOW_UTC + timedelta(minutes=i)) == {"sent": 0, "failed": 1}  # stops at the first failure
+        for minutes in (0, 5, 60, 600):  # a short outage does not lose the event
+            assert api.send_due(s, http, b, NOW_UTC + timedelta(minutes=minutes)) == {"sent": 0, "failed": 1}  # stops at the first failure
             s.commit()
         assert "HTTP 500" in b.webhook_error
         assert "booking.created" not in {r.headers["x-joop-event"] for r in rx.got}  # older than the switch-on
+        assert api.undelivered(s, b, NOW_UTC + timedelta(hours=10)) == (1, 0)
         rx.status = 200
-        assert api.send_due(s, http, b, NOW_UTC + timedelta(minutes=9))["sent"] == 1  # the given-up one stays given up
+        later = NOW_UTC + api.GIVE_UP + timedelta(minutes=1)
+        assert api.send_due(s, http, b, later)["sent"] == 1  # the one refused for a day stays given up
         s.commit()
-        row = s.exec(select(WebhookDelivery).where(WebhookDelivery.attempts == api.MAX_ATTEMPTS)).one()
+        row = s.exec(select(WebhookDelivery).where(WebhookDelivery.attempts == 4)).one()
         assert row.delivered_at is None and b.webhook_error == ""
+        assert api.undelivered(s, b, later) == (0, 1)
+
+
+def test_events_go_in_the_order_they_happened_and_no_transaction_is_open_while_posting(business, rt, monkeypatch):
+    _seed(business.id)
+    _hooked(business.id)
+    with db.new_session() as s:
+        s.add(Lead(business_id=business.id, kind="lead", summary="раньше всех", channel="telegram", created_at=NOW_UTC - timedelta(minutes=9)))
+        s.commit()
+        b = s.get(Business, business.id)
+        seen = []
+
+        def fake_post(http, business, event, data, now_utc):
+            seen.append((event, s.in_transaction()))
+            return True, "HTTP 200"
+        monkeypatch.setattr(api, "post", fake_post)
+        api.send_due(s, None, b, NOW_UTC)
+        assert [e for e, _ in seen] == ["lead.created", "booking.created", "lead.created", "order.created"]
+        assert not any(busy for _, busy in seen)  # a slow receiver does not hold SQLite's write lock
 
 
 def test_webhook_refuses_an_address_that_turned_inward(business, rt):
@@ -213,6 +243,9 @@ def test_panel_page_owner_only_key_shown_once(business, settings, rt):
         page = c.post("/panel/api", data={"csrf": token, "action": "new_key"}).text
         key = page.split('value="joop_')[1].split('"')[0]
         assert "больше он показан не будет" in page
+        assert c.post("/panel/api", data={"csrf": token, "action": "new_key"}).headers["cache-control"] == "no-store"
+        page = c.post("/panel/api", data={"csrf": token, "action": "new_key"}).text
+        key = page.split('value="joop_')[1].split('"')[0]
         assert "joop_" + key not in c.get("/panel/api").text  # shown once
         with db.new_session() as s:
             assert s.get(Business, business.id).api_key_hint == key[-4:]

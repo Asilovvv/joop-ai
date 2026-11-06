@@ -53,7 +53,7 @@ def accounts_add(request: Request, name: str = Form(""), login: str = Form(""), 
         elif len(users) >= MAX_USERS:
             _flash(request, f"Не больше {MAX_USERS} входов на компанию.", "error")
         else:
-            master = s.get(Staff, int(staff_id)) if staff_id.isdigit() else None
+            master = s.get(Staff, int(staff_id)) if staff_id.isascii() and staff_id.isdigit() else None
             linked = master.id if master and master.business_id == b.id else None
             s.add(PanelUser(business_id=b.id, name=name, login=login, password_hash=hash_password(password), staff_id=linked))
             s.commit()

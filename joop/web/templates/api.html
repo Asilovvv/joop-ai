@@ -29,12 +29,13 @@
 
 <section class="card stack">
   <h2>Вебхуки {% if business.webhook_url %}<span class="chip ok">включены</span>{% endif %}</h2>
-  <p class="small muted">Как только ИИ записал клиента, принял заказ или заявку, или вы отметили оплату в кассе, Joop отправляет событие POST-запросом на ваш адрес: <span class="mono">booking.created</span>, <span class="mono">booking.paid</span>, <span class="mono">order.created</span>, <span class="mono">lead.created</span>. Если адрес не ответил, Joop повторит до 5 раз.</p>
+  <p class="small muted">Как только ИИ записал клиента, принял заказ или заявку, или вы отметили оплату в кассе, Joop отправляет событие POST-запросом на ваш адрес: <span class="mono">booking.created</span>, <span class="mono">booking.paid</span>, <span class="mono">order.created</span>, <span class="mono">lead.created</span>. Если адрес не ответил, Joop повторяет каждые несколько минут, по порядку, в течение суток.</p>
   {% if new_secret %}
   <p class="flash ok">Секрет подписи — скопируйте его в свою программу сейчас, больше он показан не будет.</p>
   <input class="mono" value="{{ new_secret }}" readonly aria-label="Секрет подписи" onfocus="this.select()">
   {% endif %}
   {% if business.webhook_error %}<p class="flash error">Последняя ошибка: {{ business.webhook_error }}</p>{% endif %}
+  {% if waiting or lost %}<p class="small">{% if waiting %}Ждут повторной отправки: {{ waiting }}.{% endif %}{% if lost %} Не доставлены за сутки и больше не отправляются: {{ lost }} — их можно забрать через API.{% endif %}</p>{% endif %}
   <form method="post" action="/panel/api" class="stack">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <label for="w-url">Адрес (только https)<input id="w-url" name="url" type="url" value="{{ business.webhook_url }}" placeholder="https://hook.eu1.make.com/…" autocomplete="off" maxlength="500"></label>
