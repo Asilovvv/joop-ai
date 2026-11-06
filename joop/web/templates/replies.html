@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Готовые ответы{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Готовые ответы</h1>
+  <p class="muted">Ответы, которые вы пишете клиентам каждый день. В диалоге они стоят над полем ответа: нажали — текст подставился с именем клиента, проверили, отправили. Сами по себе они никуда не уходят.</p>
+  <p class="small muted">Подставляется: {% for f in fields %}<span class="mono">{{ f }}</span>{% if not loop.last %}, {% endif %}{% endfor %} — имя клиента, название, адрес и телефон из настроек.</p>
+</section>
+<section class="card stack">
+  <h2>Новый ответ</h2>
+  <form method="post" action="/panel/replies" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Название — его видно на кнопке<input name="title" maxlength="{{ max_title }}" required placeholder="Перезвоним"></label>
+    <label>Текст<textarea name="text" rows="3" maxlength="{{ max_text }}" required placeholder="{имя}, спасибо! Администратор перезвонит вам в ближайшие 15 минут."></textarea></label>
+    <div class="actions" style="justify-content:flex-start">
+      <button class="btn" type="submit">Сохранить</button>
+      {% if not rows %}<button class="btn ghost" type="submit" name="action" value="starters" formnovalidate>Добавить примеры</button>{% endif %}
+    </div>
+  </form>
+</section>
+{% if rows %}
+<section class="card stack">
+  <h2>Ваши ответы ({{ rows | length }})</h2>
+  {% for r in rows %}
+  <form method="post" action="/panel/replies/{{ r.id }}" class="stack reply-row">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid2">
+      <label>Название<input name="title" value="{{ r.title }}" maxlength="{{ max_title }}" required></label>
+      <label>Текст<textarea name="text" rows="2" maxlength="{{ max_text }}" required>{{ r.text }}</textarea></label>
+    </div>
+    <p class="small muted">Клиент увидит: {{ previews[r.id] }}</p>
+    <div class="actions" style="justify-content:flex-start">
+      <button class="btn small" type="submit">Сохранить</button>
+      <button class="btn small ghost" type="submit" name="action" value="delete" formnovalidate>Удалить</button>
+    </div>
+  </form>
+  {% endfor %}
+</section>
+{% endif %}
+<style>.reply-row + .reply-row { border-top: 1px solid var(--line); padding-top: 14px; }</style>
+{% endblock %}
