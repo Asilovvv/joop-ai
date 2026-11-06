@@ -27,10 +27,10 @@ from ..db import init_db, new_session
 from ..dispatch import admin_chat_ids, process_incoming
 from ..catalog import parse_price
 from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, PanelUser, Service, SignatureClick, Slot,
-                      Staff, WaitlistEntry)
+                      Staff, StockMove, WaitlistEntry)
 from ..niches import all_packs, get_pack
 from ..phone import normalize_phone
-from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, samples, staff_reply, waitlist
+from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, samples, staff_reply, stock, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -67,6 +67,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     if pack.offers("level_test"):
         items.append(("/panel/tests", "tests", "Тест на уровень"))
     items.append(("/panel/services", "services", pack.catalog_label))
+    items.append(("/panel/stock", "stock", "Склад"))
     items.append(("/panel/menu", "menu", "QR-меню" if pack.has("order") else "Прайс онлайн"))
     if books:
         items.append(("/panel/followups", "followups", "Отзывы и возврат"))
@@ -87,7 +88,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     return items
 NAV_GROUPS = (
     ("Работа", {"dashboard", "conversations", "customers", "orders", "bookings", "stays", "leads", "funnel", "cash", "jobs"}),
-    ("Инструменты", {"slots", "tests", "menu", "followups", "gaps", "broadcasts", "memberships", "card"}),
+    ("Инструменты", {"slots", "tests", "menu", "followups", "gaps", "broadcasts", "memberships", "card", "stock"}),
     ("Настройка", {"setup", "try", "services", "staff", "faq", "settings", "channels", "accounts", "billing"}),
 )
 
@@ -962,6 +963,8 @@ def order_status(request: Request, item_id: int, status: str = Form(""), csrf: s
         b = _business(s, request)
         order = _own(s, Order, item_id, b.id)
         if status in ORDER_STATUSES:
+            if status == "cancelled" and order.status != "cancelled":
+                stock.return_for_order(s, order.id, _who(request), utcnow())  # the goods go back on the shelf
             order.status = status
             s.add(order)
             s.commit()
@@ -992,6 +995,30 @@ def lead_done(request: Request, item_id: int, csrf: str = Form("")):
         s.add(lead)
         s.commit()
     return _back("/panel/leads")
+
+
+@router.get("/panel/stock")
+def stock_page(request: Request):
+    """Goods with counts: the AI sells only what is there; a recount writes the difference down."""
+    with new_session() as s:
+        b = _business(s, request)
+        items = s.exec(select(Service).where(Service.business_id == b.id).order_by(Service.sort, Service.id)).all()
+        moves = s.exec(select(StockMove).where(StockMove.business_id == b.id).order_by(StockMove.id.desc()).limit(40)).all()
+        names = {i.id: i.name for i in items}
+        return _render(request, "stock.html", "stock", b, items=items, moves=moves, names=names, low={i.id for i in stock.low(s, b.id)})
+
+
+@router.post("/panel/stock/{item_id}")
+def stock_save(request: Request, item_id: int, counted: str = Form(""), minimum: str = Form("0"), csrf: str = Form("")):
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        item = _own(s, Service, item_id, b.id)
+        value = counted.strip().replace(" ", "")
+        stock.recount(s, item, int(value) if value.isdigit() else None, int(minimum) if minimum.strip().isdigit() else 0, _who(request), utcnow())
+        s.commit()
+    _flash(request, f"«{item.name}»: " + (f"на складе {item.stock} шт." if item.stock is not None else "остаток не отслеживается."))
+    return _back("/panel/stock")
 
 
 @router.get("/panel/cash")
