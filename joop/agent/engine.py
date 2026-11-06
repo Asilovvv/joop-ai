@@ -15,7 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, confirm, deposits, free_plan, health, owner_commands, regulars, samples, trust, upsell, voice
+from .. import altegio, broadcasts, confirm, deposits, free_plan, health, owner_commands, regulars, samples, stock, trust, upsell, voice
 from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -248,6 +248,7 @@ def _model_reply(
         if order is not None:
             outcome.order_id = order.id
             outcome.admin_notes.append(_order_note(session, conv, order, off))
+            outcome.admin_notes.extend(stock.take_for_order(session, order.id, now))
     if result.lead and pack.has("lead"):
         outcome.reply, qualified = _qualified_lead(session, business, conv, result.lead, outcome.reply, now, off)
         if qualified is not None:
@@ -773,6 +774,8 @@ def _try_order(
             problems.append(f"«{item.name}» сейчас нет в наличии")
         elif not 1 <= qty <= MAX_QUANTITY:
             problems.append(f"количество «{item.name}» должно быть от 1 до {MAX_QUANTITY}")
+        elif stock.short(item, qty):
+            problems.append(stock.short(item, qty))  # code counts the shelf, not the model
         else:
             lines.append((item, qty, (line.get("note") or "").strip()[:200]))
     if problems or not lines:

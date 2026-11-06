@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Склад{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Склад</h1>
+  <p class="muted">Напишите, сколько штук есть, — и позиция станет учётной: ИИ не продаст больше, чем на полке, спишет при заказе, вернёт при отмене, снимет с продажи на нуле и предупредит вас на минимуме. Пересчёт — это и есть инвентаризация: разница записывается в историю. Пустое поле — остаток не отслеживается.</p>
+</section>
+<section class="card">
+  {% if items %}
+  <div class="list">
+    {% for i in items %}
+    <form method="post" action="/panel/stock/{{ i.id }}" class="item stock-row">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div class="main"><b>{{ i.name }}</b>{% if i.id in low %} <span class="chip warn">{{ 'закончился' if i.stock == 0 else 'мало' }}</span>{% endif %}{% if not i.available %} <span class="chip">не продаётся</span>{% endif %}
+        <div class="muted small">{{ i.price or 'без цены' }}{% if i.stock is not none %} · на складе {{ i.stock }}{% endif %}</div></div>
+      <div class="actions">
+        <label class="small">Есть, шт.<input name="counted" inputmode="numeric" value="{{ i.stock if i.stock is not none else '' }}" style="width:90px"></label>
+        <label class="small">Минимум<input name="minimum" inputmode="numeric" value="{{ i.stock_min or '' }}" style="width:80px"></label>
+        <button class="btn small" type="submit">Сохранить</button>
+      </div>
+    </form>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted">Сначала добавьте позиции в «{{ pack.catalog_label }}».</p>{% endif %}
+</section>
+{% if moves %}
+<section class="card">
+  <h2>История</h2>
+  <div class="scroll"><table class="table">
+    <tr><th>Когда</th><th>Позиция</th><th>Изменение</th><th>Осталось</th><th>Почему</th><th>Кто</th></tr>
+    {% for m in moves %}
+    <tr><td>{{ m.created_at | local(business.timezone) }}</td><td>{{ names.get(m.service_id, '—') }}</td>
+      <td class="mono">{{ '+' if m.delta > 0 }}{{ m.delta }}</td><td class="mono">{{ m.left }}</td>
+      <td>{{ {'order': 'заказ #' ~ m.order_id, 'return': 'отмена заказа #' ~ m.order_id, 'recount': 'пересчёт'}.get(m.reason, m.reason) }}</td><td>{{ m.who }}</td></tr>
+    {% endfor %}
+  </table></div>
+</section>
+{% endif %}
+<style>
+.stock-row { flex-wrap: wrap; }
+.stock-row .main { flex: 1 1 220px; min-width: 0; }
+.stock-row .actions { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+.stock-row .actions label { display: grid; gap: 4px; }
+@media (max-width: 640px) { .stock-row .actions { width: 100%; } .stock-row .actions label { flex: 1 1 0; } .stock-row .actions input { width: 100% !important; } }
+</style>
+{% endblock %}
