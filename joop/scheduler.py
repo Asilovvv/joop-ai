@@ -113,7 +113,8 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
         )
         .order_by(Booking.start)
     ).all()
-    if not stats["conversations"] and not stats["leads"] and not today:
+    money = cash.digest_line(session, business, now_local)
+    if not stats["conversations"] and not stats["leads"] and not today and not money:
         return None
     lines = [
         f"Сводка «{business.name}» на {now_local:%d.%m}",
@@ -127,7 +128,6 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
     silent = confirm.unconfirmed(today)
     if silent:
         lines.append(confirm.digest_line(silent))
-    money = cash.digest_line(session, business, now_local)
     if money:
         lines.append(money)
     if today:

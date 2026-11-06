@@ -20,6 +20,7 @@ from sqlmodel import Session, select
 
 from .models import Booking, Business, Conversation, Customer, Order, Service
 from .stats import TEST_CHANNEL
+from .timeutil import utc_to_local, utcnow
 
 _DIGITS = re.compile(r"\D")
 TAG_LIMIT = 200
@@ -44,17 +45,26 @@ class Card:
     bookings: list[Booking] = field(default_factory=list)
     orders: list[Order] = field(default_factory=list)
     spend_som: int = 0
-    last_contact: datetime | None = None
+    last_contact: datetime | None = None  # UTC
     note: str = ""
     tags: str = ""
+    now_local: datetime | None = None  # a visit is a booking whose time has come; later ones are upcoming
+
+    def _done(self) -> list[Booking]:
+        return [b for b in self.bookings if b.status == "booked" and (self.now_local is None or b.start <= self.now_local)]
 
     @property
     def visits(self) -> int:
-        return sum(1 for b in self.bookings if b.status == "booked")
+        return len(self._done())
+
+    @property
+    def upcoming(self) -> Booking | None:
+        ahead = [b for b in self.bookings if b.status == "booked" and self.now_local is not None and b.start > self.now_local]
+        return min(ahead, key=lambda b: b.start) if ahead else None
 
     @property
     def last_visit(self) -> datetime | None:
-        past = [b.start for b in self.bookings if b.status == "booked"]
+        past = [b.start for b in self._done()]
         return max(past) if past else None
 
     @property
@@ -117,7 +127,9 @@ def cards(session: Session, business: Business) -> dict[str, Card]:
     for row in session.exec(select(Customer).where(Customer.business_id == business.id)).all():
         if row.key in out:
             out[row.key].note, out[row.key].tags = row.note, row.tags
+    now_local = utc_to_local(utcnow(), business.timezone)
     for c in out.values():
+        c.now_local = now_local
         c.bookings.sort(key=lambda b: b.start, reverse=True)
         c.orders.sort(key=lambda o: o.created_at, reverse=True)
     return out
@@ -143,7 +155,8 @@ def listing(session: Session, business: Business, query: str = "", tag: str = ""
         rows = [c for c in rows if q in c.name.casefold() or (qd and qd in _DIGITS.sub("", c.phone))]
     if tag:
         rows = [c for c in rows if tag in c.tag_list]
-    rows.sort(key=lambda c: (c.last_contact or c.last_visit or datetime.min), reverse=True)
+    tz = business.timezone
+    rows.sort(key=lambda c: (utc_to_local(c.last_contact, tz) if c.last_contact else c.last_visit or datetime.min), reverse=True)
     return rows
 
 
@@ -157,6 +170,12 @@ def save_note(session: Session, business: Business, key: str, note: str, tags: s
     return row
 
 
+def _cell(value) -> str:
+    """A cell Excel will not run as a formula: «=HYPERLINK(...)» in a note or a messenger name stays text."""
+    text = str(value)
+    return "'" + text if text[:1] in ("=", "+", "-", "@", "\t", "\r") else text
+
+
 def export_csv(rows: list[Card], tz: str) -> str:
     from .timeutil import utc_to_local
 
@@ -164,8 +183,9 @@ def export_csv(rows: list[Card], tz: str) -> str:
     w = csv.writer(buf, delimiter=";")
     w.writerow(["Имя", "Телефон", "Каналы", "Визитов", "Последний визит", "Последнее обращение", "Сумма по прайсу, сом", "Оценка", "Теги", "Заметка"])
     for c in rows:
-        w.writerow([c.name, c.phone, ", ".join(sorted(c.channels)), c.visits,
+        phone = c.phone if re.fullmatch(r"\+?[\d ()-]{5,20}", c.phone or "") else _cell(c.phone)  # a real phone stays dialable
+        w.writerow([_cell(c.name), phone, ", ".join(sorted(c.channels)), c.visits,
                     c.last_visit.strftime("%d.%m.%Y") if c.last_visit else "",
                     utc_to_local(c.last_contact, tz).strftime("%d.%m.%Y") if c.last_contact else "",
-                    c.spend_som, c.rating or "", c.tags, c.note])
+                    c.spend_som, c.rating or "", _cell(c.tags), _cell(c.note)])
     return "﻿" + buf.getvalue()  # the BOM makes Excel read UTF-8

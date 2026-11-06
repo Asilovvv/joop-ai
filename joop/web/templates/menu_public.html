@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ b.name }} — {{ title }}</title>
-<meta name="description" content="{{ b.name }}{% if b.address %}, {{ b.address }}{% endif %}: {{ title | lower }}{% if booking %}, {{ tx.masters | lower }}, {{ tx.nearest | lower }}{% endif %}. {{ tx.answers }}.">
+<meta name="description" content="{{ b.name }}{% if b.address %}, {{ b.address }}{% endif %}: {{ title | lower }}{% if booking %}, {{ tx.masters | lower }}, {{ tx.nearest | lower }}{% endif %}.{% if links %} {{ tx.answers }}.{% endif %}">
 <link rel="stylesheet" href="/static/fonts/fonts.css">
 <style>
 :root { --bg: #f6f4ef; --paper: #fff; --ink: #1d1f1c; --muted: #5f645c; --line: #e2ded4; --accent: #0d7a68; --accent-ink: #fff; color-scheme: light; }

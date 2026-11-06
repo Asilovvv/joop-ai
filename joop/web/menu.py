@@ -71,12 +71,13 @@ def order_link(business: Business, lang: str, table: int | None) -> tuple[str, s
 def channel_links(business: Business, base: str, lang: str) -> list[tuple[str, str]]:
     """Where a customer can write and the AI answers: the connected channels only, as the counter card does."""
     out: list[tuple[str, str]] = []
+    if not business.bot_enabled:
+        return out  # the AI is switched off: no «отвечает ИИ» promise
+    if business.wa_phone_number_id and business.wa_access_token and phone_digits(business.phone):
+        out.append((f"https://wa.me/{phone_digits(business.phone)}", "WhatsApp"))  # first: where most customers already write
     if business.telegram_bot_token and business.telegram_bot_username:
         out.append((f"https://t.me/{business.telegram_bot_username}", "Telegram"))
-    if business.wa_phone_number_id and business.wa_access_token and phone_digits(business.phone):
-        out.append((f"https://wa.me/{phone_digits(business.phone)}", "WhatsApp"))
-    if business.bot_enabled:
-        out.append((f"{base}/c/{business.slug}", TEXT[lang]["web"]))
+    out.append((f"{base}/c/{business.slug}", TEXT[lang]["web"]))
     return out
 
 

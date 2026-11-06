@@ -155,6 +155,10 @@ def _bid(request: Request) -> int:
 OWNER_ONLY = ("/panel/settings", "/panel/channels", "/panel/altegio", "/panel/crm", "/panel/setup", "/panel/billing",
               "/panel/accounts", "/panel/broadcasts", "/panel/example")
 OWNER_NAV = {"settings", "channels", "setup", "billing", "accounts", "broadcasts"}
+# A master's own login (PanelUser.staff_id) opens only her bookings, customers and cash; everything else is the
+# whole business's data. "/panel" sends her to her bookings.
+MASTER_PATHS = ("/panel/bookings", "/panel/customers", "/panel/cash")
+MASTER_NAV = {"bookings", "customers", "cash"}
 
 
 def _business(s: Session, request: Request) -> Business:
@@ -171,6 +175,9 @@ def _business(s: Session, request: Request) -> Business:
             raise LoginRequired
         if request.url.path.startswith(OWNER_ONLY):
             raise HTTPException(status_code=403, detail="Этот раздел открывает только владелец: войдите паролем компании.")
+        path = request.url.path
+        if user.staff_id and path != "/panel" and not path.startswith(MASTER_PATHS):
+            raise HTTPException(status_code=403, detail="Этот раздел мастеру не открыт: здесь данные всей компании.")
     return business
 
 
@@ -187,6 +194,15 @@ def _staff_scope(s: Session, request: Request) -> int | None:
     return user.staff_id if user and user.staff_id else None
 
 
+def _own_booking(s: Session, request: Request, item_id: int, business_id: int) -> Booking:
+    """A booking of this business — and, for a master's login, one of hers."""
+    row = _own(s, Booking, item_id, business_id)
+    mine = _staff_scope(s, request)
+    if mine and row.staff_id != mine:
+        raise HTTPException(status_code=404)
+    return row
+
+
 def _who(request: Request) -> str:
     """The name shown next to what this person did: a staff login's name, or "Владелец"."""
     return str(request.session.get("who") or "Владелец")
@@ -201,7 +217,11 @@ def _own(s: Session, model: Any, obj_id: int, business_id: int) -> Any:
 
 def _nav(request: Request, business: Business | None) -> list[tuple[str, str, str]]:
     items = nav_for(business)
-    return items if _is_owner(request) else [i for i in items if i[1] not in OWNER_NAV]
+    if _is_owner(request):
+        return items
+    if request.session.get("master"):
+        return [i for i in items if i[1] in MASTER_NAV]
+    return [i for i in items if i[1] not in OWNER_NAV]
 
 
 SUPPORT_DAYS = 30
@@ -429,6 +449,7 @@ def login(request: Request, slug: str = Form(""), password: str = Form(""), user
         request.session["bid"] = business.id
         if account is not None:
             request.session["uid"], request.session["who"] = account.id, account.name
+            request.session["master"] = bool(account.staff_id)
             request.session["pw"] = account.password_hash[-16:]
             account.last_login_at = utcnow()
             s.add(account)
@@ -463,6 +484,8 @@ def example_ok(request: Request, csrf: str = Form("")):
 def dashboard(request: Request):
     with new_session() as s:
         b = _business(s, request)
+        if _staff_scope(s, request):
+            return RedirectResponse("/panel/bookings", status_code=303)  # the dashboard is the whole business's
         now = utcnow()
         now_local = _now_local(b)
         upcoming = s.exec(
@@ -590,7 +613,11 @@ def service_delete(request: Request, item_id: int, csrf: str = Form("")):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
-        s.delete(_own(s, Service, item_id, b.id))
+        item = _own(s, Service, item_id, b.id)
+        for move in s.exec(select(StockMove).where(StockMove.service_id == item.id)).all():
+            s.delete(move)  # the stock history of a deleted item goes with it
+        s.flush()  # the moves leave before the item: there are no ORM relationships to order the deletes
+        s.delete(item)
         s.commit()
         _flash(request, "Услуга удалена.")
     return _back("/panel/services")
@@ -907,7 +934,7 @@ def booking_cancel(request: Request, item_id: int, csrf: str = Form("")):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
-        booking = _own(s, Booking, item_id, b.id)
+        booking = _own_booking(s, request, item_id, b.id)
         if booking.status == "booked":
             booking.status = "cancelled"
             s.add(booking)
@@ -929,7 +956,7 @@ def booking_paid(request: Request, item_id: int, csrf: str = Form("")):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
-        booking = _own(s, Booking, item_id, b.id)
+        booking = _own_booking(s, request, item_id, b.id)
         told = deposits.mark_paid(s, _rt(request), b, booking, utcnow())
         s.commit()
         if told is None:
@@ -965,6 +992,9 @@ def order_status(request: Request, item_id: int, status: str = Form(""), csrf: s
         if status in ORDER_STATUSES:
             if status == "cancelled" and order.status != "cancelled":
                 stock.return_for_order(s, order.id, _who(request), utcnow())  # the goods go back on the shelf
+            elif order.status == "cancelled" and status != "cancelled":
+                for note in stock.take_for_order(s, order.id, utcnow(), _who(request)):  # the order is back: so is its claim
+                    _flash(request, note, "error")
             order.status = status
             s.add(order)
             s.commit()
@@ -1014,8 +1044,11 @@ def stock_save(request: Request, item_id: int, counted: str = Form(""), minimum:
     with new_session() as s:
         b = _business(s, request)
         item = _own(s, Service, item_id, b.id)
-        value = counted.strip().replace(" ", "")
-        stock.recount(s, item, int(value) if value.isdigit() else None, int(minimum) if minimum.strip().isdigit() else 0, _who(request), utcnow())
+        value, low_mark = counted.strip().replace(" ", ""), minimum.strip()
+        if (value and not value.isdigit()) or (low_mark and not low_mark.isdigit()):
+            _flash(request, "Остаток и минимум — целое число штук. Пустое поле — не отслеживать.", "error")
+            return _back("/panel/stock")
+        stock.recount(s, item, int(value) if value else None, int(low_mark) if low_mark else 0, _who(request), utcnow())
         s.commit()
     _flash(request, f"«{item.name}»: " + (f"на складе {item.stock} шт." if item.stock is not None else "остаток не отслеживается."))
     return _back("/panel/stock")
@@ -1045,13 +1078,13 @@ def booking_pay(request: Request, item_id: int, amount: str = Form("0"), method:
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
-        row = s.get(Booking, item_id)
-        if row is None or row.business_id != b.id:
-            raise HTTPException(status_code=404)
+        row = _own_booking(s, request, item_id, b.id)
         try:
             value = int(str(amount).replace(" ", "") or 0)
         except ValueError:
-            value = 0
+            value = -1
+        if row.status != "booked" or method not in cash.METHODS or not 0 <= value <= cash.MAX_PAYMENT:
+            raise HTTPException(status_code=400)
         cash.record(row, value, method, utcnow())
         s.add(row)
         s.commit()
@@ -1103,7 +1136,7 @@ def customers_page(request: Request, q: str = "", tag: str = ""):
 def customers_csv(request: Request):
     with new_session() as s:
         b = _business(s, request)
-        text = customers.export_csv(customers.listing(s, b), b.timezone)
+        text = customers.export_csv(customers.listing(s, b, staff_id=_staff_scope(s, request)), b.timezone)
     return PlainTextResponse(text, media_type="text/csv; charset=utf-8",
                              headers={"Content-Disposition": 'attachment; filename="customers.csv"'})
 
@@ -1124,7 +1157,9 @@ def customer_save(request: Request, key: str, note: str = Form(""), tags: str = 
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
-        if key not in customers.cards(s, b):
+        card = customers.cards(s, b).get(key)
+        mine = _staff_scope(s, request)
+        if card is None or (mine and not any(x.staff_id == mine for x in card.bookings)):
             raise HTTPException(status_code=404)
         customers.save_note(s, b, key, note, tags)
         s.commit()
