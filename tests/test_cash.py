@@ -74,3 +74,23 @@ def test_cash_page_records_a_payment_and_the_customer_card_prefers_it(business, 
         assert c.post("/panel/bookings/999/pay", data={"csrf": token, "amount": "1"}).status_code == 404
         assert "3 000" in c.get("/panel/customers/555123456").text
         assert "Касса" in c.get("/panel/cash?date=nonsense").text  # a bad date falls back to today
+
+
+def test_receipt_mark_counts_payments_without_a_fiscal_receipt(business, rt, settings):
+    """Joop is not a ККМ: it keeps the «чек пробит» mark and reminds where it is missing (docs/kkm-kg.md)."""
+    ids = _seed(business.id)
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        login(c)
+        token = csrf_of(c.get("/panel/cash").text)
+        c.post(f"/panel/bookings/{ids[0]}/pay", data={"csrf": token, "amount": "3000", "method": "cash", "receipt": "1"})
+        c.post(f"/panel/bookings/{ids[1]}/pay", data={"csrf": token, "amount": "3500", "method": "card"})
+        page = c.get("/panel/cash?date=2026-11-04").text
+        assert "оплат без отметки о чеке ККМ" in page and page.count('class="chip ok">пробит') == 1
+        assert c.post(f"/panel/bookings/{ids[2]}/receipt", data={"csrf": token}).status_code == 400  # nothing paid yet
+        c.post(f"/panel/bookings/{ids[1]}/receipt", data={"csrf": token})
+        assert "оплат без отметки о чеке ККМ" not in c.get("/panel/cash?date=2026-11-04").text
+        c.post(f"/panel/bookings/{ids[1]}/pay", data={"csrf": token, "amount": "0"})
+    with db.new_session() as s:
+        assert s.get(Booking, ids[1]).receipt_at is None  # an undone payment takes its mark with it
+        b = s.get(Business, business.id)
+        assert "Без отметки о чеке ККМ: 1" in cash.digest_line(s, b, LOCAL)  # yesterday's card payment in the seed

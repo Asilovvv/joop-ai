@@ -92,7 +92,7 @@ def booking_json(b: Booking) -> dict:
     return {"id": b.id, "created_at": _iso(b.created_at), "start_local": _iso(b.start, utc=False), "service": b.service,
             "staff": b.staff_name, "customer": {"name": b.customer_name, "phone": b.customer_phone}, "channel": b.channel,
             "status": b.status, "source": b.source, "confirmed": b.confirmed_at is not None,
-            "paid": {"som": b.paid_som, "method": b.paid_method, "at": _iso(b.paid_at)} if b.paid_som else None}
+            "paid": {"som": b.paid_som, "method": b.paid_method, "at": _iso(b.paid_at), "receipt_at": _iso(b.receipt_at)} if b.paid_som else None}
 
 
 def order_json(session: Session, o: Order) -> dict:
