@@ -537,6 +537,8 @@ def _handle_command(
 ) -> Outcome | None:
     command, _, argument = text.partition(" ")
     command = command.split("@", 1)[0].lower()
+    if command == "/start" and argument.strip().startswith("admin_"):
+        command, argument = "/admin", argument.strip()[len("admin_"):]  # the panel's one-tap link: t.me/<bot>?start=admin_<code>
     if command == "/start":
         reply = (business.greeting or DEFAULT_GREETING).format(name=business.name)
         if free_plan.is_free(get_subscription(session, business.id)):  # on Telegram this greeting is the first contact
