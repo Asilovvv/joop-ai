@@ -19,7 +19,7 @@ from . import autofill, billing
 from .agent.engine import handle_incoming
 from .catalog import parse_price
 from .channels.base import IncomingMessage
-from .models import Business, Conversation, Faq, Message, Prospect, Service, Staff
+from .models import Business, Conversation, ConversationNote, Faq, Message, Prospect, Service, Staff
 from .niches import all_packs
 from .presets import create_business
 from .slots import generate_slots
@@ -90,6 +90,8 @@ def run_dialogue(session: Session, business: Business, get_llm: Any, lang: str, 
     if conv is not None:
         for m in session.exec(select(Message).where(Message.conversation_id == conv.id)).all():
             session.delete(m)
+        for n in session.exec(select(ConversationNote).where(ConversationNote.conversation_id == conv.id)).all():
+            session.delete(n)
         session.delete(conv)
         session.flush()
     first = session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort)).first()

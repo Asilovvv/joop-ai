@@ -341,6 +341,20 @@ class StockMove(SQLModel, table=True):
     created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
+class ConversationNote(SQLModel, table=True):
+    """A staff-only note in a dialogue: never sent to the customer and never part of what the AI reads.
+
+    Kept apart from Message on purpose — the AI's history, broadcasts, audits and exports read Message.
+    """
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    conversation_id: int = Field(foreign_key="conversation.id", index=True)
+    author: str = ""
+    text: str
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
 class QuickReply(SQLModel, table=True):
     """A ready answer staff put into the reply box of a dialogue (joop/quick_replies.py)."""
 
