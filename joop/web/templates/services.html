@@ -5,6 +5,16 @@
   <h1>{{ pack.catalog_label }}</h1>
   <p class="muted">ИИ называет клиентам только эти цены. Цена — свободный текст: «3 000», «от 3 500». Галочка «есть» снята — позиция в стоп-листе, ИИ её не предлагает. Кыргызское название ИИ использует в ответах на кыргызском — пусть его проверит носитель языка.</p>
 </section>
+{% if example %}
+<section class="card warn stack">
+  <p><b>{{ example | length }} из {{ rows | length }} — пример</b>, который мы добавили, чтобы тестовый чат отвечал сразу. Настоящим клиентам ИИ эти цены не называет. Исправьте их на свои — или удалите пример целиком и добавьте свои.</p>
+  <form method="post" action="/panel/services/example/delete" class="row-tail" style="flex-wrap: wrap">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn small danger" type="submit">Удалить весь пример ({{ example | length }})</button>
+    <a class="btn small ghost" href="#add">Добавить свою услугу</a>
+  </form>
+</section>
+{% else %}<p><a href="#add">+ Добавить: {{ pack.catalog_item }}</a></p>{% endif %}
 <section class="card ky-fill">
   <form method="post" action="/panel/kyrgyz/fill" class="ky-fill-form">
     <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -25,6 +35,7 @@
 </section>
 <section class="card">
   {% for r in rows %}
+  {% if r.id in example %}<p class="small"><span class="chip warn">пример</span></p>{% endif %}
   <form class="row c4" method="post" action="/panel/services/{{ r.id }}">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <input name="name" value="{{ r.name }}" aria-label="Услуга" required>
@@ -56,7 +67,7 @@
   </form>
 </section>
 {% endif %}
-<section class="card">
+<section class="card" id="add">
   <h2>Добавить: {{ pack.catalog_item }}</h2>
   <form class="row c4" method="post" action="/panel/services">
     <input type="hidden" name="csrf" value="{{ csrf }}">
