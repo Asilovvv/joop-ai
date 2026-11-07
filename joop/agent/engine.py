@@ -82,6 +82,12 @@ class Outcome:
     cost_usd: float | None = None
 
 
+def blocked(session: Session, business_id: int, channel: str, chat_id: str) -> bool:
+    """Staff put this chat on the block list (a spammer, an abusive sender): Joop stays silent and spends nothing."""
+    return session.exec(select(Conversation.id).where(Conversation.business_id == business_id, Conversation.channel == channel,
+                                                      Conversation.chat_id == chat_id, Conversation.blocked_at != None)).first() is not None  # noqa: E711
+
+
 def handle_incoming(
     session: Session,
     business: Business,
@@ -101,6 +107,9 @@ def handle_incoming(
         answer = owner_commands.answer(session, business, incoming.text or "", now)
         if answer is not None:  # the owner's numbers: no conversation, no messages, no model
             return Outcome(reply=answer)
+
+    if blocked(session, business.id, incoming.channel, incoming.chat_id):
+        return Outcome(skipped="blocked")  # on the block list: not stored, no model, no note to staff
 
     conv = _get_or_create_conversation(session, business, incoming, now)
 

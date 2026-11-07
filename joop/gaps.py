@@ -114,7 +114,7 @@ def candidates(session: Session, business: Business, now_local: datetime) -> lis
         if last.conversation_id is None:
             continue  # no chat to write to (a booking made in the panel by phone)
         conv = session.get(Conversation, last.conversation_id)
-        if conv is None or conv.channel == TEST_CHANNEL or conv.broadcast_opt_out:
+        if conv is None or conv.channel == TEST_CHANNEL or conv.silenced:
             continue
         if conv.invited_at and now_utc - conv.invited_at < timedelta(days=QUIET_DAYS):
             continue
