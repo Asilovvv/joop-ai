@@ -1,0 +1,12 @@
+{# The sign-up example on a section page: how many rows are still it, one button to remove them, a jump to the add form.
+   Needs: example (ids), rows, ex_what (what the AI does not tell customers), ex_action (delete URL), ex_add (button text). #}
+{% if example %}
+<section class="card warn stack">
+  <p><b>{{ example | length }} из {{ rows | length }} — пример</b>, который мы добавили, чтобы тестовый чат отвечал сразу. Настоящим клиентам ИИ {{ ex_what }} не называет. Исправьте на свои — или удалите пример целиком и добавьте свои.</p>
+  <form method="post" action="{{ ex_action }}" class="row-tail" style="flex-wrap: wrap">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn small danger" type="submit">Удалить весь пример ({{ example | length }})</button>
+    <a class="btn small ghost" href="#add">{{ ex_add }}</a>
+  </form>
+</section>
+{% else %}<p><a href="#add">+ {{ ex_add }}</a></p>{% endif %}
