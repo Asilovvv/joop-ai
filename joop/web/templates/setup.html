@@ -6,10 +6,20 @@
   {% if sub_state %}<span class="chip {{ 'ok' if sub_state.code in ('trial', 'active', 'free') else 'warn' }}">{{ sub_state.label }}{% if sub_state.active and sub_state.code != 'free' %} · {{ sub_state.days_left }} дн.{% endif %}</span>{% endif %}
 </div>
 <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="{{ total }}" aria-valuenow="{{ done }}"><span style="width: {{ (100 * done / total) | round }}%"></span></div>
+{% if next %}
+<section class="card stack next-step">
+  <p class="small muted">Следующий шаг</p>
+  <h2>{{ next.title }}</h2>
+  <p class="muted">{{ next.hint }}</p>
+  <div><a class="btn" href="{{ next.href }}">{{ next.action }}</a></div>
+</section>
+{% else %}
+<section class="card"><p><b>Всё готово.</b> ИИ отвечает клиентам; итоги — в «Сводке» и в утреннем сообщении в Telegram.</p></section>
+{% endif %}
 <section class="card">
   <ol class="checklist">
     {% for i in items %}
-    <li class="{{ 'done' if i.done }}">
+    <li class="{{ 'done' if i.done }}{{ ' current' if next and i.key == next.key }}">
       <span class="tick" aria-hidden="true">{{ '✓' if i.done else loop.index }}</span>
       <div class="main"><a href="{{ i.href }}"><b>{{ i.title }}</b></a><p class="muted small">{{ i.hint }}</p></div>
     </li>
@@ -31,4 +41,10 @@
   </form>
   <p class="muted small">WhatsApp и Instagram подключаются в разделе <a href="/panel/channels">«Каналы»</a> после одобрения Meta.</p>
 </section>
+<style>
+.next-step { border: 1px solid var(--accent); }
+.next-step h2 { margin: 0; }
+.checklist li.current .tick { background: var(--accent); color: #fff; border-color: var(--accent); }
+.steps code { white-space: nowrap; }
+</style>
 {% endblock %}
