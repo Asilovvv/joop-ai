@@ -36,7 +36,7 @@ from ..runtime import Runtime
 from ..scheduler import Scheduler
 from ..security import hash_password, new_link_code, verify_password
 from ..slots import add_slots, generate_slots, parse_times, release_slot, resize_group, seats_needed
-from ..stats import activity, by_hour, hour_bars
+from ..stats import TEST_CHANNEL, activity, by_hour, hour_bars
 from ..timeutil import WEEKDAYS_SHORT, fmt_date_long, fmt_dt, fmt_slot, local_now, parse_days_off, parse_hhmm, utc_to_local, utcnow
 
 log = logging.getLogger(__name__)
@@ -1347,6 +1347,26 @@ def conversation_reply(request: Request, item_id: int, text: str = Form(""), csr
 
 
 MAX_NOTE = 1000
+
+
+@router.post("/panel/conversations/{item_id}/block")
+def conversation_block(request: Request, item_id: int, action: str = Form("block"), csrf: str = Form("")):
+    """The block list: Joop does not answer, store, note, mail or invite this chat until staff take it off."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        conv = _own(s, Conversation, item_id, b.id)
+        if conv.channel == TEST_CHANNEL:
+            raise HTTPException(status_code=400)
+        if action == "unblock":
+            conv.blocked_at, conv.blocked_by = None, ""
+            _flash(request, "Чат снят с чёрного списка: ИИ снова отвечает.")
+        else:
+            conv.blocked_at, conv.blocked_by = utcnow(), _who(request)
+            _flash(request, "Чат в чёрном списке: новые сообщения не сохраняются, ИИ молчит, рассылки и приглашения в свободные окна сюда не идут.")
+        s.add(conv)
+        s.commit()
+    return _back(f"/panel/conversations/{item_id}")
 
 
 @router.post("/panel/conversations/{item_id}/note")

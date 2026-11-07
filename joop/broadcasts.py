@@ -169,7 +169,7 @@ class Preview:
 def preview(session: Session, business: Business, segment: str, arg: str, now_utc: datetime) -> Preview:
     p = Preview()
     for c in _group(session, business, segment, arg, now_utc):
-        if c.broadcast_opt_out:
+        if c.silenced:
             p.opted_out += 1
         elif c.channel == "telegram":
             p.telegram += 1
@@ -218,7 +218,7 @@ def start(session: Session, business: Business, text: str, text_ky: str, segment
         when = utc_to_local(allowed, business.timezone).strftime("%d.%m %H:%M")
         return None, f"Рассылка — не чаще раза в сутки, чтобы клиенты не отписывались. Следующую можно с {when}."
     people = [c for c in _group(session, business, segment, arg, now_utc)
-              if not c.broadcast_opt_out and _reachable(c, now_utc)]
+              if not c.silenced and _reachable(c, now_utc)]
     if not people:
         return None, "В этой группе сейчас некому отправить."
     arg = str(_days(arg)) if segment == "lapsed" else arg.strip()[:120] if segment == "service" else ""
@@ -265,7 +265,7 @@ def send_due(session: Session, rt: "Runtime", business: Business, now_utc: datet
         ).order_by(BroadcastDelivery.id).limit(budget)).all()
         for d in batch:
             conv = session.get(Conversation, d.conversation_id)
-            ok = bool(conv) and not conv.broadcast_opt_out and deliver_to_chat(
+            ok = bool(conv) and not conv.silenced and deliver_to_chat(
                 session, rt, business, conv, compose(b, _kyrgyz(session, conv.id)), now_utc)
             d.status, d.sent_at = ("sent", now_utc) if ok else ("skipped", None)
             session.add(d)

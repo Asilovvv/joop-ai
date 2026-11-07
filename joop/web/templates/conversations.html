@@ -11,7 +11,7 @@
     {% for c, m in rows %}
     <a class="item" href="/panel/conversations/{{ c.id }}" style="text-decoration:none;color:inherit">
       <div class="main">
-        <div><b>{{ c.customer_name or c.display_name or 'Клиент' }}</b> <span class="muted small">{{ c.customer_phone }}</span></div>
+        <div><b>{{ c.customer_name or c.display_name or 'Клиент' }}</b> <span class="muted small">{{ c.customer_phone }}</span>{% if c.blocked_at %} <span class="chip">чёрный список</span>{% endif %}</div>
         {% if m %}<div class="muted small" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ {'customer': '', 'ai': 'ИИ: ', 'staff': 'Вы: '}.get(m.role, '') }}{{ m.text }}</div>{% endif %}
       </div>
       <div class="actions">
