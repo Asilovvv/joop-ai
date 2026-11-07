@@ -68,7 +68,7 @@ def due(session: Session, business: Business, now_utc: datetime) -> list[Convers
         return []
     rows = session.exec(select(Conversation).where(
         Conversation.business_id == business.id, Conversation.channel.in_(CHANNELS), Conversation.followup_at == None,  # noqa: E711
-        Conversation.broadcast_opt_out == False, Conversation.last_customer_at <= now_utc - WAIT,  # noqa: E712
+        Conversation.broadcast_opt_out == False, Conversation.blocked_at == None, Conversation.last_customer_at <= now_utc - WAIT,  # noqa: E711,E712
         Conversation.last_customer_at >= now_utc - LOOK_BACK, Conversation.ai_paused_until == None,  # noqa: E711
     ).order_by(Conversation.last_customer_at)).all()
     return [c for c in rows if _open(session, c)][:PER_TICK]

@@ -12,6 +12,7 @@
   <form method="post" action="/panel/conversations/{{ conv.id }}/pause"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="hours" value="24"><button class="btn ghost" type="submit">Выключить ИИ на 24 часа</button></form>
   {% endif %}
 </section>
+{% if conv.blocked_at %}<p class="flash error">Чат в чёрном списке с {{ conv.blocked_at|local(business.timezone) }}{% if conv.blocked_by %} ({{ conv.blocked_by }}){% endif %}: новые сообщения не сохраняются, ИИ не отвечает, рассылки и приглашения в свободные окна сюда не идут.</p>{% endif %}
 {% if paused %}<p class="flash error">ИИ не отвечает в этом диалоге до {{ conv.ai_paused_until|local(business.timezone) }}. {% if reply_blocked %}Ответьте клиенту сами в {{ channel_names.get(conv.channel, conv.channel) }} или по телефону.{% else %}Ответьте клиенту ниже.{% endif %}</p>{% endif %}
 <section class="card msgs">
   {% for kind, _, m in feed %}
@@ -46,5 +47,12 @@
   </form>
   <p class="muted small">Видят только сотрудники в панели. Клиенту не отправляется, ИИ её не читает.</p>
 </section>
+{% if conv.channel != 'console' %}
+<form method="post" action="/panel/conversations/{{ conv.id }}/block" class="row-tail">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if conv.blocked_at %}<button class="btn ghost small" type="submit" name="action" value="unblock">Убрать из чёрного списка</button>
+  {% else %}<button class="btn ghost small" type="submit" name="action" value="block">В чёрный список</button><span class="small muted">для спама и оскорблений: ИИ перестанет отвечать и тратить на этот чат деньги</span>{% endif %}
+</form>
+{% endif %}
 <p><a href="/panel/conversations">← Все диалоги</a></p>
 {% endblock %}
