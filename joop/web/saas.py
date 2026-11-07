@@ -165,22 +165,24 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     paid, free = code == "active", code == "free"
     example = samples.left(s, b).services
     label = get_pack(b.niche).catalog_label
+    missing = [w for w, v in (("адрес", b.address), ("телефон", b.phone), ("часы работы", b.hours_text)) if not v]
     return [
-        {"done": bool(b.address and b.phone and b.hours_text), "title": "Контакты и часы работы", "href": "/panel/settings",
-         "hint": "Адрес, телефон и часы — ИИ отвечает только тем, что здесь написано."},
+        {"done": not missing, "title": "Контакты и часы работы", "href": "/panel/settings", "key": "contacts",
+         "hint": ("Осталось указать: " + ", ".join(missing) + ". " if missing else "")
+                 + "ИИ отвечает только тем, что здесь написано."},
         {"done": services > 0 and not example,
-         "title": f"{label}: {services}" + (f", из них пример: {len(example)}" if example else ""), "href": "/panel/services",
+         "title": f"{label}: {services}" + (f", из них пример: {len(example)}" if example else ""), "href": "/panel/services", "key": "prices",
          "hint": "Мы добавили пример. Замените цены и названия на свои; кыргызские названия — по желанию. Пока позиция из"
                  " примера, ИИ называет её цену клиентам как настоящую."},
-        {"done": tested > 0, "title": "Проверьте ИИ в тестовом чате", "href": "/panel/try",
+        {"done": tested > 0, "title": "Проверьте ИИ в тестовом чате", "href": "/panel/try", "key": "try",
          "hint": "Напишите как клиент: по-русски и по-кыргызски, спросите цену, запишитесь."},
-        {"done": channel, "title": "Подключите Telegram-бота", "href": "#telegram",
+        {"done": channel, "title": "Подключите Telegram-бота", "href": "#telegram", "key": "telegram",
          "hint": "Одно действие: вставьте токен от @BotFather ниже. WhatsApp и Instagram — в разделе «Каналы»."},
-        {"done": bool(b.admin_chat_ids), "title": "Получайте заявки в Telegram", "href": "/panel/settings",
+        {"done": bool(b.admin_chat_ids), "title": "Получайте заявки в Telegram", "href": "/panel/settings", "key": "admin",
          "hint": "Отправьте боту код из «Настроек», и новые записи будут приходить вам."},
-        {"done": real > 0, "title": "Первый настоящий клиент", "href": "/panel/conversations",
+        {"done": real > 0, "title": "Первый настоящий клиент", "href": "/panel/conversations", "key": "real",
          "hint": "Поставьте ссылку на бота в Instagram и 2ГИС."},
-        {"done": paid or free, "title": "Бесплатный тариф: один мастер, без срока" if free else "Оплата", "href": "/panel/billing",
+        {"done": paid or free, "title": "Бесплатный тариф: один мастер, без срока" if free else "Оплата", "href": "/panel/billing", "key": "pay",
          "hint": "Второй мастер и ответы без подписи Joop — на платном тарифе." if free else "После пробного периода ИИ работает по подписке."},
     ]
 
@@ -194,7 +196,21 @@ def setup_page(request: Request):
         sub = billing.get_subscription(s, b.id)
         st = billing.state(sub, now) if sub else None
     done = sum(1 for i in items if i["done"])
-    return _render(request, "setup.html", "setup", b, items=items, done=done, total=len(items), sub_state=st)
+    return _render(request, "setup.html", "setup", b, items=items, done=done, total=len(items), sub_state=st, next=next_step(items))
+
+
+NEXT_ACTION = {"contacts": "Заполнить контакты", "prices": "Заменить пример на свои цены", "try": "Открыть тестовый чат",
+               "telegram": "Подключить бота", "admin": "Открыть настройки", "real": "Открыть диалоги", "pay": "Выбрать тариф"}
+
+
+def next_step(items: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The one thing to do now. The test chat comes first: with the sign-up example it works in a minute, and seeing
+    the AI answer is what makes an owner fill in the rest."""
+    undone = [i for i in items if not i["done"]]
+    if not undone:
+        return None
+    pick = next((i for i in undone if i["key"] == "try"), undone[0])
+    return {**pick, "action": NEXT_ACTION.get(pick["key"], "Открыть")}
 
 
 TELEGRAM_BACK = ("/panel/setup", "/panel/channels")  # where the Telegram form may send the owner back

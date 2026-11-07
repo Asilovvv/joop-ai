@@ -10,7 +10,7 @@ from joop import billing, db
 from joop.agent.engine import handle_incoming
 from joop.agent.llm import AgentReply
 from joop.channels.base import IncomingMessage
-from joop.models import Business, Payment, Prospect, Service, Subscription
+from joop.models import Business, Conversation, Payment, Prospect, Service, Subscription
 from joop.web.app import create_app
 from joop.timeutil import utc_to_local, utcnow
 from joop.web.saas import slugify
@@ -61,6 +61,7 @@ def test_signup_creates_business_with_demo_data_and_trial(app_client):
     assert r.status_code == 303 and r.headers["location"] == "/panel/setup"
     page = app_client.get("/panel/setup").text
     assert "Запуск" in page and "Пробный период" in page and "ak-tish-dent" in page
+    assert "Следующий шаг" in page and "Открыть тестовый чат" in page
     with db.new_session() as s:
         b = s.exec(select(Business).where(Business.slug == "ak-tish-dent")).one()
         sub = billing.get_subscription(s, b.id)
@@ -426,3 +427,19 @@ def test_playbook_page_for_the_founder(app_client):
     owner_login(app_client)
     page = app_client.get("/owner/playbook").text
     assert "Как продавать: первые 10" in page and "Видео-разбор" in page and "Возражения" in page and "3 000 сом" in page
+
+
+def test_setup_shows_one_next_step_test_chat_first_and_what_contacts_lack(business):
+    from joop.web.saas import checklist, next_step
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.address = ""
+        items = checklist(s, b, NOW_UTC)
+        assert "Осталось указать: адрес." in items[0]["hint"]
+        step = next_step(items)
+        assert step["key"] == "try" and step["action"] == "Открыть тестовый чат"  # the quick win first
+        s.add(Conversation(business_id=b.id, channel="console", chat_id="t"))
+        s.flush()
+        assert next_step(checklist(s, b, NOW_UTC))["key"] == "contacts"  # then the list order
+        assert next_step([{**i, "done": True} for i in items]) is None
