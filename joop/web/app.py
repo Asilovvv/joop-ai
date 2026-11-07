@@ -26,7 +26,7 @@ from ..config import Settings, get_settings
 from ..db import init_db, new_session
 from ..dispatch import admin_chat_ids, process_incoming
 from ..catalog import parse_price
-from ..models import (Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, PanelUser, Service, SignatureClick, Slot,
+from ..models import (Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service, SignatureClick, Slot,
                       Staff, StockMove, WaitlistEntry)
 from ..niches import all_packs, get_pack
 from ..phone import normalize_phone
@@ -1308,6 +1308,12 @@ def conversation_page(request: Request, item_id: int, t: int = 0):
         messages = list(
             reversed(s.exec(select(Message).where(Message.conversation_id == conv.id).order_by(Message.id.desc()).limit(200)).all())
         )
+        notes = s.exec(select(ConversationNote).where(ConversationNote.conversation_id == conv.id, ConversationNote.business_id == b.id)
+                       .order_by(ConversationNote.id.desc()).limit(50)).all()
+        since = messages[0].created_at if len(messages) == 200 else None  # notes older than the shown messages stay out
+        feed = sorted([("msg", m.created_at, m) for m in messages] + [("note", n.created_at, n) for n in notes
+                                                                         if since is None or n.created_at >= since],
+                      key=lambda x: x[1])
         return _render(
             request,
             "conversation.html",
@@ -1315,6 +1321,7 @@ def conversation_page(request: Request, item_id: int, t: int = 0):
             b,
             conv=conv,
             messages=messages,
+            feed=feed,
             paused=bool(conv.ai_paused_until and conv.ai_paused_until > utcnow()),
             channel_names=CHANNEL_NAMES,
             reply_blocked=staff_reply.blocked(conv, utcnow()),
@@ -1337,6 +1344,38 @@ def conversation_reply(request: Request, item_id: int, text: str = Form(""), csr
     else:
         _flash(request, problem, "error")
     return _back(f"/panel/conversations/{item_id}")
+
+
+MAX_NOTE = 1000
+
+
+@router.post("/panel/conversations/{item_id}/note")
+def conversation_note(request: Request, item_id: int, text: str = Form(""), csrf: str = Form("")):
+    """A staff-only note in the dialogue: the customer and the AI never see it."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        conv = _own(s, Conversation, item_id, b.id)
+        text = text.strip()[:MAX_NOTE]
+        if not text:
+            _flash(request, "Заметка пустая.", "error")
+            return _back(f"/panel/conversations/{item_id}#notes")
+        s.add(ConversationNote(business_id=b.id, conversation_id=conv.id, author=_who(request), text=text, created_at=utcnow()))
+        s.commit()
+    return _back(f"/panel/conversations/{item_id}#notes")
+
+
+@router.post("/panel/conversations/{item_id}/note/{note_id}/delete")
+def conversation_note_delete(request: Request, item_id: int, note_id: int, csrf: str = Form("")):
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        note = _own(s, ConversationNote, note_id, b.id)
+        if note.conversation_id != item_id:
+            raise HTTPException(status_code=404)
+        s.delete(note)
+        s.commit()
+    return _back(f"/panel/conversations/{item_id}#notes")
 
 
 @router.post("/panel/conversations/{item_id}/pause")

@@ -14,8 +14,13 @@
 </section>
 {% if paused %}<p class="flash error">ИИ не отвечает в этом диалоге до {{ conv.ai_paused_until|local(business.timezone) }}. {% if reply_blocked %}Ответьте клиенту сами в {{ channel_names.get(conv.channel, conv.channel) }} или по телефону.{% else %}Ответьте клиенту ниже.{% endif %}</p>{% endif %}
 <section class="card msgs">
-  {% for m in messages %}
+  {% for kind, _, m in feed %}
+  {% if kind == 'note' %}
+  <div class="msg note">{{ m.text }}<span class="meta">Заметка для своих{% if m.author %} ({{ m.author }}){% endif %} · {{ m.created_at|local(business.timezone) }} · клиент не видит
+    <form method="post" action="/panel/conversations/{{ conv.id }}/note/{{ m.id }}/delete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="linkbtn" type="submit">удалить</button></form></span></div>
+  {% else %}
   <div class="msg {{ m.role }}">{{ m.text }}<span class="meta">{{ {'customer': 'Клиент', 'ai': 'ИИ', 'staff': 'Администратор'}.get(m.role, m.role) }}{% if m.author %} ({{ m.author }}){% endif %} · {{ m.created_at|local(business.timezone) }}{% if m.off_hours and m.role == 'customer' %} · нерабочее время{% endif %}</span></div>
+  {% endif %}
   {% else %}<p class="muted">Сообщений нет.</p>{% endfor %}
 </section>
 <section class="card stack">
@@ -31,6 +36,15 @@
   </form>
   <p class="muted small">Сообщение уйдёт от имени {{ business.name }}{% if conv.channel == 'web' %}: клиент увидит его в чате на сайте, пока страница открыта, или когда откроет её снова{% endif %}. После ответа ИИ 12 часов не вмешивается в этот диалог.</p>
   {% endif %}
+</section>
+<section class="card stack" id="notes">
+  <h2>Заметка для своих</h2>
+  <form method="post" action="/panel/conversations/{{ conv.id }}/note" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <textarea name="text" rows="2" maxlength="1000" required aria-label="Заметка для сотрудников" placeholder="Например: просит мастера Айгерим, перезвонить после 18:00"></textarea>
+    <div class="actions" style="justify-content: flex-start"><button class="btn ghost" type="submit">Сохранить заметку</button></div>
+  </form>
+  <p class="muted small">Видят только сотрудники в панели. Клиенту не отправляется, ИИ её не читает.</p>
 </section>
 <p><a href="/panel/conversations">← Все диалоги</a></p>
 {% endblock %}
