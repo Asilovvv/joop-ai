@@ -160,3 +160,29 @@ def test_price_list_marks_the_example_and_deletes_it_in_one_go(app_client):
         assert s.exec(select(OrderLine)).one().item_id is None  # the order keeps its line
     page = app_client.get("/panel/services").text
     assert "Удалить весь пример" not in page and "+ Добавить" in page
+
+
+def test_staff_and_faq_mark_the_example_and_remove_it_in_one_go(app_client):
+    from joop.models import Faq, Slot, Staff
+
+    assert signup(app_client).status_code == 303
+    with db.new_session() as s:
+        b = s.exec(select(Business).where(Business.slug == "ak-tish-dent")).one()
+        bid = b.id
+        s.add(Faq(business_id=bid, question="Своя парковка?", answer="Да, во дворе."))
+        s.commit()
+        n_staff = len(s.exec(select(Staff).where(Staff.business_id == bid, Staff.active == True)).all())  # noqa: E712
+    for path, chip_rows in (("/panel/staff", n_staff), ("/panel/faq", None)):
+        page = app_client.get(path).text
+        assert "— пример</b>" in page and "Удалить весь пример" in page, path
+        if chip_rows:
+            assert page.count('class="chip warn">пример') == chip_rows
+    token = csrf_of(app_client.get("/panel/staff").text)
+    app_client.post("/panel/staff/example/delete", data={"csrf": token})
+    app_client.post("/panel/faq/example/delete", data={"csrf": token})
+    with db.new_session() as s:
+        assert s.exec(select(Staff).where(Staff.business_id == bid, Staff.active == True)).all() == []  # noqa: E712
+        assert s.exec(select(Slot).where(Slot.business_id == bid, Slot.status == "free", Slot.taken == 0)).all() == []
+        assert [f.question for f in s.exec(select(Faq).where(Faq.business_id == bid)).all()] == ["Своя парковка?"]
+    assert "Удалить весь пример" not in app_client.get("/panel/faq").text
+    assert "+ Добавить вопрос" in app_client.get("/panel/faq").text

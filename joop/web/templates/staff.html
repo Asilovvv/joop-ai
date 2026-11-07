@@ -5,8 +5,10 @@
   <h1>{{ pack.resource_label }}</h1>
   <p class="muted">По полю «Принимает» ИИ выбирает, к кому записать: например, «удаление зубов, импланты».{% if pack.offers('group_classes') %} Для группового занятия укажите «Мест в группе» (например, 12): в одно окно запишутся до 12 человек.{% endif %}</p>
 </section>
+{% with ex_what="этих людей и их время", ex_action="/panel/staff/example/delete", ex_add="Добавить: " ~ pack.resource_item %}{% include "_example_banner.html" %}{% endwith %}
 <section class="card">
   {% for r in rows %}
+  {% if r.id in example %}<p class="small"><span class="chip warn">пример</span></p>{% endif %}
   <form class="row c3" method="post" action="/panel/staff/{{ r.id }}">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <input name="name" value="{{ r.name }}" aria-label="Имя" required>
@@ -22,7 +24,7 @@
   </form>
   {% else %}<p class="muted">Специалистов нет.</p>{% endfor %}
 </section>
-<section class="card">
+<section class="card" id="add">
   <h2>Добавить: {{ pack.resource_item }}</h2>
   <form class="row c3" method="post" action="/panel/staff">
     <input type="hidden" name="csrf" value="{{ csrf }}">
