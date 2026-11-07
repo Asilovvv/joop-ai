@@ -1,0 +1,54 @@
+{% extends "site_base.html" %}
+{% block title %}Возможности — Joop AI{% endblock %}
+{% block content %}
+<section class="block">
+  <div class="wrap">
+    <h1 class="page-title">Всё, что умеет Joop</h1>
+    <p class="lead">ИИ-администратор, который сам отвечает клиентам в WhatsApp, Instagram, Telegram и чате на сайте, — и рабочее место команды вокруг него: записи, клиенты, касса, склад. {% if price %}Одна цена — {{ '{:,}'.format(price).replace(',', ' ') }} сом в месяц за всё ниже.{% endif %}</p>
+  </div>
+</section>
+
+{% for group in groups %}
+<section class="block {{ loop.cycle('alt', '') }}">
+  <div class="wrap">
+    <h2>{{ group.title }}</h2>
+    <div class="features">
+      {% for title, text in group.cards %}
+      <article><h3>{{ title }}</h3><p>{{ text }}</p></article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endfor %}
+
+<section class="block">
+  <div class="wrap">
+    <h2>Чем Joop отличается от CRM и чат-центра</h2>
+    <div class="features">
+      <article><h3>Отвечает ИИ, а не только человек</h3><p>CRM и чат-центр собирают сообщения в одно окно, но отвечать всё равно сотруднику. В Joop на обычные вопросы — цены, свободное время, запись, адрес — отвечает ИИ, в том числе ночью и в выходные.</p></article>
+      <article><h3>ИИ предлагает — система проверяет</h3><p>Свободное время, цены и остатки ИИ не придумывает: запись проходит, только если окно действительно свободно, а товар есть на складе.</p></article>
+      <article><h3>CRM собирается сама</h3><p>Карточки клиентов, воронка и касса заполняются из переписки и записей — администратору не нужно вносить каждого вручную.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="block alt">
+  <div class="wrap">
+    <h2>Чего Joop пока не делает</h2>
+    <p class="lead">Говорим честно, чтобы вы знали заранее.</p>
+    <ul class="plain">
+      <li><b>Не фискальная касса.</b> Чек клиенту пробивает ваша ККМ; в «Кассе» Joop есть отметка «чек ККМ пробит» и счётчик оплат без неё.</li>
+      <li><b>Нет SMS-рассылок.</b> Рассылки идут в мессенджеры, где клиент уже писал вам.</li>
+      <li><b>Нет интеграций с маркетплейсами.</b> Для своей программы есть API и вебхуки.</li>
+      <li><b>Не заменяет администратора днём.</b> Сложные вопросы ИИ передаёт вашей команде.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <h2>Попробуйте на своём бизнесе</h2>
+    {% if signup %}<a class="cta" href="/signup">Попробовать {{ trial_days }} дней бесплатно</a>{% else %}<a class="cta" href="/#contact">Попробовать {{ trial_days }} дней бесплатно</a>{% endif %}
+  </div>
+</section>
+{% endblock %}

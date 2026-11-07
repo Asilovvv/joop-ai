@@ -60,6 +60,7 @@ header.site .wrap { display: flex; align-items: center; justify-content: space-b
 .nav .nav-cta { opacity: 1; background: var(--accent-2); color: #052019; font-weight: 600; padding: 8px 16px; border-radius: 999px; }
 .nav .nav-cta:hover { background: #5fd6bb; }
 @media (max-width: 860px) { .nav a[href^="/#"], .nav a[href="/studio"] { display: none; } .brand small { display: none; } .nav { gap: 14px; } }
+@media (max-width: 560px) { .nav a[href="/audit"], .nav a[href="/vozmozhnosti"] { display: none; } }
 
 /* Hero */
 .hero { position: relative; overflow: hidden; color: var(--night-ink); background:
@@ -241,3 +242,14 @@ section.block > .wrap > .grid3 { margin-top: 12px; }
 .roi input { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
 .roi-out { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin: 10px 0 18px; }
 .studio-form label.check { flex-direction: row; align-items: center; gap: 8px; }
+
+ul.plain { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; max-width: 760px; }
+ul.plain li { padding-left: 18px; position: relative; }
+ul.plain li::before { content: ""; position: absolute; left: 0; top: .7em; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .5; }
+/* phone width: nothing wider than the screen */
+h1, h2 { overflow-wrap: break-word; hyphens: auto; }
+.contact { grid-template-columns: minmax(0, 1fr); }
+.contact > *, .studio-form label { min-width: 0; }
+.studio-form input, .studio-form select, .studio-form textarea { min-width: 0; max-width: 100%; }
+.audit-hours { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.page-title { color: var(--ink); }
