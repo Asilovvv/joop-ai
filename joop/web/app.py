@@ -24,7 +24,7 @@ from ..channels.meta import parse_meta_payload, verify_signature
 from ..channels.telegram import parse_update
 from ..config import Settings, get_settings
 from ..db import init_db, new_session
-from ..dispatch import admin_chat_ids, process_incoming
+from ..dispatch import admin_chat_ids, admin_link, process_incoming
 from ..catalog import parse_price
 from ..models import (Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service, SignatureClick, Slot,
                       Staff, StockMove, WaitlistEntry)
@@ -1538,6 +1538,7 @@ def settings_page(request: Request):
             timezones=TIMEZONES,
             packs=all_packs(),
             admins=admin_chat_ids(b),
+            admin_link=admin_link(b),
         )
 
 

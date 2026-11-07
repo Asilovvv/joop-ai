@@ -91,7 +91,7 @@
   <p>О новых записях и заявках ИИ пишет в Telegram — вам лично или в общий чат клиники.</p>
   <ol class="steps">
     <li>Подключите бота на странице <a href="/panel/channels">«Каналы»</a>.</li>
-    <li>Откройте бота в Telegram (или добавьте его в чат администраторов) и отправьте: <code>/admin {{ business.admin_link_code }}</code></li>
+    <li>{% if admin_link %}<a class="btn small" href="{{ admin_link }}" target="_blank" rel="noopener">Подключить мой Telegram</a> — откроется бот, нажмите в нём «Start». Для общего чата администраторов: добавьте бота в чат и отправьте{% else %}Откройте бота в Telegram (или добавьте его в чат администраторов) и отправьте{% endif %}: <code>/admin {{ business.admin_link_code }}</code></li>
     <li>В этом чате работают команды: <code>/today</code> — сводка на сегодня, <code>/week</code> — 7 дней в цифрах, <code>/gaps</code> — свободные окна и кого пригласить.</li>
   </ol>
   <p class="muted small">Привязано чатов: {{ admins|length }}.</p>

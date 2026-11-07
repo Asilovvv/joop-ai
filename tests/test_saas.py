@@ -443,3 +443,23 @@ def test_setup_shows_one_next_step_test_chat_first_and_what_contacts_lack(busine
         s.flush()
         assert next_step(checklist(s, b, NOW_UTC))["key"] == "contacts"  # then the list order
         assert next_step([{**i, "done": True} for i in items]) is None
+
+
+def test_one_tap_admin_link_and_bot_link_on_the_checklist(business):
+    from joop.agent.engine import handle_incoming
+    from joop.channels.base import IncomingMessage
+    from joop.dispatch import admin_link
+    from joop.web.saas import checklist
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.telegram_bot_token, b.telegram_bot_username, b.admin_link_code, b.admin_chat_ids = "1:x", "aktish_bot", "12345678", ""
+        items = {i["key"]: i for i in checklist(s, b, NOW_UTC)}
+        assert items["admin"]["href"] == "https://t.me/aktish_bot?start=admin_12345678" and items["admin"]["external"]
+        assert "t.me/aktish_bot" in items["real"]["hint"] and items["real"]["href"] == "/panel/card"
+        wrong = handle_incoming(s, b, IncomingMessage("telegram", "500", "command", "/start admin_00000000", "Чужой", "t1"), lambda: None, NOW_UTC)
+        assert "не подошёл" in wrong.reply and b.admin_chat_ids == ""
+        out = handle_incoming(s, b, IncomingMessage("telegram", "501", "command", "/start admin_12345678", "Бектур", "t2"), lambda: None, NOW_UTC)
+        assert out.reply.startswith("Готово") and b.admin_chat_ids == "501"
+        b.telegram_bot_token = ""
+        assert admin_link(b) == ""

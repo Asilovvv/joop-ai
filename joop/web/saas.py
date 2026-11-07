@@ -22,6 +22,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from .. import annual, billing, free_plan, health, partners, pitch, samples, stories, waitlist
+from ..dispatch import admin_link
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
@@ -166,6 +167,7 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     example = samples.left(s, b).services
     label = get_pack(b.niche).catalog_label
     missing = [w for w, v in (("адрес", b.address), ("телефон", b.phone), ("часы работы", b.hours_text)) if not v]
+    bot = f"https://t.me/{b.telegram_bot_username}" if b.telegram_bot_token and b.telegram_bot_username else ""
     return [
         {"done": not missing, "title": "Контакты и часы работы", "href": "/panel/settings", "key": "contacts",
          "hint": ("Осталось указать: " + ", ".join(missing) + ". " if missing else "")
@@ -178,10 +180,13 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
          "hint": "Напишите как клиент: по-русски и по-кыргызски, спросите цену, запишитесь."},
         {"done": channel, "title": "Подключите Telegram-бота", "href": "#telegram", "key": "telegram",
          "hint": "Одно действие: вставьте токен от @BotFather ниже. WhatsApp и Instagram — в разделе «Каналы»."},
-        {"done": bool(b.admin_chat_ids), "title": "Получайте заявки в Telegram", "href": "/panel/settings", "key": "admin",
-         "hint": "Отправьте боту код из «Настроек», и новые записи будут приходить вам."},
-        {"done": real > 0, "title": "Первый настоящий клиент", "href": "/panel/conversations", "key": "real",
-         "hint": "Поставьте ссылку на бота в Instagram и 2ГИС."},
+        {"done": bool(b.admin_chat_ids), "title": "Получайте заявки в Telegram", "key": "admin",
+         "href": admin_link(b) or "/panel/settings", "external": bool(admin_link(b)),
+         "hint": "Нажмите — откроется ваш бот; нажмите в нём «Start», и новые записи и заявки будут приходить вам."
+                 if admin_link(b) else "Сначала подключите бота: потом здесь будет кнопка, которая привяжет ваш Telegram."},
+        {"done": real > 0, "title": "Первый настоящий клиент", "href": "/panel/card", "key": "real",
+         "hint": (f"Ссылка на бота: {bot.removeprefix('https://')} — поставьте её в шапку Instagram и в 2ГИС. " if bot else "")
+                 + "Табличка с QR-кодом у кассы — самый быстрый первый клиент."},
         {"done": paid or free, "title": "Бесплатный тариф: один мастер, без срока" if free else "Оплата", "href": "/panel/billing", "key": "pay",
          "hint": "Второй мастер и ответы без подписи Joop — на платном тарифе." if free else "После пробного периода ИИ работает по подписке."},
     ]
@@ -200,7 +205,8 @@ def setup_page(request: Request):
 
 
 NEXT_ACTION = {"contacts": "Заполнить контакты", "prices": "Заменить пример на свои цены", "try": "Открыть тестовый чат",
-               "telegram": "Подключить бота", "admin": "Открыть настройки", "real": "Открыть диалоги", "pay": "Выбрать тариф"}
+               "telegram": "Подключить бота", "admin": "Подключить уведомления", "real": "Табличка с QR-кодом", "pay": "Выбрать тариф"}
+
 
 
 def next_step(items: list[dict[str, Any]]) -> dict[str, Any] | None:
