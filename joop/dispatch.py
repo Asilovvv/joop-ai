@@ -64,6 +64,13 @@ def deliver(rt: Runtime, business: Business, channel: str, chat_id: str, outcome
         notify_admins(rt, business, outcome.admin_notes)
 
 
+def admin_link(business: Business) -> str:
+    """One tap from the panel: Telegram opens the business's bot with /start admin_<code>, and that chat gets the alerts."""
+    if not (business.telegram_bot_token and business.telegram_bot_username and business.admin_link_code):
+        return ""
+    return f"https://t.me/{business.telegram_bot_username}?start=admin_{business.admin_link_code}"
+
+
 def admin_chat_ids(business: Business) -> list[str]:
     return [x.strip() for x in (business.admin_chat_ids or "").split(",") if x.strip()]
 
