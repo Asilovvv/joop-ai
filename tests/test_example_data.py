@@ -133,3 +133,30 @@ def test_an_edited_price_reaches_customers_and_a_confirmed_example_too(engine):
         s.commit()
     _, system = _ask(bid, "telegram", "А ещё вопрос")
     assert example in system
+
+
+def test_price_list_marks_the_example_and_deletes_it_in_one_go(app_client):
+    """The sign-up example is visible as such on «Прайс», and one button removes it; the owner's own rows stay."""
+    from joop.models import Order, OrderLine, Service
+
+    assert signup(app_client).status_code == 303
+    page = app_client.get("/panel/services").text
+    assert "— пример</b>" in page and 'class="chip warn">пример' in page and "Удалить весь пример" in page
+    assert "Настоящим клиентам ИИ эти цены не называет" in page
+    token = csrf_of(page)
+    with db.new_session() as s:
+        b = s.exec(select(Business).where(Business.slug == "ak-tish-dent")).one()
+        first = s.exec(select(Service).where(Service.business_id == b.id)).first()
+        order = Order(business_id=b.id, channel="console", total=1)
+        s.add(order)
+        s.commit()
+        s.add(OrderLine(order_id=order.id, item_id=first.id, name=first.name, quantity=1, unit_price=1))  # a test-chat order
+        s.add(Service(business_id=b.id, name="Своя услуга", price="900"))
+        s.commit()
+        bid = b.id
+    app_client.post("/panel/services/example/delete", data={"csrf": token})
+    with db.new_session() as s:
+        assert [x.name for x in s.exec(select(Service).where(Service.business_id == bid)).all()] == ["Своя услуга"]
+        assert s.exec(select(OrderLine)).one().item_id is None  # the order keeps its line
+    page = app_client.get("/panel/services").text
+    assert "Удалить весь пример" not in page and "+ Добавить" in page

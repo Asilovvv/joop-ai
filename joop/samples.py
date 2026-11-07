@@ -97,4 +97,4 @@ def warning(found: Left) -> str:
     """One line for flashes: what is still the example."""
     parts = [f"{label}: {', '.join(names[:3])}{' и ещё ' + str(len(names) - 3) if len(names) > 3 else ''}"
              for label, names in (("прайс", found.services), ("сотрудники", found.staff), ("ответы", found.faq)) if names]
-    return "Ещё из примера — " + "; ".join(parts) + ". ИИ говорит это клиентам как правду: замените на своё или удалите."
+    return "Ещё из примера — " + "; ".join(parts) + ". Клиентам ИИ это не называет, пока вы не замените пример своими данными или не удалите его."
