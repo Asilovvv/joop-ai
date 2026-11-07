@@ -1,0 +1,151 @@
+% Chapter 3
+
+\chapter{Methodology} % Main chapter title
+
+\label{Chapter3}
+
+%----------------------------------------------------------------------------------------
+
+\section{Research Design}
+
+The study follows design science research (DSR), which creates and evaluates an artefact intended to solve an identified
+organisational problem \parencite{hevner2004design}. It is organised in the six activities of the DSR methodology of
+\textcite{peffers2007design}:
+
+\begin{enumerate}
+	\item \textbf{Problem identification and motivation} --- late or missing answers to customer messages in small
+	businesses, and the untrustworthiness of general-purpose chatbots (Chapter~\ref{Chapter1}).
+	\item \textbf{Objectives of a solution} --- answers in Kyrgyz and Russian across messengers, no invented facts,
+	bookings and orders only when valid, setup without integration work.
+	\item \textbf{Design and development} --- the Joop AI platform, built iteratively.
+	\item \textbf{Demonstration} --- deployment in pilot businesses in Bishkek.
+	\item \textbf{Evaluation} --- scripted conversations against the real model, native-speaker review and pilot metrics.
+	\item \textbf{Communication} --- this thesis, the open-source repository and its evaluation set.
+\end{enumerate}
+
+\section{System Design}
+
+The artefact is a single Python web service (FastAPI) with a relational database (SQLite) whose schema is managed by
+versioned migrations. Its main components are:
+
+\begin{itemize}
+	\item \textbf{Channel connectors} for the Telegram Bot API, the WhatsApp Cloud API, the Instagram API and a web chat.
+	Incoming webhooks are verified (secret token or signature), acknowledged immediately and processed in the background;
+	every message keeps its channel identifier, so a delivery repeated by the channel is processed only once.
+	\item \textbf{Prompt builder}, which gives the model only the data of one business: price list, staff, working hours,
+	frequent questions, free time slots and the last messages of the conversation.
+	\item \textbf{Reply engine}, which asks the model for a structured JSON answer containing the reply text and,
+	optionally, a proposed booking, order or hand-off to a person.
+	\item \textbf{Validation layer}, which executes a proposed action only if it is valid: the slot exists, belongs to
+	this business, is in the future and is still free; the ordered items exist and are in stock. A slot is claimed with a
+	single conditional database update, so two customers can never receive the same time. If validation fails, the
+	customer receives real alternatives instead of the model's confirmation.
+	\item \textbf{Web panel} for the business: price list, staff and schedules, bookings, customers, sales funnel, cash
+	and stock, broadcasts, staff accounts with roles, and a test chat in which the owner talks to the agent before
+	connecting a channel.
+	\item \textbf{Scheduler} for reminders, confirmations, follow-ups and the owner's morning summary.
+\end{itemize}
+
+This separation --- \enquote{the model proposes, the code decides} --- is the answer proposed for RQ1. Sector-specific
+behaviour (labels, allowed outcomes such as bookings, orders or room reservations, rules and demo data) is described in
+\emph{sector packs}, which is the answer proposed for RQ4; twenty packs are planned and implemented, from dental clinics to
+hotels and wholesale.
+
+\section{Data}
+
+The study uses four kinds of data:
+
+\begin{enumerate}
+	\item \textbf{Business profiles.} For each sector pack, a realistic demo business (price list, staff, working hours,
+	frequent questions) written for Bishkek. Pilot businesses provide their own real profiles.
+	\item \textbf{Scripted evaluation conversations.} A set of test conversations, each with one or more customer turns
+	and an expected outcome: a fact that must appear in the reply, a fact that must not be invented, a lead or order that
+	must be saved, a hand-off that must happen, and the language of the reply. At the time of writing the set contains 310
+	cases across a general set and the twenty sector packs, in Russian and Kyrgyz.
+	\item \textbf{Pilot conversation logs.} Messages, bookings, orders and hand-offs recorded by the platform in pilot
+	businesses, together with the time of each message relative to the business's working hours.
+	\item \textbf{Native-speaker judgments.} Ratings of the Kyrgyz replies for correctness and naturalness by a native
+	speaker of Kyrgyz.
+\end{enumerate}
+
+Personal data of customers (names and phone numbers) are used only inside the platform for the business's service; for
+the thesis, results are reported in aggregate and any quoted conversation is anonymised.
+
+\section{Steps}
+
+\begin{enumerate}
+	\item \textbf{Requirements analysis.} Study how target businesses receive messages, list the frequent questions and
+	actions per sector, and review competing products.
+	\item \textbf{Iterative development.} Build the platform in small increments; every change goes through a pull
+	request with automated tests in continuous integration. At the time of writing the repository has more than 130
+	merged pull requests and more than 500 automated tests \parencite{asilov2026joop}.
+	\item \textbf{Bilingual support.} Detect the language of each message, keep Kyrgyz names of services and questions,
+	and check in evaluation that Kyrgyz messages receive Kyrgyz replies (RQ3).
+	\item \textbf{Offline evaluation.} Run the scripted conversations against the real language model and compute, per
+	case and per sector: pass rate; rate of invented facts (a forbidden fact appears); action accuracy (a lead, booking or
+	order is saved exactly when expected); hand-off accuracy; language match for Kyrgyz cases; and cost per conversation
+	from the model's token usage (RQ2, RQ3).
+	\item \textbf{Native-speaker review.} A native Kyrgyz speaker rates a sample of Kyrgyz replies; disagreements with the
+	automatic language check are analysed.
+	\item \textbf{Pilot deployment.} Connect the platform to the messengers of pilot businesses for several weeks and
+	measure: share of conversations answered outside working hours; number of bookings and orders made by the agent;
+	share handed to staff; time to first reply; and cost per conversation (RQ5).
+	\item \textbf{Analysis and writing.} Compare results with the objectives, describe failures and their causes, and
+	write the thesis.
+\end{enumerate}
+
+Prompt changes are accepted only after the offline evaluation shows that they do not reduce the pass rate, so the agent's
+quality is measured before and after every change rather than judged by impression.
+
+\section{Tools and Technologies}
+
+Python, FastAPI, SQLModel and Alembic for the service and the database schema; Jinja2 templates for the web panel;
+pytest and GitHub Actions for automated testing; the Anthropic API for the language model; the Telegram, WhatsApp and
+Instagram business APIs for the channels; and a speech-to-text service for voice messages.
+
+\section{Ethical Considerations}
+
+The agent tells customers at the first contact that they are talking to an AI assistant, and any customer can reach a
+person. Channel tokens and other secrets are stored encrypted and are never written to logs. Each business sees only its
+own data. Pilot businesses take part voluntarily and may stop at any time.
+
+\section{Time Budget}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|p{6.2cm}|p{4.2cm}|p{3cm}|}
+\hline
+\textbf{Activity} & \textbf{Period} & \textbf{Status} \\
+\hline
+Topic selection and approval & October 2026 & Done \\
+\hline
+Requirements analysis and competitor review & October 2026 & Done \\
+\hline
+Architecture and core platform (channels, engine, validation, panel) & October -- November 2026 & Done \\
+\hline
+Sector packs and bilingual support & October -- November 2026 & Done \\
+\hline
+Thesis proposal & November 2026 & In progress \\
+\hline
+Offline evaluation on scripted conversations & November 2026 & Planned \\
+\hline
+Native-speaker review of Kyrgyz replies & November 2026 & Planned \\
+\hline
+Pilot deployment in businesses & November -- December 2026 & Planned \\
+\hline
+Analysis and writing of the thesis & November -- December 2026 & Planned \\
+\hline
+Submission of the thesis & by 1 December 2026 & Planned \\
+\hline
+\end{tabular}
+\caption{Time budget of the study}
+\label{tab:timebudget}
+\end{table}
+
+\section{Summary}
+
+The study will design, build and evaluate Joop AI following design science research. The platform separates
+conversation (by the language model) from business actions (validated in code), supports Kyrgyz and Russian across four
+channels, and is generalised through sector packs. It will be evaluated with explicit, automatically checked scripted
+conversations, a native-speaker review of Kyrgyz replies and pilot deployments that measure customers served outside
+working hours, bookings made by the agent and the cost of each conversation.

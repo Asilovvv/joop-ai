@@ -1,0 +1,172 @@
+% Chapter 1
+
+\chapter{Introduction} % Main chapter title
+
+\label{Chapter1} % For referencing the chapter elsewhere, use \ref{Chapter1}
+
+%----------------------------------------------------------------------------------------
+
+\section{Introduction of the Proposal}
+
+Small businesses in Kyrgyzstan --- dental and medical clinics, beauty salons, cafes, fitness studios, driving schools,
+hotels and many others --- receive most of their customer requests as messages. A customer writes in WhatsApp,
+Instagram Direct or Telegram to ask about a price, whether a time is free tomorrow, where the business is located, or to
+book a visit. Answering these messages quickly is directly linked to revenue: a customer who does not get an answer
+within minutes usually writes to the next business in the list. Yet a typical small business has one administrator who
+also greets visitors, answers the phone and handles payments, and nobody is at the desk in the evening, at night or on
+days off.
+
+The economic weight of this sector is large. According to the National Statistics Committee, small and medium-sized
+businesses produced 47.3\% of the gross domestic product of Kyrgyzstan in the first half of 2025, up from 39.8\% a year
+earlier \parencite{akchabar2025sme}. At the same time, the country is highly connected: 6.48~million people, or 88.5\%
+of the population, used the internet at the end of 2025, and Instagram alone could reach 3.90~million users
+\parencite{datareportal2026kg}. Customers therefore already expect to reach a business in a messenger, at any hour.
+
+Large language models (LLMs) have made it possible to build conversational agents that understand free-form questions
+and answer in natural language \parencite{brown2020language}. Customer support is one of the first domains where
+their effect has been measured in the field: in a large study of customer support agents, access to a generative AI
+assistant increased the number of issues resolved per hour by 15\% on average, with the largest gains for less
+experienced workers \parencite{brynjolfsson2025generative}. However, three obstacles keep such tools away from a small
+business in Kyrgyzstan. First, an LLM may produce fluent but false statements \parencite{ji2023survey}; for a business
+this means an invented price, a promised time that is already taken, or a service that does not exist. Second, Kyrgyz is
+a low-resource language for natural language processing \parencite{joshi2020state, alekseev2024kyrgyznlp}, and
+customers switch between Kyrgyz and Russian, often within one conversation. Third, existing customer-service and CRM
+products are built for companies with staff who configure integrations; a salon owner needs a system that works after a
+few minutes of setup.
+
+This thesis proposes \textbf{Joop AI}: an extensible platform of AI agents that answers the customers of small
+businesses in Kyrgyz and Russian in the messengers they already use, books visits and takes orders only when the
+business's own data allows it, and hands the conversation to a person when it cannot help. The study follows the design
+science research approach \parencite{hevner2004design, peffers2007design}: the platform is the designed artefact, and
+the research evaluates whether it serves real customers correctly.
+
+%----------------------------------------------------------------------------------------
+
+\section{Research Problem}
+
+Small businesses in Kyrgyzstan lose customers because messages are answered late or not at all, especially outside
+working hours, while general-purpose LLM chatbots cannot be trusted to answer on behalf of a business: they may invent
+prices or availability, they are weaker in Kyrgyz than in Russian or English, and they do not act on the business's real
+schedule, price list and stock.
+
+The central problem of this study is therefore:
+
+\begin{quote}
+\textit{How can an LLM-based agent platform be designed so that it answers the customers of small businesses in Kyrgyz
+and Russian through their messengers, performs bookings and orders only when they are valid against the business's real
+data, and can be adopted by a non-technical owner without integration work?}
+\end{quote}
+
+\subsection{Research Questions}
+
+\begin{enumerate}
+	\item[\textbf{RQ1.}] Which architecture lets a language model hold the conversation while every business action it
+	proposes (a booking, an order, a request for a call-back) is checked against the business's database before it
+	happens?
+	\item[\textbf{RQ2.}] How accurately does such an agent answer typical customer questions about prices, working hours,
+	services and availability, without inventing facts that are not in the business's data?
+	\item[\textbf{RQ3.}] How well does the agent understand and answer customers who write in Kyrgyz, compared with
+	Russian, and what language-specific measures improve it?
+	\item[\textbf{RQ4.}] Can one platform serve businesses from different sectors (clinics, salons, restaurants, hotels,
+	schools and others) through configurable sector packs instead of separate products?
+	\item[\textbf{RQ5.}] What effect does the agent have on a pilot business: how many customers are served outside
+	working hours, how many bookings are made by the agent, and at what cost per conversation?
+\end{enumerate}
+
+\subsection{Objectives}
+
+\subsubsection{General Objective}
+
+To design, build and evaluate Joop AI, a multi-tenant platform of AI agents that automates customer service for small
+businesses of Kyrgyzstan in Kyrgyz and Russian across Telegram, WhatsApp, Instagram and a web chat.
+
+\subsubsection{Specific Objectives}
+
+\begin{itemize}
+	\item To analyse how small businesses in Kyrgyzstan receive and answer customer messages, and which questions and
+	actions repeat most often.
+	\item To design an agent architecture in which the model proposes and the code decides: every booking, order and
+	hand-off is validated against the database and executed atomically.
+	\item To implement the platform: channel connectors, the reply engine, the business's web panel (price list, staff,
+	schedule, bookings, customers, cash and stock) and self-service sign-up.
+	\item To make the agent bilingual: detect Kyrgyz and Russian, answer in the customer's language and keep Kyrgyz names
+	of services and frequent questions.
+	\item To generalise the platform to many sectors through sector packs (labels, rules, demo data and evaluation cases).
+	\item To evaluate the agent on scripted conversations and in pilot businesses with explicit, measurable criteria.
+\end{itemize}
+
+%----------------------------------------------------------------------------------------
+
+\section{Significance of the Study}
+
+The study is significant on three levels. For \textbf{small businesses}, it offers a way to answer every customer
+quickly, including at night and on days off, without hiring another administrator. For \textbf{research}, it
+contributes evidence about building trustworthy LLM agents for a real, narrow task in a low-resource language, where
+most published work concentrates on English and on large companies. For the \textbf{local technology sector}, it shows
+that a product of this kind can be built and operated in Kyrgyzstan, in the languages of its customers, at a price a
+small business can pay.
+
+\subsection{Target Audience}
+
+\begin{itemize}
+	\item Owners and administrators of small service businesses in Kyrgyzstan who want to answer customers faster.
+	\item Software engineers and students building LLM-based applications, especially for Central Asian languages.
+	\item Researchers in natural language processing for Kyrgyz and other Turkic languages.
+	\item Entrepreneurs and investors interested in software-as-a-service products for the regional market.
+\end{itemize}
+
+\subsection{Contribution of the Study}
+
+\begin{itemize}
+	\item An architecture pattern, \enquote{the model proposes, the code decides}, that separates conversation from
+	business actions and makes double bookings and invented confirmations impossible by construction.
+	\item An open-source implementation \parencite{asilov2026joop} with automated tests and a public evaluation set of
+	scripted bilingual conversations for twenty business sectors.
+	\item Measured results on answer correctness, invented facts and Kyrgyz-language replies, and observations from pilot
+	businesses.
+\end{itemize}
+
+\subsection{Practices the Study Seeks to Influence}
+
+The study seeks to change how small businesses handle incoming messages: from manual answers during working hours to an
+agent that answers immediately and passes to a person only what needs a person. It also seeks to influence how
+developers build LLM features for businesses: grounding the model in the business's own data, validating every action in
+code, and evaluating the agent on explicit test conversations before release rather than relying on impressions.
+
+\subsection{Motivation of the Researcher}
+
+The researcher works with small businesses in Bishkek and sees daily how customers wait for answers in WhatsApp and
+Instagram and how owners lose bookings because nobody replied in time. The researcher also wants to start a company
+rather than seek employment, and this thesis is the foundation of a product that can serve real customers and earn
+revenue in Kyrgyzstan.
+
+\section{Brief Description of the Methodology}
+
+The study follows design science research \parencite{hevner2004design} in the six activities described by
+\textcite{peffers2007design}: problem identification, objectives of a solution, design and development, demonstration,
+evaluation and communication. The artefact is built iteratively as a Python web service with a relational database; each
+change is reviewed through a pull request and covered by automated tests. Evaluation combines (1) scripted conversations
+in Russian and Kyrgyz run against the real language model with automatic pass/fail checks, (2) review of Kyrgyz replies
+by a native speaker, and (3) pilot deployments in real businesses, where the platform itself records the outcome of every
+conversation. Chapter~\ref{Chapter3} describes the methodology in detail.
+
+\section{Scope and Delimitations}
+
+\begin{itemize}
+	\item The study covers text customer service in Telegram, WhatsApp, Instagram Direct and a web chat; voice messages
+	are transcribed and answered as text. Phone calls are out of scope.
+	\item The languages are Kyrgyz and Russian. Other languages are answered on a best-effort basis and are not evaluated.
+	\item The agent uses an existing commercial language model through its API; training or fine-tuning a model is out
+	of scope.
+	\item The platform keeps the business's own records (bookings, customers, cash, stock) but is not a fiscal cash
+	register and does not issue tax receipts.
+	\item Pilots are limited to a small number of businesses in Bishkek during the study period, so the field results are
+	indicative rather than statistically representative of all small businesses in Kyrgyzstan.
+\end{itemize}
+
+\section{Thesis Proposal Structure}
+
+Chapter~\ref{Chapter1} introduced the problem, the research questions and the objectives. Chapter~\ref{Chapter2} reviews
+related literature on conversational agents in customer service, LLM-based agents and tool use, grounding and
+hallucination, natural language processing for Kyrgyz, and existing software for small businesses, and identifies the
+research gap. Chapter~\ref{Chapter3} presents the research design, data, steps, evaluation criteria and time budget.

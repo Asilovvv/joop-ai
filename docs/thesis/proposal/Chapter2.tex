@@ -1,0 +1,139 @@
+% Chapter 2
+
+\chapter{Review of Related Literature} % Main chapter title
+
+\label{Chapter2}
+
+%----------------------------------------------------------------------------------------
+
+\section{Introduction}
+
+This chapter reviews the knowledge on which the proposed platform builds. It starts with conversational agents in
+customer service and their effect on customers and staff, continues with large language models used as agents that call
+tools, and then discusses the main risk of such agents --- invented facts --- and how grounding reduces it. It then
+reviews the state of natural language processing for Kyrgyz, the conditions of the Kyrgyz market, software-as-a-service
+architecture for many small tenants, and existing products. The chapter ends with a summary and the research gap.
+
+\section{Conversational Agents in Customer Service}
+
+Chatbots have evolved from pattern-matching programs to systems based on machine learning and, most recently, on large
+language models \parencite{adamopoulou2020chatbots}. Customer service on social media was an early target:
+\textcite{xu2017new} built a chatbot for customer requests on Twitter, found that over 40\% of the requests were
+emotional rather than informational, and reported that their system was about as good as human agents in showing empathy.
+\textcite{folstad2017chatbots} argued that chatbots change interaction design itself: the conversation becomes the user
+interface, so the quality of the dialogue, not the layout of screens, decides whether the service works.
+
+The business effect of such agents depends on how customers react to them. \textcite{adam2021ai} showed in an online
+experiment that anthropomorphic design cues and the foot-in-the-door technique increased users' compliance with a
+chatbot's requests in customer service. For a small business this means that the agent's wording --- greeting, asking
+for a phone number, confirming a booking --- directly affects whether a conversation ends with a booking.
+
+Evidence from the field is now available for LLM assistants. \textcite{brynjolfsson2025generative} studied the staggered
+introduction of a generative AI assistant among customer support agents and found a 15\% average increase in issues
+resolved per hour, with the largest gains for novice and lower-skilled workers. The setting differs from the one in this
+thesis --- the assistant suggested answers to human agents rather than answering customers directly --- but it shows
+that LLMs can carry the knowledge of experienced staff into everyday customer conversations.
+
+\section{Large Language Models as Agents}
+
+\subsection{From Language Models to Agents}
+
+Large language models learn to perform new tasks from instructions and a few examples in the prompt, without retraining
+\parencite{brown2020language}. An \emph{agent} built on an LLM additionally perceives an environment, plans and acts in it
+\parencite{wang2024survey}. For customer service, the environment is the business: its price list, its staff and their
+schedules, its free time slots, its stock and its open requests.
+
+\subsection{Reasoning and Tool Use}
+
+\textcite{yao2023react} showed that interleaving reasoning with actions (the ReAct approach) lets a model look up
+information and act on it, reducing hallucination compared with reasoning alone. \textcite{schick2023toolformer} showed
+that a model can learn when to call external tools such as calculators and search engines. Commercial model APIs now
+expose this capability as structured outputs and function calling: the model returns a machine-readable action, and the
+application decides whether to execute it.
+
+\subsection{Evaluating Agents}
+
+Evaluating agents that talk to users and act on a database is harder than evaluating single answers.
+\textcite{yao2024taubench} proposed $\tau$-bench, in which an agent serves a simulated user in retail and airline domains
+under the domain's policies, and the result is judged by the final state of the database rather than by the wording of
+the reply. They report that even strong models complete fewer than half of the tasks and are inconsistent across
+repeated trials. \textcite{zheng2023judging} studied the use of a strong LLM as a judge of chatbot answers and found high
+agreement with human preferences, but also position, verbosity and self-enhancement biases. Both works support evaluating
+a business agent with explicit, checkable outcomes --- was a booking created, was a fact invented --- in addition to
+judgments of answer quality.
+
+\section{Hallucination and Grounding}
+
+LLMs may generate content that is fluent but unfaithful to the source or to the world; \textcite{ji2023survey} survey this
+\emph{hallucination} problem across tasks and mitigation methods. Retrieval-augmented generation
+\parencite{lewis2020retrieval} conditions the model on documents retrieved for the query and improves factuality on
+knowledge-intensive tasks. For a single small business the relevant knowledge is small enough to be given to the model
+directly: the price list, working hours, address, staff and frequent questions fit into the prompt. Grounding alone,
+however, does not prevent the model from \emph{claiming} an action that did not happen, such as confirming a booking
+for a time that is already taken. This motivates validating actions in code and not only grounding the text.
+
+\section{Natural Language Processing for Kyrgyz}
+
+\textcite{joshi2020state} classified the world's languages by the amount of labelled and unlabelled data available and
+showed that most languages are left behind by NLP progress. In a recent overview, \textcite{alekseev2024kyrgyznlp}
+describe Kyrgyz as a language that is only \enquote{scraping by} in resources: apart from dictionaries, most public
+datasets and tools appeared only recently, and the authors propose a roadmap for community-driven development.
+\textcite{turatali2026kyrgyzllmbench} introduced KyrgyzLLM-Bench, with natively written and manually post-edited
+translated tasks, and evaluated 26 open and proprietary LLMs; model rankings transfer from English to Kyrgyz on some tasks
+but not others, and several tasks show a substantial gap between English and Kyrgyz.
+
+For customer service, an additional difficulty is code-switching: customers in Kyrgyzstan write in Kyrgyz, in Russian, or
+mix both, and may use Latin transliteration. A business agent must therefore detect the language of each message, answer
+in the same language and know the Kyrgyz names of the business's services, while keeping prices and facts identical in
+both languages.
+
+\section{Messaging Channels and the Kyrgyz Market}
+
+Small and medium-sized businesses produced 47.3\% of the GDP of Kyrgyzstan in the first half of 2025, according to the
+National Statistics Committee \parencite{akchabar2025sme}. Internet use reached 88.5\% of the population at the end of
+2025, and Instagram's advertising reach was 3.90~million users \parencite{datareportal2026kg}. Businesses use Instagram
+as a shop window and WhatsApp and Telegram for conversations; each channel offers a business API with its own rules for
+webhooks, message windows and media. An agent for this market therefore has to work across several channels at once and
+keep one customer history across them.
+
+\section{Software-as-a-Service for Many Small Businesses}
+
+A product for small businesses has to be sold and operated as a service: one deployment serves many businesses
+(tenants), each configured by its owner without the developer's help. \textcite{bezemer2010multi} discuss the
+trade-offs of multi-tenant software-as-a-service: lower operating cost and easier updates, at the price of strict data
+isolation between tenants and configurability within one code base. For an LLM agent, tenant isolation also applies to
+the prompt: the agent of one business must never see another business's data.
+
+\section{Existing Solutions and Their Limitations}
+
+Products available to small businesses in the region fall into three groups.
+\begin{itemize}
+	\item \textbf{Online booking and CRM systems} for service businesses keep schedules, clients, loyalty programmes and
+	reports, and offer a booking page. They manage records well, but answering a customer's message in a messenger
+	remains a human task.
+	\item \textbf{Omnichannel chat platforms} collect messages from several messengers into one inbox and provide team
+	features such as ready-made answer templates, internal comments and block lists. They make human agents faster but
+	still require a human to answer.
+	\item \textbf{General-purpose chatbots} and chatbot builders can answer automatically, but they either follow fixed
+	scripts that break on free-form questions, or use an LLM without validating actions against the business's real
+	schedule, which risks invented confirmations.
+\end{itemize}
+None of these groups combines automatic answers in Kyrgyz and Russian with validated bookings and orders and a
+self-service setup for a non-technical owner.
+
+\section{Summary of the Reviewed Literature}
+
+The literature shows that conversational agents can serve customers and that LLM assistants raise productivity in
+customer support \parencite{brynjolfsson2025generative}; that agents which call tools are powerful but hard to make
+reliable \parencite{yao2023react, yao2024taubench}; that hallucination is a central risk and grounding reduces but does not
+remove it \parencite{ji2023survey, lewis2020retrieval}; and that Kyrgyz remains a low-resource language for which
+evaluation resources are only now appearing \parencite{alekseev2024kyrgyznlp, turatali2026kyrgyzllmbench}.
+
+\section{Research Gap}
+
+Published work on LLM agents for customer service concentrates on English and on large companies with dedicated support
+teams, and evaluates agents mostly in simulation. There is little work on agents that answer customers of
+\emph{small} businesses directly, in a \emph{low-resource language} with code-switching, and that are constrained to
+act only on validated business data. There is also no public, bilingual Kyrgyz--Russian evaluation set for such a
+customer-service agent. This thesis addresses the gap by designing, implementing and evaluating such a platform and by
+publishing its evaluation set.
