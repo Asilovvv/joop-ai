@@ -695,7 +695,31 @@ def staff_page(request: Request):
     with new_session() as s:
         b = _business(s, request)
         rows = s.exec(select(Staff).where(Staff.business_id == b.id, Staff.active == True).order_by(Staff.id)).all()  # noqa: E712
-        return _render(request, "staff.html", "staff", b, rows=rows)
+        return _render(request, "staff.html", "staff", b, rows=rows, example=samples.hidden_from_customers(s, b, "panel").staff)
+
+
+def _retire_staff(s: Session, business_id: int, row: Staff) -> None:
+    row.active = False  # kept for booking history
+    s.add(row)
+    for user in s.exec(select(PanelUser).where(PanelUser.business_id == business_id, PanelUser.staff_id == row.id)).all():
+        user.active = False  # her own login goes with her
+        s.add(user)
+    for slot in s.exec(select(Slot).where(Slot.staff_id == row.id, Slot.status == "free", Slot.taken == 0)).all():
+        s.delete(slot)
+
+
+@router.post("/panel/staff/example/delete")
+def staff_example_delete(request: Request, csrf: str = Form("")):
+    """Retire every person who is still exactly the sign-up example, with their free times."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        ids = samples.hidden_from_customers(s, b, "panel").staff
+        for row in s.exec(select(Staff).where(Staff.business_id == b.id, Staff.id.in_(ids))).all() if ids else []:
+            _retire_staff(s, b.id, row)
+        s.commit()
+        _flash(request, f"Пример удалён: {len(ids)}, с их свободными окнами. Добавьте своих ниже." if ids else "Примера здесь нет.")
+    return _back("/panel/staff")
 
 
 @router.post("/panel/staff")
@@ -744,14 +768,7 @@ def staff_delete(request: Request, item_id: int, csrf: str = Form("")):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
-        row = _own(s, Staff, item_id, b.id)
-        row.active = False  # kept for booking history
-        s.add(row)
-        for user in s.exec(select(PanelUser).where(PanelUser.business_id == b.id, PanelUser.staff_id == row.id)).all():
-            user.active = False  # her own login goes with her
-            s.add(user)
-        for slot in s.exec(select(Slot).where(Slot.staff_id == row.id, Slot.status == "free", Slot.taken == 0)).all():
-            s.delete(slot)
+        _retire_staff(s, b.id, _own(s, Staff, item_id, b.id))
         s.commit()
         _flash(request, "Специалист убран, его свободные окна удалены. Существующие записи остались.")
     return _back("/panel/staff")
@@ -763,7 +780,21 @@ def faq_page(request: Request):
         b = _business(s, request)
         rows = s.exec(select(Faq).where(Faq.business_id == b.id).order_by(Faq.id)).all()
         gaps = open_gaps(s, b, utcnow())
-        return _render(request, "faq.html", "faq", b, rows=rows, gaps=gaps)
+        return _render(request, "faq.html", "faq", b, rows=rows, gaps=gaps, example=samples.hidden_from_customers(s, b, "panel").faq)
+
+
+@router.post("/panel/faq/example/delete")
+def faq_example_delete(request: Request, csrf: str = Form("")):
+    """Remove every answer that is still exactly the sign-up example."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        ids = samples.hidden_from_customers(s, b, "panel").faq
+        for row in s.exec(select(Faq).where(Faq.business_id == b.id, Faq.id.in_(ids))).all() if ids else []:
+            s.delete(row)
+        s.commit()
+        _flash(request, f"Пример удалён: {len(ids)}. Добавьте свои ответы ниже." if ids else "Примера здесь нет.")
+    return _back("/panel/faq")
 
 
 @router.post("/panel/faq")
