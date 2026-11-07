@@ -11,7 +11,7 @@
   <p class="small muted">Следующий шаг</p>
   <h2>{{ next.title }}</h2>
   <p class="muted">{{ next.hint }}</p>
-  <div><a class="btn" href="{{ next.href }}">{{ next.action }}</a></div>
+  <div><a class="btn" href="{{ next.href }}"{% if next.external %} target="_blank" rel="noopener"{% endif %}>{{ next.action }}</a></div>
 </section>
 {% else %}
 <section class="card"><p><b>Всё готово.</b> ИИ отвечает клиентам; итоги — в «Сводке» и в утреннем сообщении в Telegram.</p></section>
