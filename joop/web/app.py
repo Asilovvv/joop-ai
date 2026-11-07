@@ -586,7 +586,32 @@ def services_page(request: Request):
     with new_session() as s:
         b = _business(s, request)
         rows = s.exec(select(Service).where(Service.business_id == b.id).order_by(Service.sort, Service.id)).all()
-        return _render(request, "services.html", "services", b, rows=rows)
+        example = samples.hidden_from_customers(s, b, "panel").services  # rows still exactly the sign-up example
+        return _render(request, "services.html", "services", b, rows=rows, example=example)
+
+
+def _delete_service(s: Session, item: Service) -> None:
+    for move in s.exec(select(StockMove).where(StockMove.service_id == item.id)).all():
+        s.delete(move)  # the stock history of a deleted item goes with it
+    for line in s.exec(select(OrderLine).where(OrderLine.item_id == item.id)).all():
+        line.item_id = None  # an order keeps its line (name, price) when the item leaves the menu
+        s.add(line)
+    s.flush()  # these leave before the item: there are no ORM relationships to order the deletes
+    s.delete(item)
+
+
+@router.post("/panel/services/example/delete")
+def services_example_delete(request: Request, csrf: str = Form("")):
+    """Remove every price-list row that is still exactly the sign-up example, in one go."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        ids = samples.hidden_from_customers(s, b, "panel").services
+        for item in s.exec(select(Service).where(Service.business_id == b.id, Service.id.in_(ids))).all() if ids else []:
+            _delete_service(s, item)
+        s.commit()
+        _flash(request, f"Пример удалён: {len(ids)}. Добавьте свои услуги с ценами ниже или «Заполнить из текста»." if ids else "Примера в прайсе нет.")
+    return _back("/panel/services")
 
 
 @router.post("/panel/services")
@@ -659,11 +684,7 @@ def service_delete(request: Request, item_id: int, csrf: str = Form("")):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
-        item = _own(s, Service, item_id, b.id)
-        for move in s.exec(select(StockMove).where(StockMove.service_id == item.id)).all():
-            s.delete(move)  # the stock history of a deleted item goes with it
-        s.flush()  # the moves leave before the item: there are no ORM relationships to order the deletes
-        s.delete(item)
+        _delete_service(s, _own(s, Service, item_id, b.id))
         s.commit()
         _flash(request, "Услуга удалена.")
     return _back("/panel/services")
