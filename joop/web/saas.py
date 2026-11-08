@@ -171,7 +171,8 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     example = samples.left(s, b).services
     pack = get_pack(b.niche)
     label = pack.catalog_label
-    act = "забронируйте зал на дату" if pack.by_day else "забронируйте номер" if pack.has("stay") else "запишитесь"
+    act = ("забронируйте зал на дату" if pack.by_day else "забронируйте номер" if pack.has("stay")
+           else "закажите" if pack.has("order") and not pack.has("booking") else "запишитесь")
     missing = [w for w, v in (("адрес", b.address), ("телефон", b.phone), ("часы работы", b.hours_text)) if not v]
     if samples.hours_are_example(b):  # copied from the example at sign-up: confirm or change
         missing.append(f"часы работы (сейчас из примера: {b.hours_text})")
