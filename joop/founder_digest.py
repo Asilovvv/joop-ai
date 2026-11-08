@@ -19,7 +19,7 @@ from sqlmodel import Session, select
 from . import annual, billing, health, retention
 from .models import Booking, Business, FounderDigest, Lead, Message, Subscription
 from .pilot import DEMO_PREFIX
-from .stats import TEST_CHANNEL, real_messages
+from .stats import not_test, real_messages
 from .timeutil import DEFAULT_TZ, local_to_utc, utc_to_local
 
 log = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ def text(session: Session, now_utc: datetime, price_som: int, annual_months: int
         trial += code == "trial"
     mrr = billing.mrr(session, now_utc, price_som)
     bookings = session.exec(select(func.count()).select_from(Booking).where(
-        Booking.business_id.in_(real), Booking.source == "ai", Booking.channel != TEST_CHANNEL,
+        Booking.business_id.in_(real), Booking.source == "ai", not_test(Booking),
         Booking.created_at >= since, Booking.created_at < until)).one()
     conversations = session.exec(select(func.count(func.distinct(Message.conversation_id))).where(
         Message.business_id.in_(real), Message.role == "customer", real_messages(),
@@ -59,7 +59,7 @@ def text(session: Session, now_utc: datetime, price_som: int, annual_months: int
 
     def leads(kind: str) -> int:
         return session.exec(select(func.count()).select_from(Lead).where(
-            Lead.business_id.in_(real), Lead.kind == kind, Lead.channel != TEST_CHANNEL,
+            Lead.business_id.in_(real), Lead.kind == kind, not_test(Lead),
             Lead.created_at >= since, Lead.created_at < until)).one()
 
     signups = session.exec(select(func.count()).select_from(Subscription).where(

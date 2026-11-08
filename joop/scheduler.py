@@ -16,7 +16,7 @@ from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
 from .followups import _kyrgyz, send_return_invites, send_review_requests
 from .models import Booking, Business, Conversation, Message
 from .runtime import Runtime
-from .stats import TEST_CHANNEL, activity, real_messages
+from .stats import TEST_CHANNEL, activity, not_test, real_messages
 from .timeutil import fmt_slot, utc_to_local, utcnow
 
 log = logging.getLogger(__name__)
@@ -109,7 +109,7 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
             Booking.status == "booked",
             Booking.start >= day,
             Booking.start < day + timedelta(days=1),
-            Booking.channel != TEST_CHANNEL,
+            not_test(Booking),
         )
         .order_by(Booking.start)
     ).all()
@@ -233,12 +233,12 @@ def period_lines(session: Session, business: Business, since: datetime, until: d
         *window, Message.off_hours == True)).one() or 0  # noqa: E712
     handoffs = session.exec(select(func.count()).select_from(Lead).where(
         Lead.business_id == business.id, Lead.kind == "handoff", Lead.created_at >= since, Lead.created_at < until,
-        Lead.channel != TEST_CHANNEL)).one() or 0
+        not_test(Lead))).one() or 0
     prices = {s.name.casefold(): s.price_value for s in session.exec(select(Service).where(
         Service.business_id == business.id, Service.price_value != None)).all()}  # noqa: E711
     bookings = session.exec(select(Booking).where(Booking.business_id == business.id, Booking.source == "ai",
                                                   Booking.created_at >= since, Booking.created_at < until,
-                                                  Booking.channel != TEST_CHANNEL)).all()
+                                                  not_test(Booking))).all()
     valued = []
     for b in bookings:  # an accepted add-on (joop/upsell.py) is "Маникюр + Дизайн": the base price plus the add-on's
         name, extra = b.service or "", 0
@@ -249,7 +249,7 @@ def period_lines(session: Session, business: Business, since: datetime, until: d
     added = [b for b in bookings if b.upsell_status == "accepted"]
     orders = session.exec(select(Order).where(Order.business_id == business.id, Order.created_at >= since,
                                               Order.created_at < until, Order.status != "cancelled",
-                                              Order.channel != TEST_CHANNEL)).all()
+                                              not_test(Order))).all()
     order_sum = sum(o.total for o in orders if o.total)
     total = sum(valued) + order_sum
     lines = [f"Ответил {_ru(conversations, 'клиенту', 'клиентам', 'клиентам')}, из них {off_conversations} — в нерабочее время."]

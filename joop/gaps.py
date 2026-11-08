@@ -23,7 +23,7 @@ from sqlmodel import Session, select
 from .followups import SERVICE_WINDOW, _kyrgyz, _service_for, deliver_to_chat
 from .models import Booking, Business, Conversation, Service, Slot, Staff
 from .slots import free_slots
-from .stats import TEST_CHANNEL
+from .stats import is_test, not_test, real_conversation
 from .timeutil import fmt_slot, local_to_utc
 
 if TYPE_CHECKING:
@@ -99,7 +99,7 @@ def candidates(session: Session, business: Business, now_local: datetime) -> lis
     services = list(session.exec(select(Service).where(Service.business_id == business.id)).all())
     staff_ids = {s.name: s.id for s in session.exec(select(Staff).where(Staff.business_id == business.id, Staff.active == True)).all()}  # noqa: E712
     bookings = session.exec(select(Booking).where(
-        Booking.business_id == business.id, Booking.status == "booked", Booking.channel != TEST_CHANNEL,
+        Booking.business_id == business.id, Booking.status == "booked", not_test(Booking),
     ).order_by(Booking.start.desc())).all()
     by_phone: dict[str, list[Booking]] = {}
     for b in bookings:
@@ -114,7 +114,7 @@ def candidates(session: Session, business: Business, now_local: datetime) -> lis
         if last.conversation_id is None:
             continue  # no chat to write to (a booking made in the panel by phone)
         conv = session.get(Conversation, last.conversation_id)
-        if conv is None or conv.channel == TEST_CHANNEL or conv.silenced:
+        if conv is None or is_test(conv) or conv.silenced:
             continue
         if conv.invited_at and now_utc - conv.invited_at < timedelta(days=QUIET_DAYS):
             continue
@@ -160,7 +160,7 @@ def send(session: Session, rt: "Runtime", business: Business, cand: Candidate, n
 def week_numbers(session: Session, business: Business, since_utc: datetime) -> tuple[int, int]:
     """Invitations sent in the period, and how many of those customers booked afterwards."""
     convs = session.exec(select(Conversation).where(
-        Conversation.business_id == business.id, Conversation.invited_at >= since_utc, Conversation.channel != TEST_CHANNEL,
+        Conversation.business_id == business.id, Conversation.invited_at >= since_utc, real_conversation(),
     )).all()
     booked = sum(session.exec(select(func.count()).select_from(Booking).where(
         Booking.conversation_id == c.id, Booking.created_at >= c.invited_at)).one() > 0 for c in convs)
