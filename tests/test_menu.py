@@ -17,6 +17,7 @@ def cafe(engine):
     with db.new_session() as s:
         b = create_business(s, slug="cafe", name="Кафе Ала-Тоо", password="cafe-pass", niche="restaurant", demo=True, now_utc=NOW_UTC)
         b.phone = "+996 555 000 111"
+        b.example_ok = True  # this cafe's menu is its own (it equals the restaurant example)
         s.add(b)
         s.commit()
         return b
@@ -90,9 +91,29 @@ def test_booking_page_shows_masters_nearest_times_and_where_to_write(settings, r
         s.commit()
     with TestClient(create_app(settings, rt, init=False)) as c:
         page = c.get("/m/aktish").text
-        assert "Ближайшее свободное время" in page and "Мастера" in page and "Написать и записаться · Telegram" in page
+        assert "Ближайшее свободное время" in page and "<h2>Врачи</h2>" in page and "Написать и записаться · Telegram" in page
         assert "Чат на сайте" in page and "wa.me" not in page  # WhatsApp is not connected: no link to a landline
         assert "Отвечает ИИ-администратор" in page and 'name="description"' in page
         assert page.count('class="chips"') == 1 and page.split('class="chips"')[1].count("<span>") == 3
         panel_login(c)
         assert "публичная страница записи" in c.get("/panel/menu").text
+
+
+def test_public_page_never_shows_the_sign_up_example(settings, rt, engine):
+    """A new business that opens the page before replacing the example: customers saw «Плов — 300 сом» and example
+    tables or masters with their free times. Now only its own rows, and the panel says what is hidden."""
+    with db.new_session() as s:
+        b = create_business(s, slug="lotos", name="Салон Лотос", password="lotos-pass", niche="beauty", demo=True, now_utc=NOW_UTC)
+        b.menu_enabled = True
+        s.add(b)
+        s.add(Service(business_id=b.id, name="Маникюр Алины", price="900"))
+        s.commit()
+        example_names = [r.name for r in s.exec(select(Service).where(Service.business_id == b.id)).all() if r.name != "Маникюр Алины"]
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        page = c.get("/m/lotos").text
+        assert "Маникюр Алины" in page and not any(n in page for n in example_names)
+        assert "Ближайшее свободное время" not in page and "<h2>Мастера</h2>" not in page  # example masters and their times
+        token = csrf_of(c.get("/login").text)
+        c.post("/login", data={"slug": "lotos", "password": "lotos-pass", "csrf": token})
+        panel = c.get("/panel/menu").text
+        assert "На странице не видны позиции из примера" in panel and "мастера из примера" in panel

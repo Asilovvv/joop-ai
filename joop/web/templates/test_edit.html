@@ -17,7 +17,7 @@
     <label>Шкала уровней: баллы и уровень, одна строка — один уровень
       <textarea name="scale_text" rows="5" class="mono">{{ t.scale_text }}</textarea></label>
     <p class="muted small">Например «0-10 A1», «11-20 A2». Баллы — число правильных ответов. Чтобы ИИ предлагал нужные группы, укажите уровень в названии или описании группы в разделе «{{ pack.resource_label }}»: «Английский B1, вечер».</p>
-    <label class="inline"><input type="checkbox" name="active" value="1" {{ 'checked' if t.active }}> Тест включён: ИИ даёт ссылку, страница открыта</label>
+    <label class="check"><input type="checkbox" name="active" value="1" {{ 'checked' if t.active }}> Тест включён: ИИ даёт ссылку, страница открыта</label>
     <div class="actions" style="justify-content: flex-start"><button class="btn small" type="submit">Сохранить</button></div>
   </form>
 </section>
