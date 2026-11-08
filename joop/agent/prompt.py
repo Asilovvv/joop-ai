@@ -28,9 +28,9 @@ def response_format(pack: Pack) -> str:
             '"name": "имя", "phone": "телефон", "comment": "комментарий или пустая строка"}'
         )
     if pack.has("stay"):
-        from ..stays import STAY_FORMAT
+        from ..stays import stay_format
 
-        parts.append(STAY_FORMAT)
+        parts.append(stay_format(pack))
     if pack.has("lead"):
         parts.append('"lead": null или {"name": "имя", "phone": "телефон", "details": "ответы клиента: вопрос — ответ; ..."}')
     parts.append('"handoff": null или "кратко: что сделать администратору"')
