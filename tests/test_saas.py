@@ -10,7 +10,7 @@ from joop import billing, db
 from joop.agent.engine import handle_incoming
 from joop.agent.llm import AgentReply
 from joop.channels.base import IncomingMessage
-from joop.models import Business, Conversation, Payment, Prospect, Service, Subscription
+from joop.models import Business, Conversation, Message, Payment, Prospect, Service, Subscription
 from joop.web.app import create_app
 from joop.timeutil import utc_to_local, utcnow
 from joop.web.saas import slugify
@@ -463,3 +463,25 @@ def test_one_tap_admin_link_and_bot_link_on_the_checklist(business):
         assert out.reply.startswith("Готово") and b.admin_chat_ids == "501"
         b.telegram_bot_token = ""
         assert admin_link(b) == ""
+
+
+def test_admin_code_is_never_stored_rotates_after_use_and_wrong_codes_are_capped(business):
+    """Review of #122-#131, findings 1 and 5."""
+    from joop.agent import engine
+    from joop.agent.engine import handle_incoming
+    from joop.channels.base import IncomingMessage
+
+    engine._admin_misses.clear()
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.admin_link_code, b.admin_chat_ids = "12345678", ""
+        out = handle_incoming(s, b, IncomingMessage("telegram", "601", "command", "/start admin_12345678", "Бектур", "u1"), lambda: None, NOW_UTC)
+        assert out.reply.startswith("Готово") and b.admin_chat_ids == "601"
+        assert b.admin_link_code != "12345678" and len(b.admin_link_code) == 8  # a used code is replaced
+        assert s.exec(select(Conversation).where(Conversation.chat_id == "601")).first() is None  # not a customer, code not kept
+        assert "12345678" not in str([m.text for m in s.exec(select(Message)).all()])
+        for i in range(engine.ADMIN_TRIES_PER_DAY):
+            handle_incoming(s, b, IncomingMessage("telegram", "700", "command", f"/admin 0000000{i}", "x", f"w{i}"), lambda: None, NOW_UTC)
+        out = handle_incoming(s, b, IncomingMessage("telegram", "700", "command", f"/admin {b.admin_link_code}", "x", "w-last"), lambda: None, NOW_UTC)
+        assert "Слишком много попыток" in out.reply and "700" not in b.admin_chat_ids  # even the right code waits for tomorrow
+    engine._admin_misses.clear()
