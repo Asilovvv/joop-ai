@@ -158,7 +158,7 @@ def weekly_report_text(session: Session, business: Business, now_utc: datetime) 
     st = activity(session, business.id, now_utc - timedelta(days=7))
     if not st["conversations"]:
         return None
-    results = st["bookings"] + st["stays"] + st["requests"] + st["orders"]
+    results = st["bookings"] + st["stays"] + st["requests"] + st["orders"] + st["qualified"]
     lines = [
         f"Итоги недели «{business.name}»: ИИ-администратор",
         f"Ответил {st['conversations']} клиентам, из них {st['off_hours_conversations']} — в нерабочее время, когда никого не было на месте.",
@@ -172,10 +172,13 @@ def weekly_report_text(session: Session, business: Business, now_utc: datetime) 
         parts.append(f"заявок на запись {st['requests']}")
     if st["orders"]:
         parts.append(f"заказов {st['orders']}")
+    if st["qualified"]:
+        parts.append(f"заявок с бюджетом и сроками {st['qualified']}")
     if parts:
         lines.append("Оформил: " + ", ".join(parts) + ".")
-    if st["leads"]:
-        lines.append(f"Передал вам {st['leads']} вопросов, на которые нужен человек.")
+    questions = st["leads"] - st["qualified"]
+    if questions:
+        lines.append(f"Передал вам {questions} вопросов, на которые нужен человек.")
     invited, returned = empty_slots.week_numbers(session, business, now_utc - timedelta(days=7))
     if invited:
         lines.append(f"Пригласили в пустые окна: {invited}, записались: {returned}.")

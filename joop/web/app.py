@@ -550,6 +550,10 @@ def dashboard(request: Request):
             select(Stay).where(Stay.business_id == b.id, Stay.status == "booked", Stay.check_out > now_local.date())
             .order_by(Stay.check_in, Stay.id).limit(10)
         ).all() if get_pack(b.niche).has("stay") else []
+        pack = get_pack(b.niche)
+        recent_orders = s.exec(  # a shop without bookings (wholesale, florist…): its latest orders instead
+            select(Order).where(Order.business_id == b.id, Order.status != "cancelled").order_by(Order.id.desc()).limit(10)
+        ).all() if pack.has("order") and not (pack.has("booking") or pack.has("request") or pack.has("stay")) else []
         leads = s.exec(
             select(Lead).where(Lead.business_id == b.id, Lead.status == "new").order_by(Lead.id.desc()).limit(10)
         ).all()
@@ -576,6 +580,7 @@ def dashboard(request: Request):
             hour_bars=hour_bars(hours),
             upcoming=upcoming,
             arrivals=arrivals,
+            recent_orders=recent_orders,
             leads=leads,
             counts=counts,
             example=example,
