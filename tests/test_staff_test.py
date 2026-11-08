@@ -95,3 +95,23 @@ def test_channels_page_offers_to_write_to_the_bot(business, rt, settings):
         login(c)
         page = c.get("/panel/channels").text
         assert "@aktish_bot" in page and 'href="https://t.me/aktish_bot?start=test"' in page
+
+
+def test_web_chat_from_a_browser_logged_in_to_the_panel_is_a_test(business, rt, llm, settings):
+    from joop.web import webchat
+
+    webchat.reset_limits()
+    llm.replies = [AgentReply("Чистка — 2 500 сом.")] * 2
+    with TestClient(create_app(settings, rt, init=False)) as visitor:
+        page = visitor.get("/c/aktish")
+        assert "этот чат — тест" not in page.text and "set-cookie" not in page.headers
+        v = visitor.post("/c/aktish/chat", json={"text": "Сколько стоит чистка?"}).json()["visitor"]
+        assert "set-cookie" not in visitor.get("/c/aktish").headers
+    with TestClient(create_app(settings, rt, init=False)) as owner:
+        login(owner)
+        assert "этот чат — тест" in owner.get("/c/aktish").text
+        o = owner.post("/c/aktish/chat", json={"text": "Сколько стоит чистка?"}).json()["visitor"]
+    webchat.reset_limits()
+    assert not conv_of(business.id, f"web-{v}").staff_test and conv_of(business.id, f"web-{o}").staff_test
+    n = numbers(business.id)
+    assert n["conversations"] == 1 and n["customer_messages"] == 1  # only the visitor
