@@ -38,6 +38,7 @@ class Pack:
     features: frozenset[str] = frozenset()
     stay_by: str = "night"
     jobs_delivered: bool = False  # jobs are made to order and delivered (furniture), not picked up (repair)
+    lead_minutes: int = 60  # free times offered no sooner than this; a car wash takes «можно сейчас?» in 15 minutes
 
     def has(self, outcome: str) -> bool:
         return outcome in self.outcomes
@@ -110,6 +111,7 @@ def _load(name: str) -> Pack:
         features=features,
         stay_by=stay_by,
         jobs_delivered=bool(data.get("jobs_delivered", False)),
+        lead_minutes=max(0, int(data.get("lead_minutes", 60))),
     )
 
 
