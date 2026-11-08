@@ -27,7 +27,7 @@ from ..db import init_db, new_session
 from ..dispatch import admin_chat_ids, admin_link, process_incoming
 from ..catalog import parse_price
 from ..models import (Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service, SignatureClick, Slot,
-                      Staff, StockMove, WaitlistEntry)
+                      Staff, Stay, StockMove, WaitlistEntry)
 from ..niches import all_packs, get_pack, picker_packs
 from ..phone import normalize_phone
 from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, quick_replies, samples, staff_reply, stock, waitlist
@@ -545,6 +545,10 @@ def dashboard(request: Request):
             .order_by(Booking.start)
             .limit(10)
         ).all()
+        arrivals = s.exec(  # a hotel's upcoming stays (joop/stays.py)
+            select(Stay).where(Stay.business_id == b.id, Stay.status == "booked", Stay.check_out > now_local.date())
+            .order_by(Stay.check_in, Stay.id).limit(10)
+        ).all() if get_pack(b.niche).has("stay") else []
         leads = s.exec(
             select(Lead).where(Lead.business_id == b.id, Lead.status == "new").order_by(Lead.id.desc()).limit(10)
         ).all()
@@ -570,6 +574,7 @@ def dashboard(request: Request):
             hours=(hours := by_hour(s, b.id, now - timedelta(days=14), b.timezone)),
             hour_bars=hour_bars(hours),
             upcoming=upcoming,
+            arrivals=arrivals,
             leads=leads,
             counts=counts,
             example=example,

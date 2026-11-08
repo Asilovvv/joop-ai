@@ -21,7 +21,7 @@ from sqlmodel import Session, select
 
 from . import billing
 from .agent.engine import ERROR_REPLY, TEXT_ONLY_REPLY
-from .models import Booking, Business, Lead, Message, Order, Subscription
+from .models import Booking, Business, Lead, Message, Order, Stay, Subscription
 from .niches import get_pack
 from .stats import not_test, real_messages
 
@@ -39,6 +39,7 @@ class PilotRow:
     off_hours_messages: int = 0
     ai_replies: int = 0
     bookings: int = 0  # made by the AI into free slots
+    stays: int = 0  # hotel room bookings made by the AI
     requests: int = 0  # booking requests staff confirm
     orders: int = 0
     leads: int = 0  # qualified leads (real estate, wholesale)
@@ -70,7 +71,7 @@ class PilotRow:
     @property
     def completed(self) -> int:
         """What the AI finished without staff: the pilot's "leads delivered to owners"."""
-        return self.bookings + self.requests + self.orders + self.leads
+        return self.bookings + self.stays + self.requests + self.orders + self.leads
 
     @property
     def off_hours_pct(self) -> int | None:
@@ -130,6 +131,7 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
 
     for attr, counts in (
         ("bookings", count(Booking, Booking.source == "ai")),
+        ("stays", count(Stay, Stay.source == "ai")),
         ("requests", count(Lead, Lead.kind == "request")),
         ("orders", count(Order)),
         ("leads", count(Lead, Lead.kind == "lead")),
@@ -154,7 +156,7 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
     total = PilotRow(business=f"Итого: {len(ordered)}")
     total.active_days = len(set().union(*(r._days for r in ordered)))  # calendar days with any customer message
     total._first_reply = [x for r in ordered for x in r._first_reply]
-    for f in ("conversations", "customer_messages", "off_hours_messages", "ai_replies", "bookings", "requests",
+    for f in ("conversations", "customer_messages", "off_hours_messages", "ai_replies", "bookings", "stays", "requests",
               "orders", "leads", "handoffs", "handoff_conversations", "failures", "answered_later", "cost_usd"):
         setattr(total, f, sum(getattr(r, f) for r in ordered))
     total.status = f"платят: {sum(r.paying for r in ordered)}"
@@ -165,7 +167,7 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
 CSV_COLUMNS = [
     ("business", "business"), ("niche", "niche"), ("active_days", "active_days"), ("conversations", "conversations"),
     ("customer_messages", "customer_messages"), ("off_hours_messages", "off_hours_messages"), ("off_hours_pct", "off_hours_pct"),
-    ("ai_replies", "ai_replies"), ("bookings", "bookings"), ("requests", "requests"), ("orders", "orders"), ("leads", "leads"),
+    ("ai_replies", "ai_replies"), ("bookings", "bookings"), ("stays", "stays"), ("requests", "requests"), ("orders", "orders"), ("leads", "leads"),
     ("completed", "completed_by_ai"), ("handoffs", "handoffs"), ("failures", "failures"), ("answered_later", "failures_answered_later"), ("cost_usd", "cost_usd"),
     ("cost_per_reply", "cost_per_reply_usd"), ("cost_per_conversation", "cost_per_conversation_usd"),
     ("handoff_pct", "handoff_pct"), ("median_first_reply_s", "median_first_reply_s"), ("status", "status"), ("paying", "paying"),

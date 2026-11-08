@@ -32,7 +32,7 @@
         <td>{{ r.conversations }}</td>
         <td>{{ r.customer_messages }}</td>
         <td>{{ r.off_hours_messages }}{% if r.off_hours_pct is not none %} ({{ r.off_hours_pct }}%){% endif %}</td>
-        <td>{{ r.completed }}<br><span class="muted small">записи {{ r.bookings }} · заявки {{ r.requests }} · заказы {{ r.orders }} · лиды {{ r.leads }}</span></td>
+        <td>{{ r.completed }}<br><span class="muted small">записи {{ r.bookings }}{% if r.stays %} · брони номеров {{ r.stays }}{% endif %} · заявки {{ r.requests }} · заказы {{ r.orders }} · лиды {{ r.leads }}</span></td>
         <td>{{ r.handoffs }}{% if r.handoff_pct is not none %} ({{ r.handoff_pct }}% диалогов){% endif %}</td>
         <td>{% if r.median_first_reply_s is none %}—{% elif r.median_first_reply_s < 60 %}{{ r.median_first_reply_s }} с{% elif r.median_first_reply_s < 3600 %}{{ (r.median_first_reply_s / 60) | round(1) }} мин{% else %}{{ (r.median_first_reply_s / 3600) | round(1) }} ч{% endif %}</td>
         <td>{{ r.failures }}{% if r.failures %}<br><span class="muted small">ответил позже: {{ r.answered_later }}</span>{% endif %}</td>

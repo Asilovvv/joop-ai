@@ -109,3 +109,30 @@ def test_past_date_without_year_means_next_year(engine):
     reply.stay["check_in"], reply.stay["check_out"] = last_year.isoformat(), (last_year + timedelta(days=3)).isoformat()
     out = say(b.id, f"Семейный номер с 1 по 4 августа {last_year.year}, Нурлан 0700 889 900", FakeLLM([reply]), "y2", chat="y2")
     assert out.stay_id is None and "даты" in out.reply
+
+
+def test_a_hotels_numbers_reports_and_dashboard_count_the_stays(engine, settings, rt):
+    """A hotel's AI books rooms (Stay), but every number counted only Booking: the dashboard, the morning and weekly
+    reports and the pilot table showed «0 записей» for a hotel whose AI had booked rooms."""
+    from joop import pilot
+    from joop.scheduler import digest_text, weekly_report_text
+    from joop.stats import activity
+
+    b, rooms = hotel()
+    out = say(b.id, "Коттедж на 5 человек, Алмаз, 0555 667 788", FakeLLM([stay(rooms["Коттедж"].id, days_from=1, guests=5)]), "n1")
+    assert out.stay_id
+    with db.new_session() as s:
+        biz = s.get(Business, b.id)
+        n = activity(s, b.id, NOW_UTC - timedelta(days=1))
+        assert n["stays"] == 1 and n["off_hours_stays"] in (0, 1) and n["bookings"] == 0
+        assert "броней номеров 1" in weekly_report_text(s, biz, NOW_UTC + timedelta(hours=1))
+        digest = digest_text(s, biz, NOW_UTC + timedelta(hours=1))
+        assert "броней номеров через ИИ 1" in digest and "Сегодня заезжают:" in digest and "Алмаз" in digest
+        rows, total = pilot.report(s, NOW_UTC - timedelta(days=1), NOW_UTC + timedelta(hours=1), NOW_UTC)
+        assert total.stays == 1 and total.completed == 1 and "stays" in pilot.to_csv(rows, total).splitlines()[0]
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        c.post("/login", data={"slug": "hotel", "password": "hotel-pass", "csrf": csrf_of(c.get("/login").text)})
+        page = c.get("/panel").text
+        assert "броней номеров сделал ИИ" in page and "Ближайшие брони" in page and "Алмаз" in page
+        assert "заявок на запись" not in page  # a hotel takes no booking requests
+        assert "Номеров этого типа" in c.get("/panel/staff").text and "удаление зубов" not in c.get("/panel/staff").text
