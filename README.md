@@ -455,6 +455,19 @@ python -m eval.summary --thesis --latex eval/results*.json
 Without a key, `python -m eval.run_eval all --dry-run` runs all cases with one scripted reply and no
 model (about 20 seconds). It checks that every profile and case loads and runs and writes to
 `eval/dryrun/`; its numbers are marked as a dry run and are not results.
+
+Native-speaker review of the Kyrgyz replies (after a real run):
+
+```bash
+python -m eval.review_sheet make eval/results*.json --sample 40   # eval/kyrgyz_review.csv, opens in Excel
+python -m eval.review_sheet score eval/kyrgyz_review.csv --latex   # after the reviewer has filled it in
+```
+
+The sheet lists each Kyrgyz case: the customer's messages, the bot's final reply and the automatic
+language check. The reviewer fills in: is the reply in Kyrgyz (да/нет); correctness 1–5 (grammar and
+meaning, 5 = no errors); naturalness 1–5 (5 = a real administrator would say it this way); a better
+wording; a comment. `score` reports the mean grades, the share of 4–5, and how often the automatic check
+agrees with the reviewer, listing the cases where it passed a reply the reviewer says is not Kyrgyz.
 How the parts fit together: [docs/architecture.md](docs/architecture.md).
 
 ## Known limitations
