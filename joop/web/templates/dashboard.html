@@ -47,7 +47,7 @@
     {% if pack.has('booking') or pack.has('request') %}<li class="{{ 'done' if ready[1] }}"><a href="/panel/staff">{{ 'Замените пример' if example.staff else 'Заполните раздел' }} «{{ pack.resource_label }}»</a></li>{% endif %}
     {% if pack.has('booking') %}<li class="{{ 'done' if ready[2] }}"><a href="/panel/slots">Создайте свободные окна для записи</a></li>{% endif %}
     <li class="{{ 'done' if ready[3] }}"><a href="/panel/channels">Подключите канал: Telegram, WhatsApp или Instagram</a></li>
-    <li class="{{ 'done' if ready[4] }}"><a href="/panel/settings">Привяжите Telegram для уведомлений о {{ 'бронях' if pack.has('stay') else 'записях' if pack.has('booking') or pack.has('request') else 'заказах и заявках' }}</a></li>
+    <li class="{{ 'done' if ready[4] }}"><a href="/panel/settings">Привяжите Telegram для уведомлений о {{ 'бронях' if pack.has('stay') else 'заказах и заявках' if pack.orders_first else 'записях' if pack.has('booking') or pack.has('request') else 'заявках' }}</a></li>
   </ol>
 </section>
 {% endif %}
@@ -63,7 +63,7 @@
     {% if pack.has('stay') %}<div class="stat"><b>{{ s14.stays }}</b><span>{{ 'броней залов' if pack.by_day else 'броней номеров' }} сделал ИИ</span></div>
     <div class="stat"><b>{{ s14.off_hours_stays }}</b><span>броней в нерабочее время</span></div>{% endif %}
     {% if pack.has('booking') or pack.has('request') %}<div class="stat"><b>{{ s14.requests }}</b><span>заявок на запись (перезвонить)</span></div>{% endif %}
-    {% if pack.has('lead') %}<div class="stat"><b>{{ s14.qualified }}</b><span>заявок с бюджетом и сроками собрал ИИ</span></div>{% endif %}
+    {% if pack.has('lead') %}<div class="stat"><b>{{ s14.qualified }}</b><span>заявок с ответами на вопросы собрал ИИ</span></div>{% endif %}
     <div class="stat"><b>{{ s14.leads - s14.qualified }}</b><span>вопросов передано людям</span></div>
     <div class="stat"><b>${{ '%.2f'|format(s14.ai_cost_usd) }}</b><span>расход на ИИ, {{ s14.ai_replies }} ответов</span></div>
   </div>
@@ -118,7 +118,7 @@
     </div>
     {% else %}<p class="muted">Броней пока нет. Когда ИИ забронирует {{ 'зал' if pack.by_day else 'номер' }}, бронь появится здесь и придёт в Telegram.</p>{% endif %}
   </section>
-  {% elif not (pack.has('booking') or pack.has('request')) %}
+  {% elif pack.orders_first %}
   <section class="card">
     <h2>Последние заказы</h2>
     {% if recent_orders %}

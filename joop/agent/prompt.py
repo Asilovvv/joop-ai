@@ -56,6 +56,7 @@ def build_system_prompt(
     channel: str,
     catalog_hint: str = "",
     extra_facts: str = "",
+    hide_hours: bool = False,  # the hours are still the sign-up example's: not for real customers (samples.Hidden)
 ) -> str:
     pack = get_pack(business.niche)
     off = is_off_hours(now_local, business.work_start, business.work_end, business.days_off)
@@ -75,7 +76,7 @@ def build_system_prompt(
     out += [
         f"- Адрес: {business.address or 'уточняет администратор'}",
         f"- Телефон: {business.phone or 'уточняет администратор'}",
-        f"- Часы работы: {business.hours_text or f'{business.work_start}–{business.work_end}'}",
+        f"- Часы работы: {'уточняет администратор' if hide_hours else business.hours_text or f'{business.work_start}–{business.work_end}'}",
         "",
         f"{pack.catalog_label} (цены в сомах):",
     ]
