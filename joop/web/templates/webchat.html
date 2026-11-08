@@ -29,6 +29,7 @@
   .staff { align-self: flex-start; background: var(--bg); border: 1px solid var(--accent); border-bottom-left-radius: 4px; }
   .staff small { display: block; color: var(--muted); font-size: 12px; margin-bottom: 2px; }
   .note { align-self: center; color: var(--muted); font-size: 13px; text-align: center; }
+  .staff-note { margin: 0; padding: 8px 18px; font-size: 13px; color: var(--muted); background: var(--bg); border-bottom: 1px solid var(--line); }
   form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
   textarea { flex: 1; resize: none; font: inherit; font-size: 15px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 44px; max-height: 120px; }
   textarea:focus { outline: 2px solid var(--accent); outline-offset: 0; }
@@ -46,6 +47,7 @@
       <button type="button" data-lang="ru">RU</button><button type="button" data-lang="ky">KY</button><button type="button" data-lang="en">EN</button><button type="button" data-lang="zh">中文</button>
     </div>
   </header>
+  {% if staff %}<p class="staff-note">Вы вошли в панель этого бизнеса, поэтому этот чат — тест. ИИ отвечает как клиенту, но в цифры, отчёты и CRM чат не попадает.</p>{% endif %}
   <div class="log" id="log" aria-live="polite">
     <div class="msg ai" id="hello">Здравствуйте! Напишите ваш вопрос: цены, свободное время, запись.</div>
   </div>

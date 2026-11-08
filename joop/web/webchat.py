@@ -94,8 +94,14 @@ def chat_page(request: Request, slug: str):
     with new_session() as s:
         b = _business(s, slug)
         return templates.TemplateResponse(request, "webchat.html", {
-            "request": request, "b": b, "embed": request.query_params.get("embed") == "1",
+            "request": request, "b": b, "embed": request.query_params.get("embed") == "1", "staff": _staff(request, b),
         })
+
+
+def _staff(request: Request, business: Business) -> bool:
+    """This browser is logged in to the business's panel: the owner or staff trying their own chat, not a customer.
+    Read only: a visitor's request never gets a cookie. In an iframe on another site the cookie is not sent."""
+    return request.scope.get("session", {}).get("bid") == business.id
 
 
 @router.post("/c/{slug}/chat")
@@ -125,7 +131,8 @@ async def chat_message(request: Request, slug: str):
             return JSONResponse({"error": _t("busy", lang), "visitor": visitor},
                                 status_code=429)
         chat_id = f"web-{visitor}"
-        incoming = IncomingMessage(CHANNEL, chat_id, "text", text, "Посетитель сайта", f"web:{chat_id}:{secrets.token_hex(6)}")
+        incoming = IncomingMessage(CHANNEL, chat_id, "text", text, "Посетитель сайта", f"web:{chat_id}:{secrets.token_hex(6)}",
+                                   staff_test=_staff(request, business))
         try:
             outcome = handle_incoming(s, business, incoming, rt.get_llm, utcnow(), base_url=_settings(request).public_base_url,
                                       get_altegio=rt.altegio)

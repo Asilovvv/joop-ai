@@ -118,7 +118,7 @@ def handle_incoming(
             return linked
 
     conv = _get_or_create_conversation(session, business, incoming, now)
-    if not conv.staff_test and (owner_commands.is_admin_chat(business, incoming.channel, incoming.chat_id)
+    if not conv.staff_test and (incoming.staff_test or owner_commands.is_admin_chat(business, incoming.channel, incoming.chat_id)
                                 or _is_test_start(incoming)):
         conv.staff_test = True  # the owner or staff trying their own bot: answered, but counted nowhere (joop/stats.py)
         session.add(conv)
