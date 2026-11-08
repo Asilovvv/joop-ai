@@ -115,3 +115,102 @@ def render_results(data) -> str:
         p = Path(tmp) / "results.json"
         p.write_text(json.dumps(data, ensure_ascii=False), "utf-8")
         return render([str(p)])
+
+
+def test_case_metrics_follow_the_same_rules_as_check_case():
+    from eval.run_eval import case_metrics
+
+    case = {
+        "must_not_contain": ["бесплатно"], "must_contain_any": ["500"], "expect_lead": True,
+        "expect_handoff": False, "expect_lang": "ky",
+    }
+    assert case_metrics(case, "Консультация 500 сом.", True, False) == {
+        "facts": True, "answer": True, "action": True, "handoff": True, "kyrgyz": True,
+    }
+    bad = case_metrics(case, "Консультация бесплатно, это совсем не дорого и мы вас ждём", False, True)
+    assert bad == {"facts": False, "answer": False, "action": False, "handoff": False, "kyrgyz": False}
+    assert len(check_case(case, "Консультация бесплатно, это совсем не дорого и мы вас ждём", False, True)) == 5
+    # a case counts only towards the metrics it checks; orders and leads both decide action accuracy
+    assert case_metrics({"expect_order": True}, "Готово", False, False, order_saved=True) == {"action": True}
+    assert case_metrics({"expect_order": True, "expect_lead": False}, "Готово", True, False, order_saved=True) == {"action": False}
+    assert case_metrics({"must_not_match": [r"запис\w* на \d"]}, "Записала на 15:00", False, False) == {"facts": False}
+    assert case_metrics({}, "Здравствуйте", False, False) == {}
+
+
+def test_summarize_counts_each_metric_over_the_cases_that_check_it():
+    base = {"avg_latency_s": 1.0, "usage": {}, "cost_usd": None}
+    results = [
+        {**base, "passed": True, "metrics": {"facts": True, "kyrgyz": True}},
+        {**base, "passed": False, "metrics": {"facts": False}, "fallback": True},
+        {**base, "passed": True},  # results written before per-metric checks existed
+    ]
+    s = summarize(results)
+    assert s["metrics"] == {"facts": {"cases": 2, "passed": 1}, "kyrgyz": {"cases": 1, "passed": 1}}
+    assert s["fallbacks"] == 1 and s["avg_cost_usd_per_conversation"] is None
+
+
+def test_dry_run_needs_no_key_and_marks_its_results(tmp_path, monkeypatch):
+    import sys
+
+    from eval import run_eval
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr(sys, "argv", ["run_eval", "restaurant", "--dry-run"])
+    run_eval.main()
+    out = tmp_path / "eval" / "dryrun" / "results_restaurant.json"
+    data = json.loads(out.read_text("utf-8"))
+    cases = yaml_cases(ROOT / "joop" / "niches" / "restaurant" / "cases.yaml")
+    assert data["dry_run"] is True and data["model"] == "dry-run"
+    assert [c["id"] for c in data["cases"]] == [c["id"] for c in cases]  # every case ran
+    assert all(not c.get("errors") for c in data["cases"]), [c.get("errors") for c in data["cases"]]
+    assert not (tmp_path / "eval" / "results_restaurant.json").exists()  # real results are never overwritten
+
+
+def yaml_cases(path):
+    import yaml
+
+    return yaml.safe_load(Path(path).read_text("utf-8"))
+
+
+def test_thesis_table_marks_dry_runs_and_totals_the_sets(tmp_path):
+    from eval.summary import thesis_latex, thesis_markdown
+
+    def write(name, business_file, metrics, cost, dry=False):
+        cases = 4
+        doc = {"business_file": business_file, "summary": {
+            "cases": cases, "passed": 3, "metrics": metrics, "avg_cost_usd_per_conversation": cost,
+            "total_cost_usd": cost * cases if cost is not None else None,
+        }, "cases": []}
+        if dry:
+            doc["dry_run"] = True
+        path = tmp_path / name
+        path.write_text(json.dumps(doc), "utf-8")
+        return str(path)
+
+    a = write("results_hotel.json", "/x/joop/niches/hotel/demo.yaml",
+              {"facts": {"cases": 4, "passed": 3}, "kyrgyz": {"cases": 2, "passed": 2}}, 0.002)
+    b = write("results.json", "business.example.yaml", {"facts": {"cases": 2, "passed": 2}}, 0.004)
+    table = thesis_markdown([a, b])
+    assert "DRY RUN" not in table
+    assert "| hotel | 4 | 3/4 (75.0%) | 1/4 (25.0%) |" in table  # invented facts = the cases that failed
+    assert "| business.example | 4 | 3/4 (75.0%) | 0/2 (0.0%) | — |" in table
+    assert "| Total | 8 | 6/8 (75.0%) | 1/6 (16.7%) | — | — | — | 2/2 (100.0%) | 0.0030 |" in table
+
+    d = write("results_spa.json", "/x/joop/niches/spa/demo.yaml", {}, None, dry=True)
+    assert "DRY RUN" in thesis_markdown([a, d])
+    tex = thesis_latex([write("results_dental_profile.json", "business.dental.example.yaml", {}, None, dry=True)])
+    assert tex.startswith("% DRY RUN") and "business.dental.example & 4 & 3/4 (75.0\\%) & --- &" in tex
+    assert "\\begin{tabular}" in tex and "\\textbf{Total}" in tex
+
+
+def test_thesis_table_skips_files_without_metrics_and_labels_repeats(tmp_path):
+    from eval.summary import thesis_markdown
+
+    old = tmp_path / "results_kyfill.json"
+    old.write_text(json.dumps({"business_file": "kyrgyz_fill (one call per pack)", "summary": {"cases": 3, "passed": 3}}), "utf-8")
+    rep = tmp_path / "results_hotel_r2.json"
+    rep.write_text(json.dumps({"business_file": "/x/joop/niches/hotel/demo.yaml", "summary": {
+        "cases": 2, "passed": 2, "metrics": {}}, "cases": []}), "utf-8")
+    table = thesis_markdown([str(old), str(rep)])
+    assert "kyrgyz_fill" not in table and "| hotel (run 2) | 2 | 2/2 (100.0%) |" in table
