@@ -3,7 +3,7 @@
 {% block content %}
 <section class="stack">
   <h1>Заказы</h1>
-  <p class="muted">Сумму считает система по ценам из раздела «{{ pack.catalog_label }}». Если у позиции цена «от …», сумму подтвердите клиенту сами.</p>
+  <p class="muted">Сумму считает система по ценам из раздела «{{ pack.catalog_label }}». Если у позиции цена «от …», сумму подтвердите клиенту сами. Нажимаете «Принять» и «В пути» (или «Готов к выдаче») — клиенту сразу приходит сообщение в тот чат, где он заказывал, а на «где мой заказ?» ИИ отвечает по этому статусу.</p>
 </section>
 <section class="card">
   {% if orders %}
@@ -18,10 +18,11 @@
         <div class="muted small">{{ channel_names.get(o.channel, o.channel) }} · {{ o.created_at|local(business.timezone) }}{% if o.created_off_hours %} · ночью{% endif %}</div>
       </div>
       <div class="actions">
-        <span class="chip {{ 'ok' if o.status in ('accepted', 'done') else ('warn' if o.status == 'new' else '') }}">{{ statuses[o.status] }}</span>
+        <span class="chip {{ 'ok' if o.status in ('accepted', 'sent', 'done') else ('warn' if o.status == 'new' else '') }}">{{ label(o) }}</span>
         <b class="mono">{{ '%s сом'|format(o.total) if o.total is not none else 'сумма ?' }}</b>{% if o.delivery_fee %}<span class="muted small">доставка {{ o.delivery_fee }}</span>{% endif %}
-        {% for key, label in [('accepted', 'Принять'), ('done', 'Выполнен'), ('cancelled', 'Отменить')] if key != o.status and o.status not in ('done', 'cancelled') %}
-        <form method="post" action="/panel/orders/{{ o.id }}/status" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ key }}"><button class="btn small {{ 'danger' if key == 'cancelled' else 'ghost' }}" type="submit">{{ label }}</button></form>
+        {% set steps = {'new': ['accepted', 'cancelled'], 'accepted': ['sent', 'done', 'cancelled'], 'sent': ['done', 'cancelled']}.get(o.status, []) %}
+        {% for key in steps %}
+        <form method="post" action="/panel/orders/{{ o.id }}/status" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ key }}"><button class="btn small {{ 'danger' if key == 'cancelled' else 'ghost' }}" type="submit">{{ {'accepted': 'Принять', 'sent': sent_label(o), 'done': 'Выполнен', 'cancelled': 'Отменить'}[key] }}</button></form>
         {% endfor %}
       </div>
     </div>
