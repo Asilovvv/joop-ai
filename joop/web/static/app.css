@@ -263,3 +263,9 @@ form.row.chat-input > span:empty { display: none; }
 /* PWA install hint on the dashboard */
 .install { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
 .install .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* An editable row (Заказы в работе): on a phone the status and «Сохранить» go under the text instead of squeezing it */
+@media (max-width: 600px) {
+  form.item { flex-wrap: wrap; }
+  form.item .actions { width: 100%; justify-content: flex-start; }
+}
