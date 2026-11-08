@@ -295,6 +295,7 @@ def test_restaurant_panel(settings, rt, engine):
 
     with db.new_session() as s:
         b = create(s, slug="cafe", name="Кафе", password="secret-pass", niche="restaurant", demo=True, now_utc=NOW_UTC)
+        b.example_ok = True  # this cafe's menu is its own: a real customer may order from it (an example item may not)
         s.commit()
         plov = s.exec(select(Service).where(Service.business_id == b.id, Service.name == "Плов")).one()
         llm = FakeLLM([AgentReply("Готово.", order={"lines": [{"item_id": plov.id, "quantity": 2, "note": ""}], "mode": "delivery",

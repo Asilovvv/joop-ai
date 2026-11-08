@@ -50,6 +50,11 @@ class Pack:
         return self.has("order") and self.has("booking") and self.party_size
 
     @property
+    def orders_first(self) -> bool:
+        """A shop (florist, wholesale, Instagram shop): orders are its results, not bookings or stays."""
+        return self.has("order") and not self.has("booking") and not self.has("stay")
+
+    @property
     def online_label(self) -> str:
         """The panel's name for the public price page (joop/web/menu.py)."""
         return "QR-меню" if self.serves_tables else "Каталог онлайн" if self.has("order") else "Прайс онлайн"

@@ -35,11 +35,11 @@ def test_a_wholesalers_dashboard_and_report(engine, settings, rt):
         n = activity(s, b.id, NOW_UTC - timedelta(days=1))
         assert (n["qualified"], n["leads"], n["orders"]) == (1, 2, 1)
         report = weekly_report_text(s, s.get(Business, b.id), NOW_UTC + timedelta(hours=1))
-        assert "заявок с бюджетом и сроками 1" in report and "Передал вам 1 вопросов" in report
+        assert "заявок с ответами на вопросы 1" in report and "Передал вам 1 вопросов" in report
         assert "Итого 2 готовых обращений" in report
     with TestClient(create_app(settings, rt, init=False)) as c:
         c.post("/login", data={"slug": "opt", "password": "opt-pass-123", "csrf": csrf_of(c.get("/login").text)})
         page = c.get("/panel").text
         assert "Последние заказы" in page and "14400 сом" in page and "Ближайшие записи" not in page
-        assert "заявок с бюджетом и сроками собрал ИИ" in page and "уведомлений о заказах и заявках" in page
+        assert "заявок с ответами на вопросы собрал ИИ" in page and "уведомлений о заказах и заявках" in page
         assert '<b>1</b><span>вопросов передано людям' in page

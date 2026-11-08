@@ -553,7 +553,7 @@ def dashboard(request: Request):
         pack = get_pack(b.niche)
         recent_orders = s.exec(  # a shop without bookings (wholesale, florist…): its latest orders instead
             select(Order).where(Order.business_id == b.id, Order.status != "cancelled").order_by(Order.id.desc()).limit(10)
-        ).all() if pack.has("order") and not (pack.has("booking") or pack.has("request") or pack.has("stay")) else []
+        ).all() if pack.orders_first else []
         leads = s.exec(
             select(Lead).where(Lead.business_id == b.id, Lead.status == "new").order_by(Lead.id.desc()).limit(10)
         ).all()
