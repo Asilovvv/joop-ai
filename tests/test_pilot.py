@@ -93,3 +93,31 @@ def test_owner_page_and_download(app_client):  # noqa: F811
     # A period with no activity, given in the wrong order: swapped, and an empty note instead of a table.
     page = app_client.get("/owner/pilot?since=2020-01-31&until=2020-01-01").text
     assert "клиенты не писали" in page and 'value="2020-01-01"' in page
+
+
+def test_first_answer_time_handoff_share_and_cost_per_conversation(engine):
+    """The pilot metrics the thesis proposal names: time to first answer, share handed to people, cost per conversation."""
+    with db.new_session() as s:
+        b = create_business(s, slug="clinic1", name="Клиника", password="secret-pass", niche="dental", now_utc=NOW_UTC)
+        s.flush()
+        start = NOW_UTC - timedelta(days=1)
+        for chat, wait_s, who in (("a", 4, "ai"), ("b", 10, "ai"), ("c", 600, "staff"), ("d", None, None)):
+            conv = Conversation(business_id=b.id, channel="telegram", chat_id=chat, created_at=start)
+            s.add(conv)
+            s.flush()
+            s.add(Message(business_id=b.id, conversation_id=conv.id, role="customer", text="?", created_at=start))
+            s.add(Message(business_id=b.id, conversation_id=conv.id, role="customer", text="??", created_at=start + timedelta(seconds=2)))
+            if wait_s is not None:
+                s.add(Message(business_id=b.id, conversation_id=conv.id, role=who, text="!", created_at=start + timedelta(seconds=wait_s),
+                              cost_usd=0.002 if who == "ai" else 0.0))
+                s.add(Message(business_id=b.id, conversation_id=conv.id, role="ai", text="!!", created_at=start + timedelta(hours=2)))
+        s.add(Lead(business_id=b.id, kind="handoff", created_at=start))
+        s.commit()
+        rows, total = pilot.report(s, NOW_UTC - timedelta(days=14), NOW_UTC + timedelta(hours=1), NOW_UTC)
+    (row,) = rows
+    assert row.median_first_reply_s == 10  # 4, 10 and 600 s; an unanswered chat has no first answer; later replies do not count
+    assert row.handoff_pct == 25 and row.conversations == 4
+    assert round(row.cost_per_conversation, 4) == 0.001  # two paid AI answers of $0.002 over four conversations
+    assert total.median_first_reply_s == 10
+    table = list(csv.DictReader(io.StringIO(pilot.to_csv(rows, total))))
+    assert table[0]["median_first_reply_s"] == "10" and table[0]["handoff_pct"] == "25" and table[0]["cost_per_conversation_usd"] == "0.001000"
