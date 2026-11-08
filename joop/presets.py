@@ -41,5 +41,6 @@ def create_business(
     session.flush()
     if demo:
         apply_profile(session, business, load_profile(get_pack(niche).demo_file), now_utc=now_utc)
+        business.example_niche = niche
         business.name = name.strip() or business.name
     return business
