@@ -25,7 +25,7 @@
 <section class="card warn stack" id="example">
   <h2>Часть данных — ещё пример</h2>
   <p>Чтобы тестовый чат отвечал сразу, мы добавили пример из вашей сферы. Настоящим клиентам ИИ его не называет:
-    про цены, мастеров и ответы из примера он скажет, что уточнит администратор. Замените на свои данные или удалите:</p>
+    про цены, {{ pack.resource_label|lower }} и ответы из примера он скажет, что уточнит администратор. Замените на свои данные или удалите:</p>
   <ul>
     {% if example.services %}<li><a href="/panel/services">{{ pack.catalog_label }}</a>: {{ example.services | join(', ') }}</li>{% endif %}
     {% if example.staff %}<li><a href="/panel/staff">{{ pack.resource_label }}</a>: {{ example.staff | join(', ') }}</li>{% endif %}
@@ -45,7 +45,7 @@
     {% if pack.has('booking') or pack.has('request') %}<li class="{{ 'done' if ready[1] }}"><a href="/panel/staff">{{ 'Замените пример' if example.staff else 'Заполните раздел' }} «{{ pack.resource_label }}»</a></li>{% endif %}
     {% if pack.has('booking') %}<li class="{{ 'done' if ready[2] }}"><a href="/panel/slots">Создайте свободные окна для записи</a></li>{% endif %}
     <li class="{{ 'done' if ready[3] }}"><a href="/panel/channels">Подключите канал: Telegram, WhatsApp или Instagram</a></li>
-    <li class="{{ 'done' if ready[4] }}"><a href="/panel/settings">Привяжите Telegram для уведомлений о записях</a></li>
+    <li class="{{ 'done' if ready[4] }}"><a href="/panel/settings">Привяжите Telegram для уведомлений о {{ 'бронях' if pack.has('stay') else 'записях' }}</a></li>
   </ol>
 </section>
 {% endif %}
@@ -58,7 +58,9 @@
     {% if pack.has('order') %}<div class="stat"><b>{{ s14.orders }}</b><span>заказов принял ИИ</span></div>{% endif %}
     {% if pack.has('booking') %}<div class="stat"><b>{{ s14.bookings }}</b><span>записей сделал ИИ</span></div>
     <div class="stat"><b>{{ s14.off_hours_bookings }}</b><span>записей в нерабочее время</span></div>{% endif %}
-    <div class="stat"><b>{{ s14.requests }}</b><span>заявок на запись (перезвонить)</span></div>
+    {% if pack.has('stay') %}<div class="stat"><b>{{ s14.stays }}</b><span>броней номеров сделал ИИ</span></div>
+    <div class="stat"><b>{{ s14.off_hours_stays }}</b><span>броней в нерабочее время</span></div>{% endif %}
+    {% if pack.has('booking') or pack.has('request') %}<div class="stat"><b>{{ s14.requests }}</b><span>заявок на запись (перезвонить)</span></div>{% endif %}
     <div class="stat"><b>{{ s14.leads }}</b><span>вопросов передано людям</span></div>
     <div class="stat"><b>${{ '%.2f'|format(s14.ai_cost_usd) }}</b><span>расход на ИИ, {{ s14.ai_replies }} ответов</span></div>
   </div>
@@ -96,6 +98,24 @@
 </section>
 
 <div class="cols">
+  {% if pack.has('stay') %}
+  <section class="card">
+    <h2>Ближайшие брони</h2>
+    {% if arrivals %}
+    <div class="list">
+      {% for st in arrivals %}
+      <div class="item">
+        <div class="main">
+          <div><span class="mono">{{ st.check_in.strftime('%d.%m') }}–{{ st.check_out.strftime('%d.%m') }}</span> · {{ st.customer_name }}</div>
+          <div class="muted small">{{ st.room_name }} · гостей: {{ st.guests }} · {{ st.customer_phone }}</div>
+        </div>
+        <span class="chip">{{ channel_names.get(st.channel, 'вручную') }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="muted">Броней пока нет. Когда ИИ забронирует номер, бронь появится здесь и придёт в Telegram.</p>{% endif %}
+  </section>
+  {% else %}
   <section class="card">
     <h2>Ближайшие записи</h2>
     {% if upcoming %}
@@ -112,6 +132,7 @@
     </div>
     {% else %}<p class="muted">Записей пока нет. Когда ИИ запишет клиента, запись появится здесь и придёт в Telegram.</p>{% endif %}
   </section>
+  {% endif %}
   <section class="card">
     <h2>Новые заявки</h2>
     {% if leads %}

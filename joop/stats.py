@@ -15,7 +15,7 @@ from datetime import datetime
 from sqlalchemy import and_, false, func, or_
 from sqlmodel import Session, select
 
-from .models import Booking, Conversation, Lead, Message, Order
+from .models import Booking, Conversation, Lead, Message, Order, Stay
 
 TEST_CHANNEL = "console"  # the panel's test chat
 
@@ -71,6 +71,17 @@ def activity(session: Session, business_id: int, since_utc: datetime) -> dict:
                 Booking.created_at >= since_utc,
                 Booking.created_off_hours == True,  # noqa: E712
                 not_test(Booking, business_id),
+            )
+        ),
+        "stays": scalar(  # hotel room bookings the AI made (joop/stays.py)
+            select(func.count()).select_from(Stay).where(
+                Stay.business_id == business_id, Stay.source == "ai", Stay.created_at >= since_utc, not_test(Stay, business_id),
+            )
+        ),
+        "off_hours_stays": scalar(
+            select(func.count()).select_from(Stay).where(
+                Stay.business_id == business_id, Stay.source == "ai", Stay.created_at >= since_utc,
+                Stay.created_off_hours == True, not_test(Stay, business_id),  # noqa: E712
             )
         ),
         "requests": scalar(
