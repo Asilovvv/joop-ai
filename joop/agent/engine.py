@@ -233,7 +233,7 @@ def _model_reply(
         channel=channel,
         catalog_hint=catalog_hint,
         extra_facts=(intake.ANSWERED_HINT if answered else "")
-        + ("\n".join(stays.prompt_lines(session, business, now_local.date(), hidden.staff) + [stays.STAY_RULE])
+        + ("\n".join(stays.prompt_lines(session, business, now_local.date(), hidden.staff) + [stays.rule(business)])
            if pack_has(business, "stay") else "")
         + _requested_slot_hint(session, conv, slots, now_local, now)
         + placement.prompt_hint(session, business, conv, base_url)
@@ -287,7 +287,7 @@ def _model_reply(
                 outcome.stay_id = done.stay.id
                 conv.customer_name, conv.customer_phone = name, phone
                 session.add(conv)
-                outcome.admin_notes.append(_stay_note(done.stay, off))
+                outcome.admin_notes.append(_stay_note(done.stay, off, stays.by_day(business)))
     booked: Booking | None = None
     if result.booking:
         if result.booking.get("slot_id") is None:
@@ -616,8 +616,15 @@ def pack_has(business: Business, outcome: str) -> bool:
     return get_pack(business.niche).has(outcome)
 
 
-def _stay_note(stay: Stay, off: bool) -> str:
+def _stay_note(stay: Stay, off: bool, day: bool = False) -> str:
     when = " (в нерабочее время)" if off else ""
+    if day:  # a banquet hall: one date
+        return "\n".join([
+            f"Новая бронь зала через ИИ{when}",
+            f"{stay.customer_name}, {stay.customer_phone}",
+            f"{stay.room_name}: {stay.check_in:%d.%m.%Y}, гостей: {stay.guests}",
+            "Бронь предварительная: свяжитесь с клиентом насчёт предоплаты и меню.",
+        ])
     return "\n".join([
         f"Новая бронь номера через ИИ{when}",
         f"{stay.customer_name}, {stay.customer_phone}",

@@ -60,7 +60,7 @@
     {% if pack.has('order') %}<div class="stat"><b>{{ s14.orders }}</b><span>заказов принял ИИ</span></div>{% endif %}
     {% if pack.has('booking') %}<div class="stat"><b>{{ s14.bookings }}</b><span>записей сделал ИИ</span></div>
     <div class="stat"><b>{{ s14.off_hours_bookings }}</b><span>записей в нерабочее время</span></div>{% endif %}
-    {% if pack.has('stay') %}<div class="stat"><b>{{ s14.stays }}</b><span>броней номеров сделал ИИ</span></div>
+    {% if pack.has('stay') %}<div class="stat"><b>{{ s14.stays }}</b><span>{{ 'броней залов' if pack.by_day else 'броней номеров' }} сделал ИИ</span></div>
     <div class="stat"><b>{{ s14.off_hours_stays }}</b><span>броней в нерабочее время</span></div>{% endif %}
     {% if pack.has('booking') or pack.has('request') %}<div class="stat"><b>{{ s14.requests }}</b><span>заявок на запись (перезвонить)</span></div>{% endif %}
     {% if pack.has('lead') %}<div class="stat"><b>{{ s14.qualified }}</b><span>заявок с бюджетом и сроками собрал ИИ</span></div>{% endif %}
@@ -109,14 +109,14 @@
       {% for st in arrivals %}
       <div class="item">
         <div class="main">
-          <div><span class="mono">{{ st.check_in.strftime('%d.%m') }}–{{ st.check_out.strftime('%d.%m') }}</span> · {{ st.customer_name }}</div>
+          <div><span class="mono">{% if pack.by_day %}{{ st.check_in.strftime('%d.%m.%Y') }}{% else %}{{ st.check_in.strftime('%d.%m') }}–{{ st.check_out.strftime('%d.%m') }}{% endif %}</span> · {{ st.customer_name }}</div>
           <div class="muted small">{{ st.room_name }} · гостей: {{ st.guests }} · {{ st.customer_phone }}</div>
         </div>
         <span class="chip">{{ channel_names.get(st.channel, 'вручную') }}</span>
       </div>
       {% endfor %}
     </div>
-    {% else %}<p class="muted">Броней пока нет. Когда ИИ забронирует номер, бронь появится здесь и придёт в Telegram.</p>{% endif %}
+    {% else %}<p class="muted">Броней пока нет. Когда ИИ забронирует {{ 'зал' if pack.by_day else 'номер' }}, бронь появится здесь и придёт в Telegram.</p>{% endif %}
   </section>
   {% elif not (pack.has('booking') or pack.has('request')) %}
   <section class="card">

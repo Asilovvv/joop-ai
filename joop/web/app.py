@@ -59,7 +59,7 @@ def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     if pack.has("booking"):
         items.append(("/panel/slots", "slots", "Окна"))
     if pack.has("stay"):
-        items.append(("/panel/stays", "stays", "Брони номеров"))
+        items.append(("/panel/stays", "stays", "Брони залов" if pack.by_day else "Брони номеров"))
     items.append(("/panel/leads", "leads", "Заявки"))
     items.append(("/panel/funnel", "funnel", "Воронка"))
     if pack.has("booking"):

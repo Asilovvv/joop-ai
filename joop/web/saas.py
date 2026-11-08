@@ -169,7 +169,9 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     code = billing.state(sub, now).code if sub else ""
     paid, free = code == "active", code == "free"
     example = samples.left(s, b).services
-    label = get_pack(b.niche).catalog_label
+    pack = get_pack(b.niche)
+    label = pack.catalog_label
+    act = "забронируйте зал на дату" if pack.by_day else "забронируйте номер" if pack.has("stay") else "запишитесь"
     missing = [w for w, v in (("адрес", b.address), ("телефон", b.phone), ("часы работы", b.hours_text)) if not v]
     if samples.hours_are_example(b):  # copied from the example at sign-up: confirm or change
         missing.append(f"часы работы (сейчас из примера: {b.hours_text})")
@@ -183,7 +185,7 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
          "hint": "Мы добавили пример, чтобы тестовый чат отвечал сразу. Настоящим клиентам ИИ его не называет: замените"
                  " цены и названия на свои — кыргызские по желанию."},
         {"done": tested > 0, "title": "Проверьте ИИ в тестовом чате", "href": "/panel/try", "key": "try",
-         "hint": "Напишите как клиент: по-русски и по-кыргызски, спросите цену, запишитесь."},
+         "hint": f"Напишите как клиент: по-русски и по-кыргызски, спросите цену, {act}."},
         {"done": channel, "title": "Подключите Telegram-бота", "href": "#telegram", "key": "telegram",
          "hint": "Одно действие: вставьте токен от @BotFather ниже. WhatsApp и Instagram — в разделе «Каналы»."},
         {"done": bool(b.admin_chat_ids), "title": "Получайте заявки в Telegram", "key": "admin",
