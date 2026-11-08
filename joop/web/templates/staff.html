@@ -3,7 +3,7 @@
 {% block content %}
 <section class="stack">
   <h1>{{ pack.resource_label }}</h1>
-  <p class="muted">{% if pack.has('stay') %}Каждая строка — тип номера: «Номеров этого типа» — сколько таких номеров, «Мест» — сколько гостей в номере. По ним ИИ проверяет свободные номера на каждую ночь.{% else %}По полю «Принимает» ИИ выбирает, к кому записать: например, {{ '«удаление зубов, импланты»' if business.niche in ('dental', 'clinic') else '«маникюр, педикюр»' if business.niche == 'beauty' else '«что делает этот человек или зал»' }}.{% endif %}{% if pack.offers('group_classes') %} Для группового занятия укажите «Мест в группе» (например, 12): в одно окно запишутся до 12 человек.{% endif %}</p>
+  <p class="muted">{% if pack.has('stay') %}Каждая строка — тип номера: «Номеров этого типа» — сколько таких номеров, «Мест» — сколько гостей в номере. По ним ИИ проверяет свободные номера на каждую ночь.{% else %}По полю «Принимает» ИИ выбирает, к кому записать{% if business.niche in ('dental', 'clinic') %}: например, «удаление зубов, импланты»{% elif business.niche == 'beauty' %}: например, «маникюр, педикюр»{% else %} — впишите, чем занимается этот человек, группа или зал{% endif %}.{% endif %}{% if pack.offers('group_classes') %} Для группового занятия укажите «Мест в группе» (например, 12): в одно окно запишутся до 12 человек.{% endif %}</p>
 </section>
 {% with ex_what="этих людей и их время", ex_action="/panel/staff/example/delete", ex_add="Добавить: " ~ pack.resource_item %}{% include "_example_banner.html" %}{% endwith %}
 <section class="card">

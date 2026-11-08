@@ -243,7 +243,10 @@ def prompt_hint(session: Session, business: Business, conv: Conversation, base_u
     """Facts for the system prompt: personal test links and this customer's finished results."""
     if not enabled(business) or not base_url or conv.id is None:
         return ""
-    tests = active_tests(session, business.id)
+    from . import samples
+
+    hidden = samples.hidden_from_customers(session, business, conv.channel).tests  # the demo test is for the test chat only
+    tests = [t for t in active_tests(session, business.id) if t.id not in hidden]
     if not tests:
         return ""
     lines = ["", "Тест на уровень (бесплатно, проверяется автоматически, результат придёт клиенту в этот чат):"]

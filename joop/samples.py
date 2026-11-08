@@ -15,7 +15,7 @@ from functools import lru_cache
 
 from sqlmodel import Session, select
 
-from .models import Business, Faq, Service, Staff
+from .models import Business, Faq, PlacementTest, Service, Staff
 from .niches import get_pack
 from .profile import ProfileError, load_profile
 from .stats import TEST_CHANNEL
@@ -32,10 +32,11 @@ class Left:
     services: list[str] = field(default_factory=list)
     staff: list[str] = field(default_factory=list)
     faq: list[str] = field(default_factory=list)
+    tests: list[str] = field(default_factory=list)  # a school's demo level test (joop/placement.py)
 
     @property
     def any(self) -> bool:
-        return bool(self.services or self.staff or self.faq)
+        return bool(self.services or self.staff or self.faq or self.tests)
 
 
 @lru_cache(maxsize=64)
@@ -48,6 +49,27 @@ def _example(niche: str) -> tuple[frozenset, frozenset, frozenset]:
     staff = frozenset((_t(x.get("name")), _t(x.get("role")), _t(x.get("handles"))) for x in data.get("resources") or [])
     faq = frozenset((_t(x.get("q")), _t(x.get("a"))) for x in data.get("faq") or [])
     return services, staff, faq
+
+
+@lru_cache(maxsize=64)
+def _example_tests(niche: str) -> frozenset[str]:
+    """Titles of the pack's demo level test: «Английский: тест на уровень (демо)», eight sample questions."""
+    try:
+        test = load_profile(get_pack(niche).demo_file).get("placement_test") or {}
+    except (ProfileError, OSError, KeyError):
+        return frozenset()
+    return frozenset({_t(test.get("title"))} - {""})
+
+
+def _tests(session: Session, business: Business) -> list[PlacementTest]:
+    """Level tests still titled as the demo: real customers do not get a sample test (Business.example_ok lifts it)."""
+    if business.example_ok:
+        return []
+    titles = _example_tests(business.niche)
+    if not titles:
+        return []
+    return [x for x in session.exec(select(PlacementTest).where(PlacementTest.business_id == business.id)
+                                    .order_by(PlacementTest.id)).all() if _t(x.title) in titles]
 
 
 def _rows(session: Session, business: Business) -> tuple[list[Service], list[Staff], list[Faq]]:
@@ -73,7 +95,8 @@ def example_staff_ids(session: Session, business: Business) -> set[int]:
 
 def left(session: Session, business: Business) -> Left:
     services, staff, faq = _rows(session, business)
-    return Left(services=[r.name for r in services], staff=[r.name for r in staff], faq=[r.question for r in faq])
+    return Left(services=[r.name for r in services], staff=[r.name for r in staff], faq=[r.question for r in faq],
+                tests=[x.title for x in _tests(session, business)])
 
 
 @dataclass(frozen=True)
@@ -85,9 +108,10 @@ class Hidden:
     services: frozenset[int] = frozenset()
     staff: frozenset[int] = frozenset()
     faq: frozenset[int] = frozenset()
+    tests: frozenset[int] = frozenset()
 
     def __bool__(self) -> bool:
-        return bool(self.services or self.staff or self.faq)
+        return bool(self.services or self.staff or self.faq or self.tests)
 
 
 def hidden_from_customers(session: Session, business: Business, channel: str) -> Hidden:
@@ -95,7 +119,8 @@ def hidden_from_customers(session: Session, business: Business, channel: str) ->
     if channel == TEST_CHANNEL:
         return Hidden()
     services, staff, faq = _rows(session, business)
-    return Hidden(frozenset(r.id for r in services), frozenset(r.id for r in staff), frozenset(r.id for r in faq))
+    return Hidden(frozenset(r.id for r in services), frozenset(r.id for r in staff), frozenset(r.id for r in faq),
+                  frozenset(x.id for x in _tests(session, business)))
 
 
 def warning(found: Left) -> str:

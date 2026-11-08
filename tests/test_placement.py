@@ -23,6 +23,7 @@ def school(engine):
                             now_utc=NOW_UTC)
         b.telegram_bot_token = "123:TEST"
         b.admin_chat_ids = "900"
+        b.example_ok = True  # this school's test and groups are its own (they equal the education example)
         s.add(b)
         s.commit()
         return b
@@ -188,3 +189,36 @@ def test_tests_section_only_for_schools(settings, rt, business):
         login(c, "aktish", "secret-pass")
         assert "/panel/tests" not in c.get("/panel").text
         assert c.get("/panel/tests").status_code == 404
+
+
+def test_the_demo_level_test_is_for_the_test_chat_only(engine, settings, rt):
+    """A new school gets the demo test «… (демо)» with 8 sample questions; the AI gave it to real customers and grouped
+    them by its toy scale. Now only the panel's test chat gets it, and the panel says so."""
+    from fastapi.testclient import TestClient
+
+    from joop import samples
+    from joop.models import Conversation
+    from joop.web.app import create_app
+
+    with db.new_session() as s:
+        b = create_business(s, slug="newschool", name="Новая школа", password="school-pass", niche="education", demo=True,
+                            now_utc=NOW_UTC)
+        s.commit()
+        real = Conversation(business_id=b.id, channel="telegram", chat_id="c1")
+        test = Conversation(business_id=b.id, channel="console", chat_id="try")
+        s.add(real)
+        s.add(test)
+        s.flush()
+        assert placement.prompt_hint(s, b, real, "https://joop.test") == ""
+        assert "тест на уровень (демо)" in placement.prompt_hint(s, b, test, "https://joop.test")
+        assert samples.left(s, b).tests == ["Английский: тест на уровень (демо)"]
+        b.example_ok = True  # «это наши настоящие данные»: the school keeps the sample test as its own
+        s.add(b)
+        assert "тест на уровень (демо)" in placement.prompt_hint(s, b, real, "https://joop.test")
+        b.example_ok = False
+        s.add(b)
+        s.commit()
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        login(c, slug="newschool")
+        assert "Это демо-тест из примера" in c.get("/panel/tests").text
+        assert "Тест на уровень</a>: Английский" in c.get("/panel").text
