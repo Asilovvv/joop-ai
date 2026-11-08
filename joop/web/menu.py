@@ -12,6 +12,7 @@ from fastapi.responses import Response
 from markupsafe import Markup
 from sqlmodel import select
 
+from .. import samples
 from ..db import new_session
 from ..models import Business, Service
 from ..niches import get_pack
@@ -90,9 +91,13 @@ def booking_extras(session, business: Business, base: str, lang: str) -> dict:
     pack = get_pack(business.niche)
     if not pack.has("booking"):
         return {"masters": [], "nearest": [], "links": channel_links(business, base, lang)}
-    masters = session.exec(select(Staff).where(Staff.business_id == business.id, Staff.active == True).order_by(Staff.name)).all()  # noqa: E712
+    example = samples.hidden_from_customers(session, business, "web").staff  # sign-up example people are nobody
+    masters = [m for m in session.exec(select(Staff).where(Staff.business_id == business.id, Staff.active == True)  # noqa: E712
+                                       .order_by(Staff.name)).all() if m.id not in example]
     seen: dict = {}
     for slot, staff in free_slots(session, business.id, local_now(business.timezone), days=7, limit=60):
+        if staff.id in example:
+            continue
         seen.setdefault(slot.start, staff.name)
         if len(seen) == 3:
             break
@@ -123,7 +128,9 @@ def public_menu(request: Request, slug: str, t: int = 0, lang: str = "ru"):
     table = t if 0 < t <= MAX_TABLES else None
     with new_session() as s:
         b = _enabled_business(s, slug)
-        items = s.exec(select(Service).where(Service.business_id == b.id).order_by(Service.sort, Service.id)).all()
+        example = samples.hidden_from_customers(s, b, "web").services  # the sign-up example's prices are not real
+        items = [i for i in s.exec(select(Service).where(Service.business_id == b.id).order_by(Service.sort, Service.id)).all()
+                 if i.id not in example]
         from .app import _base_url
 
         extras = booking_extras(s, b, _base_url(request), lang)
@@ -135,7 +142,8 @@ def public_menu(request: Request, slug: str, t: int = 0, lang: str = "ru"):
     return templates.TemplateResponse(request, "menu_public.html", {
         "request": request, "b": b, "groups": _groups(list(items), lang), "lang": lang, "tx": TEXT[lang], "table": table,
         "order_url": url, "order_label": label, "price": price_label, "title": get_pack(b.niche).catalog_label,
-        "has_ky": any(i.name_ky for i in items), "booking": get_pack(b.niche).has("booking"), **extras,
+        "has_ky": any(i.name_ky for i in items), "booking": get_pack(b.niche).has("booking"),
+        "resources": pack.resource_label if lang == "ru" else TEXT[lang]["masters"], **extras,
     })
 
 
@@ -160,8 +168,10 @@ def menu_page(request: Request):
     with new_session() as s:
         b = _business(s, request)
         count = len(s.exec(select(Service.id).where(Service.business_id == b.id)).all())
+        left = samples.left(s, b)
     url = menu_url(_base_url(request), b.slug)
-    return _render(request, "menu.html", "menu", b, url=url, qr=Markup(qr_svg(url)), count=count)
+    return _render(request, "menu.html", "menu", b, url=url, qr=Markup(qr_svg(url)), count=count,
+                   example_items=len(left.services), example_people=len(left.staff))
 
 
 @router.post("/panel/menu")
