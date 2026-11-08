@@ -32,7 +32,7 @@
     <form class="item" method="post" action="/panel/jobs/{{ j.id }}">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <div class="main">
-        <div><b>№{{ j.number }}</b> · {{ j.item }} {% if j.status == 'ready' %}<span class="chip ok">готов{% if j.ready_notified %}, клиенту написали{% endif %}</span>{% endif %}</div>
+        <div>{% if j.id in example %}<span class="chip warn" title="Квитанция из примера: в тестовом чате ИИ её знает, настоящим клиентам — нет. Удалите её или отметьте «отменён».">пример</span> {% endif %}<b>№{{ j.number }}</b> · {{ j.item }} {% if j.status == 'ready' %}<span class="chip ok">готов{% if j.ready_notified %}, клиенту написали{% endif %}</span>{% endif %}</div>
         <div class="muted small">{{ j.customer_name }} {{ j.customer_phone }} · принят {{ j.created_at|local(business.timezone) }}{% if j.ready_by %} · срок {{ j.ready_by.strftime('%d.%m') }}{% endif %}{% if j.conversation_id %} · <a href="/panel/conversations/{{ j.conversation_id }}">диалог</a>{% endif %}</div>
         <div class="grid2" style="margin-top: 6px">
           <input name="note" value="{{ j.note }}" placeholder="Заметка для клиента" aria-label="Заметка">
