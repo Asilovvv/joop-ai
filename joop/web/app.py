@@ -34,7 +34,7 @@ from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, g
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
-from ..security import hash_password, new_link_code, verify_password
+from ..security import hash_password, new_link_code, new_test_code, verify_password
 from ..slots import add_slots, generate_slots, parse_times, release_slot, resize_group, seats_needed
 from ..stats import TEST_CHANNEL, activity, by_hour, hour_bars
 from ..timeutil import WEEKDAYS_SHORT, fmt_date_long, fmt_dt, fmt_slot, local_now, parse_days_off, parse_hhmm, utc_to_local, utcnow
@@ -1466,6 +1466,21 @@ def conversation_block(request: Request, item_id: int, action: str = Form("block
     return _back(f"/panel/conversations/{item_id}")
 
 
+@router.post("/panel/conversations/{item_id}/real")
+def conversation_real(request: Request, item_id: int, csrf: str = Form("")):
+    """Staff say a chat marked as a test (joop/stats.py) is a real customer: it counts again, past numbers included."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        conv = _own(s, Conversation, item_id, b.id)
+        if conv.staff_test:
+            conv.staff_test = False
+            s.add(conv)
+            s.commit()
+            _flash(request, "Чат снова считается клиентом: он входит в цифры, отчёты и CRM.")
+    return _back(f"/panel/conversations/{item_id}")
+
+
 @router.post("/panel/conversations/{item_id}/note")
 def conversation_note(request: Request, item_id: int, text: str = Form(""), csrf: str = Form("")):
     """A staff-only note in the dialogue: the customer and the AI never see it."""
@@ -1661,6 +1676,11 @@ def channels_page(request: Request):
     settings = _settings(request)
     with new_session() as s:
         b = _business(s, request)
+        if b.telegram_bot_token and not b.test_link_code:  # the secret of the «Написать боту» link, made once
+            b.test_link_code = new_test_code()
+            s.add(b)
+            s.commit()
+            s.refresh(b)
         base = settings.public_base_url
         return _render(
             request,

@@ -4,7 +4,7 @@ Only real customers count. The panel's test chat (/panel/try, channel "console")
 customer: its messages, bookings and requests stay visible in the panel lists, but they are left out of every
 number shown to the owner, of the reports and of the pilot table, and they are not sent to the business's CRM.
 The same holds for a Telegram chat where the owner or staff test their own bot (Conversation.staff_test): the
-alerts chat linked with /admin, a chat opened from the panel's «Написать боту» link (/start test), or the web chat
+alerts chat linked with /admin, a chat opened from the panel's «Написать боту» link (/start test_<secret code>), or the web chat
 written from a browser logged in to the business's panel.
 """
 

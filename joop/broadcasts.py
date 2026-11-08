@@ -28,6 +28,7 @@ from .followups import SERVICE_WINDOW, _kyrgyz, deliver_to_chat
 from .lang import is_kyrgyz_message
 from .models import Booking, Broadcast, BroadcastDelivery, Business, Conversation
 from .timeutil import utc_to_local
+from .stats import real_conversation
 
 if TYPE_CHECKING:
     from .runtime import Runtime
@@ -111,7 +112,7 @@ def segment_label(b: Broadcast) -> str:
 def _group(session: Session, business: Business, segment: str, arg: str, now_utc: datetime) -> list[Conversation]:
     """Conversations in the group, unsubscribed ones included (the preview counts them)."""
     convs = list(session.exec(select(Conversation).where(
-        Conversation.business_id == business.id, Conversation.channel.in_(CHANNELS),
+        Conversation.business_id == business.id, Conversation.channel.in_(CHANNELS), real_conversation(),
         Conversation.last_customer_at != None,  # noqa: E711  (someone actually wrote)
     ).order_by(Conversation.id)).all())
     if segment == "all":

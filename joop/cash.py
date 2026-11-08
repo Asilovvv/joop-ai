@@ -23,7 +23,7 @@ from datetime import datetime, time, timedelta
 from sqlmodel import Session, select
 
 from .models import Booking, Business, Service
-from .stats import not_test
+from .stats import TEST_CHANNEL
 
 METHODS = {"cash": "наличные", "card": "карта", "transfer": "перевод"}
 MAX_PAYMENT = 10_000_000  # som; anything above is a typo
@@ -74,7 +74,7 @@ class Month:
 
 def _visits(session: Session, business: Business, start: datetime, end: datetime, staff_id: int | None = None) -> list[Booking]:
     own = [Booking.staff_id == staff_id] if staff_id else []
-    return session.exec(select(Booking).where(Booking.business_id == business.id, Booking.status == "booked", not_test(Booking),
+    return session.exec(select(Booking).where(Booking.business_id == business.id, Booking.status == "booked", Booking.channel != TEST_CHANNEL,
                                               Booking.start >= start, Booking.start < end, *own).order_by(Booking.start)).all()
 
 

@@ -85,9 +85,13 @@ METRICS = {
 
 
 def case_metrics(case: dict, final_text: str, lead_saved: bool, handoff: bool, order_saved: bool = False) -> dict[str, bool]:
-    """{metric: passed} for the metrics this case covers; the same rules as check_case."""
+    """{metric: passed} for the metrics this case covers; the same rules as check_case.
+
+    No answer (the fallback after a failed model call, or nothing) fails every metric the case covers: the bilingual
+    fallback names no forbidden fact and looks Kyrgyz, but it is not a pass."""
     low = final_text.lower()
     m: dict[str, bool] = {}
+    no_answer = not final_text.strip() or final_text.strip() == ERROR_REPLY
     if case.get("must_not_contain") or case.get("must_not_match"):
         m["facts"] = not any(s.lower() in low for s in case.get("must_not_contain", [])) and not any(
             re.search(p, final_text, re.IGNORECASE) for p in case.get("must_not_match", [])
@@ -101,7 +105,7 @@ def case_metrics(case: dict, final_text: str, lead_saved: bool, handoff: bool, o
         m["handoff"] = bool(case["expect_handoff"]) == handoff
     if case.get("expect_lang") == "ky":
         m["kyrgyz"] = looks_kyrgyz(final_text) or not looks_russian(final_text)
-    return m
+    return {k: False for k in m} if no_answer else m
 
 
 class DryRunLLM:
@@ -284,6 +288,8 @@ def main() -> None:
         get_llm, model, out_dir = rt.get_llm, settings.model, Path("eval")
 
     def go(profile_path: str, cases_path: str, out: Path) -> None:
+        if dry and out.resolve().parent != out_dir.resolve():  # scripted replies must never replace real results
+            sys.exit(f"A dry run writes only to {out_dir}/, not to {out}")
         data = run(profile_path, cases_path, get_llm, model)
         if dry:
             data["dry_run"] = True
