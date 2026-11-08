@@ -89,6 +89,11 @@ def activity(session: Session, business_id: int, since_utc: datetime) -> dict:
                 Lead.business_id == business_id, Lead.kind == "request", Lead.created_at >= since_utc, not_test(Lead, business_id)
             )
         ),
+        "qualified": scalar(  # leads the AI qualified (budget, district, volume…): a result, not a question for staff
+            select(func.count()).select_from(Lead).where(
+                Lead.business_id == business_id, Lead.kind == "lead", Lead.created_at >= since_utc, not_test(Lead, business_id)
+            )
+        ),
         "leads": scalar(
             select(func.count()).select_from(Lead).where(
                 Lead.business_id == business_id, Lead.kind != "request", Lead.created_at >= since_utc, not_test(Lead, business_id)
