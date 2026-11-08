@@ -221,9 +221,10 @@ def _model_reply(
     staff = [r for r in session.exec(select(Staff).where(Staff.business_id == business.id).order_by(Staff.id)).all()
              if r.id not in hidden.staff]
     faqs = [r for r in session.exec(select(Faq).where(Faq.business_id == business.id).order_by(Faq.id)).all() if r.id not in hidden.faq]
-    slots = [(slot, m) for slot, m in free_slots(session, business.id, now_local) if m.id not in hidden.staff]
+    slots = free_slots(session, business.id, now_local, exclude_staff=hidden.staff)  # before the limit, not after
     system = build_system_prompt(
         business=business,
+        hide_hours=hidden.hours,
         services=services,
         staff=staff,
         faqs=faqs,
@@ -264,7 +265,8 @@ def _model_reply(
     if result.booking and result.booking.get("slot_id") is not None and not pack.has("booking"):
         result.booking["slot_id"] = None
     if result.order and pack.has("order"):
-        outcome.reply, order = _try_order(session, business, pack, conv, result.order, result.reply, now, off, channel)
+        outcome.reply, order = _try_order(session, business, pack, conv, result.order, result.reply, now, off, channel,
+                                          hidden.services)
         if order is not None:
             outcome.order_id = order.id
             outcome.admin_notes.append(_order_note(session, conv, order, off))
@@ -666,8 +668,8 @@ def _alternatives(
     rows = free_slots(session, business.id, now_local, staff_id=staff_id, limit=50) if staff_id and staff_id not in hidden_staff else []
     rows = [(slot, m) for slot, m in rows if seats_left(slot) >= min_seats][:3]
     if not rows:
-        rows = [(slot, m) for slot, m in free_slots(session, business.id, now_local, limit=200)
-                if seats_left(slot) >= min_seats and m.id not in hidden_staff]
+        rows = [(slot, m) for slot, m in free_slots(session, business.id, now_local, limit=200, exclude_staff=hidden_staff)
+                if seats_left(slot) >= min_seats]
     if min_capacity:
         rows = [(slot, m) for slot, m in rows if not m.capacity or m.capacity >= min_capacity]
     return [f"{fmt_slot(slot.start)} ({member.name})" for slot, member in rows[:3]]
@@ -819,9 +821,10 @@ ASK_ORDER_CONTACTS = "Чтобы оформить заказ, напишите, 
 
 def _try_order(
     session: Session, business: Business, pack: Pack, conv: Conversation, data: dict, reply: str,
-    now: datetime, off: bool, channel: str,
+    now: datetime, off: bool, channel: str, hidden_items: frozenset[int] = frozenset(),
 ) -> tuple[str, Order | None]:
-    """Check every line against the catalog and compute the total in code; the model never sets prices."""
+    """Check every line against the catalog and compute the total in code; the model never sets prices.
+    `hidden_items` are sign-up example items (samples.Hidden): not in this customer's list, so not for sale."""
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
     if not name or not phone:
@@ -837,7 +840,7 @@ def _try_order(
     for line in data.get("lines") or []:
         item = session.get(Service, line.get("item_id")) if line.get("item_id") else None
         qty = int(line.get("quantity") or 0)
-        if item is None or item.business_id != business.id:
+        if item is None or item.business_id != business.id or item.id in hidden_items:
             problems.append("одной позиции нет в списке")
         elif not item.available:
             problems.append(f"«{item.name}» сейчас нет в наличии")

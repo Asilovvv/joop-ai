@@ -44,22 +44,27 @@ def taken_units(session: Session, room_id: int, night: date) -> set[int]:
     return set(session.exec(select(RoomNight.unit).where(RoomNight.staff_id == room_id, RoomNight.night == night)).all())
 
 
-def free_rooms(session: Session, room: Staff, check_in: date, check_out: date) -> int:
-    return min((rooms_of(room) - len(taken_units(session, room.id, n)) for n in nights(check_in, check_out)), default=0)
+def free_rooms(session: Session, room: Staff, check_in: date, check_out: date, units: int | None = None) -> int:
+    total = rooms_of(room) if units is None else units
+    return min((total - len(taken_units(session, room.id, n)) for n in nights(check_in, check_out)), default=0)
+
+
+HALL_UNITS = 1  # a banquet hall is one hall on a date, whatever room count it kept from another niche
 
 
 def by_day(business: Business) -> bool:
     return get_pack(business.niche).by_day
 
 
-def taken_dates(session: Session, room: Staff, start: date, days: int) -> list[date]:
+def taken_dates(session: Session, room: Staff, start: date, days: int, units: int | None = None) -> list[date]:
     """Dates from `start` on, within `days`, on which every unit of this room type is booked."""
     rows = session.exec(select(RoomNight.night).where(RoomNight.staff_id == room.id, RoomNight.night >= start,
                                                       RoomNight.night < start + timedelta(days=days))).all()
     counts: dict[date, int] = {}
     for n in rows:
         counts[n] = counts.get(n, 0) + 1
-    return sorted(d for d, c in counts.items() if c >= rooms_of(room))
+    total = rooms_of(room) if units is None else units
+    return sorted(d for d, c in counts.items() if c >= total)
 
 
 def parse_day(value: str) -> date | None:
@@ -151,7 +156,7 @@ def _book_date(session: Session, business: Business, conv: Conversation, data: d
         return StayResult("Какой зал вам подходит? " + _hall_options(session, business, when, guests, hidden))
     if room.capacity and guests > room.capacity:
         return StayResult(f"«{room.name}» вмещает до {room.capacity} гостей. " + _hall_options(session, business, when, guests, hidden))
-    if free_rooms(session, room, when, when + timedelta(days=1)) <= 0:
+    if free_rooms(session, room, when, when + timedelta(days=1), HALL_UNITS) <= 0:
         return StayResult(f"На {_fmt(when)} «{room.name}» уже занят. " + _hall_options(session, business, when, guests, hidden))
     stay = Stay(business_id=business.id, staff_id=room.id, room_name=room.name, check_in=when, check_out=when + timedelta(days=1),
                 guests=guests, customer_name=name, customer_phone=phone, conversation_id=conv.id, channel=channel,
@@ -173,7 +178,7 @@ def _book_date(session: Session, business: Business, conv: Conversation, data: d
 
 def _hall_options(session: Session, business: Business, when: date, guests: int, hidden: frozenset[int] = frozenset()) -> str:
     fits = [r for r in room_types(session, business.id, hidden)
-            if (not r.capacity or r.capacity >= guests) and free_rooms(session, r, when, when + timedelta(days=1)) > 0]
+            if (not r.capacity or r.capacity >= guests) and free_rooms(session, r, when, when + timedelta(days=1), HALL_UNITS) > 0]
     if not fits:
         return (f"На {_fmt(when)} свободного зала на {guests} гостей нет. "
                 "Оставьте телефон — менеджер предложит другую дату или вариант.")
@@ -196,8 +201,9 @@ def cancel(session: Session, stay: Stay) -> None:
     session.exec(delete(RoomNight).where(RoomNight.stay_id == stay.id))
 
 
-def occupancy(session: Session, business_id: int, start: date, days: int) -> list[tuple[Staff, list[tuple[date, int, int]]]]:
-    """For the panel: per room type, each day with (night, taken, total)."""
+def occupancy(session: Session, business_id: int, start: date, days: int,
+              units: int | None = None) -> list[tuple[Staff, list[tuple[date, int, int]]]]:
+    """For the panel: per room type, each day with (night, taken, total); `units` overrides the room count (halls)."""
     out = []
     for room in room_types(session, business_id):
         rows = session.exec(select(RoomNight.night).where(RoomNight.staff_id == room.id, RoomNight.night >= start,
@@ -205,7 +211,8 @@ def occupancy(session: Session, business_id: int, start: date, days: int) -> lis
         counts: dict[date, int] = {}
         for n in rows:
             counts[n] = counts.get(n, 0) + 1
-        out.append((room, [(start + timedelta(days=i), counts.get(start + timedelta(days=i), 0), rooms_of(room)) for i in range(days)]))
+        out.append((room, [(start + timedelta(days=i), counts.get(start + timedelta(days=i), 0),
+                                rooms_of(room) if units is None else units) for i in range(days)]))
     return out
 
 
@@ -230,7 +237,7 @@ def _hall_lines(session: Session, business: Business, today: date, hidden: froze
     halls = room_types(session, business.id, hidden)
     for r in halls:
         cap = f", до {r.capacity} гостей" if r.capacity else ""
-        taken = taken_dates(session, r, today, MAX_AHEAD_DAYS + 1)
+        taken = taken_dates(session, r, today, MAX_AHEAD_DAYS + 1, HALL_UNITS)
         if not taken:
             busy = "занятых дат нет"
         else:
