@@ -51,3 +51,18 @@ def test_connecting_telegram_remembers_the_bot_username(business, rt, settings):
         assert "@aktish_bot подключён" in r.text
         with db.new_session() as s:
             assert s.get(Business, business.id).telegram_bot_username == "aktish_bot"
+
+
+def test_printable_pages_fit_a_phone_screen_and_keep_their_print_size(business, rt, settings):
+    """The A5 card and the A4 sticker sheet have a fixed width for print; on a phone they used to run off the
+    right edge (found by the page audit at 390 px). The phone layout applies to the screen only."""
+    import re
+
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        login(c)
+        for url, print_size in (("/panel/card", "size: A5"), ("/panel/sticker", "size: A4")):
+            page = c.get(url).text
+            assert print_size in page
+            phone = re.search(r"@media screen and \(max-width: \d+px\) \{(.*?)\n\s*\}", page, re.S)
+            assert phone, url
+            assert "width: auto" in phone.group(1) and "height: auto" in phone.group(1), url
