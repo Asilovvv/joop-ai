@@ -3,13 +3,15 @@
 Only real customers count. The panel's test chat (/panel/try, channel "console") is the owner writing as a
 customer: its messages, bookings and requests stay visible in the panel lists, but they are left out of every
 number shown to the owner, of the reports and of the pilot table, and they are not sent to the business's CRM.
+The same holds for a Telegram chat where the owner or staff test their own bot (Conversation.staff_test): the
+alerts chat linked with /admin, or a chat opened from the panel's «Написать боту» link (/start test).
 """
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import func
+from sqlalchemy import and_, false, func, or_
 from sqlmodel import Session, select
 
 from .models import Booking, Conversation, Lead, Message, Order
@@ -18,9 +20,24 @@ TEST_CHANNEL = "console"  # the panel's test chat
 
 
 def test_conversations(business_id: int | None = None):
-    """Ids of test-chat conversations (of one business, or of all)."""
-    q = select(Conversation.id).where(Conversation.channel == TEST_CHANNEL)
+    """Ids of test conversations (of one business, or of all): the panel's test chat and staff testing their bot."""
+    q = select(Conversation.id).where(or_(Conversation.channel == TEST_CHANNEL, Conversation.staff_test == True))  # noqa: E712
     return q.where(Conversation.business_id == business_id) if business_id is not None else q
+
+
+def real_conversation():
+    """Condition on Conversation: a real customer's chat."""
+    return and_(Conversation.channel != TEST_CHANNEL, Conversation.staff_test == false())
+
+
+def is_test(conv: Conversation | None) -> bool:
+    return conv is not None and (conv.channel == TEST_CHANNEL or conv.staff_test)
+
+
+def not_test(model, business_id: int | None = None):
+    """Condition on Booking, Lead, Order, Stay or WaitlistEntry: made for a real customer, not in a test chat."""
+    return and_(model.channel != TEST_CHANNEL, or_(
+        model.conversation_id.is_(None), model.conversation_id.not_in(test_conversations(business_id))))
 
 
 def real_messages(business_id: int | None = None):
@@ -43,7 +60,7 @@ def activity(session: Session, business_id: int, since_utc: datetime) -> dict:
         "bookings": scalar(
             select(func.count()).select_from(Booking).where(
                 Booking.business_id == business_id, Booking.source == "ai", Booking.created_at >= since_utc,
-                Booking.channel != TEST_CHANNEL,
+                not_test(Booking, business_id),
             )
         ),
         "off_hours_bookings": scalar(
@@ -52,22 +69,22 @@ def activity(session: Session, business_id: int, since_utc: datetime) -> dict:
                 Booking.source == "ai",
                 Booking.created_at >= since_utc,
                 Booking.created_off_hours == True,  # noqa: E712
-                Booking.channel != TEST_CHANNEL,
+                not_test(Booking, business_id),
             )
         ),
         "requests": scalar(
             select(func.count()).select_from(Lead).where(
-                Lead.business_id == business_id, Lead.kind == "request", Lead.created_at >= since_utc, Lead.channel != TEST_CHANNEL
+                Lead.business_id == business_id, Lead.kind == "request", Lead.created_at >= since_utc, not_test(Lead, business_id)
             )
         ),
         "leads": scalar(
             select(func.count()).select_from(Lead).where(
-                Lead.business_id == business_id, Lead.kind != "request", Lead.created_at >= since_utc, Lead.channel != TEST_CHANNEL
+                Lead.business_id == business_id, Lead.kind != "request", Lead.created_at >= since_utc, not_test(Lead, business_id)
             )
         ),
         "orders": scalar(
             select(func.count()).select_from(Order).where(Order.business_id == business_id, Order.created_at >= since_utc,
-                                                          Order.channel != TEST_CHANNEL)
+                                                          not_test(Order, business_id))
         ),
         "ai_replies": scalar(
             select(func.count()).select_from(Message).where(

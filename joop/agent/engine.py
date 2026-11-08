@@ -118,6 +118,10 @@ def handle_incoming(
             return linked
 
     conv = _get_or_create_conversation(session, business, incoming, now)
+    if not conv.staff_test and (owner_commands.is_admin_chat(business, incoming.channel, incoming.chat_id)
+                                or _is_test_start(incoming)):
+        conv.staff_test = True  # the owner or staff trying their own bot: answered, but counted nowhere (joop/stats.py)
+        session.add(conv)
 
     if incoming.kind == "echo":
         return _handle_echo(session, business, conv, incoming, now, off)
@@ -552,6 +556,14 @@ def _handle_command(
     return None  # other slash-texts are answered like normal messages
 
 
+TEST_START = "test"  # t.me/<bot>?start=test, the panel's «Написать боту» link
+
+
+def _is_test_start(incoming: IncomingMessage) -> bool:
+    command, _, argument = (incoming.text or "").strip().partition(" ")
+    return incoming.kind == "command" and command.split("@", 1)[0].lower() == "/start" and argument.strip() == TEST_START
+
+
 ADMIN_TRIES_PER_DAY = 10  # wrong alerts codes a business accepts per day, from all chats together
 _admin_misses: dict[tuple[int, str], int] = {}
 
@@ -578,6 +590,12 @@ def _admin_link(session: Session, business: Business, incoming: IncomingMessage,
         business.admin_chat_ids = ",".join(ids)
         business.admin_link_code = new_link_code()  # a code that worked once cannot be reused by whoever saw it
         session.add(business)
+        earlier = session.exec(select(Conversation).where(  # the owner tried the bot before linking: that was a test too
+            Conversation.business_id == business.id, Conversation.channel == incoming.channel,
+            Conversation.chat_id == incoming.chat_id)).first()
+        if earlier is not None and not earlier.staff_test:
+            earlier.staff_test = True
+            session.add(earlier)
         return Outcome(reply="Готово. Сюда будут приходить уведомления о новых записях и заявках.")
     if len(_admin_misses) > 10000:
         _admin_misses.clear()

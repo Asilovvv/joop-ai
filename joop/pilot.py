@@ -23,7 +23,7 @@ from . import billing
 from .agent.engine import ERROR_REPLY, TEXT_ONLY_REPLY
 from .models import Booking, Business, Lead, Message, Order, Subscription
 from .niches import get_pack
-from .stats import TEST_CHANNEL, real_messages
+from .stats import not_test, real_messages
 
 DEMO_PREFIX = "site-demo-"
 LATE = "ИИ после сбоя"  # Lead.closed_by of a failure the AI answered later (set by joop/recovery.py)
@@ -125,7 +125,7 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
 
     def count(model, *where) -> dict[int, int]:
         return dict(session.exec(select(model.business_id, func.count()).where(
-            model.created_at >= since_utc, model.created_at < until_utc, model.channel != TEST_CHANNEL, *where,
+            model.created_at >= since_utc, model.created_at < until_utc, not_test(model), *where,
         ).group_by(model.business_id)).all())
 
     for attr, counts in (
@@ -135,7 +135,7 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
         ("leads", count(Lead, Lead.kind == "lead")),
         ("handoffs", count(Lead, Lead.kind == "handoff")),
         ("handoff_conversations", dict(session.exec(select(Lead.business_id, func.count(func.distinct(Lead.conversation_id))).where(
-            Lead.created_at >= since_utc, Lead.created_at < until_utc, Lead.channel != TEST_CHANNEL, Lead.kind == "handoff",
+            Lead.created_at >= since_utc, Lead.created_at < until_utc, not_test(Lead), Lead.kind == "handoff",
             Lead.conversation_id != None).group_by(Lead.business_id)).all())),  # noqa: E711
         ("failures", count(Lead, Lead.kind == "error")),
         ("answered_later", count(Lead, Lead.kind == "error", Lead.closed_by == LATE)),
