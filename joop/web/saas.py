@@ -130,9 +130,12 @@ def signup(
         except SlugTaken:
             _flash(request, "Не получилось создать компанию, попробуйте ещё раз.", "error")
             return _back("/signup")
-        # The demo profile brings a sample price list and hours; its address and phone are fake.
+        # The demo profile brings a sample price list and hours (flagged until changed: samples.hours_are_example); its
+        # address, phone and terms are fake and would reach real customers as fact, so they start empty.
         business.address = ""
         business.phone = phone
+        business.description = business.booking_policy = ""
+        business.min_order = business.delivery_fee = business.free_delivery_from = 0
         source = ("signup-ai" if request.session.get("from_ai")  # came through a free business's AI signature
                   else "signup-demo" if request.session.get("demo_tried") else "signup")  # wrote to the live demo first
         billing.start_trial(s, business, settings.trial_days, now, source, contact_name, phone)
@@ -168,6 +171,8 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     example = samples.left(s, b).services
     label = get_pack(b.niche).catalog_label
     missing = [w for w, v in (("адрес", b.address), ("телефон", b.phone), ("часы работы", b.hours_text)) if not v]
+    if samples.hours_are_example(b):  # copied from the example at sign-up: confirm or change
+        missing.append(f"часы работы (сейчас из примера: {b.hours_text})")
     bot = f"https://t.me/{b.telegram_bot_username}" if b.telegram_bot_token and b.telegram_bot_username else ""
     return [
         {"done": not missing, "title": "Контакты и часы работы", "href": "/panel/settings", "key": "contacts",

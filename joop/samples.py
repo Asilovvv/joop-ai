@@ -15,7 +15,7 @@ from functools import lru_cache
 
 from sqlmodel import Session, select
 
-from .models import Business, Faq, PlacementTest, Service, Staff
+from .models import Business, Faq, Job, PlacementTest, Service, Staff
 from .niches import get_pack
 from .profile import ProfileError, load_profile
 from .stats import TEST_CHANNEL
@@ -38,10 +38,11 @@ class Left:
     staff: list[str] = field(default_factory=list)
     faq: list[str] = field(default_factory=list)
     tests: list[str] = field(default_factory=list)  # a school's demo level test (joop/placement.py)
+    jobs: list[str] = field(default_factory=list)  # a repair shop's demo receipts (joop/jobs.py)
 
     @property
     def any(self) -> bool:
-        return bool(self.services or self.staff or self.faq or self.tests)
+        return bool(self.services or self.staff or self.faq or self.tests or self.jobs)
 
 
 @lru_cache(maxsize=64)
@@ -86,6 +87,39 @@ def _tests(session: Session, business: Business) -> list[PlacementTest]:
     return out
 
 
+@lru_cache(maxsize=64)
+def _example_jobs(niche: str) -> frozenset[tuple[str, str, str]]:
+    """The pack's demo receipts (number, phone's last 9 digits, item): fictional customers with phone numbers."""
+    try:
+        data = load_profile(get_pack(niche).demo_file)
+    except (ProfileError, OSError, KeyError):
+        return frozenset()
+    return frozenset((_t(x.get("number")), "".join(c for c in str(x.get("phone") or "") if c.isdigit())[-9:], _t(x.get("item")))
+                     for x in data.get("jobs") or [])
+
+
+def _jobs(session: Session, business: Business) -> list[Job]:
+    """Receipts still exactly the demo: a real customer whose phone happens to match must not hear «пальто готово»."""
+    if business.example_ok:
+        return []
+    demo = _example_jobs(_niche(business))
+    if not demo:
+        return []
+    return [j for j in session.exec(select(Job).where(Job.business_id == business.id).order_by(Job.id)).all()
+            if (_t(j.number), j.phone_key, _t(j.item)) in demo]
+
+
+def hours_are_example(business: Business) -> bool:
+    """The opening hours sign-up copied from the example and nobody has changed or confirmed yet."""
+    if business.example_ok or not business.hours_text:
+        return False
+    try:
+        hours = _t(load_profile(get_pack(_niche(business)).demo_file).get("hours"))
+    except (ProfileError, OSError, KeyError):
+        return False
+    return bool(hours) and _t(business.hours_text) == hours
+
+
 def _rows(session: Session, business: Business) -> tuple[list[Service], list[Staff], list[Faq]]:
     """The business's rows that are still exactly the example (none once the owner confirmed them)."""
     if business.example_ok:
@@ -110,7 +144,7 @@ def example_staff_ids(session: Session, business: Business) -> set[int]:
 def left(session: Session, business: Business) -> Left:
     services, staff, faq = _rows(session, business)
     return Left(services=[r.name for r in services], staff=[r.name for r in staff], faq=[r.question for r in faq],
-                tests=[x.title for x in _tests(session, business)])
+                tests=[x.title for x in _tests(session, business)], jobs=[f"№{j.number}" for j in _jobs(session, business)])
 
 
 @dataclass(frozen=True)
@@ -123,9 +157,10 @@ class Hidden:
     staff: frozenset[int] = frozenset()
     faq: frozenset[int] = frozenset()
     tests: frozenset[int] = frozenset()
+    jobs: frozenset[int] = frozenset()
 
     def __bool__(self) -> bool:
-        return bool(self.services or self.staff or self.faq or self.tests)
+        return bool(self.services or self.staff or self.faq or self.tests or self.jobs)
 
 
 def hidden_from_customers(session: Session, business: Business, channel: str) -> Hidden:
@@ -134,12 +169,12 @@ def hidden_from_customers(session: Session, business: Business, channel: str) ->
         return Hidden()
     services, staff, faq = _rows(session, business)
     return Hidden(frozenset(r.id for r in services), frozenset(r.id for r in staff), frozenset(r.id for r in faq),
-                  frozenset(x.id for x in _tests(session, business)))
+                  frozenset(x.id for x in _tests(session, business)), frozenset(j.id for j in _jobs(session, business)))
 
 
 def warning(found: Left) -> str:
     """One line for flashes: what is still the example."""
     parts = [f"{label}: {', '.join(names[:3])}{' и ещё ' + str(len(names) - 3) if len(names) > 3 else ''}"
              for label, names in (("прайс", found.services), ("сотрудники", found.staff), ("ответы", found.faq),
-                                  ("тест на уровень", found.tests)) if names]
+                                  ("тест на уровень", found.tests), ("квитанции", found.jobs)) if names]
     return "Ещё из примера — " + "; ".join(parts) + ". Клиентам ИИ это не называет, пока вы не замените пример своими данными или не удалите его."

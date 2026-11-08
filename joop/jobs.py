@@ -56,8 +56,12 @@ def for_chat(session: Session, business: Business, conv: Conversation, now_utc: 
     if len(numbers) > MAX_CANDIDATES:
         numbers = set()
     trusted = phone_key(conv.chat_id) if conv.channel == "whatsapp" else ""
-    jobs = session.exec(select(Job).where(Job.business_id == business.id, Job.status != "cancelled",
-                                          Job.created_at >= now_utc - KEEP).order_by(Job.created_at.desc())).all()
+    from . import samples
+
+    hidden = samples.hidden_from_customers(session, business, conv.channel).jobs  # demo receipts: the test chat only
+    jobs = [j for j in session.exec(select(Job).where(Job.business_id == business.id, Job.status != "cancelled",
+                                                      Job.created_at >= now_utc - KEEP).order_by(Job.created_at.desc())).all()
+            if j.id not in hidden]
     found = [j for j in jobs if (trusted and j.phone_key == trusted) or (j.number in numbers and j.phone_key in typed)]
     for j in found:
         # Ready notices go to the chat that asked: the customer's own WhatsApp always, another chat only if

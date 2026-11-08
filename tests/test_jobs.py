@@ -18,6 +18,7 @@ def shop():
     with db.new_session() as s:
         b = create_business(s, slug="clean", name="Чисто", password="clean-pass", niche="repair", demo=True, now_utc=NOW_UTC)
         b.telegram_bot_token = "123:TEST"
+        b.example_ok = True  # these receipts are the shop's own (they equal the repair example)
         s.add(b)
         s.commit()
         return b
@@ -101,3 +102,27 @@ def test_a_second_chat_cannot_take_over_the_ready_notice(engine):
 
         job = s.exec(select(Job).where(Job.business_id == b.id, Job.number == "1043")).one()
         assert s.get(Conversation, job.conversation_id).chat_id == "owner-chat"
+
+
+def test_demo_receipts_are_for_the_test_chat_only(engine, settings, rt):
+    """The repair example's receipts carry fictional customers' phones: a real customer whose WhatsApp number happens to
+    be 0700 343 434 heard «iPhone 12 … в работе». Now only the test chat knows them; the panel marks them «пример»."""
+    from fastapi.testclient import TestClient
+
+    from joop import samples
+    from joop.web.app import create_app
+
+    from .test_web import csrf_of
+
+    with db.new_session() as s:
+        b = create_business(s, slug="newshop", name="Новая мастерская", password="shop-pass", niche="repair", demo=True,
+                            now_utc=NOW_UTC)
+        s.commit()
+        bid = b.id
+        assert samples.left(s, b).jobs == ["№1042", "№1043"]
+    assert "№1043" not in ask(bid, "whatsapp", "996700343434", "Когда будет готов телефон?", "d1")
+    assert "№1043: iPhone 12" in ask(bid, "console", "996700343434", "Квитанция 1043, телефон 0700 343 434 — готово?", "d2")
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        c.post("/login", data={"slug": "newshop", "password": "shop-pass", "csrf": csrf_of(c.get("/login").text)})
+        assert c.get("/panel/jobs").text.count(">пример</span>") == 2
+        assert "Заказы в работе</a>: №1042, №1043" in c.get("/panel").text
