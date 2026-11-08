@@ -8,6 +8,7 @@
 {% for r in rows %}
 <section class="card">
   <h2><a href="/panel/tests/{{ r.test.id }}">{{ r.test.title }}</a> {% if not r.test.active %}<span class="chip">выключен</span>{% endif %}</h2>
+  {% if r.test.id in example %}<p class="small"><span class="chip warn">пример</span> Это демо-тест из примера: в тестовом чате ИИ его даёт, настоящим клиентам — нет. Когда загрузите свои вопросы, переименуйте тест (уберите «демо») — тогда ИИ начнёт давать ссылку клиентам.</p>{% endif %}
   <p class="muted small">Вопросов: {{ counts[r.test.id] }}{% if not counts[r.test.id] %} — загрузите вопросы, иначе тест не работает{% endif %}.</p>
   <div class="stats">
     <div class="stat"><b>{{ r.links }}</b><span>ссылок выдал ИИ, ещё не открыты</span></div>
