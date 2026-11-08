@@ -10,7 +10,7 @@
   {% if upcoming %}
   <div class="scroll">
     <table class="table">
-      <thead><tr><th>Когда</th><th>Клиент</th><th>Услуга</th><th>Специалист</th><th>Канал</th><th>Напоминание, оплата</th><th></th></tr></thead>
+      <thead><tr><th>Когда</th><th>Клиент</th><th>Услуга</th><th>{{ pack.resource_item|capitalize }}</th><th>Канал</th><th>Напоминание, оплата</th><th></th></tr></thead>
       <tbody>
       {% for b in upcoming %}
       <tr class="{{ 'cancelled' if b.status == 'cancelled' else '' }}">
@@ -36,7 +36,7 @@
   {% if past %}
   <div class="scroll">
     <table class="table">
-      <thead><tr><th>Когда</th><th>Клиент</th><th>Услуга</th><th>Специалист</th><th>Канал</th></tr></thead>
+      <thead><tr><th>Когда</th><th>Клиент</th><th>Услуга</th><th>{{ pack.resource_item|capitalize }}</th><th>Канал</th></tr></thead>
       <tbody>
       {% for b in past %}
       <tr class="{{ 'cancelled' if b.status == 'cancelled' else '' }}">

@@ -12,8 +12,8 @@ requests and CI runs document its progress.
 | --- | --- |
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram, WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
-| Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 22 database migrations, 21 niche packs and a generic one |
-| Tests | 589 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 22 database migrations, 22 niche packs and a generic one |
+| Tests | 593 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -37,6 +37,7 @@ One core serves many niches through **niche packs** (`joop/niches/<name>/`): den
 salons, cafes and restaurants (table booking, orders with code-computed totals, stop list), real
 estate (qualified leads, viewings), car services, training centres, wholesale (orders, leads),
 Instagram and Telegram shops (every size an item with its own stock),
+renovation and builders (prices «от» per m², a free measurement visit, leads with area and budget),
 fitness clubs, massage and spa, medical centres and labs, veterinary clinics and grooming, driving
 schools, hotels and guest houses, banquet and toi halls (one date per hall, held until prepayment),
 tours, photo studios, quest rooms / karaoke / bowling, and dry cleaning / repair / tailoring.
@@ -415,7 +416,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 589 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 593 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
