@@ -21,6 +21,7 @@ TODAY = utc_to_local(NOW_UTC, "Asia/Bishkek").date()
 def hotel():
     with db.new_session() as s:
         b = create_business(s, slug="hotel", name="Гостевой дом", password="hotel-pass", niche="hotel", demo=True, now_utc=NOW_UTC)
+        b.example_ok = True  # this guest house's rooms are its own (they equal the hotel example)
         s.commit()
         rooms = {r.name: r for r in s.exec(select(Staff).where(Staff.business_id == b.id)).all()}
         return b, rooms

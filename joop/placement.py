@@ -253,9 +253,10 @@ def prompt_hint(session: Session, business: Business, conv: Conversation, base_u
     for t in tests:
         minutes = f", около {t.minutes} минут" if t.minutes else ""
         lines.append(f"- «{t.title}»{minutes}: ссылка для этого клиента {base_url}/t/{invite(session, t, conv).token}")
-    done = session.exec(select(PlacementAttempt).where(PlacementAttempt.conversation_id == conv.id,
-                                                       PlacementAttempt.status == "finished")
-                        .order_by(PlacementAttempt.finished_at.desc())).all()
+    done = [a for a in session.exec(select(PlacementAttempt).where(PlacementAttempt.conversation_id == conv.id,
+                                                                   PlacementAttempt.status == "finished")
+                                    .order_by(PlacementAttempt.finished_at.desc())).all()
+            if a.test_id not in hidden]  # a demo result is not a level to choose a group by
     titles = {t.id: t.title for t in tests}
     for a in done[:3]:
         level = f", уровень {a.level}" if a.level else ""

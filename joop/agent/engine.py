@@ -233,7 +233,8 @@ def _model_reply(
         channel=channel,
         catalog_hint=catalog_hint,
         extra_facts=(intake.ANSWERED_HINT if answered else "")
-        + ("\n".join(stays.prompt_lines(session, business, now_local.date()) + [stays.STAY_RULE]) if pack_has(business, "stay") else "")
+        + ("\n".join(stays.prompt_lines(session, business, now_local.date(), hidden.staff) + [stays.STAY_RULE])
+           if pack_has(business, "stay") else "")
         + _requested_slot_hint(session, conv, slots, now_local, now)
         + placement.prompt_hint(session, business, conv, base_url)
         + regulars.prompt_hint(session, business, conv, now_local)
@@ -280,7 +281,7 @@ def _model_reply(
             outcome.reply = ASK_CONTACTS_REPLY
         else:
             done = stays.book(session, business, conv, result.stay, outcome.reply, now_local.date(), now, off,
-                              channel, name, phone)
+                              channel, name, phone, hidden.staff)
             outcome.reply = done.reply
             if done.stay is not None:
                 outcome.stay_id = done.stay.id

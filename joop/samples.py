@@ -25,6 +25,11 @@ def _t(value) -> str:
     return " ".join(str(value or "").split())
 
 
+def _niche(business: Business) -> str:
+    """The niche whose example sign-up added: switching the niche in settings must not turn the example into real data."""
+    return business.example_niche or business.niche
+
+
 @dataclass(frozen=True)
 class Left:
     """Rows still equal to the sign-up example, by section."""
@@ -52,31 +57,40 @@ def _example(niche: str) -> tuple[frozenset, frozenset, frozenset]:
 
 
 @lru_cache(maxsize=64)
-def _example_tests(niche: str) -> frozenset[str]:
-    """Titles of the pack's demo level test: «Английский: тест на уровень (демо)», eight sample questions."""
+def _example_test(niche: str) -> tuple[str, frozenset[str]]:
+    """The pack's demo level test: its title and question texts («Английский: тест на уровень (демо)», eight samples)."""
     try:
         test = load_profile(get_pack(niche).demo_file).get("placement_test") or {}
     except (ProfileError, OSError, KeyError):
-        return frozenset()
-    return frozenset({_t(test.get("title"))} - {""})
+        return "", frozenset()
+    return _t(test.get("title")), frozenset(_t(q[1]) for q in test.get("questions") or [] if len(q) > 1)
 
 
 def _tests(session: Session, business: Business) -> list[PlacementTest]:
-    """Level tests still titled as the demo: real customers do not get a sample test (Business.example_ok lifts it)."""
+    """Level tests still exactly the demo (its title and its questions): a real customer does not get a sample test.
+    Renaming the test or changing its questions makes it the school's own; Business.example_ok lifts it too."""
+    from .models import PlacementQuestion
+
     if business.example_ok:
         return []
-    titles = _example_tests(business.niche)
-    if not titles:
+    title, questions = _example_test(_niche(business))
+    if not title:
         return []
-    return [x for x in session.exec(select(PlacementTest).where(PlacementTest.business_id == business.id)
-                                    .order_by(PlacementTest.id)).all() if _t(x.title) in titles]
+    out = []
+    for x in session.exec(select(PlacementTest).where(PlacementTest.business_id == business.id).order_by(PlacementTest.id)).all():
+        if _t(x.title) != title:
+            continue
+        texts = frozenset(_t(q) for q in session.exec(select(PlacementQuestion.text).where(PlacementQuestion.test_id == x.id)).all())
+        if texts == questions:
+            out.append(x)
+    return out
 
 
 def _rows(session: Session, business: Business) -> tuple[list[Service], list[Staff], list[Faq]]:
     """The business's rows that are still exactly the example (none once the owner confirmed them)."""
     if business.example_ok:
         return [], [], []
-    services, staff, faq = _example(business.niche)
+    services, staff, faq = _example(_niche(business))
     return (
         [r for r in session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort, Service.id)).all()
          if (_t(r.name), _t(r.price)) in services],
@@ -126,5 +140,6 @@ def hidden_from_customers(session: Session, business: Business, channel: str) ->
 def warning(found: Left) -> str:
     """One line for flashes: what is still the example."""
     parts = [f"{label}: {', '.join(names[:3])}{' и ещё ' + str(len(names) - 3) if len(names) > 3 else ''}"
-             for label, names in (("прайс", found.services), ("сотрудники", found.staff), ("ответы", found.faq)) if names]
+             for label, names in (("прайс", found.services), ("сотрудники", found.staff), ("ответы", found.faq),
+                                  ("тест на уровень", found.tests)) if names]
     return "Ещё из примера — " + "; ".join(parts) + ". Клиентам ИИ это не называет, пока вы не замените пример своими данными или не удалите его."
