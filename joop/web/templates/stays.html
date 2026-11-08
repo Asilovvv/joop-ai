@@ -1,16 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Брони номеров{% endblock %}
+{% block title %}{{ 'Брони залов' if pack.by_day else 'Брони номеров' }}{% endblock %}
 {% block content %}
 <section class="stack">
+  {% if pack.by_day %}
+  <h1>Брони залов</h1>
+  <p class="muted">ИИ бронирует залы на дату сам: видит занятые даты на год вперёд, выбирает зал по числу гостей и не отдаст одну дату двоим. Бронь предварительная — до предоплаты; если её не внесли, отмените бронь здесь, и дата снова станет свободной. Залы и сколько гостей они вмещают задаются в разделе «{{ pack.resource_label }}».</p>
+  {% else %}
   <h1>Брони номеров</h1>
   <p class="muted">ИИ бронирует номера по датам сам: проверяет, сколько номеров каждого типа свободно на каждую ночь, и не продаст последний номер дважды. Типы номеров и их количество задаются в разделе «{{ pack.resource_label }}».</p>
+  {% endif %}
 </section>
 <section class="card">
   <h2>Загрузка на 2 недели</h2>
   <div class="scroll"><table class="table">
-    <tr><th>Номер</th>{% for d in days %}<th class="mono small">{{ d.strftime('%d.%m') }}</th>{% endfor %}</tr>
+    <tr><th>{{ 'Зал' if pack.by_day else 'Номер' }}</th>{% for d in days %}<th class="mono small">{{ d.strftime('%d.%m') }}</th>{% endfor %}</tr>
     {% for room, cells in grid %}
-    <tr><td>{{ room.name }}</td>{% for night, taken, total in cells %}<td class="mono small" style="{{ 'background: var(--warn-bg, #f9eeda)' if taken >= total else '' }}">{{ taken }}/{{ total }}</td>{% endfor %}</tr>
+    <tr><td>{{ room.name }}</td>{% for night, taken, total in cells %}<td class="mono small{{ ' full' if taken >= total else '' }}">{{ taken }}/{{ total }}</td>{% endfor %}</tr>
     {% endfor %}
   </table></div>
 </section>
@@ -20,7 +25,7 @@
   <div class="list">{% for st in upcoming %}
     <div class="item">
       <div class="main">
-        <div><b>{{ st.check_in.strftime('%d.%m') }} – {{ st.check_out.strftime('%d.%m') }}</b> · {{ st.room_name }} · гостей: {{ st.guests }}{% if st.status == 'cancelled' %} <span class="chip">отменена</span>{% endif %}</div>
+        <div><b>{% if pack.by_day %}{{ st.check_in.strftime('%d.%m.%Y') }}{% else %}{{ st.check_in.strftime('%d.%m') }} – {{ st.check_out.strftime('%d.%m') }}{% endif %}</b> · {{ st.room_name }} · гостей: {{ st.guests }}{% if st.status == 'cancelled' %} <span class="chip">отменена</span>{% endif %}</div>
         <div class="muted small">{{ st.customer_name }} {{ st.customer_phone }}{% if st.conversation_id %} · <a href="/panel/conversations/{{ st.conversation_id }}">диалог</a>{% endif %}</div>
       </div>
       {% if st.status == 'booked' %}<form method="post" action="/panel/stays/{{ st.id }}/cancel" class="actions"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small danger" type="submit">Отменить</button></form>{% endif %}

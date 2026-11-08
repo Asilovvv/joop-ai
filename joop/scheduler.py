@@ -114,15 +114,16 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
         )
         .order_by(Booking.start)
     ).all()
-    hotel = get_pack(business.niche).has("stay")
-    arriving = session.exec(select(Stay).where(  # a hotel's day: who checks in (joop/stays.py)
+    pack = get_pack(business.niche)
+    hotel, halls = pack.has("stay"), pack.by_day
+    arriving = session.exec(select(Stay).where(  # a hotel's day: who checks in; a hall's: today's events (joop/stays.py)
         Stay.business_id == business.id, Stay.status == "booked", Stay.check_in == now_local.date(),
         Stay.channel != TEST_CHANNEL,
     ).order_by(Stay.id)).all() if hotel else []
     money = cash.digest_line(session, business, now_local)
     if not stats["conversations"] and not stats["leads"] and not today and not arriving and not money:
         return None
-    made = (f"броней номеров через ИИ {stats['stays']} (в нерабочее время {stats['off_hours_stays']})" if hotel
+    made = (f"{'броней залов' if halls else 'броней номеров'} через ИИ {stats['stays']} (в нерабочее время {stats['off_hours_stays']})" if hotel
             else f"записей через ИИ {stats['bookings']} (в нерабочее время {stats['off_hours_bookings']})")
     lines = [
         f"Сводка «{business.name}» на {now_local:%d.%m}",
@@ -137,7 +138,13 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
         lines.append(confirm.digest_line(silent))
     if money:
         lines.append(money)
-    if hotel:
+    if hotel and halls:
+        if arriving:
+            lines.append("Сегодня мероприятия:")
+            lines += [f"{st.room_name} — {st.customer_name}, {st.customer_phone}, гостей: {st.guests}" for st in arriving]
+        else:
+            lines.append("Мероприятий на сегодня в системе нет.")
+    elif hotel:
         if arriving:
             lines.append("Сегодня заезжают:")
             lines += [f"{st.customer_name}, {st.customer_phone} — {st.room_name}, гостей: {st.guests}, до {st.check_out:%d.%m}"
@@ -167,7 +174,8 @@ def weekly_report_text(session: Session, business: Business, now_utc: datetime) 
     if st["bookings"]:
         parts.append(f"записей {st['bookings']} (ночью и в выходные: {st['off_hours_bookings']})")
     if st["stays"]:
-        parts.append(f"броней номеров {st['stays']} (ночью и в выходные: {st['off_hours_stays']})")
+        what = "броней залов" if get_pack(business.niche).by_day else "броней номеров"
+        parts.append(f"{what} {st['stays']} (ночью и в выходные: {st['off_hours_stays']})")
     if st["requests"]:
         parts.append(f"заявок на запись {st['requests']}")
     if st["orders"]:

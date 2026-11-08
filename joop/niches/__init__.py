@@ -13,7 +13,8 @@ from pathlib import Path
 import yaml
 
 PACKS_DIR = Path(__file__).parent
-OUTCOMES = {"booking", "request", "order", "lead", "handoff", "stay"}  # stay: hotel nights, joop/stays.py
+OUTCOMES = {"booking", "request", "order", "lead", "handoff", "stay"}  # stay: dates of a room or hall, joop/stays.py
+STAY_BY = {"night", "day"}  # a hotel books nights (check-in to check-out), a banquet hall books one date
 # Optional modules a pack switches on: level_test (joop/placement.py), group_classes (slots with several
 # seats), memberships (passes and packages of visits, joop/memberships.py), jobs (order status for items
 # left for work, joop/jobs.py).
@@ -35,12 +36,18 @@ class Pack:
     order_modes: tuple[str, ...] = ("pickup", "delivery")
     rules: tuple[str, ...] = field(default_factory=tuple)
     features: frozenset[str] = frozenset()
+    stay_by: str = "night"
 
     def has(self, outcome: str) -> bool:
         return outcome in self.outcomes
 
     def offers(self, feature: str) -> bool:
         return feature in self.features
+
+    @property
+    def by_day(self) -> bool:
+        """Stays are single dates (a banquet hall, an event venue), not nights from check-in to check-out."""
+        return self.stay_by == "day"
 
     @property
     def dir(self) -> Path:
@@ -64,6 +71,9 @@ def _load(name: str) -> Pack:
     features = frozenset(data.get("features") or [])
     if features - FEATURES:
         raise ValueError(f"Pack {name}: unknown features {sorted(features - FEATURES)}")
+    stay_by = data.get("stay_by") or "night"
+    if stay_by not in STAY_BY:
+        raise ValueError(f"Pack {name}: stay_by must be one of {sorted(STAY_BY)}")
     return Pack(
         name=name,
         label=data["label"],
@@ -78,6 +88,7 @@ def _load(name: str) -> Pack:
         order_modes=tuple(data.get("order_modes") or ("pickup", "delivery")),
         rules=tuple(data.get("rules") or ()),
         features=features,
+        stay_by=stay_by,
     )
 
 
