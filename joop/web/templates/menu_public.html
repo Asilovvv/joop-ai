@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ b.name }} — {{ title }}</title>
-<meta name="description" content="{{ b.name }}{% if b.address %}, {{ b.address }}{% endif %}: {{ title | lower }}{% if booking %}, {{ tx.masters | lower }}, {{ tx.nearest | lower }}{% endif %}.{% if links %} {{ tx.answers }}.{% endif %}">
+<meta name="description" content="{{ b.name }}{% if b.address %}, {{ b.address }}{% endif %}: {{ title | lower }}{% if booking %}, {{ resources | lower }}, {{ tx.nearest | lower }}{% endif %}.{% if links %} {{ tx.answers }}.{% endif %}">
 <link rel="stylesheet" href="/static/fonts/fonts.css">
 <style>
 :root { --bg: #f6f4ef; --paper: #fff; --ink: #1d1f1c; --muted: #5f645c; --line: #e2ded4; --accent: #0d7a68; --accent-ink: #fff; color-scheme: light; }
@@ -59,7 +59,7 @@ h2 { font-size: 20px; margin: 26px 0 10px; }
   {% endfor %}
   {% endfor %}
   {% if masters %}
-  <h2>{{ tx.masters }}</h2>
+  <h2>{{ resources }}</h2>
   <div class="masters">{% for m in masters %}<div class="master">{{ m.name }}{% if m.role or m.handles %}<small>{{ m.role }}{% if m.role and m.handles %} · {% endif %}{{ m.handles }}</small>{% endif %}</div>{% endfor %}</div>
   {% endif %}
   <div class="info muted">

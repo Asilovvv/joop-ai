@@ -4,14 +4,14 @@
 <style>svg.qr { width: 100%; height: auto; display: block; }</style>
 <section class="stack">
   <h1>{{ 'QR-меню' if pack.has('order') else 'Прайс онлайн' }}</h1>
-  <p class="muted">{% if pack.has('booking') %}Ваша публичная страница записи: прайс, мастера, три ближайших свободных окна и кнопки «написать» во все подключённые каналы — там отвечает ИИ. Ссылку ставьте в шапку Instagram и на табличку. {% endif %}Страница с вашим разделом «{{ pack.catalog_label }}» для телефона: цены, наличие, кнопка заказа в мессенджер. Распечатайте QR-коды на столы, витрину или визитки. Меняете цену или ставите позицию в стоп-лист — страница обновляется сама.</p>
+  <p class="muted">{% if pack.has('booking') %}Ваша публичная страница записи: {{ pack.catalog_label|lower }}, {{ pack.resource_label|lower }}, три ближайших свободных окна и кнопки «написать» во все подключённые каналы — там отвечает ИИ. Ссылку ставьте в шапку Instagram и на табличку. {% endif %}Страница с вашим разделом «{{ pack.catalog_label }}» для телефона: цены, наличие, кнопка заказа в мессенджер. Распечатайте QR-коды на столы, витрину или визитки. Меняете цену или ставите позицию в стоп-лист — страница обновляется сама.</p>
 </section>
 <section class="card">
   <div class="cols" style="align-items: flex-start; gap: 24px; flex-wrap: wrap">
     <div style="background: #fff; padding: 8px; border-radius: 10px; line-height: 0; flex: none; width: 176px">{{ qr }}</div>
     <form class="stack" method="post" action="/panel/menu" style="flex: 1; min-width: 240px">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <label class="inline"><input type="checkbox" name="enabled" value="1" {{ 'checked' if business.menu_enabled }}> Страница открыта</label>
+      <label class="check"><input type="checkbox" name="enabled" value="1" {{ 'checked' if business.menu_enabled }}> Страница открыта</label>
       <p class="small">Ссылка: {% if business.menu_enabled %}<a class="mono" href="{{ url }}" target="_blank" rel="noopener">{{ url }}</a>{% else %}<span class="mono muted">{{ url }}</span>{% endif %}</p>
       <label>Куда ведёт кнопка «{{ 'Заказать' if pack.has('order') else 'Задать вопрос' }}» (t.me, wa.me или Instagram)
         <input name="chat_url" value="{{ business.menu_chat_url }}" placeholder="https://t.me/ваш_бот"></label>
@@ -19,6 +19,7 @@
       <div class="actions" style="justify-content: flex-start"><button class="btn small" type="submit">Сохранить</button></div>
     </form>
   </div>
+  {% if example_items or example_people %}<p class="flash">На странице не видны {% if example_items %}позиции из примера ({{ example_items }}){% endif %}{% if example_items and example_people %} и {% endif %}{% if example_people %}{{ pack.resource_label|lower }} из примера ({{ example_people }}){% endif %}: клиенты не должны видеть вымышленные цены и людей. Замените пример своими данными в разделах «{{ pack.catalog_label }}» и «{{ pack.resource_label }}».</p>{% endif %}
   {% if not count %}<p class="flash error">Раздел «{{ pack.catalog_label }}» пуст — заполните его, иначе страница будет пустой.</p>{% endif %}
 </section>
 {% if business.menu_enabled %}
