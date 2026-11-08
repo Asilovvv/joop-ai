@@ -1,10 +1,13 @@
 {% extends "base.html" %}
-{% block title %}{{ 'Брони залов' if pack.by_day else 'Брони номеров' }}{% endblock %}
+{% block title %}Брони {{ pack.stay_noun }}{% endblock %}
 {% block content %}
 <section class="stack">
   {% if pack.by_day %}
   <h1>Брони залов</h1>
   <p class="muted">ИИ бронирует залы на дату сам: видит занятые даты на год вперёд, выбирает зал по числу гостей и не отдаст одну дату двоим. Бронь предварительная — до предоплаты; если её не внесли, отмените бронь здесь, и дата снова станет свободной. Залы и сколько гостей они вмещают задаются в разделе «{{ pack.resource_label }}».</p>
+  {% elif pack.rental %}
+  <h1>Брони машин</h1>
+  <p class="muted">ИИ бронирует машины на даты сам: проверяет, сколько машин каждой модели свободно на каждые сутки, и не отдаст последнюю машину дважды. Модели и сколько машин каждой задаются в разделе «{{ pack.resource_label }}». Залог и документы клиент оформляет у вас при получении.</p>
   {% else %}
   <h1>Брони номеров</h1>
   <p class="muted">ИИ бронирует номера по датам сам: проверяет, сколько номеров каждого типа свободно на каждую ночь, и не продаст последний номер дважды. Типы номеров и их количество задаются в разделе «{{ pack.resource_label }}».</p>
@@ -13,7 +16,7 @@
 <section class="card">
   <h2>Загрузка на 2 недели</h2>
   <div class="scroll"><table class="table">
-    <tr><th>{{ 'Зал' if pack.by_day else 'Номер' }}</th>{% for d in days %}<th class="mono small">{{ d.strftime('%d.%m') }}</th>{% endfor %}</tr>
+    <tr><th>{{ 'Зал' if pack.by_day else 'Машина' if pack.rental else 'Номер' }}</th>{% for d in days %}<th class="mono small">{{ d.strftime('%d.%m') }}</th>{% endfor %}</tr>
     {% for room, cells in grid %}
     <tr><td>{{ room.name }}</td>{% for night, taken, total in cells %}<td class="mono small{{ ' full' if taken >= total else '' }}">{{ taken }}/{{ total }}</td>{% endfor %}</tr>
     {% endfor %}

@@ -1,0 +1,29 @@
+# Demo car rental in Bishkek. Fictional data.
+# Kyrgyz names (name_ky, q_ky): проверить носителю.
+niche: carrental
+name: "Демо Прокат Авто"
+address: "Бишкек, ул. Примерная 40 (демо-адрес)"
+phone: "+996 555 000 081"
+hours: "Ежедневно 09:00–20:00"
+work_start: "09:00"
+work_end: "20:00"
+days_off: []
+services:
+  - {name: "Toyota Camry 70: 1–2 суток", name_ky: "Toyota Camry 70: 1–2 сутка", price: "4 500 в сутки"}
+  - {name: "Toyota Camry 70: от 3 суток", name_ky: "Toyota Camry 70: 3 суткадан", price: "4 000 в сутки"}
+  - {name: "Hyundai Elantra: 1–2 суток", name_ky: "Hyundai Elantra: 1–2 сутка", price: "3 000 в сутки"}
+  - {name: "Hyundai Elantra: от 3 суток", name_ky: "Hyundai Elantra: 3 суткадан", price: "2 600 в сутки"}
+  - {name: "Toyota Land Cruiser Prado: 1–2 суток", name_ky: "Toyota Land Cruiser Prado: 1–2 сутка", price: "8 000 в сутки"}
+  - {name: "Toyota Land Cruiser Prado: от 3 суток", name_ky: "Toyota Land Cruiser Prado: 3 суткадан", price: "7 200 в сутки"}
+  - {name: "Детское кресло", name_ky: "Балдар отургучу", price: "300 в сутки"}
+  - {name: "Доставка машины по Бишкеку", name_ky: "Машинаны Бишкек ичинде жеткирүү", price: "1 000"}
+resources:
+  - {name: "Toyota Camry 70", role: "седан, автомат", capacity: 5, group_size: 3}
+  - {name: "Hyundai Elantra", role: "седан, автомат", capacity: 5, group_size: 4}
+  - {name: "Toyota Land Cruiser Prado", role: "внедорожник, полный привод", capacity: 7, group_size: 1}
+faq:
+  - {q: "Какой залог?", q_ky: "Күрөө канча?", a: "Залог 20 000 сом, за Prado — 40 000 сом; возвращаем при сдаче машины без повреждений."}
+  - {q: "Какие нужны документы?", q_ky: "Кандай документтер керек?", a: "Паспорт и водительское удостоверение категории B; возраст от 23 лет, стаж от 3 лет."}
+  - {q: "Есть ограничение пробега?", q_ky: "Жүрүш чектелгенби?", a: "До 300 км в сутки, сверх — 10 сом за километр."}
+  - {q: "Как получить машину?", q_ky: "Машинаны кантип алам?", a: "В офисе с 09:00 до 20:00 или с доставкой по Бишкеку за 1 000 сом."}
+  - {q: "Можно выехать за границу?", q_ky: "Чет өлкөгө чыгууга болобу?", a: "Только по согласованию с менеджером."}
