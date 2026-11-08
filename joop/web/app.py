@@ -30,7 +30,7 @@ from ..models import (Booking, Business, Conversation, ConversationNote, Faq, Le
                       Staff, Stay, StockMove, WaitlistEntry)
 from ..niches import all_packs, get_pack, picker_packs
 from ..phone import normalize_phone
-from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, quick_replies, samples, staff_reply, stock, waitlist
+from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, order_status, quick_replies, samples, staff_reply, stock, waitlist
 from ..faq_gaps import open_gaps
 from ..runtime import Runtime
 from ..scheduler import Scheduler
@@ -1095,7 +1095,7 @@ def booking_paid(request: Request, item_id: int, csrf: str = Form("")):
 
 # --- orders ------------------------------------------------------------------------------------------------
 
-ORDER_STATUSES = {"new": "Новый", "accepted": "Принят", "done": "Выполнен", "cancelled": "Отменён"}
+ORDER_STATUSES = order_status.STATUSES
 
 
 @router.get("/panel/orders")
@@ -1106,23 +1106,30 @@ def orders_page(request: Request):
         lines: dict[int, list[OrderLine]] = {}
         for line in s.exec(select(OrderLine).where(OrderLine.order_id.in_([o.id for o in orders] or [0])).order_by(OrderLine.id)).all():
             lines.setdefault(line.order_id, []).append(line)
-        return _render(request, "orders.html", "orders", b, orders=orders, lines=lines, statuses=ORDER_STATUSES, channel_names=CHANNEL_NAMES)
+        return _render(request, "orders.html", "orders", b, orders=orders, lines=lines, label=order_status.label,
+                       sent_label=order_status.sent_label, channel_names=CHANNEL_NAMES)
 
 
 @router.post("/panel/orders/{item_id}/status")
-def order_status(request: Request, item_id: int, status: str = Form(""), csrf: str = Form("")):
+def order_move(request: Request, item_id: int, status: str = Form(""), csrf: str = Form("")):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
         order = _own(s, Order, item_id, b.id)
-        if status in ORDER_STATUSES:
-            if status == "cancelled" and order.status != "cancelled":
+        if status in ORDER_STATUSES and status != order.status:
+            if status == "cancelled":
                 stock.return_for_order(s, order.id, _who(request), utcnow())  # the goods go back on the shelf
-            elif order.status == "cancelled" and status != "cancelled":
+            elif order.status == "cancelled":
                 for note in stock.take_for_order(s, order.id, utcnow(), _who(request)):  # the order is back: so is its claim
                     _flash(request, note, "error")
             order.status = status
             s.add(order)
+            sent = order_status.notify(s, _rt(request), b, order, utcnow())  # «где мой заказ» answered before it is asked
+            if sent is not None:
+                _flash(request, f"Заказ #{order.id}: {order_status.label(order)}. " + (
+                    "Клиенту отправлено сообщение." if sent else
+                    "Написать клиенту не получилось (прошло больше суток в WhatsApp или чат заблокирован) — позвоните: "
+                    + order.customer_phone), "ok" if sent else "error")
             s.commit()
     return _back("/panel/orders")
 

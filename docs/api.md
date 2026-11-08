@@ -15,6 +15,7 @@ Authorization: Bearer joop_...
   (customers: `?offset=200`). `?since=2026-11-01T00:00:00Z` returns rows created from that moment (an offset such as `+06:00` is honoured).
 - Times: `created_at` and `paid.at` are UTC with `Z`; `start_local` is the business's local time.
 - The test chat («Проверить ИИ») is never included. Leads are customer requests only (`request`, `lead`, `handoff`).
+- Order `status`: `new`, `accepted`, `sent` (delivery: on the way; pickup: ready to collect), `done`, `cancelled`.
 - 120 calls a minute per key, then `429` with `Retry-After: 60`. Wrong or missing key: `401`.
 
 ## Webhooks

@@ -269,4 +269,7 @@ form.row.chat-input > span:empty { display: none; }
 @media (max-width: 600px) {
   form.item { flex-wrap: wrap; }
   form.item .actions { width: 100%; justify-content: flex-start; }
+  /* A row with buttons (an order: status, total, three steps) put them under the text: the text had one word a line. */
+  .item:has(.actions form) { flex-wrap: wrap; }
+  .item:has(.actions form) .actions { width: 100%; justify-content: flex-start; align-items: center; }
 }
