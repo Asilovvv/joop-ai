@@ -12,7 +12,7 @@
     <h2>Заполнить по графику</h2>
     <form method="post" action="/panel/slots/generate" class="stack">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <label for="g-staff">Специалист
+      <label for="g-staff">{{ pack.resource_item|capitalize }}
         <select id="g-staff" name="staff_id">{% for m in staff %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}</select>
       </label>
       <div class="grid2">
@@ -29,7 +29,7 @@
     <h2>Добавить отдельные окна</h2>
     <form method="post" action="/panel/slots/add" class="stack">
       <input type="hidden" name="csrf" value="{{ csrf }}">
-      <label for="a-staff">Специалист
+      <label for="a-staff">{{ pack.resource_item|capitalize }}
         <select id="a-staff" name="staff_id">{% for m in staff %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}</select>
       </label>
       <label for="a-day">Дата<input id="a-day" type="date" name="day" value="{{ today }}" required></label>

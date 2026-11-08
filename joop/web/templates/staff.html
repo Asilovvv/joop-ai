@@ -22,7 +22,7 @@
       <button class="btn small danger" type="submit" formaction="/panel/staff/{{ r.id }}/delete">Убрать</button>
     </div>
   </form>
-  {% else %}<p class="muted">Специалистов нет.</p>{% endfor %}
+  {% else %}<p class="muted">{{ pack.resource_label }}: пока пусто — добавьте ниже.</p>{% endfor %}
 </section>
 <section class="card" id="add">
   <h2>Добавить: {{ pack.resource_item }}</h2>
