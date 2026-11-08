@@ -37,6 +37,7 @@ class Pack:
     rules: tuple[str, ...] = field(default_factory=tuple)
     features: frozenset[str] = frozenset()
     stay_by: str = "night"
+    jobs_delivered: bool = False  # jobs are made to order and delivered (furniture), not picked up (repair)
 
     def has(self, outcome: str) -> bool:
         return outcome in self.outcomes
@@ -108,6 +109,7 @@ def _load(name: str) -> Pack:
         rules=tuple(data.get("rules") or ()),
         features=features,
         stay_by=stay_by,
+        jobs_delivered=bool(data.get("jobs_delivered", False)),
     )
 
 
