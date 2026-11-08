@@ -111,13 +111,20 @@ def test_first_answer_time_handoff_share_and_cost_per_conversation(engine):
                 s.add(Message(business_id=b.id, conversation_id=conv.id, role=who, text="!", created_at=start + timedelta(seconds=wait_s),
                               cost_usd=0.002 if who == "ai" else 0.0))
                 s.add(Message(business_id=b.id, conversation_id=conv.id, role="ai", text="!!", created_at=start + timedelta(hours=2)))
-        s.add(Lead(business_id=b.id, kind="handoff", created_at=start))
+        first = s.exec(select(Conversation).where(Conversation.business_id == b.id, Conversation.chat_id == "a")).one()
+        for _ in range(3):  # three hand-offs in one chat are one handed-over conversation
+            s.add(Lead(business_id=b.id, kind="handoff", conversation_id=first.id, created_at=start))
+        fallback = Conversation(business_id=b.id, channel="telegram", chat_id="e", created_at=start)
+        s.add(fallback)
+        s.flush()
+        s.add(Message(business_id=b.id, conversation_id=fallback.id, role="customer", text="?", created_at=start))
+        s.add(Message(business_id=b.id, conversation_id=fallback.id, role="ai", text=pilot.ERROR_REPLY, created_at=start))  # not an answer
         s.commit()
         rows, total = pilot.report(s, NOW_UTC - timedelta(days=14), NOW_UTC + timedelta(hours=1), NOW_UTC)
     (row,) = rows
-    assert row.median_first_reply_s == 10  # 4, 10 and 600 s; an unanswered chat has no first answer; later replies do not count
-    assert row.handoff_pct == 25 and row.conversations == 4
-    assert round(row.cost_per_conversation, 4) == 0.001  # two paid AI answers of $0.002 over four conversations
+    assert row.median_first_reply_s == 10  # 4, 10 and 600 s; unanswered or fallback-only chats have none; later replies do not count
+    assert row.handoff_pct == 20 and row.conversations == 5 and row.handoffs == 3
+    assert round(row.cost_per_conversation, 4) == 0.0008  # two paid AI answers of $0.002 over five conversations
     assert total.median_first_reply_s == 10
     table = list(csv.DictReader(io.StringIO(pilot.to_csv(rows, total))))
-    assert table[0]["median_first_reply_s"] == "10" and table[0]["handoff_pct"] == "25" and table[0]["cost_per_conversation_usd"] == "0.001000"
+    assert table[0]["median_first_reply_s"] == "10" and table[0]["handoff_pct"] == "20" and table[0]["cost_per_conversation_usd"] == "0.000800"

@@ -59,8 +59,8 @@ def waiting(session: Session, business: Business, now: datetime) -> list[tuple[C
     found = []
     for conv_id, conv_leads in by_conv.items():
         conv = session.get(Conversation, conv_id)
-        if conv is None or (conv.ai_paused_until and conv.ai_paused_until > now):
-            continue
+        if conv is None or conv.blocked_at or (conv.ai_paused_until and conv.ai_paused_until > now):
+            continue  # paused by staff, or on the block list: no late answer
         last = session.exec(select(Message).where(Message.conversation_id == conv_id).order_by(Message.id.desc())).first()
         if last is None or last.role != "ai" or last.text != ERROR_REPLY:
             continue

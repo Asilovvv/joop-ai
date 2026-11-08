@@ -1,14 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Касса<style>
-.pay-row { flex-wrap: wrap; }
-.pay-row .main { flex: 1 1 220px; min-width: 0; }
-.pay-row .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.pay-row .actions select { width: auto; }
-.pay-row .actions label { display: inline-flex !important; flex-direction: row; gap: 6px; align-items: center; margin: 0; white-space: nowrap; }
-.pay-row .actions input[type=checkbox] { width: auto; margin: 0; }
-@media (max-width: 640px) { .pay-row .actions { width: 100%; } .pay-row .actions select { flex: 1 1 120px; } }
-</style>
-{% endblock %}
+{% block title %}Касса{% endblock %}
 {% block content %}
 <section class="stack">
   <h1>Касса</h1>

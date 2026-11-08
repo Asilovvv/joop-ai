@@ -47,7 +47,7 @@
   </form>
   <p class="muted small">Видят только сотрудники в панели. Клиенту не отправляется, ИИ её не читает.</p>
 </section>
-{% if conv.channel != 'console' %}
+{% if conv.channel not in ('console', 'web') or conv.blocked_at %}
 <form method="post" action="/panel/conversations/{{ conv.id }}/block" class="row-tail">
   <input type="hidden" name="csrf" value="{{ csrf }}">
   {% if conv.blocked_at %}<button class="btn ghost small" type="submit" name="action" value="unblock">Убрать из чёрного списка</button>
