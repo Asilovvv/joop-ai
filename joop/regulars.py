@@ -38,7 +38,7 @@ def _bookings(session: Session, business: Business, conv: Conversation) -> list[
     own = Booking.conversation_id == conv.id if conv.id else sa.false()
     match = sa.or_(own, Booking.customer_phone.like(f"%{key}")) if key else own  # phones are stored normalised, +E.164
     rows = session.exec(select(Booking).where(
-        Booking.business_id == business.id, Booking.status == "booked", not_test(Booking), match,
+        Booking.business_id == business.id, Booking.status == "booked", not_test(Booking, business.id), match,
     ).order_by(Booking.start.desc()).limit(LAST * 3)).all()
     me = (conv.customer_name or conv.display_name or "").strip().casefold()
     return [b for b in rows if b.conversation_id == conv.id or (me and (b.customer_name or "").strip().casefold() == me)]

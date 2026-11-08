@@ -45,7 +45,7 @@ def render(paths: list[str]) -> str:
 
 THESIS_METRICS = ("facts", "answer", "action", "handoff", "kyrgyz")
 THESIS_HEADER = ("Set", "Cases", "Passed", "Invented facts", "Correct answer", "Action accuracy",
-                 "Hand-off accuracy", "Kyrgyz reply", "Cost per conversation, USD")
+                 "Hand-off accuracy", "Kyrgyz reply", "No answer", "Cost per conversation, USD")
 
 
 def set_name(data: dict, path: Path) -> str:
@@ -69,7 +69,7 @@ def thesis_rows(paths: list[str]) -> tuple[list[list[str]], bool]:
     "Invented facts" counts the cases whose reply contains a forbidden fact (lower is better); the other
     metrics count the cases that met the expectation. A case counts only towards the metrics it checks."""
     rows, dry = [], False
-    total = {"cases": 0, "passed": 0, "cost": 0.0, "costed": 0, **{k: [0, 0] for k in THESIS_METRICS}}
+    total = {"cases": 0, "passed": 0, "fallbacks": 0, "cost": 0.0, "costed": 0, **{k: [0, 0] for k in THESIS_METRICS}}
     for p in sorted(paths):
         path = Path(p)
         if not path.exists():
@@ -86,6 +86,8 @@ def thesis_rows(paths: list[str]) -> tuple[list[list[str]], bool]:
             row.append(_share(got["passed"], got["cases"], invert=k == "facts"))
             total[k][0] += got["passed"]
             total[k][1] += got["cases"]
+        row.append(str(s.get("fallbacks", 0)))  # the model did not answer: these cases fail every metric they check
+        total["fallbacks"] += s.get("fallbacks", 0)
         cost = s.get("avg_cost_usd_per_conversation")
         row.append(f"{cost:.4f}" if cost is not None else "—")
         if s.get("total_cost_usd") is not None:
@@ -97,6 +99,7 @@ def thesis_rows(paths: list[str]) -> tuple[list[list[str]], bool]:
     if rows:
         row = ["Total", str(total["cases"]), _share(total["passed"], total["cases"])]
         row += [_share(total[k][0], total[k][1], invert=k == "facts") for k in THESIS_METRICS]
+        row.append(str(total["fallbacks"]))
         row.append(f"{total['cost'] / total['costed']:.4f}" if total["costed"] else "—")
         rows.append(row)
     return rows, dry
@@ -119,8 +122,11 @@ def _tex(s: str) -> str:
 def thesis_latex(paths: list[str]) -> str:
     rows, dry = thesis_rows(paths)
     out = [f"% {DRY_NOTE}"] if dry else []
-    out += ["\\resizebox{\\textwidth}{!}{%", "\\begin{tabular}{|l|r|r|r|r|r|r|r|r|}", "\\hline",
-            " & ".join(f"\\textbf{{{_tex(h)}}}" for h in THESIS_HEADER) + " \\\\", "\\hline"]
+    cols = len(THESIS_HEADER)
+    out += ["\\resizebox{\\textwidth}{!}{%", "\\begin{tabular}{|l|" + "r|" * (cols - 1) + "}", "\\hline"]
+    if dry:  # visible in the PDF, not only in a comment
+        out += [f"\\multicolumn{{{cols}}}{{|l|}}{{\\textbf{{{_tex(DRY_NOTE)}}}}} \\\\", "\\hline"]
+    out += [" & ".join(f"\\textbf{{{_tex(h)}}}" for h in THESIS_HEADER) + " \\\\", "\\hline"]
     for r in rows:
         cells = [_tex(c) for c in r]
         if r[0] == "Total":

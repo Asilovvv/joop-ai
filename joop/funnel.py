@@ -75,7 +75,7 @@ class Funnel:
 
 def report(session: Session, business: Business, now_utc: datetime) -> Funnel:
     since = now_utc - WINDOW
-    leads = session.exec(select(Lead).where(Lead.business_id == business.id, Lead.kind.in_(KINDS), not_test(Lead),
+    leads = session.exec(select(Lead).where(Lead.business_id == business.id, Lead.kind.in_(KINDS), not_test(Lead, business.id),
                                            Lead.created_at >= since).order_by(Lead.id.desc())).all()
     rows = {stage: [x for x in leads if x.stage == stage] for stage in STAGES}
     return Funnel(counts={k: len(v) for k, v in rows.items()}, rows=rows, total=len(leads))

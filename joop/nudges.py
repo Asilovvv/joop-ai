@@ -50,7 +50,7 @@ def overdue(session: Session, business: Business, now_utc: datetime) -> list[Lea
     leads = session.exec(select(Lead).where(
         Lead.business_id == business.id, Lead.status == "new", Lead.nudged_at == None,  # noqa: E711
         Lead.kind.in_(KINDS), Lead.created_at <= now_utc - wait, Lead.created_at >= now_utc - LOOK_BACK,
-        not_test(Lead),  # the owner's own test chat is not a customer waiting
+        not_test(Lead, business.id),  # the owner's own test chat is not a customer waiting
     ).order_by(Lead.created_at)).all()
     return [x for x in leads if max(x.created_at, opened) <= now_utc - wait and not _answered(session, x)]
 
@@ -96,5 +96,5 @@ def open_count(session: Session, business: Business, now_utc: datetime) -> int:
     """Requests still open after an hour, for the morning summary."""
     return len(session.exec(select(Lead.id).where(
         Lead.business_id == business.id, Lead.status == "new", Lead.kind.in_(KINDS),
-        Lead.created_at <= now_utc - timedelta(hours=1), not_test(Lead),
+        Lead.created_at <= now_utc - timedelta(hours=1), not_test(Lead, business.id),
     )).all())

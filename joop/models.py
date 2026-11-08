@@ -49,6 +49,7 @@ class Business(SQLModel, table=True):
     telegram_bot_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
     telegram_secret: str = ""
     telegram_bot_username: str = ""  # from getMe when the bot is connected: for t.me links on the counter card
+    test_link_code: str = ""  # t.me/<bot>?start=test_<code> marks the owner's own chat as a test; secret, so customers cannot
     ig_comments: bool = False  # answer questions left as comments under posts in Direct (joop/ig_comments.py)
     ig_comment_keywords: str = ""  # comma-separated; empty = the default list
     ig_comment_public_reply: str = "Ответили вам в Директ"  # the public pointer under the comment; empty = none

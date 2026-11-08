@@ -22,6 +22,7 @@ from sqlmodel import Session, select
 from . import billing
 from .models import Business, Conversation, Subscription
 from .pilot import DEMO_PREFIX
+from .stats import real_conversation
 from .trust import REAL_CHANNELS, first_live_at
 
 WEEK = timedelta(days=7)
@@ -53,7 +54,7 @@ class Summary:
 def _week_one(session: Session, business: Business, live_at: datetime) -> tuple[int, int]:
     end = live_at + WEEK
     convs = session.exec(select(Conversation).where(
-        Conversation.business_id == business.id, Conversation.channel.in_(REAL_CHANNELS),
+        Conversation.business_id == business.id, Conversation.channel.in_(REAL_CHANNELS), real_conversation(),
         Conversation.created_at >= live_at - timedelta(minutes=1), Conversation.created_at < end,
     )).all()
     reviewed = sum(1 for c in convs if c.reviewed_at is not None and c.reviewed_at < end)

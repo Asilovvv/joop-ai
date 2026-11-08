@@ -193,7 +193,7 @@ def send_return_invites(session: Session, rt: "Runtime", business: Business, now
     today = utc_to_local(now_utc, business.timezone).date()
     longest = max(s.repeat_days for s in services) + RETURN_LATE_DAYS + 1
     all_bookings = list(session.exec(select(Booking).where(
-        Booking.business_id == business.id, Booking.status == "booked", not_test(Booking),
+        Booking.business_id == business.id, Booking.status == "booked", not_test(Booking, business.id),
         Booking.start >= datetime.combine(today - timedelta(days=longest), datetime.min.time()),
     )).all())
     sent, manual = 0, []
@@ -236,7 +236,7 @@ class FollowupStats:
 
 def stats(session: Session, business_id: int, since: datetime) -> FollowupStats:
     rows = list(session.exec(select(Booking).where(Booking.business_id == business_id, Booking.start >= since,
-                                                   not_test(Booking))).all())
+                                                   not_test(Booking, business_id))).all())
     everything = list(session.exec(select(Booking).where(Booking.business_id == business_id, Booking.status == "booked")).all())
     ratings = [b.rating for b in rows if b.rating]
     invited = [b for b in rows if b.return_status in {"sent", "manual"}]
