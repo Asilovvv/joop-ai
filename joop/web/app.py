@@ -519,10 +519,11 @@ def example_ok(request: Request, csrf: str = Form("")):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
+        before = len(free_plan.active_staff(s, b.id))
         b.example_ok = True
         s.add(b)
         s.flush()
-        if free_plan.breaks_plan(s, b.id):  # the example's masters would become several real ones and the AI would stop
+        if free_plan.breaks_plan(s, b.id, before):  # the example's masters would become several real ones and the AI would stop
             s.rollback()
             _flash(request, free_plan.TOO_MANY_EXAMPLE, "error")
             return _back("/panel")
@@ -761,10 +762,11 @@ def staff_update(
         b = _business(s, request)
         row = _own(s, Staff, item_id, b.id)
         if name.strip():
+            before = len(free_plan.active_staff(s, b.id))
             row.name, row.role, row.handles = name.strip(), role.strip(), handles.strip()
             s.add(row)
             s.flush()
-            if free_plan.breaks_plan(s, b.id):  # an example master turned into a second real one
+            if free_plan.breaks_plan(s, b.id, before):  # an example master turned into a second real one
                 s.rollback()
                 _flash(request, free_plan.TOO_MANY, "error")
                 return _back("/panel/staff")

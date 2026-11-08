@@ -95,9 +95,7 @@ def booking_extras(session, business: Business, base: str, lang: str) -> dict:
     masters = [m for m in session.exec(select(Staff).where(Staff.business_id == business.id, Staff.active == True)  # noqa: E712
                                        .order_by(Staff.name)).all() if m.id not in example]
     seen: dict = {}
-    for slot, staff in free_slots(session, business.id, local_now(business.timezone), days=7, limit=60):
-        if staff.id in example:
-            continue
+    for slot, staff in free_slots(session, business.id, local_now(business.timezone), days=7, limit=60, exclude_staff=example):
         seen.setdefault(slot.start, staff.name)
         if len(seen) == 3:
             break

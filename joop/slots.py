@@ -96,6 +96,7 @@ def free_slots(
     days: int = 10,
     limit: int = 200,
     staff_id: int | None = None,
+    exclude_staff: frozenset[int] = frozenset(),
 ) -> list[tuple[Slot, Staff]]:
     query = (
         select(Slot, Staff)
@@ -110,6 +111,8 @@ def free_slots(
     )
     if staff_id is not None:
         query = query.where(Slot.staff_id == staff_id)
+    if exclude_staff:  # e.g. the sign-up example's people (samples.Hidden.staff), before the limit
+        query = query.where(Slot.staff_id.not_in(exclude_staff))
     return list(session.exec(query.order_by(Slot.start, Slot.id).limit(limit)).all())
 
 

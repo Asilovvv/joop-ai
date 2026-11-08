@@ -22,9 +22,10 @@ ROLL_AFTER_DAYS = 14  # a date this far in the past, given without a year, means
 _YEAR = re.compile(r"\b20\d\d\b")
 
 
-def room_types(session: Session, business_id: int) -> list[Staff]:
-    return list(session.exec(select(Staff).where(Staff.business_id == business_id, Staff.active == True)  # noqa: E712
-                             .order_by(Staff.id)).all())
+def room_types(session: Session, business_id: int, hidden: frozenset[int] = frozenset()) -> list[Staff]:
+    """Active room types; `hidden` are sign-up example rooms a real guest must not be offered (samples.Hidden.staff)."""
+    return [r for r in session.exec(select(Staff).where(Staff.business_id == business_id, Staff.active == True)  # noqa: E712
+                                    .order_by(Staff.id)).all() if r.id not in hidden]
 
 
 def rooms_of(room: Staff) -> int:
@@ -77,7 +78,7 @@ class StayResult:
 
 
 def book(session: Session, business: Business, conv: Conversation, data: dict, reply: str, today: date, now_utc: datetime,
-         off: bool, channel: str, name: str, phone: str) -> StayResult:
+         off: bool, channel: str, name: str, phone: str, hidden: frozenset[int] = frozenset()) -> StayResult:
     check_in, check_out = parse_day(data.get("check_in", "")), parse_day(data.get("check_out", ""))
     if not check_in or not check_out or check_out <= check_in:
         return StayResult("Уточните, пожалуйста, даты заезда и выезда.")
@@ -88,14 +89,14 @@ def book(session: Session, business: Business, conv: Conversation, data: dict, r
     if (check_out - check_in).days > MAX_NIGHTS:
         return StayResult(f"Онлайн можно забронировать до {MAX_NIGHTS} ночей; для долгого проживания администратор свяжется с вами.")
     room = session.get(Staff, data.get("room_id")) if data.get("room_id") else None
-    if room is None or room.business_id != business.id or not room.active:
-        return StayResult("Какой номер вам подходит? " + _options(session, business, check_in, check_out, data.get("guests") or 1))
+    if room is None or room.business_id != business.id or not room.active or room.id in hidden:
+        return StayResult("Какой номер вам подходит? " + _options(session, business, check_in, check_out, data.get("guests") or 1, hidden))
     guests = max(1, int(data.get("guests") or 1))
     if room.capacity and guests > room.capacity:
-        return StayResult(f"«{room.name}» рассчитан на {room.capacity} гостей. " + _options(session, business, check_in, check_out, guests))
+        return StayResult(f"«{room.name}» рассчитан на {room.capacity} гостей. " + _options(session, business, check_in, check_out, guests, hidden))
     if free_rooms(session, room, check_in, check_out) <= 0:
         return StayResult(f"На {_fmt(check_in)}–{_fmt(check_out)} «{room.name}» уже занят. "
-                          + _options(session, business, check_in, check_out, guests))
+                          + _options(session, business, check_in, check_out, guests, hidden))
     stay = Stay(business_id=business.id, staff_id=room.id, room_name=room.name, check_in=check_in, check_out=check_out,
                 guests=guests, customer_name=name, customer_phone=phone, conversation_id=conv.id, channel=channel,
                 chat_id=conv.chat_id, created_off_hours=off, created_at=now_utc)
@@ -110,15 +111,16 @@ def book(session: Session, business: Business, conv: Conversation, data: dict, r
             session.flush()
     except (IntegrityError, StopIteration):
         return StayResult(f"Извините, «{room.name}» на эти даты только что заняли. "
-                          + _options(session, business, check_in, check_out, guests))
+                          + _options(session, business, check_in, check_out, guests, hidden))
     if check_in.year != asked_year and str(asked_year) in reply:  # the model's confirmation names the wrong year
         reply = (f"Забронировала «{room.name}» на {_fmt(check_in)}–{_fmt(check_out)}, гостей: {guests}. "
                  "Администратор свяжется с вами насчёт оплаты.")
     return StayResult(reply, stay)
 
 
-def _options(session: Session, business: Business, check_in: date, check_out: date, guests: int) -> str:
-    fits = [r for r in room_types(session, business.id)
+def _options(session: Session, business: Business, check_in: date, check_out: date, guests: int,
+             hidden: frozenset[int] = frozenset()) -> str:
+    fits = [r for r in room_types(session, business.id, hidden)
             if (not r.capacity or r.capacity >= guests) and free_rooms(session, r, check_in, check_out) > 0]
     if not fits:
         return f"На {_fmt(check_in)}–{_fmt(check_out)} свободных номеров нет. Оставьте телефон — администратор предложит варианты."
@@ -144,11 +146,14 @@ def occupancy(session: Session, business_id: int, start: date, days: int) -> lis
     return out
 
 
-def prompt_lines(session: Session, business: Business, today: date) -> list[str]:
+def prompt_lines(session: Session, business: Business, today: date, hidden: frozenset[int] = frozenset()) -> list[str]:
     lines = ["", f"Номера (номер в квадратных скобках — room_id; сегодня {today:%Y-%m-%d}):"]
-    for r in room_types(session, business.id):
+    rooms = room_types(session, business.id, hidden)
+    for r in rooms:
         cap = f", до {r.capacity} гостей" if r.capacity else ""
         lines.append(f"- [{r.id}] {r.name}{cap}, номеров такого типа: {rooms_of(r)}")
+    if not rooms:
+        lines.append("- номеров в данных нет: бронь не оформляй, возьми телефон и передай администратору.")
     return lines
 
 
