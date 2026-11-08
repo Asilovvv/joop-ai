@@ -994,6 +994,23 @@ def story_slide(request: Request, name: str):
     return templates.TemplateResponse(request, "story.html", {"request": request, "s": slide, **_story_context(request)})
 
 
+@router.get("/owner/business/{bid}/memo")
+def business_memo(request: Request, bid: int):
+    """A printable A4 sheet for the owner on the day they say «да»: how to log in, the first 15 minutes, week one."""
+    _owner(request)
+    st = _settings(request)
+    with new_session() as s:
+        b = s.get(Business, bid)
+        if b is None:
+            raise HTTPException(status_code=404)
+        bot = f"t.me/{b.telegram_bot_username}" if b.telegram_bot_token and b.telegram_bot_username else ""
+        contact = " · ".join(x for x in (f"Telegram @{st.contact_telegram}" if st.contact_telegram else "", st.contact_phone,
+                                         st.contact_email) if x)
+        return templates.TemplateResponse(request, "owner_memo.html", {
+            "request": request, "b": b, "bot": bot, "contact": contact, "base": _base_url(request).rstrip("/"),
+            "today": utc_to_local(utcnow(), b.timezone).strftime("%d.%m.%Y")})
+
+
 @router.get("/owner/business/{bid}/case")
 def business_case(request: Request, bid: int, days: int = 30, lang: str = "ru"):
     """A case with real numbers for one business: a page to screenshot for Instagram or send as a link."""

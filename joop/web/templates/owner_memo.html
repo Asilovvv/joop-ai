@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Памятка: {{ b.name }} — Joop AI</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<style>
+  :root { --bg: #f4f3ee; --surface: #fff; --ink: #10201f; --muted: #5d6b69; --line: #dde3df; --accent: #0e8a72; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0b1719; --surface: #122326; --ink: #e4eeeb; --muted: #9fb3af; --line: #233a3d; --accent: #3fc2a5; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Golos Text', system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.45; }
+  .tools { max-width: 760px; margin: 0 auto; padding: 14px 16px 0; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 14px; }
+  .tools a, .tools button { color: var(--ink); background: none; text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .tools .back { border: 0; color: var(--muted); }
+  .sheet { max-width: 760px; margin: 14px auto 40px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 32px 30px; }
+  .brand { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  h1 { font-size: 26px; line-height: 1.15; margin: 8px 0 4px; }
+  h2 { font-size: 17px; margin: 22px 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 6px; }
+  .access { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-top: 14px; }
+  .access dt { color: var(--muted); }
+  .access dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+  ol, ul { margin: 0; padding-left: 20px; }
+  li { margin: 4px 0; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .foot { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .line { display: inline-block; min-width: 180px; border-bottom: 1px solid var(--ink); }
+  @media (max-width: 600px) { .sheet { padding: 22px 16px; } .cols { grid-template-columns: 1fr; } }
+  @media print {
+    :root { --bg: #f4f4f1; --surface: #fff; --ink: #000; --muted: #444; --line: #bbb; --accent: #0b6b59; }
+    body { background: #fff; font-size: 10.5pt; line-height: 1.35; }
+    h1 { font-size: 20pt; } h2 { font-size: 12.5pt; margin: 12px 0 5px; } li { margin: 2px 0; }
+    .access { padding: 10px 12px; margin-top: 10px; } .foot { margin-top: 12px; }
+    .tools { display: none; }
+    .sheet { border: 0; margin: 0; padding: 0; max-width: none; border-radius: 0; }
+    @page { size: A4; margin: 12mm; }
+  }
+</style>
+</head>
+<body>
+<div class="tools">
+  <a class="back" href="/owner">← Компании</a>
+  <button type="button" onclick="window.print()">Распечатать</button>
+</div>
+<main class="sheet">
+  <div class="brand">Joop AI · ИИ-администратор</div>
+  <h1>Памятка: {{ b.name }}</h1>
+  <p class="sub">ИИ отвечает вашим клиентам в мессенджерах, записывает их и передаёт вам то, что требует человека.</p>
+
+  <dl class="access">
+    <dt>Панель</dt><dd>{{ base }}/login</dd>
+    <dt>Логин</dt><dd>{{ b.slug }}</dd>
+    <dt>Пароль</dt><dd>тот, что вы задали при регистрации (сменить — «Настройки»)</dd>
+    {% if bot %}<dt>Ваш бот</dt><dd>{{ bot }}</dd>{% endif %}
+  </dl>
+
+  <h2>Первые 15 минут</h2>
+  <ol>
+    <li><b>«Прайс»</b> — замените пример своими услугами и ценами. Пока там пример, клиентам ИИ цен не называет.</li>
+    <li><b>«Настройки»</b> — адрес, телефон и часы работы. ИИ отвечает только тем, что здесь написано.</li>
+    <li><b>«Проверить ИИ»</b> — напишите как клиент: «сколько стоит…», «запишите на завтра». Неверный ответ поправьте в «Вопросах».</li>
+    <li><b>«Запуск» → Telegram-бот</b>{% if bot %} — уже подключён{% else %} — вставьте токен бота от @BotFather{% endif %}.</li>
+    <li><b>«Запуск» → «Подключить уведомления»</b> — одно нажатие, и новые записи и заявки приходят вам в Telegram.</li>
+  </ol>
+
+  <h2>Что будет в первую неделю</h2>
+  <ul>
+    <li>По утрам — сводка в Telegram за вчера и на сегодня: записи, кто не подтвердил, свободное время (если было что сообщить).</li>
+    <li>Если ИИ не знает ответа, он не выдумывает, а передаёт клиента вам — сообщение придёт в Telegram.</li>
+    <li>На восьмой день — итоги недели в цифрах: сколько клиентов ответил ИИ, сколько ночью и в выходные, сколько записей.</li>
+    <li>Команды в чате с ботом: /today — сводка сейчас, /week — неделя, /gaps — свободные окна.</li>
+  </ul>
+
+  <div class="cols">
+    <div>
+      <h2>ИИ делает сам</h2>
+      <ul>
+        <li>Отвечает на цены, адрес, часы, услуги — по-кыргызски и по-русски.</li>
+        <li>Записывает только в действительно свободное время.</li>
+        <li>Напоминает клиенту о визите и просит подтвердить.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Остаётся вам</h2>
+      <ul>
+        <li>Сложные и спорные вопросы — ИИ передаст их вам.</li>
+        <li>Чек на кассе (ККМ): Joop — учёт, не фискальная касса.</li>
+        <li>Чат можно в любой момент взять на себя: ответьте из «Диалогов».</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Если что-то не так</h2>
+  <p>{% if contact %}{{ contact }}{% else %}Ваш менеджер: <span class="line">&nbsp;</span>{% endif %}</p>
+
+  <div class="foot"><span>Joop AI</span><span>{{ today }}</span></div>
+</main>
+</body>
+</html>
