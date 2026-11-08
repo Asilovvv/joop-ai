@@ -46,7 +46,9 @@ def stay_cancel(request: Request, item_id: int, csrf: str = Form("")):
         if stay.status == "booked":
             stays.cancel(s, stay)
             s.commit()
-            freed = ("зал на эту дату снова свободен. Клиенту" if get_pack(b.niche).by_day
+            pack = get_pack(b.niche)
+            freed = ("зал на эту дату снова свободен. Клиенту" if pack.by_day
+                     else "машина на эти даты снова свободна. Клиенту" if pack.rental
                      else "номер на эти даты снова свободен. Гостю")
             _flash(request, f"Бронь {stay.customer_name} отменена, {freed} сообщите сами.")
     return _back("/panel/stays")

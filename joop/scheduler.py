@@ -142,7 +142,7 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
     if not stats["conversations"] and not stats["leads"] and not today and not arriving and not money and not held:
         return None
     if hotel:
-        made = f"{'броней залов' if halls else 'броней номеров'} через ИИ {stats['stays']} (в нерабочее время {stats['off_hours_stays']}), "
+        made = f"броней {pack.stay_noun} через ИИ {stats['stays']} (в нерабочее время {stats['off_hours_stays']}), "
     elif pack.orders_first:  # a shop: its results are orders; it has no bookings to count
         made = f"заказов через ИИ {stats['orders']}, "
     else:
@@ -171,6 +171,12 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
             lines += [f"{st.room_name} — {st.customer_name}, {st.customer_phone}, гостей: {st.guests}{mark(st)}" for st in arriving]
         else:
             lines.append("Мероприятий на сегодня в системе нет.")
+    elif hotel and pack.rental:
+        if arriving:
+            lines.append("Сегодня выдаём машины:")
+            lines += [f"{st.customer_name}, {st.customer_phone} — {st.room_name}, до {st.check_out:%d.%m}{mark(st)}" for st in arriving]
+        else:
+            lines.append("Выдач машин на сегодня в системе нет.")
     elif hotel:
         if arriving:
             lines.append("Сегодня заезжают:")
@@ -201,7 +207,7 @@ def weekly_report_text(session: Session, business: Business, now_utc: datetime) 
     if st["bookings"]:
         parts.append(f"записей {st['bookings']} (ночью и в выходные: {st['off_hours_bookings']})")
     if st["stays"]:
-        what = "броней залов" if get_pack(business.niche).by_day else "броней номеров"
+        what = f"броней {get_pack(business.niche).stay_noun}"
         parts.append(f"{what} {st['stays']} (ночью и в выходные: {st['off_hours_stays']})")
     if st["requests"]:
         parts.append(f"заявок на запись {st['requests']}")
