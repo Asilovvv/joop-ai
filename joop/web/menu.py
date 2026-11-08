@@ -85,7 +85,7 @@ def channel_links(business: Business, base: str, lang: str) -> list[tuple[str, s
 def booking_extras(session, business: Business, base: str, lang: str) -> dict:
     """What a booking page adds to the price list: masters, the nearest free times, where to write."""
     from ..models import Staff
-    from ..slots import free_slots
+    from ..slots import free_slots, lead_for
     from ..timeutil import fmt_slot, local_now
 
     pack = get_pack(business.niche)
@@ -95,7 +95,8 @@ def booking_extras(session, business: Business, base: str, lang: str) -> dict:
     masters = [m for m in session.exec(select(Staff).where(Staff.business_id == business.id, Staff.active == True)  # noqa: E712
                                        .order_by(Staff.name)).all() if m.id not in example]
     seen: dict = {}
-    for slot, staff in free_slots(session, business.id, local_now(business.timezone), days=7, limit=60, exclude_staff=example):
+    for slot, staff in free_slots(session, business.id, local_now(business.timezone), days=7, limit=60, exclude_staff=example,
+                                  lead_minutes=lead_for(business)):
         seen.setdefault(slot.start, staff.name)
         if len(seen) == 3:
             break

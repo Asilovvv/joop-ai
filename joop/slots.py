@@ -89,6 +89,13 @@ def generate_slots(
     return created
 
 
+def lead_for(business: Business) -> int:
+    """How soon a free time may start to be offered: the niche's lead time (Pack.lead_minutes)."""
+    from .niches import get_pack
+
+    return get_pack(business.niche).lead_minutes
+
+
 def free_slots(
     session: Session,
     business_id: int,
@@ -97,6 +104,7 @@ def free_slots(
     limit: int = 200,
     staff_id: int | None = None,
     exclude_staff: frozenset[int] = frozenset(),
+    lead_minutes: int = LEAD_MINUTES,
 ) -> list[tuple[Slot, Staff]]:
     query = (
         select(Slot, Staff)
@@ -105,7 +113,7 @@ def free_slots(
             Slot.business_id == business_id,
             Slot.status == "free",
             Staff.active == True,  # noqa: E712
-            Slot.start > now_local + timedelta(minutes=LEAD_MINUTES),
+            Slot.start > now_local + timedelta(minutes=lead_minutes),
             Slot.start <= now_local + timedelta(days=days),
         )
     )
