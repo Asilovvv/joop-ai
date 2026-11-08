@@ -28,7 +28,7 @@ from ..dispatch import admin_chat_ids, admin_link, process_incoming
 from ..catalog import parse_price
 from ..models import (Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service, SignatureClick, Slot,
                       Staff, StockMove, WaitlistEntry)
-from ..niches import all_packs, get_pack
+from ..niches import all_packs, get_pack, picker_packs
 from ..phone import normalize_phone
 from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, quick_replies, samples, staff_reply, stock, waitlist
 from ..faq_gaps import open_gaps
@@ -348,7 +348,7 @@ def from_signature(request: Request, slug: str):
 @router.get("/")
 def landing(request: Request):
     s = _settings(request)
-    packs = {k: p for k, p in all_packs().items() if k != "other"}
+    packs = {k: p for k, p in picker_packs().items() if k != "other"}
     return _site(request, "site_home.html", packs=packs, price=s.price_som, trial_days=s.trial_days, signup=s.signup_enabled,
                  live_demo=s.site_demo_daily_limit > 0 and bool(s.anthropic_api_key), csrf=_csrf(request))
 
@@ -521,6 +521,11 @@ def example_ok(request: Request, csrf: str = Form("")):
         b = _business(s, request)
         b.example_ok = True
         s.add(b)
+        s.flush()
+        if free_plan.breaks_plan(s, b.id):  # the example's masters would become several real ones and the AI would stop
+            s.rollback()
+            _flash(request, free_plan.TOO_MANY_EXAMPLE, "error")
+            return _back("/panel")
         s.commit()
     _flash(request, "Готово: эти данные считаются вашими, предупреждение больше не показывается.")
     return _back("/panel")
@@ -752,6 +757,12 @@ def staff_update(
         row = _own(s, Staff, item_id, b.id)
         if name.strip():
             row.name, row.role, row.handles = name.strip(), role.strip(), handles.strip()
+            s.add(row)
+            s.flush()
+            if free_plan.breaks_plan(s, b.id):  # an example master turned into a second real one
+                s.rollback()
+                _flash(request, free_plan.TOO_MANY, "error")
+                return _back("/panel/staff")
             row.capacity = max(0, capacity)
             group_size = max(0, min(group_size, 500))
             if group_size != row.group_size:
@@ -1551,7 +1562,7 @@ def settings_page(request: Request):
             weekdays=list(enumerate(WEEKDAYS_SHORT, start=1)),
             days_off=parse_days_off(b.days_off),
             timezones=TIMEZONES,
-            packs=all_packs(),
+            packs=picker_packs(),
             admins=admin_chat_ids(b),
             admin_link=admin_link(b),
         )
