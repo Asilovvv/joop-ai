@@ -35,22 +35,27 @@ def test_sold_out_part_and_special_order_questions_reach_the_prompt(engine):
     assert "марка, модель и год, VIN или номер детали" in system
 
 
-def test_digest_lists_reserves_nobody_collected(engine):
+def test_digest_lists_ready_orders_nobody_collected(engine):
+    """Only orders marked «Готов к выдаче» more than a day ago: a new or accepted order is not ready, and its
+    customer was told so (independent review of #152-#156)."""
     b = parts_shop()
     with db.new_session() as s:
         test_chat = Conversation(business_id=b.id, channel="console", chat_id="panel-test", created_at=NOW_UTC)
         s.add(test_chat)
         s.flush()
-        old = NOW_UTC - timedelta(hours=30)
-        rows = [("Эркин", "pickup", "new", old, None), ("Самат", "pickup", "accepted", old, None),
-                ("Бекзат", "delivery", "new", old, None), ("Айбек", "pickup", "done", old, None),
-                ("Свежий", "pickup", "new", NOW_UTC - timedelta(hours=2), None), ("Тест", "pickup", "new", old, test_chat.id)]
-        for name, mode, status, when, conv in rows:
+        old, fresh = NOW_UTC - timedelta(hours=30), NOW_UTC - timedelta(hours=2)
+        rows = [  # name, mode, status, created, ready since, test chat
+            ("Эркин", "pickup", "sent", old, old, None), ("Самат", "pickup", "sent", old - timedelta(days=2), old, None),
+            ("Принятый", "pickup", "accepted", old - timedelta(days=3), None, None), ("Новый", "pickup", "new", old, None, None),
+            ("Курьер", "delivery", "sent", old, old, None), ("Выдан", "pickup", "done", old, old, None),
+            ("Только что", "pickup", "sent", old - timedelta(days=3), fresh, None), ("Тест", "pickup", "sent", old, old, test_chat.id),
+        ]
+        for name, mode, status, created, sent_at, conv in rows:
             s.add(Order(business_id=b.id, customer_name=name, customer_phone="+996555000000", mode=mode, status=status,
-                        channel="console" if conv else "telegram", conversation_id=conv, created_at=when))
+                        channel="console" if conv else "telegram", conversation_id=conv, created_at=created, sent_at=sent_at))
         s.commit()
         text = digest_text(s, s.get(Business, b.id), NOW_UTC)
         ids = {o.customer_name: o.id for o in s.exec(select(Order).where(Order.business_id == b.id)).all()}
-    line = next(x for x in text.split("\n") if x.startswith("Самовывоз не забрали больше суток:"))
-    assert f"№{ids['Эркин']} (Эркин), №{ids['Самат']} (Самат)" in line and "вернулся в продажу" in line
-    assert not any(n in line for n in ("Бекзат", "Айбек", "Свежий", "Тест"))
+    line = next(x for x in text.split("\n") if x.startswith("Готовые заказы не забрали больше суток:"))
+    assert f"№{ids['Эркин']} (Эркин), №{ids['Самат']} (Самат)" in line and "при отмене товар вернётся на склад" in line
+    assert not any(n in line for n in ("Принятый", "Новый", "Курьер", "Выдан", "Только что", "Тест"))

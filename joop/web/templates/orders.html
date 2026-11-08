@@ -20,8 +20,7 @@
       <div class="actions">
         <span class="chip {{ 'ok' if o.status in ('accepted', 'sent', 'done') else ('warn' if o.status == 'new' else '') }}">{{ label(o) }}</span>
         <b class="mono">{{ '%s сом'|format(o.total) if o.total is not none else 'сумма ?' }}</b>{% if o.delivery_fee %}<span class="muted small">доставка {{ o.delivery_fee }}</span>{% endif %}
-        {% set steps = {'new': ['accepted', 'cancelled'], 'accepted': ['sent', 'done', 'cancelled'], 'sent': ['done', 'cancelled']}.get(o.status, []) %}
-        {% for key in steps %}
+        {% for key in next_steps.get(o.status, ()) %}
         <form method="post" action="/panel/orders/{{ o.id }}/status" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="status" value="{{ key }}"><button class="btn small {{ 'danger' if key == 'cancelled' else 'ghost' }}" type="submit">{{ {'accepted': 'Принять', 'sent': sent_label(o), 'done': 'Выполнен', 'cancelled': 'Отменить'}[key] }}</button></form>
         {% endfor %}
       </div>

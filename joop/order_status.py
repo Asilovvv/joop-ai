@@ -13,8 +13,7 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
 
-from .followups import deliver_to_chat
-from .lang import is_kyrgyz_message
+from .followups import _kyrgyz, deliver_to_chat
 from .models import Business, Conversation, Message, Order, OrderLine
 from .stats import TEST_CHANNEL
 from .timeutil import utc_to_local
@@ -24,6 +23,12 @@ if TYPE_CHECKING:
 
 STATUSES = {"new": "Новый", "accepted": "Принят", "sent": "В пути", "done": "Выполнен", "cancelled": "Отменён"}
 NOTIFY = {"accepted", "sent"}  # the steps a customer hears about without asking
+# The only moves the panel accepts: a stale tab cannot send an order back, or revive a cancelled one with a message.
+NEXT = {"new": ("accepted", "cancelled"), "accepted": ("sent", "done", "cancelled"), "sent": ("done", "cancelled")}
+
+
+def can_move(order: Order, status: str) -> bool:
+    return status in NEXT.get(order.status, ())
 KEEP = timedelta(days=30)  # older orders are not brought into the chat
 SHOWN = 3
 
@@ -84,10 +89,18 @@ def prompt_hint(session: Session, business: Business, conv: Conversation, now_ut
     return "\n".join(lines)
 
 
+def where_to_collect(business: Business) -> str:
+    """Address and hours for a «come and collect» message; hours copied from the sign-up example are not facts."""
+    from . import samples
+
+    hours = "" if samples.hours_are_example(business) else business.hours_text
+    return ", ".join(x for x in (business.address, hours) if x)
+
+
 def notice_text(business: Business, order: Order, kyrgyz: bool) -> str | None:
     """What the customer hears when staff move the order on; None for steps that are not announced.
     Kyrgyz wording: проверить носителю."""
-    where = ", ".join(x for x in (business.address, business.hours_text) if x)
+    where = where_to_collect(business)
     total = _som(order.total) if order.total is not None else ""
     if order.status == "accepted":
         if kyrgyz:
@@ -104,18 +117,24 @@ def notice_text(business: Business, order: Order, kyrgyz: bool) -> str | None:
     return None
 
 
-def notify(session: Session, rt: "Runtime", business: Business, order: Order, now_utc: datetime) -> bool | None:
-    """Tell the customer about the order's new status. None: nothing to tell (this step is silent, or the order
-    did not come from a chat); False: the channel would not take it (WhatsApp after 24 hours, a blocked chat)."""
+def notify(session: Session, rt: "Runtime", business: Business, order: Order, now_utc: datetime) -> tuple[bool | None, str]:
+    """Tell the customer about the order's new status: (None, "") when there is nothing to tell (a silent step, or the
+    order did not come from a chat), (True, "") when it went out, (False, why) when the channel would not take it."""
+    from .staff_reply import blocked
+
     conv = session.get(Conversation, order.conversation_id) if order.conversation_id else None
     if order.status not in NOTIFY or conv is None:
-        return None
-    last = session.exec(select(Message.text).where(Message.conversation_id == conv.id, Message.role == "customer")
-                        .order_by(Message.id.desc())).first()
-    text = notice_text(business, order, bool(last) and is_kyrgyz_message(last))
+        return None, ""
+    text = notice_text(business, order, _kyrgyz(session, conv.id))
     if text is None:
-        return None
-    if conv.channel == TEST_CHANNEL:  # the panel's test chat: the owner sees the notice where they tested
-        session.add(Message(business_id=business.id, conversation_id=conv.id, role="ai", text=text, created_at=now_utc))
-        return True
-    return deliver_to_chat(session, rt, business, conv, text, now_utc)
+        return None, ""
+    if conv.channel in (TEST_CHANNEL, "web"):
+        # The test chat shows it where the owner tested; the site chat picks up «staff» messages while it is open.
+        session.add(Message(business_id=business.id, conversation_id=conv.id, role="ai" if conv.channel == TEST_CHANNEL else "staff",
+                            text=text, created_at=now_utc))
+        conv.last_message_at = now_utc
+        session.add(conv)
+        return True, ""
+    if deliver_to_chat(session, rt, business, conv, text, now_utc):
+        return True, ""
+    return False, blocked(conv, now_utc) or "Канал не принял сообщение или чат заблокирован."

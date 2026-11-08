@@ -278,12 +278,13 @@ class Order(SQLModel, table=True):
     comment: str = ""
     total: Optional[int] = None  # items + delivery; None when some price is not exact ("от ...")
     delivery_fee: int = 0
-    status: str = "new"  # new | accepted | done | cancelled
+    status: str = "new"  # new | accepted | sent | done | cancelled (joop/order_status.py)
     channel: str = ""
     chat_id: str = ""
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     created_off_hours: bool = False
     crm_id: str = ""  # deal id in amoCRM ("-" = the CRM rejected it), joop/crm.py
+    sent_at: Optional[NaiveDatetime] = None  # marked «В пути» / «Готов к выдаче»: an uncollected pickup counts from here
 
 
 class OrderLine(SQLModel, table=True):
