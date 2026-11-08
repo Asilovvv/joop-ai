@@ -58,6 +58,18 @@ def is_kyrgyz_message(text: str) -> bool:
     return ky >= 1 and ky > ru
 
 
+def chat_is_kyrgyz(texts: list[str]) -> bool:
+    """The chat's language from the customer's messages, newest first: the newest one with any Kyrgyz or Russian
+    words decides. «Асель, 0555 112 233» after «көйнөктүн M өлчөмүн алайын» says nothing, so the chat stays Kyrgyz."""
+    for text in texts:
+        words = _words(text or "")
+        ky = sum(1 for w in words if w in KY_MESSAGE_MARKERS or re.search("[ңөү]", w))
+        ru = sum(1 for w in words if w in RU_MESSAGE_MARKERS)
+        if ky != ru:
+            return ky > ru
+    return False
+
+
 # A reply that claims something was booked, recorded or accepted.
 _CLAIMS = re.compile(
     r"вы записаны|записал[аи]? (?:вас|ваш\w*)|запись (?:принята|оформлена|подтвержден\w*|создана)|"

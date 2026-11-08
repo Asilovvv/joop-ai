@@ -1107,7 +1107,7 @@ def orders_page(request: Request):
         for line in s.exec(select(OrderLine).where(OrderLine.order_id.in_([o.id for o in orders] or [0])).order_by(OrderLine.id)).all():
             lines.setdefault(line.order_id, []).append(line)
         return _render(request, "orders.html", "orders", b, orders=orders, lines=lines, label=order_status.label,
-                       sent_label=order_status.sent_label, channel_names=CHANNEL_NAMES)
+                       sent_label=order_status.sent_label, next_steps=order_status.NEXT, channel_names=CHANNEL_NAMES)
 
 
 @router.post("/panel/orders/{item_id}/status")
@@ -1116,20 +1116,22 @@ def order_move(request: Request, item_id: int, status: str = Form(""), csrf: str
     with new_session() as s:
         b = _business(s, request)
         order = _own(s, Order, item_id, b.id)
-        if status in ORDER_STATUSES and status != order.status:
+        if status == order.status:
+            pass
+        elif not order_status.can_move(order, status):  # a stale tab: another person already moved this order
+            _flash(request, f"Заказ #{order.id} уже «{order_status.label(order)}» — страница обновлена.", "error")
+        else:
             if status == "cancelled":
                 stock.return_for_order(s, order.id, _who(request), utcnow())  # the goods go back on the shelf
-            elif order.status == "cancelled":
-                for note in stock.take_for_order(s, order.id, utcnow(), _who(request)):  # the order is back: so is its claim
-                    _flash(request, note, "error")
             order.status = status
+            if status == "sent":
+                order.sent_at = utcnow()
             s.add(order)
-            sent = order_status.notify(s, _rt(request), b, order, utcnow())  # «где мой заказ» answered before it is asked
+            sent, why = order_status.notify(s, _rt(request), b, order, utcnow())  # «где мой заказ» answered before it is asked
             if sent is not None:
                 _flash(request, f"Заказ #{order.id}: {order_status.label(order)}. " + (
                     "Клиенту отправлено сообщение." if sent else
-                    "Написать клиенту не получилось (прошло больше суток в WhatsApp или чат заблокирован) — позвоните: "
-                    + order.customer_phone), "ok" if sent else "error")
+                    f"Написать клиенту не получилось: {why} Телефон клиента: {order.customer_phone}"), "ok" if sent else "error")
             s.commit()
     return _back("/panel/orders")
 

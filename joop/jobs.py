@@ -14,8 +14,7 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
 
-from .followups import deliver_to_chat
-from .lang import is_kyrgyz_message
+from .followups import _kyrgyz, deliver_to_chat
 from .memberships import phone_key
 from .models import Business, Conversation, Job, Message
 
@@ -114,7 +113,9 @@ def ready_text(business: Business, job: Job, kyrgyz: bool) -> str:
                     "менеджер сиз менен байланышат." + (f" Баасы: {job.price}." if job.price else ""))
         return (f"Ваш заказ №{job.number} готов: {job.item}. Менеджер свяжется с вами, чтобы согласовать день доставки "
                 "и сборки." + (f" К оплате: {job.price}." if job.price else ""))
-    where = ", ".join(x for x in (business.address, business.hours_text) if x)
+    from .order_status import where_to_collect
+
+    where = where_to_collect(business)  # without hours copied from the sign-up example
     if kyrgyz:
         out = f"Сиздин №{job.number} буйрутмаңыз даяр: {job.item}. Алып кетсеңиз болот"
         return out + (f" — {where}." if where else ".") + (f" Баасы: {job.price}." if job.price else "")
@@ -135,9 +136,7 @@ def notify_ready(session: Session, rt: "Runtime", business: Business, job: Job, 
     conv = _chat_for(session, business, job)
     if conv is None:
         return False
-    last = session.exec(select(Message.text).where(Message.conversation_id == conv.id, Message.role == "customer")
-                        .order_by(Message.id.desc())).first()
-    ok = deliver_to_chat(session, rt, business, conv, ready_text(business, job, bool(last) and is_kyrgyz_message(last)), now_utc)
+    ok = deliver_to_chat(session, rt, business, conv, ready_text(business, job, _kyrgyz(session, conv.id)), now_utc)
     if ok:
         job.ready_notified = True
         session.add(job)

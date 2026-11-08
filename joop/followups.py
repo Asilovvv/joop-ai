@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
 
-from .lang import is_kyrgyz_message
+from .lang import chat_is_kyrgyz, is_kyrgyz_message
 from .models import Booking, Business, Conversation, Lead, Message, Service
 from .stats import not_test
 from .timeutil import fmt_slot, utc_to_local
@@ -42,9 +42,9 @@ def _plural(n: int, one: str, few: str, many: str) -> str:
 def _kyrgyz(session: Session, conversation_id: int | None) -> bool:
     if not conversation_id:
         return False
-    m = session.exec(select(Message.text).where(Message.conversation_id == conversation_id, Message.role == "customer")
-                     .order_by(Message.id.desc())).first()
-    return bool(m) and is_kyrgyz_message(m)
+    texts = session.exec(select(Message.text).where(Message.conversation_id == conversation_id, Message.role == "customer")
+                         .order_by(Message.id.desc()).limit(5)).all()
+    return chat_is_kyrgyz(list(texts))
 
 
 def deliver_to_chat(session: Session, rt: "Runtime", business: Business, conv: Conversation | None, text: str,
