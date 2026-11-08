@@ -75,3 +75,38 @@ def test_block_is_per_business_and_not_for_the_test_chat(business, settings, rt)
         token = csrf_of(c.get("/panel/conversations").text)
         assert c.post(f"/panel/conversations/{oid}/block", data={"csrf": token}).status_code == 404
         assert c.post(f"/panel/conversations/{tid}/block", data={"csrf": token}).status_code == 400
+
+
+def test_nothing_joop_starts_reaches_a_blocked_chat_and_no_late_answer(business, rt):
+    """Sixth-plus review (#122-#131), findings 2 and 3: reminders and the after-outage answer skip blocked chats."""
+    from datetime import timedelta
+
+    from joop import recovery
+    from joop.agent.engine import ERROR_REPLY
+    from joop.followups import deliver_to_chat
+    from joop.models import Lead
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        conv = Conversation(business_id=b.id, channel="telegram", chat_id="888", blocked_at=NOW_UTC, last_customer_at=NOW_UTC)
+        s.add(conv)
+        s.commit()
+        assert deliver_to_chat(s, rt, b, conv, "Напоминаем о записи завтра", NOW_UTC) is False
+        s.add(Message(business_id=b.id, conversation_id=conv.id, role="customer", text="?", created_at=NOW_UTC - timedelta(minutes=5)))
+        s.add(Message(business_id=b.id, conversation_id=conv.id, role="ai", text=ERROR_REPLY, created_at=NOW_UTC - timedelta(minutes=5)))
+        s.add(Lead(business_id=b.id, kind="error", conversation_id=conv.id, channel="telegram", created_at=NOW_UTC - timedelta(minutes=5)))
+        s.commit()
+        assert conv.id not in {c.id for c, _ in recovery.waiting(s, b, NOW_UTC)}
+
+
+def test_web_chats_cannot_be_blocked(business, settings, rt):
+    with db.new_session() as s:
+        conv = Conversation(business_id=business.id, channel="web", chat_id="web-abc")
+        s.add(conv)
+        s.commit()
+        cid = conv.id
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        login(c)
+        page = c.get(f"/panel/conversations/{cid}").text
+        assert "В чёрный список" not in page
+        assert c.post(f"/panel/conversations/{cid}/block", data={"csrf": csrf_of(page), "action": "block"}).status_code == 400

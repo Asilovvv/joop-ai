@@ -172,7 +172,7 @@ class Conversation(SQLModel, table=True):
     reviewed_at: Optional[NaiveDatetime] = None  # a person first opened this dialogue in the panel (joop/retention.py)
     followup_at: Optional[NaiveDatetime] = None  # the one follow-up to a customer who asked and went quiet (joop/unfinished.py)
     invited_at: Optional[NaiveDatetime] = None  # last invitation into an empty slot sent from «Пустые окна» (joop/gaps.py)
-    blocked_at: Optional[NaiveDatetime] = None  # staff put this chat on the block list: no AI, no staff notes, no mailings or slot invitations
+    blocked_at: Optional[NaiveDatetime] = None  # staff put this chat on the block list: no AI, no staff notes, nothing Joop starts (followups.deliver_to_chat)
     blocked_by: str = ""
 
     @property

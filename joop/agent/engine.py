@@ -25,6 +25,7 @@ from ..niches import Pack, get_pack
 from ..phone import normalize_phone
 from ..pricing import cost_usd, empty_usage
 from ..slots import claim_slot, free_slots, release_slot, requested_time, seats_left, seats_needed
+from ..security import new_link_code
 from ..stats import TEST_CHANNEL
 from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
@@ -110,6 +111,11 @@ def handle_incoming(
 
     if blocked(session, business.id, incoming.channel, incoming.chat_id):
         return Outcome(skipped="blocked")  # on the block list: not stored, no model, no note to staff
+
+    if incoming.kind == "command":
+        linked = _admin_link(session, business, incoming, now)
+        if linked is not None:  # the alerts code is a secret: never stored as a message, never a «customer»
+            return linked
 
     conv = _get_or_create_conversation(session, business, incoming, now)
 
@@ -537,25 +543,46 @@ def _handle_command(
 ) -> Outcome | None:
     command, _, argument = text.partition(" ")
     command = command.split("@", 1)[0].lower()
-    if command == "/start" and argument.strip().startswith("admin_"):
-        command, argument = "/admin", argument.strip()[len("admin_"):]  # the panel's one-tap link: t.me/<bot>?start=admin_<code>
     if command == "/start":
         reply = (business.greeting or DEFAULT_GREETING).format(name=business.name)
         if free_plan.is_free(get_subscription(session, business.id)):  # on Telegram this greeting is the first contact
             reply = free_plan.with_signature(reply, base_url, False, business.slug)
         _add_message(session, business, conv, "ai", reply, now, off)
         return Outcome(reply=reply)
-    if command == "/admin":
-        code = argument.strip()
-        if incoming.channel == "telegram" and code and business.admin_link_code and hmac.compare_digest(code, business.admin_link_code):
-            ids = [x for x in business.admin_chat_ids.split(",") if x.strip()]
-            if incoming.chat_id not in ids:
-                ids.append(incoming.chat_id)
-            business.admin_chat_ids = ",".join(ids)
-            session.add(business)
-            return Outcome(reply="Готово. Сюда будут приходить уведомления о новых записях и заявках.")
-        return Outcome(reply="Код не подошёл. Код есть в панели управления: «Настройки» → «Уведомления в Telegram».")
     return None  # other slash-texts are answered like normal messages
+
+
+ADMIN_TRIES_PER_DAY = 10  # wrong alerts codes a business accepts per day, from all chats together
+_admin_misses: dict[tuple[int, str], int] = {}
+
+
+def _admin_link(session: Session, business: Business, incoming: IncomingMessage, now: datetime) -> Outcome | None:
+    """/admin <code>, or /start admin_<code> from the panel's one-tap link: this Telegram chat starts getting the alerts.
+
+    Handled before a conversation exists, so the code is never kept in the dialogue history staff can read, and the
+    owner's own tap is not counted as a customer. A used code is replaced at once; wrong codes are capped per day.
+    """
+    command, _, argument = (incoming.text or "").strip().partition(" ")
+    command, argument = command.split("@", 1)[0].lower(), argument.strip()
+    if command == "/start" and argument.startswith("admin_"):
+        argument = argument[len("admin_"):]
+    elif command != "/admin":
+        return None
+    day = (business.id, now.date().isoformat())
+    if _admin_misses.get(day, 0) >= ADMIN_TRIES_PER_DAY:
+        return Outcome(reply="Слишком много попыток. Попробуйте завтра или возьмите новый код в панели.")
+    if incoming.channel == "telegram" and argument and business.admin_link_code and hmac.compare_digest(argument, business.admin_link_code):
+        ids = [x for x in business.admin_chat_ids.split(",") if x.strip()]
+        if incoming.chat_id not in ids:
+            ids.append(incoming.chat_id)
+        business.admin_chat_ids = ",".join(ids)
+        business.admin_link_code = new_link_code()  # a code that worked once cannot be reused by whoever saw it
+        session.add(business)
+        return Outcome(reply="Готово. Сюда будут приходить уведомления о новых записях и заявках.")
+    if len(_admin_misses) > 10000:
+        _admin_misses.clear()
+    _admin_misses[day] = _admin_misses.get(day, 0) + 1
+    return Outcome(reply="Код не подошёл. Код есть в панели управления: «Настройки» → «Уведомления в Telegram».")
 
 
 def pack_offers(business: Business, feature: str) -> bool:

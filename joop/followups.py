@@ -49,8 +49,10 @@ def _kyrgyz(session: Session, conversation_id: int | None) -> bool:
 
 def deliver_to_chat(session: Session, rt: "Runtime", business: Business, conv: Conversation | None, text: str,
                     now_utc: datetime) -> bool:
-    """Send a message the business starts, where the channel allows it, and keep it in the dialogue."""
-    if conv is None or not conv.chat_id:
+    """Send a message the business starts, where the channel allows it, and keep it in the dialogue.
+
+    Nothing goes to a chat on the block list: reminders, review requests, offers and job notices alike."""
+    if conv is None or not conv.chat_id or conv.blocked_at:
         return False
     in_window = bool(conv.last_customer_at and now_utc - conv.last_customer_at < SERVICE_WINDOW)
     if conv.channel != "telegram" and not (conv.channel in {"whatsapp", "instagram"} and in_window):
