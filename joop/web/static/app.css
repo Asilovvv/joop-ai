@@ -122,6 +122,7 @@ code { font-family: var(--mono); font-size: 13px; background: var(--bg); border:
 .chip { font-size: 12px; padding: 4px 9px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
 .chip.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
 .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.table td.full { background: var(--warn-soft); color: var(--warn); font-weight: 600; }  /* a night or date with nothing left (stays.html) */
 
 .list { display: flex; flex-direction: column; }
 .item { padding: 10px 0; border-bottom: 1px solid var(--line); display: flex; gap: 12px; justify-content: space-between; align-items: flex-start; }

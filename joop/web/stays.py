@@ -1,4 +1,4 @@
-"""Panel page "Брони номеров": hotel stays and a two-week occupancy grid."""
+"""Panel page "Брони номеров" ("Брони залов" for a banquet hall): stays and a two-week occupancy grid."""
 
 from __future__ import annotations
 
@@ -43,5 +43,7 @@ def stay_cancel(request: Request, item_id: int, csrf: str = Form("")):
         if stay.status == "booked":
             stays.cancel(s, stay)
             s.commit()
-            _flash(request, f"Бронь {stay.customer_name} отменена, номер на эти даты снова свободен. Гостю сообщите сами.")
+            freed = ("зал на эту дату снова свободен. Клиенту" if get_pack(b.niche).by_day
+                     else "номер на эти даты снова свободен. Гостю")
+            _flash(request, f"Бронь {stay.customer_name} отменена, {freed} сообщите сами.")
     return _back("/panel/stays")
