@@ -26,7 +26,7 @@ from ..phone import normalize_phone
 from ..pricing import cost_usd, empty_usage
 from ..slots import claim_slot, free_slots, release_slot, requested_time, seats_left, seats_needed
 from ..security import new_link_code
-from ..stats import TEST_CHANNEL
+from ..stats import is_test
 from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
@@ -119,7 +119,7 @@ def handle_incoming(
 
     conv = _get_or_create_conversation(session, business, incoming, now)
     if not conv.staff_test and (incoming.staff_test or owner_commands.is_admin_chat(business, incoming.channel, incoming.chat_id)
-                                or _is_test_start(incoming)):
+                                or _is_test_start(business, incoming)):
         conv.staff_test = True  # the owner or staff trying their own bot: answered, but counted nowhere (joop/stats.py)
         session.add(conv)
 
@@ -297,8 +297,8 @@ def _model_reply(
                     outcome.reply += waitlist.waiting_line(is_kyrgyz_message(text))
                 outcome.admin_notes.append(_request_note(conv, request, off))
         else:
-            # The panel's test chat books in Joop only: a test must not put a record into the salon's real journal.
-            client = (get_altegio(business) if get_altegio and business.altegio_location_id and channel != TEST_CHANNEL
+            # A test chat books in Joop only: a test must not put a record into the salon's real journal.
+            client = (get_altegio(business) if get_altegio and business.altegio_location_id and not is_test(conv)
                       else None)
             try:
                 outcome.reply, booking = _try_booking(
@@ -556,12 +556,16 @@ def _handle_command(
     return None  # other slash-texts are answered like normal messages
 
 
-TEST_START = "test"  # t.me/<bot>?start=test, the panel's «Написать боту» link
+TEST_START = "test_"  # t.me/<bot>?start=test_<Business.test_link_code>, the panel's «Написать боту» link
 
 
-def _is_test_start(incoming: IncomingMessage) -> bool:
+def _is_test_start(business: Business, incoming: IncomingMessage) -> bool:
+    """The owner's own chat from the panel link. The code is secret, so a customer cannot mark their own chat a test."""
     command, _, argument = (incoming.text or "").strip().partition(" ")
-    return incoming.kind == "command" and command.split("@", 1)[0].lower() == "/start" and argument.strip() == TEST_START
+    argument = argument.strip()
+    return (incoming.kind == "command" and command.split("@", 1)[0].lower() == "/start" and bool(business.test_link_code)
+            and argument.startswith(TEST_START)
+            and hmac.compare_digest(argument[len(TEST_START):].encode(), business.test_link_code.encode()))
 
 
 ADMIN_TRIES_PER_DAY = 10  # wrong alerts codes a business accepts per day, from all chats together

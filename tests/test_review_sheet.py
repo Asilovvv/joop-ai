@@ -75,3 +75,16 @@ def test_make_refuses_when_there_is_nothing_to_review(tmp_path):
         review_sheet.main(["make", results(tmp_path, dry=True), "--out", str(tmp_path / "x.csv")])
     review_sheet.main(["make", results(tmp_path), "--out", str(tmp_path / "ok.csv")])
     assert len(read_sheet(tmp_path / "ok.csv")) == 2
+
+
+def test_texts_that_look_like_formulas_stay_text_and_score_needs_a_file(tmp_path):
+    doc = {"business_file": "business.example.yaml", "summary": {}, "cases": [
+        {"id": "ky1", "lang": "ky", "turns": ["+996 555 123 456"], "final_reply": "- Чистка — 2 500 сом"}]}
+    p = tmp_path / "results.json"
+    p.write_text(json.dumps(doc, ensure_ascii=False), "utf-8")
+    row = review_rows([str(p)])[0]
+    assert row[2] == "'+996 555 123 456" and row[3] == "'- Чистка — 2 500 сом"  # Excel shows them, does not run them
+    with pytest.raises(SystemExit, match="Which file"):
+        review_sheet.main(["score"])
+    with pytest.raises(SystemExit, match="needs a value"):
+        review_sheet.main(["make", str(p), "--sample"])

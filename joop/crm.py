@@ -134,7 +134,7 @@ def due_items(session: Session, business: Business, now_utc: datetime, base: str
     items: list[Item] = []
     for b in session.exec(select(Booking).where(Booking.business_id == business.id, Booking.crm_id == "",
                                                 Booking.source == "ai", Booking.created_at >= since,
-                                                not_test(Booking)).order_by(Booking.id)).all():
+                                                not_test(Booking, business.id)).order_by(Booking.id)).all():
         what = b.service or "приём"
         lines = [f"Запись через ИИ: {what}, {fmt_slot(b.start)}" + (f", {b.staff_name}" if b.staff_name else ""),
                  f"Канал: {CHANNELS.get(b.channel, b.channel)}"]
@@ -146,14 +146,14 @@ def due_items(session: Session, business: Business, now_utc: datetime, base: str
         items.append(Item(b, _deal(f"Запись: {what} — {fmt_slot(b.start)}", b.customer_name, b.customer_phone, 0,
                                    ["Joop AI", "запись"], pipeline), "\n".join(x for x in lines if x)))
     for x in session.exec(select(Lead).where(Lead.business_id == business.id, Lead.crm_id == "", Lead.kind.in_(LEAD_KINDS),
-                                             Lead.created_at >= since, not_test(Lead)).order_by(Lead.id)).all():
+                                             Lead.created_at >= since, not_test(Lead, business.id)).order_by(Lead.id)).all():
         title = LEAD_KINDS[x.kind]
         lines = [f"{title}: {x.summary}", x.details, f"Канал: {CHANNELS.get(x.channel, x.channel)}" if x.channel else "",
                  _dialogue(base, x.conversation_id)]
         items.append(Item(x, _deal(f"{title}: {x.summary or 'клиент'}"[:120], x.customer_name, x.customer_phone, 0,
                                    ["Joop AI", "заявка"], pipeline), "\n".join(v for v in lines if v)))
     for o in session.exec(select(Order).where(Order.business_id == business.id, Order.crm_id == "",
-                                              Order.created_at >= since, not_test(Order)).order_by(Order.id)).all():
+                                              Order.created_at >= since, not_test(Order, business.id)).order_by(Order.id)).all():
         rows = session.exec(select(OrderLine).where(OrderLine.order_id == o.id)).all()
         lines = [f"{r.name} × {r.quantity}" for r in rows]
         lines += [("Доставка: " + o.address) if o.mode == "delivery" else "Самовывоз",

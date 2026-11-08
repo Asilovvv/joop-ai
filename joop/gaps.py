@@ -99,7 +99,7 @@ def candidates(session: Session, business: Business, now_local: datetime) -> lis
     services = list(session.exec(select(Service).where(Service.business_id == business.id)).all())
     staff_ids = {s.name: s.id for s in session.exec(select(Staff).where(Staff.business_id == business.id, Staff.active == True)).all()}  # noqa: E712
     bookings = session.exec(select(Booking).where(
-        Booking.business_id == business.id, Booking.status == "booked", not_test(Booking),
+        Booking.business_id == business.id, Booking.status == "booked", not_test(Booking, business.id),
     ).order_by(Booking.start.desc())).all()
     by_phone: dict[str, list[Booking]] = {}
     for b in bookings:
