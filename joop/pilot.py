@@ -3,7 +3,8 @@
 These are the rows of the pilot table in the thesis (Chapter 8) and of the founder's own review:
 conversations, how many customer messages came outside working hours, what the AI completed on its own
 (bookings, booking requests, orders, qualified leads), what it handed to people, how often it failed to
-answer and how many of those it answered later, what the model cost, and whether the business pays. Demo businesses of the public site
+answer and how many of those it answered later, how fast the first answer came, what the model cost per reply and per
+conversation, and whether the business pays. Demo businesses of the public site
 and the owners' own test chats (joop/stats.py) are left out.
 """
 
@@ -11,6 +12,7 @@ from __future__ import annotations
 
 import csv
 import io
+import statistics
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -47,6 +49,20 @@ class PilotRow:
     paying: bool = False
     _days: set = field(default_factory=set, repr=False)
     _convs: set = field(default_factory=set, repr=False)
+    _first_reply: list = field(default_factory=list, repr=False)  # seconds from a conversation's first customer message to the first answer
+
+    @property
+    def median_first_reply_s(self) -> int | None:
+        """Median time to the first answer (AI or staff) of a conversation in the period, in seconds."""
+        return round(statistics.median(self._first_reply)) if self._first_reply else None
+
+    @property
+    def handoff_pct(self) -> int | None:
+        return round(100 * self.handoffs / self.conversations) if self.conversations else None
+
+    @property
+    def cost_per_conversation(self) -> float | None:
+        return self.cost_usd / self.conversations if self.conversations else None
 
     @property
     def completed(self) -> int:
@@ -76,12 +92,19 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
             rows[bid] = PilotRow(business=b.name, niche=get_pack(b.niche).label)
         return rows[bid]
 
+    asked: dict[int, datetime] = {}  # conversation -> its first customer message in the period
+    answered: set[int] = set()
     for bid, conv_id, at, off, role, cost in session.exec(select(
             Message.business_id, Message.conversation_id, Message.created_at, Message.off_hours, Message.role, Message.cost_usd,
-    ).where(*in_period)).all():
+    ).where(*in_period).order_by(Message.created_at, Message.id)).all():
         r = row(bid)
         if r is None:
             continue
+        if role == "customer":
+            asked.setdefault(conv_id, at)
+        elif role in ("ai", "staff") and conv_id in asked and conv_id not in answered:
+            answered.add(conv_id)
+            r._first_reply.append(max(0.0, (at - asked[conv_id]).total_seconds()))
         if role == "customer":
             r.customer_messages += 1
             r.off_hours_messages += 1 if off else 0
@@ -122,6 +145,7 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
     ordered = sorted(rows.values(), key=lambda r: (-r.conversations, r.business))
     total = PilotRow(business=f"Итого: {len(ordered)}")
     total.active_days = len(set().union(*(r._days for r in ordered)))  # calendar days with any customer message
+    total._first_reply = [x for r in ordered for x in r._first_reply]
     for f in ("conversations", "customer_messages", "off_hours_messages", "ai_replies", "bookings", "requests",
               "orders", "leads", "handoffs", "failures", "answered_later", "cost_usd"):
         setattr(total, f, sum(getattr(r, f) for r in ordered))
@@ -135,7 +159,8 @@ CSV_COLUMNS = [
     ("customer_messages", "customer_messages"), ("off_hours_messages", "off_hours_messages"), ("off_hours_pct", "off_hours_pct"),
     ("ai_replies", "ai_replies"), ("bookings", "bookings"), ("requests", "requests"), ("orders", "orders"), ("leads", "leads"),
     ("completed", "completed_by_ai"), ("handoffs", "handoffs"), ("failures", "failures"), ("answered_later", "failures_answered_later"), ("cost_usd", "cost_usd"),
-    ("cost_per_reply", "cost_per_reply_usd"), ("status", "status"), ("paying", "paying"),
+    ("cost_per_reply", "cost_per_reply_usd"), ("cost_per_conversation", "cost_per_conversation_usd"),
+    ("handoff_pct", "handoff_pct"), ("median_first_reply_s", "median_first_reply_s"), ("status", "status"), ("paying", "paying"),
 ]
 
 
@@ -148,7 +173,7 @@ def to_csv(rows: list[PilotRow], total: PilotRow) -> str:
         for attr, _ in CSV_COLUMNS:
             v = getattr(r, attr)
             if isinstance(v, float):
-                v = f"{v:.6f}" if attr == "cost_per_reply" else f"{v:.4f}"
+                v = f"{v:.6f}" if attr in ("cost_per_reply", "cost_per_conversation") else f"{v:.4f}"
             values.append("" if v is None else v)
         w.writerow(values)
     return out.getvalue()
