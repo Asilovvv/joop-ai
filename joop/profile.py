@@ -1,7 +1,8 @@
 """Business profiles in YAML: a quick way to load a client's price list, FAQ and rules.
 
 Format (see business.dental.example.yaml): name, description, address, hours, phone, services
-[{name, name_ky, price, duration, note}], faq [{q, q_ky, a}], booking_policy, tone, rules [...].
+[{name, name_ky, price, duration, note, stock}], faq [{q, q_ky, a}], booking_policy, tone, rules [...].
+`stock` makes an item tracked on the «Склад» page (joop/stock.py); 0 means sold out, so the AI does not offer it.
 """
 
 from __future__ import annotations
@@ -73,6 +74,7 @@ def apply_profile(
             continue
         notes = [x for x in (_text(item.get("duration")) and f"длительность {_text(item.get('duration'))}", _text(item.get("note"))) if x]
         price = _text(item.get("price"))
+        stock = int(item["stock"]) if item.get("stock") is not None else None  # pieces on the shelf (joop/stock.py)
         session.add(
             Service(
                 business_id=business.id,
@@ -82,7 +84,9 @@ def apply_profile(
                 price_value=parse_price(price),
                 note="; ".join(notes),
                 category=_text(item.get("category")),
-                available=bool(item.get("available", True)),
+                available=bool(item.get("available", True)) and stock != 0,
+                stock=stock,
+                sold_out=stock == 0,
                 sort=i,
             )
         )

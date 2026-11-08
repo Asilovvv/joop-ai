@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}{{ 'QR-меню' if pack.has('order') else 'Прайс онлайн' }}{% endblock %}
+{% block title %}{{ pack.online_label }}{% endblock %}
 {% block content %}
 <style>svg.qr { width: 100%; height: auto; display: block; }</style>
 <section class="stack">
-  <h1>{{ 'QR-меню' if pack.has('order') else 'Прайс онлайн' }}</h1>
-  <p class="muted">{% if pack.has('booking') %}Ваша публичная страница записи: {{ pack.catalog_label|lower }}, {{ pack.resource_label|lower }}, три ближайших свободных окна и кнопки «написать» во все подключённые каналы — там отвечает ИИ. Ссылку ставьте в шапку Instagram и на табличку. {% endif %}Страница с вашим разделом «{{ pack.catalog_label }}» для телефона: цены, наличие, кнопка заказа в мессенджер. Распечатайте QR-коды на столы, витрину или визитки. Меняете цену или ставите позицию в стоп-лист — страница обновляется сама.</p>
+  <h1>{{ pack.online_label }}</h1>
+  <p class="muted">{% if pack.has('booking') %}Ваша публичная страница записи: {{ pack.catalog_label|lower }}, {{ pack.resource_label|lower }}, три ближайших свободных окна и кнопки «написать» во все подключённые каналы — там отвечает ИИ. Ссылку ставьте в шапку Instagram и на табличку. {% endif %}Страница с вашим разделом «{{ pack.catalog_label }}» для телефона: цены, наличие, кнопка заказа в мессенджер. {% if pack.serves_tables %}Распечатайте QR-коды на столы, витрину или визитки.{% elif pack.has('order') %}Ссылку ставьте в шапку Instagram и в описание Telegram-канала, QR-код — на визитки, пакеты и витрину.{% else %}Распечатайте QR-код на табличку или визитки.{% endif %} Меняете цену или ставите позицию в стоп-лист — страница обновляется сама.</p>
 </section>
 <section class="card">
   <div class="cols" style="align-items: flex-start; gap: 24px; flex-wrap: wrap">
@@ -15,21 +15,21 @@
       <p class="small">Ссылка: {% if business.menu_enabled %}<a class="mono" href="{{ url }}" target="_blank" rel="noopener">{{ url }}</a>{% else %}<span class="mono muted">{{ url }}</span>{% endif %}</p>
       <label>Куда ведёт кнопка «{{ 'Заказать' if pack.has('order') else 'Задать вопрос' }}» (t.me, wa.me или Instagram)
         <input name="chat_url" value="{{ business.menu_chat_url }}" placeholder="https://t.me/ваш_бот"></label>
-      <p class="muted small">Лучше ссылка на вашего Telegram-бота или WhatsApp — там ответит ИИ. Пусто — кнопка ведёт в WhatsApp на телефон компании{% if not business.phone %} (сейчас телефон не указан в настройках){% endif %}. В WhatsApp к сообщению добавится номер стола.</p>
+      <p class="muted small">Лучше ссылка на вашего Telegram-бота или WhatsApp — там ответит ИИ. Пусто — кнопка ведёт в WhatsApp на телефон компании{% if not business.phone %} (сейчас телефон не указан в настройках){% endif %}.{% if pack.serves_tables %} В WhatsApp к сообщению добавится номер стола.{% endif %}</p>
       <div class="actions" style="justify-content: flex-start"><button class="btn small" type="submit">Сохранить</button></div>
     </form>
   </div>
-  {% if example_items or example_people %}<p class="flash">На странице не видны {% if example_items %}позиции из примера ({{ example_items }}){% endif %}{% if example_items and example_people %} и {% endif %}{% if example_people %}{{ pack.resource_label|lower }} из примера ({{ example_people }}){% endif %}: клиенты не должны видеть вымышленные цены и людей. Замените пример своими данными в разделах «{{ pack.catalog_label }}» и «{{ pack.resource_label }}».</p>{% endif %}
+  {% if example_items or example_people %}<p class="flash">На странице не видны {% if example_items %}позиции из примера ({{ example_items }}){% endif %}{% if example_items and example_people %} и {% endif %}{% if example_people %}{{ pack.resource_label|lower }} из примера ({{ example_people }}){% endif %}: клиенты не должны видеть вымышленные {{ 'цены и людей' if example_people else 'цены' }}. Замените пример своими данными {% if example_items and example_people %}в разделах «{{ pack.catalog_label }}» и «{{ pack.resource_label }}»{% elif example_items %}в разделе «{{ pack.catalog_label }}»{% else %}в разделе «{{ pack.resource_label }}»{% endif %}.</p>{% endif %}
   {% if not count %}<p class="flash error">Раздел «{{ pack.catalog_label }}» пуст — заполните его, иначе страница будет пустой.</p>{% endif %}
 </section>
 {% if business.menu_enabled %}
 <section class="card">
   <h2>Печать QR-кодов</h2>
   <form class="row c2" method="get" action="/panel/menu/print" target="_blank">
-    <label>Столов (0 — один общий код)<input name="tables" type="number" min="0" max="60" value="{{ 10 if pack.has('order') else 0 }}"></label>
+    {% if pack.serves_tables %}<label>Столов (0 — один общий код)<input name="tables" type="number" min="0" max="60" value="10"></label>{% else %}<input type="hidden" name="tables" value="0">{% endif %}
     <div class="row-tail"><button class="btn small" type="submit">Открыть лист для печати</button></div>
   </form>
-  <p class="muted small">У каждого стола свой код: на странице будет «Стол 5», и в WhatsApp-сообщение подставится номер стола. Файл для дизайнера: <a href="/m/{{ business.slug }}/qr.svg" target="_blank" rel="noopener">QR в SVG</a>.</p>
+  <p class="muted small">{% if pack.serves_tables %}У каждого стола свой код: на странице будет «Стол 5», и в WhatsApp-сообщение подставится номер стола. {% endif %}Файл для дизайнера: <a href="/m/{{ business.slug }}/qr.svg" target="_blank" rel="noopener">QR в SVG</a>.</p>
 </section>
 {% endif %}
 {% endblock %}
