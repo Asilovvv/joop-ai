@@ -66,6 +66,11 @@ def _rows(session: Session, business: Business) -> tuple[list[Service], list[Sta
     )
 
 
+def example_staff_ids(session: Session, business: Business) -> set[int]:
+    """Staff rows that are still the sign-up example: they are nobody, so they do not count as masters."""
+    return {r.id for r in _rows(session, business)[1]}
+
+
 def left(session: Session, business: Business) -> Left:
     services, staff, faq = _rows(session, business)
     return Left(services=[r.name for r in services], staff=[r.name for r in staff], faq=[r.question for r in faq])

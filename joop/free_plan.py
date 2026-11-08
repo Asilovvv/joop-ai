@@ -27,7 +27,14 @@ def is_free(sub: Subscription | None) -> bool:
 
 
 def active_staff(session: Session, business_id: int) -> list[Staff]:
-    return list(session.exec(select(Staff).where(Staff.business_id == business_id, Staff.active == True)).all())  # noqa: E712
+    """The business's real masters: the sign-up example (Айжан, Нургуль…) is not a second master."""
+    from . import samples
+    from .models import Business
+
+    rows = list(session.exec(select(Staff).where(Staff.business_id == business_id, Staff.active == True)).all())  # noqa: E712
+    business = session.get(Business, business_id)
+    example = samples.example_staff_ids(session, business) if business is not None else set()
+    return [r for r in rows if r.id not in example]
 
 
 def eligible(session: Session, business_id: int) -> bool:
@@ -61,3 +68,13 @@ def clicks(session: Session, business_id: int, since) -> int:
 
 
 TOO_MANY = "На бесплатном тарифе один мастер. Чтобы добавить второго, перейдите на платный тариф в разделе «Оплата»."
+TOO_MANY_EXAMPLE = ("На бесплатном тарифе один мастер, а в примере их несколько. Удалите лишних в разделе «Мастера» — или"
+                    " перейдите на платный тариф в разделе «Оплата».")
+
+
+def breaks_plan(session: Session, business_id: int) -> bool:
+    """On the free plan, a change (already flushed) leaves more than one real master: the AI would stop answering
+    (billing.access_ok), so the change is refused instead."""
+    from . import billing
+
+    return is_free(billing.get_subscription(session, business_id)) and not eligible(session, business_id)

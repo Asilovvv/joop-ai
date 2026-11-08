@@ -145,3 +145,61 @@ def test_signature_link_counts_the_visit_and_the_signup_that_follows(business, r
     with TestClient(create_app(rt.settings, rt, init=False)) as c:
         login(c)
         assert "по вашей подписи на сайт Joop перешли 1 чел." in c.get("/panel/billing").text
+
+
+def test_the_sign_up_example_masters_do_not_count_as_masters(engine):
+    """A new salon gets two example masters; the billing page told a solo owner «у вас больше одного мастера»."""
+    from joop import free_plan
+    from joop.presets import create_business
+
+    with db.new_session() as s:
+        b = create_business(s, slug="lotos", name="Салон Лотос", password="long-password", niche="beauty", demo=True, now_utc=NOW_UTC)
+        s.commit()
+        example = s.exec(select(Staff).where(Staff.business_id == b.id, Staff.active == True)).all()  # noqa: E712
+        assert len(example) >= 2 and free_plan.active_staff(s, b.id) == [] and free_plan.eligible(s, b.id)
+        s.add(Staff(business_id=b.id, name="Алина", role="мастер маникюра"))
+        s.commit()
+        assert [x.name for x in free_plan.active_staff(s, b.id)] == ["Алина"] and free_plan.eligible(s, b.id)
+        s.add(Staff(business_id=b.id, name="Жибек", role="парикмахер"))
+        s.commit()
+        assert not free_plan.eligible(s, b.id)  # two real masters: the paid plan
+        b.example_ok = True  # the owner said the example people are real: then they count
+        s.add(b)
+        s.commit()
+        assert len(free_plan.active_staff(s, b.id)) == len(example) + 2
+
+
+def test_niche_lists_go_by_russian_name_with_other_business_last():
+    from joop.niches import all_packs, picker_packs
+
+    labels = [p.label for p in picker_packs().values()]
+    assert set(picker_packs()) == set(all_packs()) and labels[-1] == "Другой бизнес"
+    assert labels[:-1] == sorted(labels[:-1], key=str.casefold)
+
+
+def test_on_the_free_plan_the_example_cannot_quietly_become_a_second_master(settings, rt, engine):
+    """Otherwise renaming the second example master, or «это наши настоящие данные», stops the AI (access_ok)."""
+    from joop.presets import create_business
+
+    from .test_web import csrf_of
+
+    with db.new_session() as s:
+        b = create_business(s, slug="lotos", name="Салон Лотос", password="long-password", niche="beauty", demo=True, now_utc=NOW_UTC)
+        billing.start_trial(s, b, 14, NOW_UTC)
+        s.commit()
+        bid = b.id
+        first, second = s.exec(select(Staff).where(Staff.business_id == bid).order_by(Staff.id)).all()[:2]
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        page = c.get("/login").text
+        c.post("/login", data={"slug": "lotos", "password": "long-password", "csrf": csrf_of(page)})
+        token = csrf_of(c.get("/panel/billing").text)
+        assert "Вы на бесплатном тарифе" in c.post("/panel/billing/free", data={"csrf": token}).text  # a solo owner, example aside
+        c.post(f"/panel/staff/{first.id}", data={"csrf": token, "name": "Алина", "role": "мастер"})  # her own: fine
+        r = c.post(f"/panel/staff/{second.id}", data={"csrf": token, "name": "Жибек", "role": "мастер"})
+        assert "На бесплатном тарифе один мастер" in r.text
+        r = c.post("/panel/example/ok", data={"csrf": token})
+        assert "в примере их несколько" in r.text
+    with db.new_session() as s:
+        assert s.get(Staff, first.id).name == "Алина" and s.get(Staff, second.id).name == second.name
+        assert not s.get(Business, bid).example_ok
+        assert billing.access_ok(s, bid, NOW_UTC)  # the AI still answers
