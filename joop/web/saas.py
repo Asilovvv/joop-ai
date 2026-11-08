@@ -30,7 +30,7 @@ from ..models import (
     Booking, Business, Conversation, Lead, Message, Order, Partner, PartnerPayout, Payment, Prospect, Service, Slot,
     Subscription, WaitlistEntry,
 )
-from ..niches import all_packs, get_pack
+from ..niches import all_packs, get_pack, picker_packs
 from ..presets import SlugTaken, create_business
 from ..pricing import empty_usage
 from ..slots import release_slot, seats_needed
@@ -89,7 +89,7 @@ def signup_form(request: Request):
         with new_session() as s:
             if partners.find_active(s, ref):
                 request.session["ref"] = ref.strip().lower()
-    packs = {k: p for k, p in all_packs().items()}
+    packs = picker_packs()
     chosen = request.query_params.get("niche", "")
     return _render(request, "signup.html", "signup", None, packs=packs, trial_days=_settings(request).trial_days,
                    chosen=chosen if chosen in packs else "dental")
@@ -823,7 +823,7 @@ def prospects_page(request: Request, status: str = ""):
         items = s.exec(q).all()
         counts = dict(s.exec(select(Prospect.status, func.count()).group_by(Prospect.status)).all())
     return _owner_render(request, "owner_prospects.html", items=items, counts=counts, statuses=PROSPECT_STATUSES,
-                         packs=all_packs(), current=status, base=_settings(request).public_base_url)
+                         packs=picker_packs(), current=status, base=_settings(request).public_base_url)
 
 
 def _prospect_from(row: dict[str, str]) -> Prospect | None:

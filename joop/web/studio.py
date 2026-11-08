@@ -14,7 +14,7 @@ from sqlmodel import select
 from .. import studio
 from ..db import new_session
 from ..models import StudioRequest
-from ..niches import all_packs, get_pack
+from ..niches import all_packs, get_pack, picker_packs
 from ..timeutil import utcnow
 from .app import _back, _check_csrf, _flash, _rt, _settings, templates
 from .saas import _owner, _owner_render, slugify
@@ -29,7 +29,7 @@ def studio_form(request: Request):
 
     s = _settings(request)
     ctx = {"request": request, "csrf": _csrf(request), "flashes": request.session.pop("flash", []), "kinds": studio.KINDS,
-           "packs": {k: p for k, p in all_packs().items()}, "legal_name": s.company_legal_name, "email": s.contact_email,
+           "packs": picker_packs(), "legal_name": s.company_legal_name, "email": s.contact_email,
            "phone": s.contact_phone, "telegram": s.contact_telegram, "updated": "30.10.2026"}
     return templates.TemplateResponse(request, "site_studio.html", ctx)
 

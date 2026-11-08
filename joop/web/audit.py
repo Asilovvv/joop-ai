@@ -13,7 +13,7 @@ from sqlmodel import select
 from .. import audit, health
 from ..db import new_session
 from ..models import Prospect
-from ..niches import all_packs
+from ..niches import all_packs, picker_packs
 from ..timeutil import utcnow
 from .app import _check_csrf, _csrf, _rt, _site, client_ip
 
@@ -24,7 +24,7 @@ COOLDOWN = 30  # seconds between two leads from one browser, as on every other p
 
 def _page(request: Request, **ctx):
     base = {"csrf": _csrf(request), "report": None, "error": "", "work_start": "10:00", "work_end": "20:00", "weekend_off": False,
-            "packs": {k: p for k, p in all_packs().items()}, "token": ""}
+            "packs": picker_packs(), "token": ""}
     base.update(ctx)
     return _site(request, "site_audit.html", **base)
 

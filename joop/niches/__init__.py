@@ -87,6 +87,12 @@ def all_packs() -> dict[str, Pack]:
     return {n: _load(n) for n in names}
 
 
+def picker_packs() -> dict[str, Pack]:
+    """The packs as people choose them: by Russian name, «Другой бизнес» last (all_packs() is by English key)."""
+    packs = all_packs()
+    return dict(sorted(packs.items(), key=lambda kv: (kv[0] == "other", kv[1].label.casefold())))
+
+
 def get_pack(name: str | None) -> Pack:
     packs = all_packs()
     return packs.get(name or "", packs["other"])
