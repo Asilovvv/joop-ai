@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from sqlmodel import Session, select
 
 from .models import Business, Conversation, Message
+from .stats import real_conversation
 
 REAL_CHANNELS = ("telegram", "whatsapp", "instagram", "web")
 # Where the first reply is the first contact. Telegram greets on /start (DEFAULT_GREETING says it is an AI) and the
@@ -55,6 +56,7 @@ def first_live_at(session: Session, business: Business) -> datetime | None:
     """When the first real customer (not the panel's test chat, not the demo on the site) wrote."""
     return session.exec(select(Message.created_at).join(Conversation, Conversation.id == Message.conversation_id).where(
         Message.business_id == business.id, Message.role == "customer", Conversation.channel.in_(REAL_CHANNELS),
+        real_conversation(),  # not the owner trying their own bot either
     ).order_by(Message.id)).first()
 
 
@@ -70,7 +72,7 @@ def week_one_review(session: Session, business: Business, now_utc: datetime, bas
         return None
     since = now_utc - timedelta(hours=24)
     convs = session.exec(select(Conversation).where(
-        Conversation.business_id == business.id, Conversation.channel.in_(REAL_CHANNELS), Conversation.last_message_at >= since,
+        Conversation.business_id == business.id, Conversation.channel.in_(REAL_CHANNELS), real_conversation(), Conversation.last_message_at >= since,
     ).order_by(Conversation.last_message_at.desc()).limit(REVIEW_PER_DAY * 3)).all()
     items = []
     for conv in convs:

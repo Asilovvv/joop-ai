@@ -104,7 +104,7 @@ def cards(session: Session, business: Business) -> dict[str, Card]:
             c.last_contact = conv.last_customer_at
     by_conv = {conv.id: key for key, c in out.items() for conv in c.conversations}
     prices = _prices(session, business.id)
-    for b in session.exec(select(Booking).where(Booking.business_id == business.id, not_test(Booking))).all():
+    for b in session.exec(select(Booking).where(Booking.business_id == business.id, not_test(Booking, business.id))).all():
         key = key_of(b.customer_phone, b.channel, "") or by_conv.get(b.conversation_id or 0, "")
         if not key:
             continue
@@ -116,7 +116,7 @@ def cards(session: Session, business: Business) -> dict[str, Card]:
             c.spend_som += b.paid_som  # what was actually paid beats the price list
         elif b.status == "booked" and b.service and b.service.casefold() in prices:
             c.spend_som += prices[b.service.casefold()]
-    for o in session.exec(select(Order).where(Order.business_id == business.id, Order.status != "cancelled", not_test(Order))).all():
+    for o in session.exec(select(Order).where(Order.business_id == business.id, Order.status != "cancelled", not_test(Order, business.id))).all():
         key = key_of(o.customer_phone, o.channel, "") or by_conv.get(o.conversation_id or 0, "")
         if not key:
             continue

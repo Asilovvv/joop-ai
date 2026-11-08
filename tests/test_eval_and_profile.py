@@ -195,13 +195,14 @@ def test_thesis_table_marks_dry_runs_and_totals_the_sets(tmp_path):
     assert "DRY RUN" not in table
     assert "| hotel | 4 | 3/4 (75.0%) | 1/4 (25.0%) |" in table  # invented facts = the cases that failed
     assert "| business.example | 4 | 3/4 (75.0%) | 0/2 (0.0%) | — |" in table
-    assert "| Total | 8 | 6/8 (75.0%) | 1/6 (16.7%) | — | — | — | 2/2 (100.0%) | 0.0030 |" in table
+    assert "| Total | 8 | 6/8 (75.0%) | 1/6 (16.7%) | — | — | — | 2/2 (100.0%) | 0 | 0.0030 |" in table
 
     d = write("results_spa.json", "/x/joop/niches/spa/demo.yaml", {}, None, dry=True)
     assert "DRY RUN" in thesis_markdown([a, d])
     tex = thesis_latex([write("results_dental_profile.json", "business.dental.example.yaml", {}, None, dry=True)])
     assert tex.startswith("% DRY RUN") and "business.dental.example & 4 & 3/4 (75.0\\%) & --- &" in tex
     assert "\\begin{tabular}" in tex and "\\textbf{Total}" in tex
+    assert "\\multicolumn{10}{|l|}{\\textbf{DRY RUN" in tex  # visible in the PDF, not only a comment
 
 
 def test_thesis_table_skips_files_without_metrics_and_labels_repeats(tmp_path):
@@ -214,3 +215,26 @@ def test_thesis_table_skips_files_without_metrics_and_labels_repeats(tmp_path):
         "cases": 2, "passed": 2, "metrics": {}}, "cases": []}), "utf-8")
     table = thesis_markdown([str(old), str(rep)])
     assert "kyrgyz_fill" not in table and "| hotel (run 2) | 2 | 2/2 (100.0%) |" in table
+
+
+def test_no_answer_fails_every_metric_the_case_checks():
+    """The bilingual fallback names no forbidden fact and looks Kyrgyz; a failed model call must still not count as a pass."""
+    from eval.run_eval import case_metrics
+
+    case = {"must_not_contain": ["бесплатно"], "expect_handoff": False, "expect_lang": "ky"}
+    assert case_metrics(case, ERROR_REPLY, False, False) == {"facts": False, "handoff": False, "kyrgyz": False}
+    assert case_metrics(case, "  ", False, False) == {"facts": False, "handoff": False, "kyrgyz": False}
+
+
+def test_dry_run_refuses_to_write_over_real_results(tmp_path, monkeypatch):
+    import sys
+
+    import pytest
+
+    from eval import run_eval
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["run_eval", DENTAL, str(ROOT / "eval" / "cases_dental.yaml"), "eval/results.json", "--dry-run"])
+    with pytest.raises(SystemExit, match="dry run writes only to eval/dryrun"):
+        run_eval.main()
+    assert not (tmp_path / "eval" / "results.json").exists()

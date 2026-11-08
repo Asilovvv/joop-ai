@@ -31,6 +31,11 @@ def new_link_code() -> str:
     return f"{secrets.randbelow(10**8):08d}"
 
 
+def new_test_code() -> str:
+    """The secret in the panel's «Написать боту» link; Telegram allows A-Z, a-z, 0-9, _ and - in a start payload."""
+    return secrets.token_urlsafe(9)
+
+
 def new_secret() -> str:
     """URL-safe secret, valid as a Telegram webhook secret_token."""
     return secrets.token_urlsafe(24)

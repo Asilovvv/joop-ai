@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 
 from eval.summary import set_name
+from joop.customers import _cell  # a reply starting with «-» or «+996» must stay text in Excel
 
 # Column headers are for the reviewer, so they are in Russian.
 COLUMNS = [
@@ -46,7 +47,7 @@ def review_rows(paths: list[str], sample: int | None = None, seed: int = 2026) -
                 continue
             auto = c.get("metrics", {}).get("kyrgyz")
             rows.append([
-                c["id"], name, "\n".join(c["turns"]), c.get("final_reply", ""),
+                c["id"], name, _cell("\n".join(c["turns"])), _cell(c.get("final_reply", "")),
                 "" if auto is None else (YES if auto else NO), "", "", "", "", "",
             ])
     if sample is not None and sample < len(rows):
@@ -146,6 +147,8 @@ def main(argv: list[str]) -> None:
     def option(name: str) -> str | None:
         if name in rest:
             i = rest.index(name)
+            if i + 1 >= len(rest):
+                sys.exit(f"{name} needs a value")
             value = rest[i + 1]
             del rest[i:i + 2]
             return value
@@ -162,6 +165,8 @@ def main(argv: list[str]) -> None:
     else:
         latex = "--latex" in rest
         files = [a for a in rest if a != "--latex"]
+        if not files:
+            sys.exit("Which file? python -m eval.review_sheet score eval/kyrgyz_review.csv")
         print(render(score(read_sheet(Path(files[0]))), latex), end="")
 
 

@@ -160,7 +160,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/altegio.py` | Altegio integration: prices, team and free times in, bookings out |
 | `joop/crm.py` | amoCRM / Kommo: bookings, requests and orders sent as deals with contact and note |
 | `joop/retention.py` | Retention at 30/90 days and first-week dialogues the owner checked, for the pilot page |
-| `joop/stats.py` | Numbers for the dashboard, reports and the pilot; test chats are left out of all of them and of amoCRM and the API: the panel test chat (`TEST_CHANNEL`) and Telegram chats where the owner or staff try their own bot (`Conversation.staff_test`: the alerts chat, `/start test` from «Каналы», or the web chat in a browser logged in to the panel). The panel chat also never reaches Altegio or reminders; a Telegram test does, so the owner sees them work. Use `not_test()`, `real_conversation()` and `real_messages()` for any new number |
+| `joop/stats.py` | Numbers for the dashboard, reports and the pilot; test chats are left out of all of them and of amoCRM and the API: the panel test chat (`TEST_CHANNEL`) and Telegram chats where the owner or staff try their own bot (`Conversation.staff_test`: the alerts chat, `/start test_<Business.test_link_code>` from «Каналы» (secret, so customers cannot mark their own chat), or the web chat in a browser logged in to the panel). No test reaches Altegio or broadcasts; a Telegram or web test still gets reminders and holds a real slot (prepayment deadlines release it), so the owner sees the flow work. «Считать клиентом» in the dialogue undoes the mark. Use `not_test()`, `real_conversation()` and `real_messages()` for any new number |
 | **Operations** | |
 | `joop/scheduler.py` | Reminders, summaries, weekly, monthly and day-7 reports, broadcast batches, prepayment deadlines, request reminders, amoCRM deals, Altegio sync, daily backup |
 | `joop/stock.py` | Stock for goods sold in the chat: the order checks the count, takes it, returns it on cancel, takes the item off sale at zero, warns at the minimum; recount = inventory with history |
@@ -177,6 +177,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 536 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 541 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |

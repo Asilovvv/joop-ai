@@ -24,8 +24,8 @@
   <h2>Telegram {% if business.telegram_bot_token %}<span class="chip ok">подключён</span>{% endif %}</h2>
   {% if business.telegram_bot_token and business.telegram_bot_username %}
   <p>Ваш бот: <a href="https://t.me/{{ business.telegram_bot_username }}" target="_blank" rel="noopener"><b>@{{ business.telegram_bot_username }}</b></a></p>
-  <p class="row-tail"><a class="btn small" href="https://t.me/{{ business.telegram_bot_username }}?start=test" target="_blank" rel="noopener">Написать боту как клиент</a></p>
-  <p class="small muted">Проверьте настоящего бота со своего телефона. Этот чат помечается как тест: ИИ отвечает как клиенту, но в цифры, отчёты и CRM он не попадает. Так же считается чат, куда приходят уведомления.</p>
+  <p class="row-tail"><a class="btn small" href="https://t.me/{{ business.telegram_bot_username }}?start=test_{{ business.test_link_code }}" target="_blank" rel="noopener">Написать боту как клиент</a></p>
+  <p class="small muted">Проверьте настоящего бота со своего телефона. Этот чат помечается как тест: ИИ отвечает как клиенту, но в цифры, отчёты и CRM он не попадает. Так же считается чат, куда приходят уведомления. Ссылку не пересылайте клиентам: их чат тоже станет тестом.</p>
   {% endif %}
   <p class="small muted">Создайте бота у @BotFather и вставьте его токен. Joop сразу проверит токен у Telegram и подключит бота —
     клиенты пишут ему, ИИ отвечает.</p>
