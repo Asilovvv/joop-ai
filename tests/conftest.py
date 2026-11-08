@@ -131,10 +131,12 @@ def frozen_clock(monkeypatch):
 @pytest.fixture(autouse=True)
 def fresh_counters():
     """In-memory daily counters (signature clicks per address, comment openings, lead cooldown) start empty for every test."""
+    from joop.agent import engine as agent_engine
     from joop.web import app as web_app, audit as web_audit
 
     web_app._daily.clear()
     web_audit._lead_by_ip.clear()
+    agent_engine._admin_misses.clear()
     yield
 
 

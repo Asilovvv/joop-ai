@@ -1453,8 +1453,8 @@ def conversation_block(request: Request, item_id: int, action: str = Form("block
     with new_session() as s:
         b = _business(s, request)
         conv = _own(s, Conversation, item_id, b.id)
-        if conv.channel == TEST_CHANNEL:
-            raise HTTPException(status_code=400)
+        if conv.channel == TEST_CHANNEL or (conv.channel == "web" and action != "unblock"):
+            raise HTTPException(status_code=400)  # a web visitor gets a new id by clearing the browser: a block would not hold
         if action == "unblock":
             conv.blocked_at, conv.blocked_by = None, ""
             _flash(request, "Чат снят с чёрного списка: ИИ снова отвечает.")

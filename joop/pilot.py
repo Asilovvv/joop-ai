@@ -20,6 +20,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from . import billing
+from .agent.engine import ERROR_REPLY, TEXT_ONLY_REPLY
 from .models import Booking, Business, Lead, Message, Order, Subscription
 from .niches import get_pack
 from .stats import TEST_CHANNEL, real_messages
@@ -42,6 +43,7 @@ class PilotRow:
     orders: int = 0
     leads: int = 0  # qualified leads (real estate, wholesale)
     handoffs: int = 0
+    handoff_conversations: int = 0
     failures: int = 0  # the model could not answer; the customer got the fallback
     answered_later: int = 0  # of those, answered by the AI once it worked again (joop/recovery.py)
     cost_usd: float = 0.0
@@ -58,7 +60,8 @@ class PilotRow:
 
     @property
     def handoff_pct(self) -> int | None:
-        return round(100 * self.handoffs / self.conversations) if self.conversations else None
+        """Conversations handed to people, as a share of all conversations (one chat counts once however often)."""
+        return round(100 * self.handoff_conversations / self.conversations) if self.conversations else None
 
     @property
     def cost_per_conversation(self) -> float | None:
@@ -94,15 +97,17 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
 
     asked: dict[int, datetime] = {}  # conversation -> its first customer message in the period
     answered: set[int] = set()
-    for bid, conv_id, at, off, role, cost in session.exec(select(
+    not_an_answer = {ERROR_REPLY, TEXT_ONLY_REPLY}  # fallbacks the customer gets when the AI could not answer
+    for bid, conv_id, at, off, role, cost, text in session.exec(select(
             Message.business_id, Message.conversation_id, Message.created_at, Message.off_hours, Message.role, Message.cost_usd,
+            Message.text,
     ).where(*in_period).order_by(Message.created_at, Message.id)).all():
         r = row(bid)
         if r is None:
             continue
         if role == "customer":
             asked.setdefault(conv_id, at)
-        elif role in ("ai", "staff") and conv_id in asked and conv_id not in answered:
+        elif role in ("ai", "staff") and conv_id in asked and conv_id not in answered and text not in not_an_answer:
             answered.add(conv_id)
             r._first_reply.append(max(0.0, (at - asked[conv_id]).total_seconds()))
         if role == "customer":
@@ -129,6 +134,9 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
         ("orders", count(Order)),
         ("leads", count(Lead, Lead.kind == "lead")),
         ("handoffs", count(Lead, Lead.kind == "handoff")),
+        ("handoff_conversations", dict(session.exec(select(Lead.business_id, func.count(func.distinct(Lead.conversation_id))).where(
+            Lead.created_at >= since_utc, Lead.created_at < until_utc, Lead.channel != TEST_CHANNEL, Lead.kind == "handoff",
+            Lead.conversation_id != None).group_by(Lead.business_id)).all())),  # noqa: E711
         ("failures", count(Lead, Lead.kind == "error")),
         ("answered_later", count(Lead, Lead.kind == "error", Lead.closed_by == LATE)),
     ):
@@ -147,7 +155,7 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
     total.active_days = len(set().union(*(r._days for r in ordered)))  # calendar days with any customer message
     total._first_reply = [x for r in ordered for x in r._first_reply]
     for f in ("conversations", "customer_messages", "off_hours_messages", "ai_replies", "bookings", "requests",
-              "orders", "leads", "handoffs", "failures", "answered_later", "cost_usd"):
+              "orders", "leads", "handoffs", "handoff_conversations", "failures", "answered_later", "cost_usd"):
         setattr(total, f, sum(getattr(r, f) for r in ordered))
     total.status = f"платят: {sum(r.paying for r in ordered)}"
     total.paying = any(r.paying for r in ordered)
