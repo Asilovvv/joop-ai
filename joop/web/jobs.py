@@ -45,7 +45,7 @@ def jobs_page(request: Request, q: str = ""):
         open_rows = [j for j in rows if j.status in {"accepted", "in_progress", "ready"}]
         done_rows = [j for j in rows if j.status not in {"accepted", "in_progress", "ready"}][:50]
         return _render(request, "jobs.html", "jobs", b, open_rows=open_rows, done_rows=done_rows, q=q,
-                       statuses=jobs.STATUSES, next_number=jobs.next_number(s, b.id),
+                       statuses=jobs.statuses(b), next_number=jobs.next_number(s, b.id),
                        example=samples.hidden_from_customers(s, b, "panel").jobs)
 
 
@@ -90,6 +90,6 @@ def job_update(request: Request, item_id: int, status: str = Form(""), note: str
                    "Написать клиенту не получилось (нет чата или прошло больше суток в WhatsApp) — позвоните: " + job.customer_phone),
                    "ok" if sent else "error")
         else:
-            _flash(request, f"Заказ №{job.number}: {jobs.STATUSES[status]}.")
+            _flash(request, f"Заказ №{job.number}: {jobs.statuses(b)[status]}.")
         s.commit()
     return _back("/panel/jobs")
