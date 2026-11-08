@@ -14,7 +14,7 @@ from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
 from .followups import _kyrgyz, send_return_invites, send_review_requests
-from .models import Booking, Business, Conversation, Message, Stay
+from .models import Booking, Business, Conversation, Message, Order, Stay
 from .niches import get_pack
 from .runtime import Runtime
 from .stats import TEST_CHANNEL, activity, not_test, real_messages, test_conversations
@@ -99,6 +99,16 @@ def send_reminders(session: Session, rt: Runtime, business: Business, now_utc: d
     return {"sent": len(bookings) - len(manual), "manual": len(manual)}
 
 
+HOLD = timedelta(hours=24)  # a pickup order older than this and not done: a reserve nobody collected
+
+
+def held_too_long(session: Session, business: Business, now_utc: datetime) -> list[Order]:
+    return list(session.exec(select(Order).where(
+        Order.business_id == business.id, Order.mode == "pickup", Order.status.in_(["new", "accepted", "sent"]),
+        Order.created_at < now_utc - HOLD, not_test(Order, business.id),
+    ).order_by(Order.id)).all())
+
+
 def digest_text(session: Session, business: Business, now_utc: datetime) -> str | None:
     stats = activity(session, business.id, now_utc - timedelta(hours=24))
     now_local = utc_to_local(now_utc, business.timezone)
@@ -126,7 +136,8 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
         return " (тест)" if row.conversation_id in tests else ""
 
     money = cash.digest_line(session, business, now_local)
-    if not stats["conversations"] and not stats["leads"] and not today and not arriving and not money:
+    held = held_too_long(session, business, now_utc) if pack.has("order") else []
+    if not stats["conversations"] and not stats["leads"] and not today and not arriving and not money and not held:
         return None
     if hotel:
         made = f"{'броней залов' if halls else 'броней номеров'} через ИИ {stats['stays']} (в нерабочее время {stats['off_hours_stays']}), "
@@ -147,6 +158,10 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
         lines.append(confirm.digest_line(silent))
     if money:
         lines.append(money)
+    if held:  # a reserve the customer never collected keeps the goods off sale until someone acts
+        lines.append("Самовывоз не забрали больше суток: " + ", ".join(f"№{o.id} ({o.customer_name})" for o in held[:5])
+                     + (f" и ещё {len(held) - 5}" if len(held) > 5 else "")
+                     + " — выдайте или отмените в разделе «Заказы», чтобы товар вернулся в продажу.")
     if hotel and halls:
         if arriving:
             lines.append("Сегодня мероприятия:")
