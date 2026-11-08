@@ -23,7 +23,7 @@ from .followups import _kyrgyz, deliver_to_chat
 from .lang import closing
 from .models import Booking, Business, Conversation, Lead, Message, Order
 from .slots import free_slots
-from .stats import TEST_CHANNEL
+from .stats import real_conversation
 from .timeutil import fmt_slot, is_off_hours, utc_to_local
 
 if TYPE_CHECKING:
@@ -92,7 +92,7 @@ def send_due(session: Session, rt: "Runtime", business: Business, now_utc: datet
 def week_numbers(session: Session, business: Business, since_utc: datetime) -> tuple[int, int]:
     """Follow-ups sent in the period, and bookings made in those conversations after the follow-up."""
     convs = session.exec(select(Conversation).where(
-        Conversation.business_id == business.id, Conversation.followup_at >= since_utc, Conversation.channel != TEST_CHANNEL,
+        Conversation.business_id == business.id, Conversation.followup_at >= since_utc, real_conversation(),
     )).all()
     chased = booked = 0
     for conv in convs:

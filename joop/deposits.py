@@ -25,7 +25,7 @@ from .followups import _kyrgyz, deliver_to_chat
 from .lang import is_kyrgyz_message
 from .models import Booking, Business, Conversation, Slot
 from .slots import release_slot, seats_needed
-from .stats import TEST_CHANNEL
+from .stats import not_test
 from .timeutil import fmt_slot, local_to_utc, utc_to_local
 
 if TYPE_CHECKING:
@@ -167,7 +167,7 @@ def check_deadlines(session: Session, rt: "Runtime", business: Business, now_utc
     """Bookings whose prepayment did not come in time: tell staff, or release them if the business chose so."""
     late = session.exec(select(Booking).where(
         Booking.business_id == business.id, Booking.status == "booked", Booking.deposit_status == "awaiting",
-        Booking.deposit_deadline <= now_utc, Booking.channel != TEST_CHANNEL,  # tests: no notes to staff
+        Booking.deposit_deadline <= now_utc, not_test(Booking),  # tests: no notes to staff
     ).order_by(Booking.id)).all()
     if not late:
         return {}

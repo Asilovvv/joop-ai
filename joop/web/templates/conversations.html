@@ -16,7 +16,7 @@
       </div>
       <div class="actions">
         {% if c.ai_paused_until and c.ai_paused_until > now %}<span class="chip warn">ИИ на паузе</span>{% endif %}
-        <span class="chip">{{ channel_names.get(c.channel, c.channel) }}</span>
+        <span class="chip">{{ channel_names.get(c.channel, c.channel) }}{% if c.staff_test %} · тест{% endif %}</span>
         <span class="muted small">{{ c.last_message_at|local(business.timezone) }}</span>
       </div>
     </a>

@@ -29,7 +29,7 @@ import httpx
 from sqlmodel import Session, select
 
 from .models import Booking, Business, Lead, Order, OrderLine, WebhookDelivery
-from .stats import TEST_CHANNEL
+from .stats import not_test
 
 KEY_PREFIX = "joop_"
 LOOK_BACK = timedelta(days=3)  # events older than this are not sent when webhooks are switched on later
@@ -134,7 +134,7 @@ def _since(value: str) -> datetime | None:
 def rows(session: Session, business: Business, what: str, since: str = "", after_id: int = 0) -> list[dict]:
     """One page of bookings, orders or leads, oldest first, from `since` (UTC ISO) or after an id."""
     model = {"bookings": Booking, "orders": Order, "leads": Lead}[what]
-    query = select(model).where(model.business_id == business.id, model.channel != TEST_CHANNEL, model.id > after_id)
+    query = select(model).where(model.business_id == business.id, not_test(model), model.id > after_id)
     if model is Lead:
         query = query.where(Lead.kind.in_(LEAD_KINDS))
     start = _since(since)
@@ -214,19 +214,19 @@ def _events(session: Session, business: Business, now_utc: datetime) -> list[tup
         WebhookDelivery.business_id == business.id, WebhookDelivery.created_at >= since - LOOK_BACK)).all()
         if d.delivered_at or now_utc - d.created_at >= GIVE_UP}
     out: list[tuple[datetime, str, int, dict]] = []
-    for b in session.exec(select(Booking).where(Booking.business_id == business.id, Booking.channel != TEST_CHANNEL,
+    for b in session.exec(select(Booking).where(Booking.business_id == business.id, not_test(Booking),
                                                 Booking.created_at >= since).order_by(Booking.id)).all():
         if ("booking.created", b.id) not in done:
             out.append((b.created_at, "booking.created", b.id, booking_json(b)))
-    for b in session.exec(select(Booking).where(Booking.business_id == business.id, Booking.channel != TEST_CHANNEL,
+    for b in session.exec(select(Booking).where(Booking.business_id == business.id, not_test(Booking),
                                                 Booking.paid_at >= since, Booking.paid_som > 0).order_by(Booking.id)).all():
         if ("booking.paid", b.id) not in done:
             out.append((b.paid_at, "booking.paid", b.id, booking_json(b)))
-    for o in session.exec(select(Order).where(Order.business_id == business.id, Order.channel != TEST_CHANNEL,
+    for o in session.exec(select(Order).where(Order.business_id == business.id, not_test(Order),
                                               Order.created_at >= since).order_by(Order.id)).all():
         if ("order.created", o.id) not in done:
             out.append((o.created_at, "order.created", o.id, order_json(session, o)))
-    for x in session.exec(select(Lead).where(Lead.business_id == business.id, Lead.channel != TEST_CHANNEL, Lead.kind.in_(LEAD_KINDS),
+    for x in session.exec(select(Lead).where(Lead.business_id == business.id, not_test(Lead), Lead.kind.in_(LEAD_KINDS),
                                              Lead.created_at >= since).order_by(Lead.id)).all():
         if ("lead.created", x.id) not in done:
             out.append((x.created_at, "lead.created", x.id, lead_json(x)))

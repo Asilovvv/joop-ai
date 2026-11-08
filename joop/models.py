@@ -174,6 +174,9 @@ class Conversation(SQLModel, table=True):
     invited_at: Optional[NaiveDatetime] = None  # last invitation into an empty slot sent from «Пустые окна» (joop/gaps.py)
     blocked_at: Optional[NaiveDatetime] = None  # staff put this chat on the block list: no AI, no staff notes, nothing Joop starts (followups.deliver_to_chat)
     blocked_by: str = ""
+    # the owner or staff wrote to their own bot (from the alerts chat, or via the panel's «Написать боту» link):
+    # answered like a customer, but counted nowhere, like the panel's test chat (joop/stats.py)
+    staff_test: bool = False
 
     @property
     def silenced(self) -> bool:
