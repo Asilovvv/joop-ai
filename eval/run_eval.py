@@ -204,6 +204,8 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
     fails = check_case(case, final, lead, handoff, order)
     return {
         "id": case["id"],
+        "turns": list(case["turns"]),  # for the native-speaker review sheet (eval/review_sheet.py)
+        "lang": case.get("expect_lang", ""),
         "passed": not fails,
         "fails": fails,
         "metrics": case_metrics(case, final, lead, handoff, order),
