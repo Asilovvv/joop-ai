@@ -485,3 +485,22 @@ def test_admin_code_is_never_stored_rotates_after_use_and_wrong_codes_are_capped
         out = handle_incoming(s, b, IncomingMessage("telegram", "700", "command", f"/admin {b.admin_link_code}", "x", "w-last"), lambda: None, NOW_UTC)
         assert "Слишком много попыток" in out.reply and "700" not in b.admin_chat_ids  # even the right code waits for tomorrow
     engine._admin_misses.clear()
+
+
+def test_owner_memo_is_printable_filled_and_founder_only(app_client):  # noqa: F811
+    assert signup(app_client).status_code == 303
+    with db.new_session() as s:
+        b = s.exec(select(Business).where(Business.slug == "ak-tish-dent")).one()
+        b.telegram_bot_token, b.telegram_bot_username = "1:x", "aktish_bot"
+        s.add(b)
+        s.commit()
+        bid = b.id
+    app_client.cookies.clear()
+    assert app_client.get(f"/owner/business/{bid}/memo", follow_redirects=False).status_code in (303, 401, 403)
+    owner_login(app_client)
+    page = app_client.get(f"/owner/business/{bid}/memo").text
+    assert "Памятка: Ак-Тиш Дент" in page and "ak-tish-dent" in page and "t.me/aktish_bot" in page and "уже подключён" in page
+    assert "@page" in page and "Первые 15 минут" in page
+    assert "/admin" not in page and "admin_" not in page  # the alerts code is not printed on paper
+    assert f"/owner/business/{bid}/memo" in app_client.get("/owner").text
+    assert app_client.get("/owner/business/999999/memo").status_code == 404
