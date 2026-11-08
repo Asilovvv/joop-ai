@@ -57,7 +57,8 @@ def job_add(request: Request, number: str = Form(""), customer_name: str = Form(
         b = _panel_business(s, request)
         number = number.strip()[:20] or jobs.next_number(s, b.id)
         if not item.strip() or not phone_key(customer_phone):
-            _flash(request, "Укажите, что сдали, и телефон клиента — по ним ИИ найдёт заказ.", "error")
+            what = "что изготавливаем" if get_pack(b.niche).jobs_delivered else "что сдали"
+            _flash(request, f"Укажите, {what}, и телефон клиента — по ним ИИ найдёт заказ.", "error")
             return _back("/panel/jobs")
         if s.exec(select(Job.id).where(Job.business_id == b.id, Job.number == number)).first():
             _flash(request, f"Квитанция №{number} уже есть.", "error")

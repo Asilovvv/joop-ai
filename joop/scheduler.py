@@ -99,13 +99,15 @@ def send_reminders(session: Session, rt: Runtime, business: Business, now_utc: d
     return {"sent": len(bookings) - len(manual), "manual": len(manual)}
 
 
-HOLD = timedelta(hours=24)  # a pickup order older than this and not done: a reserve nobody collected
+HOLD = timedelta(hours=24)  # ready for pickup longer than this: a reserve nobody collected
 
 
 def held_too_long(session: Session, business: Business, now_utc: datetime) -> list[Order]:
+    """Pickup orders marked «Готов к выдаче» more than a day ago. A new or accepted order is not ready yet:
+    the customer was told so, it is not theirs to collect."""
     return list(session.exec(select(Order).where(
-        Order.business_id == business.id, Order.mode == "pickup", Order.status.in_(["new", "accepted", "sent"]),
-        Order.created_at < now_utc - HOLD, not_test(Order, business.id),
+        Order.business_id == business.id, Order.mode == "pickup", Order.status == "sent",
+        Order.sent_at.is_not(None), Order.sent_at < now_utc - HOLD, not_test(Order, business.id),
     ).order_by(Order.id)).all())
 
 
@@ -159,9 +161,10 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
     if money:
         lines.append(money)
     if held:  # a reserve the customer never collected keeps the goods off sale until someone acts
-        lines.append("Самовывоз не забрали больше суток: " + ", ".join(f"№{o.id} ({o.customer_name})" for o in held[:5])
+        lines.append("Готовые заказы не забрали больше суток: " + ", ".join(f"№{o.id} ({o.customer_name})" for o in held[:5])
                      + (f" и ещё {len(held) - 5}" if len(held) > 5 else "")
-                     + " — выдайте или отмените в разделе «Заказы», чтобы товар вернулся в продажу.")
+                     + " — напомните клиенту, выдайте или отмените в разделе «Заказы»"
+                     + (": при отмене товар вернётся на склад." if pack.orders_first else "."))
     if hotel and halls:
         if arriving:
             lines.append("Сегодня мероприятия:")

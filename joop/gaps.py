@@ -22,7 +22,8 @@ from sqlmodel import Session, select
 
 from .followups import SERVICE_WINDOW, _kyrgyz, _service_for, deliver_to_chat
 from .models import Booking, Business, Conversation, Service, Slot, Staff
-from .slots import free_slots
+from . import samples
+from .slots import free_slots, lead_for
 from .stats import is_test, not_test, real_conversation
 from .timeutil import fmt_slot, local_to_utc
 
@@ -98,6 +99,8 @@ def candidates(session: Session, business: Business, now_local: datetime) -> lis
     now_utc = local_to_utc(now_local, business.timezone)
     services = list(session.exec(select(Service).where(Service.business_id == business.id)).all())
     staff_ids = {s.name: s.id for s in session.exec(select(Staff).where(Staff.business_id == business.id, Staff.active == True)).all()}  # noqa: E712
+    example = frozenset(samples.example_staff_ids(session, business))  # sign-up example people: no invitations to them
+    lead = lead_for(business)
     bookings = session.exec(select(Booking).where(
         Booking.business_id == business.id, Booking.status == "booked", not_test(Booking, business.id),
     ).order_by(Booking.start.desc())).all()
@@ -129,9 +132,10 @@ def candidates(session: Session, business: Business, now_local: datetime) -> lis
         else:
             continue
         staff_id = staff_ids.get(last.staff_name or "")
-        pair = free_slots(session, business.id, now_local, days=DAYS, limit=2, staff_id=staff_id) if staff_id else []
+        pair = (free_slots(session, business.id, now_local, days=DAYS, limit=2, staff_id=staff_id, lead_minutes=lead)
+                if staff_id and staff_id not in example else [])
         if not pair:
-            pair = free_slots(session, business.id, now_local, days=DAYS, limit=2)
+            pair = free_slots(session, business.id, now_local, days=DAYS, limit=2, exclude_staff=example, lead_minutes=lead)
         if not pair:
             continue  # nothing to invite into
         slots = [(slot.start, st.name) for slot, st in pair]

@@ -22,7 +22,8 @@ from sqlmodel import Session, select
 from .followups import _kyrgyz, deliver_to_chat
 from .lang import closing
 from .models import Booking, Business, Conversation, Lead, Message, Order
-from .slots import free_slots
+from . import samples
+from .slots import free_slots, lead_for
 from .stats import real_conversation
 from .timeutil import fmt_slot, is_off_hours, utc_to_local
 
@@ -38,7 +39,9 @@ PER_TICK = 20
 
 
 def _text(session: Session, business: Business, conv: Conversation, now_local: datetime) -> str | None:
-    starts = list(dict.fromkeys(slot.start for slot, _ in free_slots(session, business.id, now_local, days=7, limit=40)))[:2]
+    example = frozenset(samples.example_staff_ids(session, business))  # sign-up example people: nobody to book with
+    starts = list(dict.fromkeys(slot.start for slot, _ in free_slots(session, business.id, now_local, days=7, limit=40,
+                                                                     exclude_staff=example, lead_minutes=lead_for(business))))[:2]
     if not starts:
         return None
     times = " или ".join(fmt_slot(at) for at in starts)
