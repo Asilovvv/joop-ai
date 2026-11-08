@@ -45,6 +45,12 @@ class Left:
         return bool(self.services or self.staff or self.faq or self.tests or self.jobs)
 
 
+def _staff_key(name: str, role: str, handles: str, capacity, group_size) -> tuple:
+    """A person, room or hall is the example only while its seats and room count are the example's too:
+    an owner who typed the real capacity of «Большой зал» has made it theirs."""
+    return name, role, handles, int(capacity or 0), max(1, int(group_size or 0))
+
+
 @lru_cache(maxsize=64)
 def _example(niche: str) -> tuple[frozenset, frozenset, frozenset]:
     try:
@@ -52,7 +58,8 @@ def _example(niche: str) -> tuple[frozenset, frozenset, frozenset]:
     except (ProfileError, OSError, KeyError):
         return frozenset(), frozenset(), frozenset()
     services = frozenset((_t(x.get("name")), _t(x.get("price"))) for x in data.get("services") or [])
-    staff = frozenset((_t(x.get("name")), _t(x.get("role")), _t(x.get("handles"))) for x in data.get("resources") or [])
+    staff = frozenset(_staff_key(_t(x.get("name")), _t(x.get("role")), _t(x.get("handles")), x.get("capacity"), x.get("group_size"))
+                      for x in data.get("resources") or [])
     faq = frozenset((_t(x.get("q")), _t(x.get("a"))) for x in data.get("faq") or [])
     return services, staff, faq
 
@@ -130,7 +137,7 @@ def _rows(session: Session, business: Business) -> tuple[list[Service], list[Sta
          if (_t(r.name), _t(r.price)) in services],
         [r for r in session.exec(select(Staff).where(Staff.business_id == business.id, Staff.active == True)  # noqa: E712
                                  .order_by(Staff.id)).all()
-         if (_t(r.name), _t(r.role), _t(r.handles)) in staff],
+         if _staff_key(_t(r.name), _t(r.role), _t(r.handles), r.capacity, r.group_size) in staff],
         [r for r in session.exec(select(Faq).where(Faq.business_id == business.id).order_by(Faq.id)).all()
          if (_t(r.question), _t(r.answer)) in faq],
     )
@@ -158,9 +165,10 @@ class Hidden:
     faq: frozenset[int] = frozenset()
     tests: frozenset[int] = frozenset()
     jobs: frozenset[int] = frozenset()
+    hours: bool = False  # the opening hours are still the example's (hours_are_example)
 
     def __bool__(self) -> bool:
-        return bool(self.services or self.staff or self.faq or self.tests or self.jobs)
+        return bool(self.services or self.staff or self.faq or self.tests or self.jobs or self.hours)
 
 
 def hidden_from_customers(session: Session, business: Business, channel: str) -> Hidden:
@@ -169,7 +177,8 @@ def hidden_from_customers(session: Session, business: Business, channel: str) ->
         return Hidden()
     services, staff, faq = _rows(session, business)
     return Hidden(frozenset(r.id for r in services), frozenset(r.id for r in staff), frozenset(r.id for r in faq),
-                  frozenset(x.id for x in _tests(session, business)), frozenset(j.id for j in _jobs(session, business)))
+                  frozenset(x.id for x in _tests(session, business)), frozenset(j.id for j in _jobs(session, business)),
+                  hours_are_example(business))
 
 
 def warning(found: Left) -> str:

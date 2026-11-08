@@ -28,8 +28,11 @@ def stays_page(request: Request):
     with new_session() as s:
         b = _panel_business(s, request)
         today = _now_local(b).date()
-        upcoming = s.exec(select(Stay).where(Stay.business_id == b.id, Stay.check_out >= today).order_by(Stay.check_in)).all()
-        grid = stays.occupancy(s, b.id, today, 14)
+        halls = get_pack(b.niche).by_day
+        # A hall's check_out is the day after the event: yesterday's wedding is not upcoming. A hotel guest leaving today is.
+        ahead = Stay.check_in >= today if halls else Stay.check_out >= today
+        upcoming = s.exec(select(Stay).where(Stay.business_id == b.id, ahead).order_by(Stay.check_in)).all()
+        grid = stays.occupancy(s, b.id, today, 14, stays.HALL_UNITS if halls else None)
         return _render(request, "stays.html", "stays", b, upcoming=upcoming, grid=grid,
                        days=[today + timedelta(days=i) for i in range(14)])
 

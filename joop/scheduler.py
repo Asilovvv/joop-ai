@@ -17,7 +17,7 @@ from .followups import _kyrgyz, send_return_invites, send_review_requests
 from .models import Booking, Business, Conversation, Message, Stay
 from .niches import get_pack
 from .runtime import Runtime
-from .stats import TEST_CHANNEL, activity, not_test, real_messages
+from .stats import TEST_CHANNEL, activity, not_test, real_messages, test_conversations
 from .timeutil import fmt_slot, utc_to_local, utcnow
 
 log = logging.getLogger(__name__)
@@ -118,17 +118,26 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
     hotel, halls = pack.has("stay"), pack.by_day
     arriving = session.exec(select(Stay).where(  # a hotel's day: who checks in; a hall's: today's events (joop/stays.py)
         Stay.business_id == business.id, Stay.status == "booked", Stay.check_in == now_local.date(),
-        Stay.channel != TEST_CHANNEL,
+        Stay.channel != TEST_CHANNEL,  # like today's visits: a Telegram test booking holds a real date (PR #141)
     ).order_by(Stay.id)).all() if hotel else []
+    tests = set(session.exec(test_conversations(business.id)).all()) if today or arriving else set()
+
+    def mark(row) -> str:  # the owner's own test chats: listed, because they hold a real time or date
+        return " (тест)" if row.conversation_id in tests else ""
+
     money = cash.digest_line(session, business, now_local)
     if not stats["conversations"] and not stats["leads"] and not today and not arriving and not money:
         return None
-    made = (f"{'броней залов' if halls else 'броней номеров'} через ИИ {stats['stays']} (в нерабочее время {stats['off_hours_stays']})" if hotel
-            else f"записей через ИИ {stats['bookings']} (в нерабочее время {stats['off_hours_bookings']})")
+    if hotel:
+        made = f"{'броней залов' if halls else 'броней номеров'} через ИИ {stats['stays']} (в нерабочее время {stats['off_hours_stays']}), "
+    elif pack.orders_first:  # a shop: its results are orders; it has no bookings to count
+        made = f"заказов через ИИ {stats['orders']}, "
+    else:
+        made = f"записей через ИИ {stats['bookings']} (в нерабочее время {stats['off_hours_bookings']}), "
     lines = [
         f"Сводка «{business.name}» на {now_local:%d.%m}",
         f"За сутки: диалогов {stats['conversations']} (в нерабочее время {stats['off_hours_conversations']}), "
-        f"{made}, заявок администратору {stats['leads']}.",
+        f"{made}заявок администратору {stats['leads']}.",
     ]
     still_open = nudges.open_count(session, business, now_utc)
     if still_open:
@@ -141,21 +150,21 @@ def digest_text(session: Session, business: Business, now_utc: datetime) -> str 
     if hotel and halls:
         if arriving:
             lines.append("Сегодня мероприятия:")
-            lines += [f"{st.room_name} — {st.customer_name}, {st.customer_phone}, гостей: {st.guests}" for st in arriving]
+            lines += [f"{st.room_name} — {st.customer_name}, {st.customer_phone}, гостей: {st.guests}{mark(st)}" for st in arriving]
         else:
             lines.append("Мероприятий на сегодня в системе нет.")
     elif hotel:
         if arriving:
             lines.append("Сегодня заезжают:")
-            lines += [f"{st.customer_name}, {st.customer_phone} — {st.room_name}, гостей: {st.guests}, до {st.check_out:%d.%m}"
+            lines += [f"{st.customer_name}, {st.customer_phone} — {st.room_name}, гостей: {st.guests}, до {st.check_out:%d.%m}{mark(st)}"
                       for st in arriving]
         else:
             lines.append("Заездов на сегодня в системе нет.")
     elif today:
         lines.append("Сегодня записаны:")
         lines += [f"{b.start:%H:%M} — {b.customer_name}, {b.customer_phone} — {b.service or 'приём'} ({b.staff_name})"
-                  + (" ✓" if b.confirmed_at else "") for b in today]
-    else:
+                  + (" ✓" if b.confirmed_at else "") + mark(b) for b in today]
+    elif pack.has("booking"):
         lines.append("Записей на сегодня в системе нет.")
     return "\n".join(lines)
 
@@ -181,7 +190,7 @@ def weekly_report_text(session: Session, business: Business, now_utc: datetime) 
     if st["orders"]:
         parts.append(f"заказов {st['orders']}")
     if st["qualified"]:
-        parts.append(f"заявок с бюджетом и сроками {st['qualified']}")
+        parts.append(f"заявок с ответами на вопросы {st['qualified']}")
     if parts:
         lines.append("Оформил: " + ", ".join(parts) + ".")
     questions = st["leads"] - st["qualified"]
