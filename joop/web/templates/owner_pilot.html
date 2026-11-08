@@ -22,7 +22,7 @@
   <div class="scroll"><table class="table">
     <thead><tr>
       <th>Компания</th><th>Дней с сообщениями</th><th>Диалогов</th><th>Сообщений клиентов</th><th>Из них в нерабочее время</th>
-      <th>Сделал ИИ сам</th><th>Передал людям</th><th>Сбоев ИИ</th><th>Расход на ИИ</th><th>Подписка</th>
+      <th>Сделал ИИ сам</th><th>Передал людям</th><th>Первый ответ (медиана)</th><th>Сбоев ИИ</th><th>Расход на ИИ</th><th>Подписка</th>
     </tr></thead>
     <tbody>
     {% for r in rows + [total] %}
@@ -33,9 +33,10 @@
         <td>{{ r.customer_messages }}</td>
         <td>{{ r.off_hours_messages }}{% if r.off_hours_pct is not none %} ({{ r.off_hours_pct }}%){% endif %}</td>
         <td>{{ r.completed }}<br><span class="muted small">записи {{ r.bookings }} · заявки {{ r.requests }} · заказы {{ r.orders }} · лиды {{ r.leads }}</span></td>
-        <td>{{ r.handoffs }}</td>
+        <td>{{ r.handoffs }}{% if r.handoff_pct is not none %} ({{ r.handoff_pct }}% диалогов){% endif %}</td>
+        <td>{% if r.median_first_reply_s is none %}—{% elif r.median_first_reply_s < 60 %}{{ r.median_first_reply_s }} с{% elif r.median_first_reply_s < 3600 %}{{ (r.median_first_reply_s / 60) | round(1) }} мин{% else %}{{ (r.median_first_reply_s / 3600) | round(1) }} ч{% endif %}</td>
         <td>{{ r.failures }}{% if r.failures %}<br><span class="muted small">ответил позже: {{ r.answered_later }}</span>{% endif %}</td>
-        <td>${{ '%.2f' | format(r.cost_usd) }}{% if r.cost_per_reply is not none %}<br><span class="muted small">${{ '%.5f' | format(r.cost_per_reply) }} за ответ</span>{% endif %}</td>
+        <td>${{ '%.2f' | format(r.cost_usd) }}{% if r.cost_per_reply is not none %}<br><span class="muted small">${{ '%.5f' | format(r.cost_per_reply) }} за ответ</span>{% endif %}{% if r.cost_per_conversation is not none %}<br><span class="muted small">${{ '%.4f' | format(r.cost_per_conversation) }} за диалог</span>{% endif %}</td>
         <td>{{ r.status }}</td>
       </tr>
     {% endfor %}
