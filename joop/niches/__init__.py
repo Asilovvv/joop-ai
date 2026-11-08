@@ -14,7 +14,8 @@ import yaml
 
 PACKS_DIR = Path(__file__).parent
 OUTCOMES = {"booking", "request", "order", "lead", "handoff", "stay"}  # stay: dates of a room or hall, joop/stays.py
-STAY_BY = {"night", "day"}  # a hotel books nights (check-in to check-out), a banquet hall books one date
+# A hotel books nights (check-in to check-out), a banquet hall books one date, car rental books days from pickup to return.
+STAY_BY = {"night", "day", "rental"}
 # Optional modules a pack switches on: level_test (joop/placement.py), group_classes (slots with several
 # seats), memberships (passes and packages of visits, joop/memberships.py), jobs (order status for items
 # left for work, joop/jobs.py).
@@ -60,6 +61,16 @@ class Pack:
     def online_label(self) -> str:
         """The panel's name for the public price page (joop/web/menu.py)."""
         return "QR-меню" if self.serves_tables else "Каталог онлайн" if self.has("order") else "Прайс онлайн"
+
+    @property
+    def stay_noun(self) -> str:
+        """What is booked, in «Брони …» and «броней … сделал ИИ»."""
+        return {"day": "залов", "rental": "машин"}.get(self.stay_by, "номеров")
+
+    @property
+    def rental(self) -> bool:
+        """Stays are rentals of a vehicle (car hire): days from pickup to return, no guests."""
+        return self.stay_by == "rental"
 
     @property
     def by_day(self) -> bool:

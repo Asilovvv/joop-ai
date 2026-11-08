@@ -3,9 +3,9 @@
 {% block content %}
 <section class="stack">
   <h1>{{ pack.resource_label }}</h1>
-  <p class="muted">{% if pack.by_day %}Каждая строка — зал, «Мест» — сколько гостей он вмещает. По ним ИИ выбирает зал под число гостей и проверяет, свободна ли дата: в один зал одна бронь на дату.{% elif pack.has('stay') %}Каждая строка — тип номера: «Номеров этого типа» — сколько таких номеров, «Мест» — сколько гостей в номере. По ним ИИ проверяет свободные номера на каждую ночь.{% else %}По полю «Принимает» ИИ выбирает, к кому записать{% if business.niche in ('dental', 'clinic') %}: например, «удаление зубов, импланты»{% elif business.niche == 'beauty' %}: например, «маникюр, педикюр»{% else %} — впишите, чем занимается этот человек, группа или зал{% endif %}.{% endif %}{% if pack.offers('group_classes') %} Для группового занятия укажите «Мест в группе» (например, 12): в одно окно запишутся до 12 человек.{% endif %}</p>
+  <p class="muted">{% if pack.by_day %}Каждая строка — зал, «Мест» — сколько гостей он вмещает. По ним ИИ выбирает зал под число гостей и проверяет, свободна ли дата: в один зал одна бронь на дату.{% elif pack.rental %}Каждая строка — модель машины: «Машин этой модели» — сколько таких машин, «Мест» — сколько мест в салоне. По ним ИИ проверяет, есть ли свободная машина на каждые сутки.{% elif pack.has('stay') %}Каждая строка — тип номера: «Номеров этого типа» — сколько таких номеров, «Мест» — сколько гостей в номере. По ним ИИ проверяет свободные номера на каждую ночь.{% else %}По полю «Принимает» ИИ выбирает, к кому записать{% if business.niche in ('dental', 'clinic') %}: например, «удаление зубов, импланты»{% elif business.niche == 'beauty' %}: например, «маникюр, педикюр»{% else %} — впишите, чем занимается этот человек, группа или зал{% endif %}.{% endif %}{% if pack.offers('group_classes') %} Для группового занятия укажите «Мест в группе» (например, 12): в одно окно запишутся до 12 человек.{% endif %}</p>
 </section>
-{% with ex_what=("эти залы" if pack.by_day else "эти номера") if pack.has('stay') else "этих людей и их время", ex_action="/panel/staff/example/delete", ex_add="Добавить: " ~ pack.resource_item %}{% include "_example_banner.html" %}{% endwith %}
+{% with ex_what=("эти залы" if pack.by_day else "эти машины" if pack.rental else "эти номера") if pack.has('stay') else "этих людей и их время", ex_action="/panel/staff/example/delete", ex_add="Добавить: " ~ pack.resource_item %}{% include "_example_banner.html" %}{% endwith %}
 <section class="card">
   {% for r in rows %}
   {% if r.id in example %}<p class="small"><span class="chip warn">пример</span></p>{% endif %}
@@ -16,7 +16,7 @@
     <input name="handles" value="{{ r.handles }}" aria-label="Принимает" placeholder="что принимает">
     {% if pack.party_size %}<input name="capacity" type="number" min="0" value="{{ r.capacity }}" aria-label="Мест" title="Мест">{% endif %}
     {% if pack.offers('group_classes') %}<input name="group_size" type="number" min="0" max="500" value="{{ r.group_size }}" aria-label="Мест в группе" title="Мест в группе: 0 — индивидуально">{% endif %}
-    {% if pack.has('stay') and not pack.by_day %}<input name="group_size" type="number" min="1" max="500" value="{{ r.group_size or 1 }}" aria-label="Номеров этого типа" title="Номеров этого типа">{% endif %}
+    {% if pack.has('stay') and not pack.by_day %}<input name="group_size" type="number" min="1" max="500" value="{{ r.group_size or 1 }}" aria-label="{{ 'Машин этой модели' if pack.rental else 'Номеров этого типа' }}" title="{{ 'Машин этой модели' if pack.rental else 'Номеров этого типа' }}">{% endif %}
     <div class="row-tail">
       <button class="btn small ghost" type="submit">Сохранить</button>
       <button class="btn small danger" type="submit" formaction="/panel/staff/{{ r.id }}/delete">Убрать</button>
@@ -33,7 +33,7 @@
     <input name="handles" placeholder="Принимает: …">
     {% if pack.party_size %}<input name="capacity" type="number" min="0" placeholder="Мест">{% endif %}
     {% if pack.offers('group_classes') %}<input name="group_size" type="number" min="0" max="500" placeholder="Мест в группе" title="0 — индивидуально">{% endif %}
-    {% if pack.has('stay') and not pack.by_day %}<input name="group_size" type="number" min="1" max="500" placeholder="Номеров этого типа">{% endif %}
+    {% if pack.has('stay') and not pack.by_day %}<input name="group_size" type="number" min="1" max="500" placeholder="{{ 'Машин этой модели' if pack.rental else 'Номеров этого типа' }}">{% endif %}
     <div class="row-tail"><button class="btn small" type="submit">Добавить</button></div>
   </form>
 </section>

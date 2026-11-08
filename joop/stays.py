@@ -1,4 +1,4 @@
-"""Stays: hotel nights, or the date of a banquet hall, booked atomically.
+"""Stays: hotel nights, the date of a banquet hall, or the days of a car rental, booked atomically.
 
 A room type is a resource (Staff): `group_size` = how many such rooms, `capacity` = guests per room.
 Each booked night of each room is a RoomNight row with a unique (room type, night, unit) key, so two
@@ -6,6 +6,8 @@ customers can never get the last room for the same night, even at the same momen
 
 A pack with `stay_by: day` (banquet halls) books single dates: a hall is a "room type" of one unit, an
 event is one RoomNight on its date, and the customer-facing words speak of halls and dates, not nights.
+A pack with `stay_by: rental` (car hire) books like a hotel — a car model is a "room type" with a number of cars,
+each rented day is a RoomNight — but speaks of cars, pickup and return, and has no guests.
 """
 
 from __future__ import annotations
@@ -54,6 +56,51 @@ HALL_UNITS = 1  # a banquet hall is one hall on a date, whatever room count it k
 
 def by_day(business: Business) -> bool:
     return get_pack(business.niche).by_day
+
+
+@dataclass(frozen=True)
+class Words:
+    """What the customer and the staff read for night-based stays: a hotel's rooms or a car hire's cars."""
+    header: str
+    per_type: str
+    seats: str
+    none_line: str
+    ask_dates: str
+    too_long: str
+    which: str
+    too_many: str
+    taken: str
+    no_free: str
+    choose: str
+    confirm: str
+    note_title: str
+    note_tail: str
+
+
+HOTEL_WORDS = Words(
+    header="Номера", per_type="номеров такого типа", seats=", до {n} гостей",
+    none_line="- номеров в данных нет: бронь не оформляй, возьми телефон и передай администратору.",
+    ask_dates="Уточните, пожалуйста, даты заезда и выезда.",
+    too_long=f"Онлайн можно забронировать до {MAX_NIGHTS} ночей; для долгого проживания администратор свяжется с вами.",
+    which="Какой номер вам подходит? ", too_many="«{name}» рассчитан на {n} гостей. ", taken="На {dates} «{name}» уже занят. ",
+    no_free="На {dates} свободных номеров нет. Оставьте телефон — администратор предложит варианты.", choose="Какой выбираете?",
+    confirm="Забронировала «{name}» на {dates}, гостей: {guests}. Администратор свяжется с вами насчёт оплаты.",
+    note_title="Новая бронь номера через ИИ", note_tail="Свяжитесь с гостем насчёт оплаты.",
+)
+CAR_WORDS = Words(
+    header="Машины", per_type="машин этой модели", seats=", мест: {n}",
+    none_line="- машин в данных нет: бронь не оформляй, возьми телефон и передай менеджеру.",
+    ask_dates="Уточните, пожалуйста, даты получения и возврата машины.",
+    too_long=f"Онлайн можно забронировать до {MAX_NIGHTS} суток; для долгой аренды менеджер свяжется с вами.",
+    which="Какая машина вам подходит? ", too_many="В «{name}» {n} мест. ", taken="На {dates} свободных «{name}» нет. ",
+    no_free="На {dates} свободных машин нет. Оставьте телефон — менеджер предложит варианты.", choose="Какую выбираете?",
+    confirm="Забронировала «{name}» на {dates}. Менеджер свяжется с вами насчёт залога и документов.",
+    note_title="Новая бронь машины через ИИ", note_tail="Свяжитесь с клиентом насчёт залога и документов.",
+)
+
+
+def words(business: Business) -> Words:
+    return CAR_WORDS if get_pack(business.niche).rental else HOTEL_WORDS
 
 
 def taken_dates(session: Session, room: Staff, start: date, days: int, units: int | None = None) -> list[date]:
@@ -107,7 +154,7 @@ def book(session: Session, business: Business, conv: Conversation, data: dict, r
     if day and check_in:
         check_out = check_in + timedelta(days=1)  # one event = one date, whatever the model wrote as check_out
     if not check_in or not check_out or check_out <= check_in:
-        return StayResult("Уточните, пожалуйста, дату мероприятия." if day else "Уточните, пожалуйста, даты заезда и выезда.")
+        return StayResult("Уточните, пожалуйста, дату мероприятия." if day else words(business).ask_dates)
     asked_year = check_in.year
     check_in, check_out = roll_year(session, conv, check_in, check_out, today)
     if check_in < today or check_in > today + timedelta(days=MAX_AHEAD_DAYS):
@@ -115,16 +162,17 @@ def book(session: Session, business: Business, conv: Conversation, data: dict, r
                           + ("дату." if day else "даты."))
     if day:
         return _book_date(session, business, conv, data, reply, check_in, asked_year, now_utc, off, channel, name, phone, hidden)
+    w = words(business)
     if (check_out - check_in).days > MAX_NIGHTS:
-        return StayResult(f"Онлайн можно забронировать до {MAX_NIGHTS} ночей; для долгого проживания администратор свяжется с вами.")
+        return StayResult(w.too_long)
     room = session.get(Staff, data.get("room_id")) if data.get("room_id") else None
     if room is None or room.business_id != business.id or not room.active or room.id in hidden:
-        return StayResult("Какой номер вам подходит? " + _options(session, business, check_in, check_out, data.get("guests") or 1, hidden))
+        return StayResult(w.which + _options(session, business, check_in, check_out, data.get("guests") or 1, hidden))
     guests = max(1, int(data.get("guests") or 1))
     if room.capacity and guests > room.capacity:
-        return StayResult(f"«{room.name}» рассчитан на {room.capacity} гостей. " + _options(session, business, check_in, check_out, guests, hidden))
+        return StayResult(w.too_many.format(name=room.name, n=room.capacity) + _options(session, business, check_in, check_out, guests, hidden))
     if free_rooms(session, room, check_in, check_out) <= 0:
-        return StayResult(f"На {_fmt(check_in)}–{_fmt(check_out)} «{room.name}» уже занят. "
+        return StayResult(w.taken.format(dates=f"{_fmt(check_in)}–{_fmt(check_out)}", name=room.name)
                           + _options(session, business, check_in, check_out, guests, hidden))
     stay = Stay(business_id=business.id, staff_id=room.id, room_name=room.name, check_in=check_in, check_out=check_out,
                 guests=guests, customer_name=name, customer_phone=phone, conversation_id=conv.id, channel=channel,
@@ -142,8 +190,7 @@ def book(session: Session, business: Business, conv: Conversation, data: dict, r
         return StayResult(f"Извините, «{room.name}» на эти даты только что заняли. "
                           + _options(session, business, check_in, check_out, guests, hidden))
     if check_in.year != asked_year and str(asked_year) in reply:  # the model's confirmation names the wrong year
-        reply = (f"Забронировала «{room.name}» на {_fmt(check_in)}–{_fmt(check_out)}, гостей: {guests}. "
-                 "Администратор свяжется с вами насчёт оплаты.")
+        reply = w.confirm.format(name=room.name, dates=f"{_fmt(check_in)}–{_fmt(check_out)}", guests=guests)
     return StayResult(reply, stay)
 
 
@@ -190,9 +237,10 @@ def _options(session: Session, business: Business, check_in: date, check_out: da
              hidden: frozenset[int] = frozenset()) -> str:
     fits = [r for r in room_types(session, business.id, hidden)
             if (not r.capacity or r.capacity >= guests) and free_rooms(session, r, check_in, check_out) > 0]
+    w, dates = words(business), f"{_fmt(check_in)}–{_fmt(check_out)}"
     if not fits:
-        return f"На {_fmt(check_in)}–{_fmt(check_out)} свободных номеров нет. Оставьте телефон — администратор предложит варианты."
-    return f"Свободно на {_fmt(check_in)}–{_fmt(check_out)}: " + "; ".join(r.name for r in fits[:4]) + ". Какой выбираете?"
+        return w.no_free.format(dates=dates)
+    return f"Свободно на {dates}: " + "; ".join(r.name for r in fits[:4]) + ". " + w.choose
 
 
 def cancel(session: Session, stay: Stay) -> None:
@@ -222,13 +270,14 @@ SHOWN_DATES = 40  # taken dates of one hall listed in the prompt
 def prompt_lines(session: Session, business: Business, today: date, hidden: frozenset[int] = frozenset()) -> list[str]:
     if by_day(business):
         return _hall_lines(session, business, today, hidden)
-    lines = ["", f"Номера (номер в квадратных скобках — room_id; сегодня {today:%Y-%m-%d}):"]
+    w = words(business)
+    lines = ["", f"{w.header} (номер в квадратных скобках — room_id; сегодня {today:%Y-%m-%d}):"]
     rooms = room_types(session, business.id, hidden)
     for r in rooms:
-        cap = f", до {r.capacity} гостей" if r.capacity else ""
-        lines.append(f"- [{r.id}] {r.name}{cap}, номеров такого типа: {rooms_of(r)}")
+        cap = w.seats.format(n=r.capacity) if r.capacity else ""
+        lines.append(f"- [{r.id}] {r.name}{cap}, {w.per_type}: {rooms_of(r)}")
     if not rooms:
-        lines.append("- номеров в данных нет: бронь не оформляй, возьми телефон и передай администратору.")
+        lines.append(w.none_line)
     return lines
 
 
@@ -265,9 +314,18 @@ HALL_RULE = ("Бронь зала: узнай дату мероприятия, �
              "В reply подтверди зал и дату так, как в stay: бронь предварительная, менеджер свяжется насчёт предоплаты и меню.")
 
 
+CAR_FORMAT = ('"stay": null или {"room_id": номер машины из списка машин, "check_in": "ГГГГ-ММ-ДД" — день получения, '
+              '"check_out": "ГГГГ-ММ-ДД" — день возврата, "guests": 1, "name": "имя", "phone": "телефон"}')
+CAR_RULE = ("Бронь машины: узнай даты получения и возврата, машину, имя и телефон; спрашивай только то, чего не хватает. "
+            "Когда всё есть, заполни stay (даты в формате ГГГГ-ММ-ДД; если месяц в этом году уже прошёл — следующий год). "
+            "Наличие проверит система: если машина свободна, бронь сохранится, иначе система сама предложит варианты. "
+            "В reply подтверди машину и даты так, как в stay, и напиши, что менеджер свяжется насчёт залога и документов.")
+
+
 def stay_format(pack: Pack) -> str:
-    return HALL_FORMAT if pack.by_day else STAY_FORMAT
+    return HALL_FORMAT if pack.by_day else CAR_FORMAT if pack.rental else STAY_FORMAT
 
 
 def rule(business: Business) -> str:
-    return HALL_RULE if by_day(business) else STAY_RULE
+    pack = get_pack(business.niche)
+    return HALL_RULE if pack.by_day else CAR_RULE if pack.rental else STAY_RULE
