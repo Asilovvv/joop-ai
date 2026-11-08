@@ -25,11 +25,12 @@
 <section class="card warn stack" id="example">
   <h2>Часть данных — ещё пример</h2>
   <p>Чтобы тестовый чат отвечал сразу, мы добавили пример из вашей сферы. Настоящим клиентам ИИ его не называет:
-    про цены, {{ pack.resource_label|lower }} и ответы из примера он скажет, что уточнит администратор. Замените на свои данные или удалите:</p>
+    обо всём из примера он скажет, что уточнит администратор. Замените на свои данные или удалите:</p>
   <ul>
     {% if example.services %}<li><a href="/panel/services">{{ pack.catalog_label }}</a>: {{ example.services | join(', ') }}</li>{% endif %}
     {% if example.staff %}<li><a href="/panel/staff">{{ pack.resource_label }}</a>: {{ example.staff | join(', ') }}</li>{% endif %}
     {% if example.faq %}<li><a href="/panel/faq">Вопросы</a>: {{ example.faq | join(' · ') }}</li>{% endif %}
+    {% if example.tests %}<li><a href="/panel/tests">Тест на уровень</a>: {{ example.tests | join(' · ') }}</li>{% endif %}
   </ul>
   <form method="post" action="/panel/example/ok" class="inline">
     <input type="hidden" name="csrf" value="{{ csrf }}">

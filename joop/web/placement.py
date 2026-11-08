@@ -9,7 +9,7 @@ import time
 from fastapi import APIRouter, Form, HTTPException, Request
 from sqlmodel import select
 
-from .. import placement
+from .. import placement, samples
 from ..db import new_session
 from ..dispatch import notify_admins
 from ..models import Business, Conversation, Lead, Message, PlacementAttempt, PlacementTest
@@ -42,8 +42,9 @@ def tests_page(request: Request):
         recent = s.exec(select(PlacementAttempt).where(PlacementAttempt.business_id == b.id, PlacementAttempt.status == "finished")
                         .order_by(PlacementAttempt.finished_at.desc()).limit(50)).all()
         titles = {t.test.id: t.test.title for t in rows}
+        example = samples.hidden_from_customers(s, b, "panel").tests
         return _render(request, "tests.html", "tests", b, rows=rows, counts=counts, recent=recent, titles=titles,
-                       sections=placement.sections)
+                       sections=placement.sections, example=example)
 
 
 @router.post("/panel/tests")
