@@ -20,6 +20,13 @@
   .name { font-weight: 600; font-size: 12pt; }
   .how { font-size: 9pt; color: #5d6b69; }
   @media print { body { background: #fff; } .tools { display: none; } .sheet { margin: 0; } }
+  /* a phone shows one sticker per row at its own width; print keeps the A4 grid above */
+  @media screen and (max-width: 760px) {
+    .tools { margin: 16px 12px; }
+    .sheet { width: auto; margin: 0 12px 24px; grid-template-columns: 1fr; }
+    .sticker { height: auto; gap: 6mm; }
+    .qr svg { width: min(52mm, 100%); height: auto; }
+  }
 </style>
 </head>
 <body>

@@ -23,6 +23,11 @@ h1 { font-size: 26px; line-height: 1.15; margin: 6mm 0 2mm; }
 .joop { margin-top: auto; padding-top: 8mm; color: #5d6b69; font-size: 13px; }
 .joop b { color: #0e8a72; }
 @media print { body { background: #fff; } .tools, .note { display: none; } .sheet { box-shadow: none; margin: 0; border-radius: 0; width: auto; min-height: 0; } }
+/* a phone shows the A5 sheet at its own width; print keeps the size above */
+@media screen and (max-width: 600px) {
+  .sheet { width: auto; min-height: 0; margin: 0 12px 24px; padding: 28px 18px; }
+  .sheet svg { width: min(78mm, 100%); height: auto; }
+}
 </style>
 </head>
 <body>
