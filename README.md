@@ -441,6 +441,20 @@ often the language guard fired, and saves everything to a JSON file. On GitHub, 
 Run workflow does the same with the repository secret `ANTHROPIC_API_KEY` and keeps results on the
 `eval-results` branch. On macOS, double-click `eval.command`. Have a native speaker review the
 Kyrgyz cases and the `name_ky` values before reporting results.
+
+Each case also counts towards the metrics its expectations check: invented facts (`must_not_contain`,
+`must_not_match`), correct answer (`must_contain_any`), action accuracy (`expect_lead`, `expect_order`),
+hand-off accuracy (`expect_handoff`) and Kyrgyz reply (`expect_lang: ky`). The thesis table, per set and
+in total, in Markdown or LaTeX:
+
+```bash
+python -m eval.summary --thesis eval/results*.json
+python -m eval.summary --thesis --latex eval/results*.json
+```
+
+Without a key, `python -m eval.run_eval all --dry-run` runs all cases with one scripted reply and no
+model (about 20 seconds). It checks that every profile and case loads and runs and writes to
+`eval/dryrun/`; its numbers are marked as a dry run and are not results.
 How the parts fit together: [docs/architecture.md](docs/architecture.md).
 
 ## Known limitations

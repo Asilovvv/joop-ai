@@ -4,6 +4,10 @@ Usage (needs ANTHROPIC_API_KEY in the environment or .env):
     python -m eval.run_eval [business.example.yaml] [eval/cases.yaml] [eval/results.json]
     python -m eval.run_eval restaurant          # a niche pack: its demo.yaml and cases.yaml
     python -m eval.run_eval all                 # every niche pack
+    python -m eval.run_eval all --dry-run       # no model, no key: checks that every case runs end to end
+
+A dry run answers every turn with one neutral scripted reply. It checks the plumbing (profiles, cases, prompt
+building, metrics) and writes to eval/dryrun/; its numbers say nothing about the agent and are marked as such.
 
 Every case is a fresh conversation with a business loaded from the YAML profile. Profiles without
 `slots` take bookings as requests; pack demos have slots generated from the current time.
@@ -26,6 +30,7 @@ from sqlmodel import select
 
 from joop import db
 from joop.agent.engine import ERROR_REPLY, handle_incoming
+from joop.agent.llm import AgentReply
 from joop.channels.base import IncomingMessage
 from joop.lang import RU_MESSAGE_MARKERS, looks_kyrgyz
 
@@ -67,6 +72,56 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, ord
         if re.search(pattern, final_text, re.IGNORECASE):
             fails.append(f"matches forbidden /{pattern}/")
     return fails
+
+
+# Per-metric checks for the thesis table. Each case counts only towards the metrics its expectations cover.
+METRICS = {
+    "facts": "No invented facts",  # must_not_contain / must_not_match: a forbidden fact or claim is absent
+    "answer": "Correct answer",  # must_contain_any: the expected fact is in the reply
+    "action": "Action accuracy",  # expect_lead / expect_order: saved exactly when expected
+    "handoff": "Hand-off accuracy",  # expect_handoff: handed to a person exactly when expected
+    "kyrgyz": "Kyrgyz reply",  # expect_lang ky: the reply is not in Russian
+}
+
+
+def case_metrics(case: dict, final_text: str, lead_saved: bool, handoff: bool, order_saved: bool = False) -> dict[str, bool]:
+    """{metric: passed} for the metrics this case covers; the same rules as check_case."""
+    low = final_text.lower()
+    m: dict[str, bool] = {}
+    if case.get("must_not_contain") or case.get("must_not_match"):
+        m["facts"] = not any(s.lower() in low for s in case.get("must_not_contain", [])) and not any(
+            re.search(p, final_text, re.IGNORECASE) for p in case.get("must_not_match", [])
+        )
+    if case.get("must_contain_any"):
+        m["answer"] = any(s.lower() in low for s in case["must_contain_any"])
+    got = {"expect_lead": lead_saved, "expect_order": order_saved}
+    if any(k in case for k in got):
+        m["action"] = all(bool(case[k]) == v for k, v in got.items() if k in case)
+    if "expect_handoff" in case:
+        m["handoff"] = bool(case["expect_handoff"]) == handoff
+    if case.get("expect_lang") == "ky":
+        m["kyrgyz"] = looks_kyrgyz(final_text) or not looks_russian(final_text)
+    return m
+
+
+class DryRunLLM:
+    """No model: every turn gets one neutral reply, so a run checks the pipeline, not the agent."""
+
+    model = "dry-run"
+    REPLY = "Здравствуйте! Уточню у администратора и отвечу вам."
+    REPLY_KY = "Саламатсызбы! Администратордон тактап, сизге жооп берем."
+
+    def respond(self, system: str, messages: list[dict], schema: dict | None = None) -> AgentReply:
+        return AgentReply(self.REPLY)
+
+    def rewrite_in_kyrgyz(self, text: str, usage: dict) -> str | None:
+        return self.REPLY_KY
+
+    def remove_false_confirmation(self, text: str, usage: dict) -> str | None:
+        return None
+
+    def write(self, instruction: str, text: str, usage: dict) -> str | None:
+        return None
 
 
 def api_error(record: logging.LogRecord) -> str:
@@ -151,6 +206,8 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
         "id": case["id"],
         "passed": not fails,
         "fails": fails,
+        "metrics": case_metrics(case, final, lead, handoff, order),
+        "fallback": final.strip() == ERROR_REPLY,
         **({"errors": collect.items[:3]} if collect.items else {}),
         "final_reply": final,
         "lead": lead,
@@ -179,6 +236,12 @@ def summarize(results: list[dict]) -> dict:
         "total_cost_usd": round(sum(costs), 6) if costs else None,
         "language_guard_fired": sum(1 for r in results if r.get("language_fixed")),
         "confirmation_guard_fired": sum(1 for r in results if r.get("confirmation_fixed")),
+        "fallbacks": sum(1 for r in results if r.get("fallback")),
+        "metrics": {
+            k: {"cases": len(v), "passed": sum(v)}
+            for k in METRICS
+            if (v := [r["metrics"][k] for r in results if k in r.get("metrics", {})])
+        },
     }
 
 
@@ -202,28 +265,46 @@ def main() -> None:
     from joop.config import get_settings
     from joop.runtime import Runtime
 
-    settings = get_settings()
-    if not settings.anthropic_api_key:
-        sys.exit("ANTHROPIC_API_KEY is not set (environment or .env)")
-    rt = Runtime(settings)
-    problem = preflight(rt.get_llm)
-    if problem:
-        prefix = "::error::" if os.environ.get("GITHUB_ACTIONS") else ""  # an annotation readable through the API
-        sys.exit(f"{prefix}The model {settings.model} does not answer, so the run is skipped: {problem}")
-    arg = sys.argv[1] if len(sys.argv) > 1 else "business.example.yaml"
+    dry = "--dry-run" in sys.argv
+    args = [a for a in sys.argv[1:] if a != "--dry-run"]
+    if dry:
+        get_llm, model, out_dir = DryRunLLM, DryRunLLM.model, Path("eval/dryrun")
+        out_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        settings = get_settings()
+        if not settings.anthropic_api_key:
+            sys.exit("ANTHROPIC_API_KEY is not set (environment or .env); without a key use --dry-run")
+        rt = Runtime(settings)
+        problem = preflight(rt.get_llm)
+        if problem:
+            prefix = "::error::" if os.environ.get("GITHUB_ACTIONS") else ""  # an annotation readable through the API
+            sys.exit(f"{prefix}The model {settings.model} does not answer, so the run is skipped: {problem}")
+        get_llm, model, out_dir = rt.get_llm, settings.model, Path("eval")
+
+    def go(profile_path: str, cases_path: str, out: Path) -> None:
+        data = run(profile_path, cases_path, get_llm, model)
+        if dry:
+            data["dry_run"] = True
+        report(data, out, model)
+
+    arg = args[0] if args else "business.example.yaml"
     if arg == "all" or arg in all_packs():
         names = [n for n, p in all_packs().items() if p.cases_file.exists()] if arg == "all" else [arg]
+        if arg == "all" and dry:  # the two general sets too, so a dry run covers every case
+            go("business.example.yaml", "eval/cases.yaml", out_dir / "results.json")
+            go("business.dental.example.yaml", "eval/cases_dental.yaml", out_dir / "results_dental_profile.json")
         for name in names:
             pack = all_packs()[name]
-            report(run(str(pack.demo_file), str(pack.cases_file), rt.get_llm, settings.model), Path(f"eval/results_{name}.json"), settings.model)
+            go(str(pack.demo_file), str(pack.cases_file), out_dir / f"results_{name}.json")
         return
-    profile_path = arg
-    cases_path = sys.argv[2] if len(sys.argv) > 2 else "eval/cases.yaml"
-    out = Path(sys.argv[3]) if len(sys.argv) > 3 else Path("eval/results.json")
-    report(run(profile_path, cases_path, rt.get_llm, settings.model), out, settings.model)
+    cases_path = args[1] if len(args) > 1 else "eval/cases.yaml"
+    out = Path(args[2]) if len(args) > 2 else out_dir / "results.json"
+    go(arg, cases_path, out)
 
 
 def report(data: dict, out: Path, model: str) -> None:
+    if data.get("dry_run"):
+        print("DRY RUN: scripted replies, no model. The numbers below check the pipeline, not the agent.")
     for r in data["cases"]:
         mark = "PASS" if r["passed"] else "FAIL"
         print(f"{mark} {r['id']:<34} {r['avg_latency_s']}s  {'; '.join(r['fails'])}")

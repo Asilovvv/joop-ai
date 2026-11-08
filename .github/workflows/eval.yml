@@ -78,7 +78,10 @@ jobs:
 
       - name: Write run summary
         if: always()
-        run: python -m eval.summary eval/results*.json >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          python -m eval.summary eval/results*.json >> "$GITHUB_STEP_SUMMARY"
+          printf '\n### Thesis table\n\n' >> "$GITHUB_STEP_SUMMARY"
+          python -m eval.summary --thesis eval/results*.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Save results to the eval-results branch
         if: always()
