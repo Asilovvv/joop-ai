@@ -45,9 +45,23 @@ class Pack:
         return feature in self.features
 
     @property
+    def serves_tables(self) -> bool:
+        """A cafe or restaurant: orders and bookings at tables, a QR code on every table."""
+        return self.has("order") and self.has("booking") and self.party_size
+
+    @property
+    def online_label(self) -> str:
+        """The panel's name for the public price page (joop/web/menu.py)."""
+        return "QR-меню" if self.serves_tables else "Каталог онлайн" if self.has("order") else "Прайс онлайн"
+
+    @property
     def by_day(self) -> bool:
         """Stays are single dates (a banquet hall, an event venue), not nights from check-in to check-out."""
         return self.stay_by == "day"
+
+    def examples(self) -> tuple[str, str]:
+        """A Russian and a Kyrgyz first message of this niche's customers, for the test chat's hint."""
+        return _examples(self.name)
 
     @property
     def dir(self) -> Path:
@@ -90,6 +104,19 @@ def _load(name: str) -> Pack:
         features=features,
         stay_by=stay_by,
     )
+
+
+DEFAULT_EXAMPLES = ("Сколько стоит консультация?", "Эртең жазылсам болобу?")
+
+
+@lru_cache
+def _examples(name: str) -> tuple[str, str]:
+    """The first Russian and the first Kyrgyz turn of the pack's evaluation dialogues (cases.yaml)."""
+    path = PACKS_DIR / name / "cases.yaml"
+    cases = (yaml.safe_load(path.read_text(encoding="utf-8")) or []) if path.exists() else []
+    ru = next((c["turns"][0] for c in cases if c.get("expect_lang") != "ky" and c.get("turns")), DEFAULT_EXAMPLES[0])
+    ky = next((c["turns"][0] for c in cases if c.get("expect_lang") == "ky" and c.get("turns")), DEFAULT_EXAMPLES[1])
+    return ru, ky
 
 
 @lru_cache
