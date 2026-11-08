@@ -24,6 +24,14 @@ if TYPE_CHECKING:
 
 STATUSES = {"accepted": "принят", "in_progress": "в работе", "ready": "готов, можно забирать", "issued": "выдан",
             "cancelled": "отменён"}
+# Made to order and delivered (furniture): nothing to pick up, the shop agrees the delivery day.
+DELIVERED = {**STATUSES, "ready": "готов, согласуем доставку", "issued": "доставлен"}
+
+
+def statuses(business: Business) -> dict[str, str]:
+    from .niches import get_pack
+
+    return DELIVERED if get_pack(business.niche).jobs_delivered else STATUSES
 KEEP = timedelta(days=120)  # older jobs are not looked up from chats
 _NUMBER = re.compile(r"(?<![\d+])\d{3,6}(?!\d)")
 _PHONE = re.compile(r"(?:\+?996|0)[\s\-()]*\d(?:[\s\-()]*\d){8}")
@@ -73,8 +81,8 @@ def for_chat(session: Session, business: Business, conv: Conversation, now_utc: 
     return found[:5]
 
 
-def describe(job: Job) -> str:
-    out = f"№{job.number}: {job.item} — {STATUSES.get(job.status, job.status)}"
+def describe(job: Job, labels: dict[str, str] = STATUSES) -> str:
+    out = f"№{job.number}: {job.item} — {labels.get(job.status, job.status)}"
     if job.ready_by and job.status in {"accepted", "in_progress"}:
         out += f", срок готовности {job.ready_by:%d.%m}"
     if job.price:
@@ -90,15 +98,22 @@ def prompt_hint(session: Session, business: Business, conv: Conversation, now_ut
     found = for_chat(session, business, conv, now_utc, latest)
     if found:
         lines = ["", "Заказы этого клиента (данные из системы, статус меняют сотрудники):"]
-        lines += [f"- {describe(j)}" for j in found]
+        lines += [f"- {describe(j, statuses(business))}" for j in found]
         lines.append("О готовности, сроках и стоимости заказа отвечай только по этим данным. Если срок прошёл, "
                      "а заказ не готов, извинись и заполни handoff, чтобы сотрудник уточнил.")
         return "\n".join(lines)
-    return ("\nЕсли клиент спрашивает о готовности своего заказа, попроси номер квитанции и телефон, указанный при сдаче. "
+    given = "при оформлении заказа" if statuses(business) is DELIVERED else "при сдаче"
+    return (f"\nЕсли клиент спрашивает о готовности своего заказа, попроси номер квитанции и телефон, указанный {given}. "
             "Пока заказ не найден в данных выше, статус, сроки и стоимость не называй и не придумывай.")
 
 
 def ready_text(business: Business, job: Job, kyrgyz: bool) -> str:
+    if statuses(business) is DELIVERED:  # Kyrgyz: проверить носителю
+        if kyrgyz:
+            return (f"Сиздин №{job.number} буйрутмаңыз даяр: {job.item}. Жеткирүү жана чогултуу күнүн макулдашуу үчүн "
+                    "менеджер сиз менен байланышат." + (f" Баасы: {job.price}." if job.price else ""))
+        return (f"Ваш заказ №{job.number} готов: {job.item}. Менеджер свяжется с вами, чтобы согласовать день доставки "
+                "и сборки." + (f" К оплате: {job.price}." if job.price else ""))
     where = ", ".join(x for x in (business.address, business.hours_text) if x)
     if kyrgyz:
         out = f"Сиздин №{job.number} буйрутмаңыз даяр: {job.item}. Алып кетсеңиз болот"
