@@ -31,6 +31,7 @@
     {% if example.staff %}<li><a href="/panel/staff">{{ pack.resource_label }}</a>: {{ example.staff | join(', ') }}</li>{% endif %}
     {% if example.faq %}<li><a href="/panel/faq">Вопросы</a>: {{ example.faq | join(' · ') }}</li>{% endif %}
     {% if example.tests %}<li><a href="/panel/tests">Тест на уровень</a>: {{ example.tests | join(' · ') }}</li>{% endif %}
+    {% if example.jobs %}<li><a href="/panel/jobs">Заказы в работе</a>: {{ example.jobs | join(', ') }}</li>{% endif %}
   </ul>
   <form method="post" action="/panel/example/ok" class="inline">
     <input type="hidden" name="csrf" value="{{ csrf }}">

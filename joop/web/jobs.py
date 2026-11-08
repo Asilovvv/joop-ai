@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Form, HTTPException, Request
 from sqlmodel import select
 
-from .. import jobs
+from .. import jobs, samples
 from ..db import new_session
 from ..memberships import phone_key
 from ..models import Job
@@ -45,7 +45,8 @@ def jobs_page(request: Request, q: str = ""):
         open_rows = [j for j in rows if j.status in {"accepted", "in_progress", "ready"}]
         done_rows = [j for j in rows if j.status not in {"accepted", "in_progress", "ready"}][:50]
         return _render(request, "jobs.html", "jobs", b, open_rows=open_rows, done_rows=done_rows, q=q,
-                       statuses=jobs.STATUSES, next_number=jobs.next_number(s, b.id))
+                       statuses=jobs.STATUSES, next_number=jobs.next_number(s, b.id),
+                       example=samples.hidden_from_customers(s, b, "panel").jobs)
 
 
 @router.post("/panel/jobs")
