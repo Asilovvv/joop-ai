@@ -88,7 +88,9 @@ docker compose run --rm app python -m joop create-business --slug aktish --name 
 
 (`--password` is required here: `docker compose run` has no terminal to ask for it. Pick 8+ characters and
 pass it to the owner; they can change it in «Настройки».) The command prints the `/admin` code for Telegram
-notifications.
+notifications. Once the business's bot is connected, the owner does not need it: «Запуск» and «Настройки» show a
+«Подключить уведомления» button that opens the bot and links that Telegram in one tap (the code then changes, so a
+code someone else saw no longer works).
 
 In the panel: fill the price list, hours and FAQ, try the test chat, then «Каналы» (or «Запуск») → paste the Telegram
 bot token → «Подключить Telegram».
@@ -114,8 +116,12 @@ docker compose start app
 
 Encrypted channel tokens need the same `TOKEN_ENCRYPTION_KEY` as when the copy was made.
 
-This guide was run end to end on a clean machine on 3 November 2026 (without Docker: a plain Python
-environment with the same commands); every step above worked as written.
+This guide was run end to end on a clean machine on 3 November 2026 and again on 8 November 2026 (fresh clone at
+PR #132, a plain Python environment with the same commands — the test machine could not pull images from Docker
+Hub, so `docker compose build` itself was not exercised there). Checked: `migrate` on an empty database (to 0047),
+`check` (only the Anthropic key reported missing), `create-business`, `serve` with `/health`, sign-up, every panel
+section, `backup` and a restored copy (`integrity_check` ok), and an upgrade of a 1 November database (schema 0016)
+to 0047 in one run, repeated without changes, with no foreign-key errors and all data kept.
 
 ## 8. Updates and logs
 
