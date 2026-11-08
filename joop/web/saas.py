@@ -34,6 +34,7 @@ from ..niches import all_packs, get_pack
 from ..presets import SlugTaken, create_business
 from ..pricing import empty_usage
 from ..slots import release_slot, seats_needed
+from ..stats import real_conversation, test_conversations
 from ..timeutil import utc_to_local, utcnow
 from .app import _back, _base_url, _business, _check_csrf, _csrf, _flash, _render, _rt, _settings, templates
 
@@ -155,10 +156,10 @@ def signup(
 def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     services = s.exec(select(func.count()).select_from(Service).where(Service.business_id == b.id)).one()
     tested = s.exec(
-        select(func.count()).select_from(Conversation).where(Conversation.business_id == b.id, Conversation.channel == "console")
+        select(func.count()).select_from(Conversation).where(Conversation.id.in_(test_conversations(b.id)))
     ).one()
     real = s.exec(
-        select(func.count()).select_from(Conversation).where(Conversation.business_id == b.id, Conversation.channel != "console")
+        select(func.count()).select_from(Conversation).where(Conversation.business_id == b.id, real_conversation())
     ).one()
     channel = bool(b.telegram_bot_token or (b.wa_phone_number_id and b.wa_access_token) or (b.ig_account_id and b.ig_access_token))
     sub = billing.get_subscription(s, b.id)

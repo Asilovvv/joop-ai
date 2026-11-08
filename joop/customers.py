@@ -19,7 +19,7 @@ from datetime import datetime
 from sqlmodel import Session, select
 
 from .models import Booking, Business, Conversation, Customer, Order, Service
-from .stats import TEST_CHANNEL
+from .stats import not_test, real_conversation
 from .timeutil import utc_to_local, utcnow
 
 _DIGITS = re.compile(r"\D")
@@ -91,7 +91,7 @@ def cards(session: Session, business: Business) -> dict[str, Card]:
             out[key] = Card(key=key)
         return out[key]
 
-    for conv in session.exec(select(Conversation).where(Conversation.business_id == business.id, Conversation.channel != TEST_CHANNEL)).all():
+    for conv in session.exec(select(Conversation).where(Conversation.business_id == business.id, real_conversation())).all():
         key = key_of(conv.customer_phone, conv.channel, conv.chat_id)
         if not key:
             continue
@@ -104,7 +104,7 @@ def cards(session: Session, business: Business) -> dict[str, Card]:
             c.last_contact = conv.last_customer_at
     by_conv = {conv.id: key for key, c in out.items() for conv in c.conversations}
     prices = _prices(session, business.id)
-    for b in session.exec(select(Booking).where(Booking.business_id == business.id, Booking.channel != TEST_CHANNEL)).all():
+    for b in session.exec(select(Booking).where(Booking.business_id == business.id, not_test(Booking))).all():
         key = key_of(b.customer_phone, b.channel, "") or by_conv.get(b.conversation_id or 0, "")
         if not key:
             continue
@@ -116,7 +116,7 @@ def cards(session: Session, business: Business) -> dict[str, Card]:
             c.spend_som += b.paid_som  # what was actually paid beats the price list
         elif b.status == "booked" and b.service and b.service.casefold() in prices:
             c.spend_som += prices[b.service.casefold()]
-    for o in session.exec(select(Order).where(Order.business_id == business.id, Order.status != "cancelled", Order.channel != TEST_CHANNEL)).all():
+    for o in session.exec(select(Order).where(Order.business_id == business.id, Order.status != "cancelled", not_test(Order))).all():
         key = key_of(o.customer_phone, o.channel, "") or by_conv.get(o.conversation_id or 0, "")
         if not key:
             continue

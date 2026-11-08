@@ -19,7 +19,7 @@ from sqlmodel import Session, select
 from .followups import stats as followup_stats
 from .models import Booking, Business, Lead, Message, Order, Service
 from .niches import get_pack
-from .stats import TEST_CHANNEL, real_messages
+from .stats import not_test, real_messages
 from .timeutil import utc_to_local
 
 
@@ -94,7 +94,7 @@ def build(session: Session, business: Business, now_utc: datetime, days: int = 3
     prices = {s.name.casefold(): s.price_value for s in session.exec(select(Service).where(
         Service.business_id == business.id, Service.price_value != None)).all()}  # noqa: E711
     bookings = session.exec(select(Booking).where(
-        Booking.business_id == business.id, Booking.source == "ai", Booking.status == "booked", Booking.channel != TEST_CHANNEL,
+        Booking.business_id == business.id, Booking.source == "ai", Booking.status == "booked", not_test(Booking),
         Booking.created_at >= since, Booking.created_at < until)).all()  # cancelled or released: not a result
     c.bookings = len(bookings)
     c.off_bookings = sum(1 for b in bookings if b.created_off_hours)
@@ -105,12 +105,12 @@ def build(session: Session, business: Business, now_utc: datetime, days: int = 3
         if name and name.casefold() in prices:
             c.valued += 1
             c.value_som += prices[name.casefold()] + extra
-    orders = session.exec(select(Order).where(Order.business_id == business.id, Order.status != "cancelled", Order.channel != TEST_CHANNEL,
+    orders = session.exec(select(Order).where(Order.business_id == business.id, Order.status != "cancelled", not_test(Order),
                                               Order.created_at >= since, Order.created_at < until)).all()
     c.orders = len(orders)
     c.value_som += sum(o.total for o in orders if o.total)
     c.handoffs = session.exec(select(func.count()).select_from(Lead).where(
-        Lead.business_id == business.id, Lead.kind == "handoff", Lead.channel != TEST_CHANNEL,
+        Lead.business_id == business.id, Lead.kind == "handoff", not_test(Lead),
         Lead.created_at >= since, Lead.created_at < until)).one() or 0
     fs = followup_stats(session, business.id, utc_to_local(since, business.timezone))
     c.rated, c.average_rating, c.returned = fs.rated, fs.average, fs.returned

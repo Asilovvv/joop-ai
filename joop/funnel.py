@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from sqlmodel import Session, select
 
 from .models import Booking, Business, Lead, Order
-from .stats import TEST_CHANNEL
+from .stats import not_test
 from .timeutil import utc_to_local
 
 STAGES = ("new", "contacted", "booked", "visited", "lost")
@@ -75,7 +75,7 @@ class Funnel:
 
 def report(session: Session, business: Business, now_utc: datetime) -> Funnel:
     since = now_utc - WINDOW
-    leads = session.exec(select(Lead).where(Lead.business_id == business.id, Lead.kind.in_(KINDS), Lead.channel != TEST_CHANNEL,
+    leads = session.exec(select(Lead).where(Lead.business_id == business.id, Lead.kind.in_(KINDS), not_test(Lead),
                                            Lead.created_at >= since).order_by(Lead.id.desc())).all()
     rows = {stage: [x for x in leads if x.stage == stage] for stage in STAGES}
     return Funnel(counts={k: len(v) for k, v in rows.items()}, rows=rows, total=len(leads))
