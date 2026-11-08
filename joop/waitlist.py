@@ -16,7 +16,7 @@ from .followups import deliver_to_chat
 from .lang import is_kyrgyz_message
 from .models import Business, Conversation, Lead, Message, Slot, Staff, WaitlistEntry
 from .niches import get_pack
-from .slots import LEAD_MINUTES, requested_time
+from .slots import lead_for, requested_time
 from .timeutil import fmt_slot, utc_to_local
 
 if TYPE_CHECKING:
@@ -64,7 +64,7 @@ def offer_text(slot: Slot, member: Staff | None, kyrgyz: bool) -> str:
 def offer_freed_slot(session: Session, rt: "Runtime", business: Business, slot: Slot, now_utc: datetime) -> int:
     """Tell the first customers waiting for this day. Returns how many were told."""
     now_local = utc_to_local(now_utc, business.timezone)
-    if slot.status != "free" or slot.start <= now_local + timedelta(minutes=LEAD_MINUTES):
+    if slot.status != "free" or slot.start <= now_local + timedelta(minutes=lead_for(business)):
         return 0
     entries = session.exec(select(WaitlistEntry).where(
         WaitlistEntry.business_id == business.id, WaitlistEntry.status == "waiting",
