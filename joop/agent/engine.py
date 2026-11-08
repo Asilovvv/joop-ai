@@ -24,7 +24,7 @@ from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order,
 from ..niches import Pack, get_pack
 from ..phone import normalize_phone
 from ..pricing import cost_usd, empty_usage
-from ..slots import claim_slot, free_slots, release_slot, requested_time, seats_left, seats_needed
+from ..slots import claim_slot, free_slots, lead_for, release_slot, requested_time, seats_left, seats_needed
 from ..security import new_link_code
 from ..stats import is_test
 from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
@@ -221,7 +221,8 @@ def _model_reply(
     staff = [r for r in session.exec(select(Staff).where(Staff.business_id == business.id).order_by(Staff.id)).all()
              if r.id not in hidden.staff]
     faqs = [r for r in session.exec(select(Faq).where(Faq.business_id == business.id).order_by(Faq.id)).all() if r.id not in hidden.faq]
-    slots = free_slots(session, business.id, now_local, exclude_staff=hidden.staff)  # before the limit, not after
+    slots = free_slots(session, business.id, now_local, exclude_staff=hidden.staff,  # before the limit, not after
+                       lead_minutes=lead_for(business))
     system = build_system_prompt(
         business=business,
         hide_hours=hidden.hours,
@@ -666,10 +667,13 @@ def _alternatives(
     session: Session, business: Business, now_local: datetime, staff_id: int | None, min_capacity: int = 0,
     min_seats: int = 1, hidden_staff: frozenset[int] = frozenset(),
 ) -> list[str]:
-    rows = free_slots(session, business.id, now_local, staff_id=staff_id, limit=50) if staff_id and staff_id not in hidden_staff else []
+    lead = lead_for(business)
+    rows = (free_slots(session, business.id, now_local, staff_id=staff_id, limit=50, lead_minutes=lead)
+            if staff_id and staff_id not in hidden_staff else [])
     rows = [(slot, m) for slot, m in rows if seats_left(slot) >= min_seats][:3]
     if not rows:
-        rows = [(slot, m) for slot, m in free_slots(session, business.id, now_local, limit=200, exclude_staff=hidden_staff)
+        rows = [(slot, m) for slot, m in free_slots(session, business.id, now_local, limit=200, exclude_staff=hidden_staff,
+                                                    lead_minutes=lead)
                 if seats_left(slot) >= min_seats]
     if min_capacity:
         rows = [(slot, m) for slot, m in rows if not m.capacity or m.capacity >= min_capacity]
