@@ -72,9 +72,11 @@ TOO_MANY_EXAMPLE = ("На бесплатном тарифе один масте�
                     " перейдите на платный тариф в разделе «Оплата».")
 
 
-def breaks_plan(session: Session, business_id: int) -> bool:
-    """On the free plan, a change (already flushed) leaves more than one real master: the AI would stop answering
-    (billing.access_ok), so the change is refused instead."""
+def breaks_plan(session: Session, business_id: int, before: int) -> bool:
+    """On the free plan, a change (already flushed) takes the business from one real master (`before`) to more: the AI
+    would stop answering (billing.access_ok), so the change is refused. A business already over the limit (an Altegio
+    sync) can still edit its people."""
     from . import billing
 
-    return is_free(billing.get_subscription(session, business_id)) and not eligible(session, business_id)
+    return (is_free(billing.get_subscription(session, business_id)) and before <= MAX_STAFF
+            and len(active_staff(session, business_id)) > MAX_STAFF)
