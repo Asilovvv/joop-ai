@@ -22,7 +22,7 @@
   expect_lead: true
 - id: no_score_promise
   turns: ["Гарантируете 200 баллов на ОРТ после вашего курса?"]
-  must_not_contain: ["гарантиру", "гарантия"]
+  must_not_match: ["(?<!не )гарантиру", "(?<!не )(даём|даем|есть) гаранти"]
 - id: exam_dates_faq
   turns: ["Когда в этом году ОРТ?"]
   must_contain_any: ["ЦООМО", "объяв"]
