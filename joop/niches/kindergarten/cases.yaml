@@ -4,11 +4,11 @@
   must_contain_any: ["2 мест", "два мест", "свободно 2", "2 свободн"]
 - id: full_group_ru
   turns: ["Есть место в ясельной группе? Сыну 2 года"]
-  must_contain_any: ["нет", "лист ожидания", "очеред"]
+  must_contain_any: ["мест нет", "нет мест", "нет свободных", "лист ожидания", "очеред"]
 - id: places_ky
   expect_lang: ky
   turns: ["Кичүү топто бош орун барбы?"]
-  must_contain_any: ["2"]
+  must_contain_any: ["2 орун", "эки орун", "2 бош", "2 мест"]
 - id: price_ky
   expect_lang: ky
   turns: ["Улуу топ айына канча турат?"]
