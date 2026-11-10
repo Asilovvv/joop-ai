@@ -845,7 +845,11 @@ def _try_order(
     wanted: dict[int, int] = {}  # the same item on two lines counts once against the shelf
     for line in data.get("lines") or []:
         item = session.get(Service, line.get("item_id")) if line.get("item_id") else None
-        qty = int(line.get("quantity") or 0)
+        try:  # a model may send 2.5 or "2.5": whole pieces only, a fraction is never silently rounded into a price
+            raw = float(line.get("quantity") or 0)
+        except (TypeError, ValueError):
+            raw = 0
+        qty = int(raw) if raw == int(raw) else 0
         if item is None or item.business_id != business.id or item.id in hidden_items:
             problems.append("одной позиции нет в списке")
         elif not item.available:

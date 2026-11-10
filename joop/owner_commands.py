@@ -14,6 +14,7 @@ from datetime import datetime
 from sqlmodel import Session
 
 from .models import Business
+from .niches import get_pack
 
 COMMANDS = ("/today", "/week", "/gaps", "/help")
 HELP = ("Команды для владельца:\n/today — сводка на сегодня: записи, кто не подтвердил, свободные окна\n"
@@ -38,6 +39,8 @@ def answer(session: Session, business: Business, text: str, now_utc: datetime) -
     now_local = utc_to_local(now_utc, business.timezone)
     if command == "/today":
         text_ = scheduler.digest_text(session, business, now_utc) or f"Сводка «{business.name}» на {now_local:%d.%m}: за сутки никто не писал, записей на сегодня нет."
+        if not get_pack(business.niche).has("booking"):  # rooms, halls, cars or orders: there are no windows to count
+            return text_
         days = gaps.week(session, business, now_local)
         free_today = next((d.free for d in days if d.date.date() == now_local.date()), 0)
         free_week = sum(d.free for d in days)

@@ -28,7 +28,7 @@
   <div class="list">{% for st in upcoming %}
     <div class="item">
       <div class="main">
-        <div><b>{% if pack.by_day %}{{ st.check_in.strftime('%d.%m.%Y') }}{% else %}{{ st.check_in.strftime('%d.%m') }} – {{ st.check_out.strftime('%d.%m') }}{% endif %}</b> · {{ st.room_name }} · гостей: {{ st.guests }}{% if st.status == 'cancelled' %} <span class="chip">отменена</span>{% endif %}</div>
+        <div><b>{% if pack.by_day %}{{ st.check_in.strftime('%d.%m.%Y') }}{% else %}{{ st.check_in.strftime('%d.%m') }} – {{ st.check_out.strftime('%d.%m') }}{% endif %}</b> · {{ st.room_name }}{% if not pack.rental %} · гостей: {{ st.guests }}{% endif %}{% if st.status == 'cancelled' %} <span class="chip">отменена</span>{% endif %}</div>
         <div class="muted small">{{ st.customer_name }} {{ st.customer_phone }}{% if st.conversation_id %} · <a href="/panel/conversations/{{ st.conversation_id }}">диалог</a>{% endif %}</div>
       </div>
       {% if st.status == 'booked' %}<form method="post" action="/panel/stays/{{ st.id }}/cancel" class="actions"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small danger" type="submit">Отменить</button></form>{% endif %}

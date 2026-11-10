@@ -39,7 +39,8 @@ class PilotRow:
     off_hours_messages: int = 0
     ai_replies: int = 0
     bookings: int = 0  # made by the AI into free slots
-    stays: int = 0  # hotel room bookings made by the AI
+    stays: int = 0  # stays booked by the AI: hotel rooms, banquet halls or rental cars
+    stays_noun: str = "номеров"  # what those stays are, for the page
     requests: int = 0  # booking requests staff confirm
     orders: int = 0
     leads: int = 0  # qualified leads (real estate, wholesale)
@@ -93,7 +94,7 @@ def report(session: Session, since_utc: datetime, until_utc: datetime, now_utc: 
             return None
         if bid not in rows:
             b = businesses[bid]
-            rows[bid] = PilotRow(business=b.name, niche=get_pack(b.niche).label)
+            rows[bid] = PilotRow(business=b.name, niche=get_pack(b.niche).label, stays_noun=get_pack(b.niche).stay_noun)
         return rows[bid]
 
     asked: dict[int, datetime] = {}  # conversation -> its first customer message in the period
