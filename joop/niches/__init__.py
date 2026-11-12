@@ -18,8 +18,8 @@ OUTCOMES = {"booking", "request", "order", "lead", "handoff", "stay"}  # stay: d
 STAY_BY = {"night", "day", "rental"}
 # Optional modules a pack switches on: level_test (joop/placement.py), group_classes (slots with several
 # seats), memberships (passes and packages of visits, joop/memberships.py), jobs (order status for items
-# left for work, joop/jobs.py).
-FEATURES = {"level_test", "group_classes", "memberships", "jobs"}
+# left for work, joop/jobs.py), area_price (estimates for prices per m², joop/area_price.py).
+FEATURES = {"level_test", "group_classes", "memberships", "jobs", "area_price"}
 
 
 @dataclass(frozen=True)

@@ -131,7 +131,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/slots.py`, `joop/stays.py` | Time slots with an atomic claim; hotel nights booked atomically |
 | **Niches and modules** | |
 | `joop/niches/<name>/` | Niche packs: labels, outcomes, rules, demo data, evaluation dialogues |
-| `joop/placement.py`, `joop/memberships.py`, `joop/jobs.py`, `joop/waitlist.py`, `joop/intake.py` | Level tests, passes, order status, waiting list, questions before a visit |
+| `joop/placement.py`, `joop/memberships.py`, `joop/jobs.py`, `joop/waitlist.py`, `joop/intake.py`, `joop/area_price.py` | Level tests, passes, order status, waiting list, questions before a visit, estimates for prices per m² |
 | `joop/followups.py`, `joop/faq_gaps.py` | Ratings and return invitations; questions handed to staff as FAQ candidates |
 | `joop/web/accounts.py` | Staff logins (`PanelUser`); owner-only sections are listed in `app.py` (`OWNER_ONLY`) |
 | `joop/staff_reply.py` | Staff reply from the panel through the customer's channel; web chat updates |
@@ -177,6 +177,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 629 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 635 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |
