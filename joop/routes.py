@@ -30,40 +30,78 @@ PLACES: dict[str, tuple[str, ...]] = {
     "Балыкчы": ("балыкчы", "рыбачье", "balykchy"),
     "Кант": ("кант", "kant"),
     "Узген": ("узген", "өзгөн", "uzgen"),
-    "Алматы": ("алматы", "алма-ата", "almaty"),
+    "Алматы": ("алматы", "алма-ат", "almaty"),
     "Ташкент": ("ташкент", "tashkent"),
 }
-# A stem must start a word and may take a case ending: «Оша», «Ошко», «Бишкекке», «Нарынга».
-_ENDINGS = r"(?:а|е|у|ом|ке|ка|ко|га|го|ге|ки|ку|та|те|тан|тен|дан|ден|нан|нен|ден|ге|ка|кө)?"
+# A stem must start a word and may take a case ending: «Оша», «Ошко», «Бишкекке», «Нарынга», «Оштон», «Алма-Аты».
+FROM_ENDINGS = ("тан", "тен", "тон", "төн", "дан", "ден", "дон", "дөн", "нан", "нен", "нон", "нөн")  # Kyrgyz «from»
+TO_ENDINGS = ("ка", "ке", "ко", "кө", "га", "ге", "го", "гө", "а", "е", "о", "ө")  # Kyrgyz «to» (а/е after a vowel-final stem)
+_ENDINGS = "(?:" + "|".join(sorted(set(FROM_ENDINGS + TO_ENDINGS + ("у", "ы", "ом", "ки", "ку", "та", "те", "ту", "ты")),
+                                  key=len, reverse=True)) + ")?"
+# «Ош базар», «Бишкек Парк»: a place inside a city, not the city.
+_INSIDE = re.compile(r"\s+(?:базар\w*|рын(?:ок|ка|ке|ку)\b|парк\w*|молл\w*)", re.IGNORECASE)
+_FROM_WORD = re.compile(r"(?:^|\s)(?:из|с|со|от)\s+$", re.IGNORECASE)
+_TO_WORD = re.compile(r"(?:^|\s)(?:в|во|до|на)\s+$", re.IGNORECASE)
 
 
 def _pattern(spellings: tuple[str, ...]) -> re.Pattern:
     stems = "|".join(re.escape(s) for s in sorted(spellings, key=len, reverse=True))
-    return re.compile(rf"(?<![\wё-])(?:{stems}){_ENDINGS}(?![\wё])", re.IGNORECASE)
+    return re.compile(rf"(?<![\wё])(?:{stems}){_ENDINGS}(?![\wё])", re.IGNORECASE)
 
 
 _PATTERNS = {place: _pattern(spellings) for place, spellings in PLACES.items()}
 
 
-def places_in(text: str) -> list[str]:
-    """Places named in the text, in the order they appear."""
+def _mentions(text: str) -> list[tuple[int, str, str]]:
+    """(position, place, "from" | "to" | "") for each city named in the text, in order; places inside a city skipped."""
+    text = text or ""
     found = []
     for place, pattern in _PATTERNS.items():
-        m = pattern.search(text or "")
-        if m:
-            found.append((m.start(), place))
-    return [p for _, p in sorted(found)]
+        for m in pattern.finditer(text):
+            if _INSIDE.match(text, m.end()):
+                continue
+            word, before = m.group(0).lower(), text[:m.start()]
+            if _FROM_WORD.search(before):  # Russian: «из Оша», «с Каракола»
+                role = "from"
+            elif _TO_WORD.search(before):  # «в Ош», «до Нарына»; «в Бишкеке» is where the customer is, not where to
+                role = "" if re.search(r"(?:в|во)\s+$", before, re.IGNORECASE) and word.endswith(("е", "у")) else "to"
+            elif word.endswith(FROM_ENDINGS):  # Kyrgyz: «Оштон», «Бишкектен»
+                role = "from"
+            elif word.endswith(TO_ENDINGS[:8]):  # Kyrgyz: «Бишкекке», «Нарынга»
+                role = "to"
+            else:
+                role = ""
+            found.append((m.start(), place, role))
+            break
+    return sorted(found)
+
+
+def places_in(text: str) -> list[str]:
+    """Cities named in the text, in the order they appear."""
+    return [place for _, place, _ in _mentions(text)]
+
+
+def route_in(text: str) -> tuple[str, str] | None | bool:
+    """The route the message asks about: (from, to) in the customer's order; None when it names fewer than two cities;
+    False when it names more and does not say which is «from» and which is «to»."""
+    found = _mentions(text)
+    if len(found) < 2:
+        return None
+    if len(found) == 2:
+        return found[0][1], found[1][1]
+    start = [p for _, p, r in found if r == "from"]
+    end = [p for _, p, r in found if r == "to"]
+    if len(start) == 1 and len(end) == 1 and start != end:
+        return start[0], end[0]
+    return False
 
 
 def route_of(name: str) -> frozenset[str] | None:
-    """The two places of a price list line named «A — B ...», or None for a line without a route."""
+    """The two cities of a price list line named «A — B ...» (any dash, with or without spaces), else None."""
     head = re.split(r"[,(]", name or "", maxsplit=1)[0]
-    ends = re.split(r"\s*[—–-]{1,2}\s+|\s+[—–-]{1,2}\s*", head)
-    if len(ends) != 2:
-        return None
-    a, b = (places_in(e) for e in ends)
-    if len(a) == 1 and len(b) == 1 and a[0] != b[0]:
-        return frozenset((a[0], b[0]))
+    places = places_in(head)
+    if len(places) == 2 and re.search(r"[—–-]", head):
+        return frozenset(places)
     return None
 
 
@@ -76,11 +114,14 @@ def prompt_hint(session: Session, conv: Conversation, services: list[Service], t
     if conv.id is not None:
         texts += list(session.exec(select(Message.text).where(Message.conversation_id == conv.id, Message.role == "customer")
                                    .order_by(Message.id.desc()).limit(LOOK_BACK)).all())
-    named: list[str] = []
-    for t in texts:  # newest first: the latest message that names two places decides
-        places = places_in(t)
-        if len(places) >= 2:
-            named = places[:2]
+    named: tuple[str, str] | None = None
+    for t in texts:  # newest first: the latest message that names two cities decides
+        found = route_in(t)
+        if found is False:
+            return ("\nКлиент назвал больше двух городов (проверено системой). Уточни, откуда и куда везти; "
+                    "цену пока не называй.")
+        if found:
+            named = found
             break
     if not named:
         return ""

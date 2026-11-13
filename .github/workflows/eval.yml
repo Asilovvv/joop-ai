@@ -70,6 +70,10 @@ jobs:
               echo "::error::provider=openai needs the secret LLM_API_KEY and the inputs base_url and model"
               exit 1
             fi
+            case "$LLM_BASE_URL" in
+              https://*) ;;
+              *) echo "::error::base_url must start with https:// (the key is sent there)"; exit 1 ;;
+            esac
           elif [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "::error::Add the repository secret ANTHROPIC_API_KEY (Settings -> Secrets and variables -> Actions)"
             exit 1

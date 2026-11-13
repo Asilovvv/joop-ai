@@ -26,7 +26,7 @@ from ..api import booking_json
 from ..db import new_session
 from ..models import Booking, Business, PanelUser, Service
 from ..security import verify_password
-from ..stats import TEST_CHANNEL
+from ..stats import not_test
 from ..timeutil import local_now
 from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, record_failure, throttled
 
@@ -139,12 +139,15 @@ def _day(text: str, today: date) -> date | None:
         return None
 
 
+MAX_SPAN_DAYS = 3 * 366  # a date further away is a typo, and 9999-12-31 + 1 day overflows
+
+
 def _bookings(s: Session, who: Who, first: date, last: date) -> list[Booking]:
     own = [Booking.staff_id == who.master_staff_id] if who.master_staff_id else []
     return list(s.exec(
         select(Booking)
         .where(Booking.business_id == who.business.id, Booking.start >= datetime.combine(first, time.min),
-               Booking.start < datetime.combine(last + timedelta(days=1), time.min), Booking.channel != TEST_CHANNEL, *own)
+               Booking.start < datetime.combine(last + timedelta(days=1), time.min), not_test(Booking, who.business.id), *own)
         .order_by(Booking.start)
     ).all())
 
@@ -157,8 +160,8 @@ def mobile_bookings(request: Request, day: str = "", days: int = 1):
         if who is None:
             return _fail(401, "Войдите заново.")
         first = _day(day, local_now(who.business.timezone).date())
-        if first is None:
-            return _fail(400, "day: нужна дата в виде 2026-11-20.")
+        if first is None or abs((first - local_now(who.business.timezone).date()).days) > MAX_SPAN_DAYS:
+            return _fail(400, "day: нужна дата в виде 2026-11-20, не дальше трёх лет от сегодня.")
         days = max(1, min(days, MAX_DAYS))
         rows = _bookings(s, who, first, first + timedelta(days=days - 1))
         return {"from": first.isoformat(), "days": days, "bookings": [booking_json(b) for b in rows]}

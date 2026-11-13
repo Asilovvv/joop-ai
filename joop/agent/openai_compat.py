@@ -27,6 +27,12 @@ log = logging.getLogger(__name__)
 FORMATS = ("json_schema", "json_object", "")
 
 
+def _about_format(error: str) -> bool:
+    """A 400 about the output format, not about the request (context too long, a bad model name)."""
+    low = error.lower()
+    return any(w in low for w in ("response_format", "json_schema", "json_object", "schema", "structured"))
+
+
 def _usage(data: dict) -> SimpleNamespace:
     u = data.get("usage") or {}
     return SimpleNamespace(input_tokens=u.get("prompt_tokens", 0), output_tokens=u.get("completion_tokens", 0))
@@ -56,7 +62,10 @@ class OpenAICompatLLM:
         if response.status_code >= 400:
             # The service's error text carries no key; keep it short for logs and the owner's checks.
             raise LLMError(f"model API returned {response.status_code}: {response.text[:300]}")
-        return response.json()
+        try:
+            return response.json()
+        except ValueError as exc:  # a gateway's HTML page with status 200
+            raise LLMError("model API returned a non-JSON body") from exc
 
     def _body(self, system: str, messages: list[dict], schema: dict | None, max_tokens: int) -> dict:
         body: dict[str, Any] = {
@@ -76,7 +85,7 @@ class OpenAICompatLLM:
             try:
                 data = self._post(self._body(system, messages, schema, self.max_tokens))
             except LLMError as exc:
-                if " 400:" in str(exc) and self.format:  # the service does not take this output format
+                if " 400:" in str(exc) and self.format and _about_format(str(exc)):  # the service does not take this format
                     self.format = FORMATS[FORMATS.index(self.format) + 1]
                     log.warning("Model API rejected the output format; retrying with %r", self.format or "plain text")
                     continue
@@ -102,7 +111,7 @@ class OpenAICompatLLM:
                 "messages": [{"role": "system", "content": instruction}, {"role": "user", "content": text}]}
         try:
             data = self._post(body)
-        except (LLMError, httpx.HTTPError):
+        except Exception:  # as the Anthropic client: a failed rewrite sends the draft, never breaks the reply
             log.warning("Reply rewrite failed; sending the draft")
             return None
         add_usage(usage, _usage(data))

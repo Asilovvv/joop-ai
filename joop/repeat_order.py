@@ -35,7 +35,7 @@ def last_order(session: Session, business: Business, conv: Conversation, now_utc
     match = sa.or_(own, Order.customer_phone.like(f"%{key}")) if key else own
     rows = session.exec(select(Order).where(
         Order.business_id == business.id, Order.status != "cancelled", Order.created_at >= now_utc - KEEP,
-        not_test(Order, business.id), match,
+        sa.or_(own, not_test(Order, business.id)), match,  # the owner's test chat sees its own test orders, no one else's
     ).order_by(Order.id.desc()).limit(10)).all()
     me = (conv.customer_name or conv.display_name or "").strip().casefold()
     for order in rows:

@@ -217,6 +217,7 @@ def _model_reply(
     hidden = samples.hidden_from_customers(session, business, channel)  # the sign-up example is not for customers
     services = [r for r in session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort, Service.id)).all()
                 if r.id not in hidden.services]
+    on_sale = [r for r in services if r.available and not r.sold_out]  # area and route hints price these, whatever the prompt shows
     services, catalog_hint = _catalog_for_prompt(session, conv, services, text)
     staff = [r for r in session.exec(select(Staff).where(Staff.business_id == business.id).order_by(Staff.id)).all()
              if r.id not in hidden.staff]
@@ -243,9 +244,9 @@ def _model_reply(
         + (memberships.prompt_hint(session, business, conv, now_local) if pack_offers(business, "memberships") else "")
         + (jobs.prompt_hint(session, business, conv, now, text) if pack_offers(business, "jobs") else "")
         + (order_status.prompt_hint(session, business, conv, now) if pack_has(business, "order") else "")
-        + (area_price.prompt_hint(session, conv, services, text) if pack_offers(business, "area_price") else "")
+        + (area_price.prompt_hint(session, conv, on_sale, text) if pack_offers(business, "area_price") else "")
         + (repeat_order.prompt_hint(session, business, conv, now) if pack_offers(business, "repeat_order") else "")
-        + (routes.prompt_hint(session, conv, services, text) if pack_offers(business, "route_price") else ""),
+        + (routes.prompt_hint(session, conv, on_sale, text) if pack_offers(business, "route_price") else ""),
     )
     history = _history(session, conv, now)
 
