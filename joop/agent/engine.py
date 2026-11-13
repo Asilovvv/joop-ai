@@ -31,7 +31,7 @@ from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
 from ..followups import capture_rating
-from .. import area_price, intake, jobs, memberships, order_status, repeat_order, stays, waitlist
+from .. import area_price, intake, jobs, memberships, order_status, repeat_order, routes, stays, waitlist
 from .prompt import CHANNEL_LABELS, build_history, build_system_prompt
 
 log = logging.getLogger(__name__)
@@ -244,7 +244,8 @@ def _model_reply(
         + (jobs.prompt_hint(session, business, conv, now, text) if pack_offers(business, "jobs") else "")
         + (order_status.prompt_hint(session, business, conv, now) if pack_has(business, "order") else "")
         + (area_price.prompt_hint(session, conv, services, text) if pack_offers(business, "area_price") else "")
-        + (repeat_order.prompt_hint(session, business, conv, now) if pack_offers(business, "repeat_order") else ""),
+        + (repeat_order.prompt_hint(session, business, conv, now) if pack_offers(business, "repeat_order") else "")
+        + (routes.prompt_hint(session, conv, services, text) if pack_offers(business, "route_price") else ""),
     )
     history = _history(session, conv, now)
 
