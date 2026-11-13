@@ -12,8 +12,8 @@ requests and CI runs document its progress.
 | --- | --- |
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram, WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
-| Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 51 database migrations, 33 niche packs and a generic one |
-| Tests | 665 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 51 database migrations, 34 niche packs and a generic one |
+| Tests | 673 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -49,11 +49,12 @@ exam preparation and tutors for ОРТ, ЕНТ and IELTS (trial lessons and mock
 cleaning companies (the code multiplies the price per m² by the area and keeps the minimal order; a crew is booked with the address),
 drinking water delivery (bottle deposit from the catalog, «как обычно» repeats the last order with the code checking it again),
 cargo and moving (the code finds the route in the price list in Russian, Kyrgyz or Latin spelling; a missing route gets no invented price),
+pharmacies (no dosing or medical advice; a medicine marked «по рецепту» is reserved for pickup only, never delivered, decided by code),
 fitness clubs, massage and spa, medical centres and labs, veterinary clinics and grooming, driving
 schools, hotels and guest houses, banquet and toi halls (one date per hall, held until prepayment),
 tours, photo studios, quest rooms / karaoke / bowling, and dry cleaning / repair / tailoring.
 A pack sets the panel labels, what a conversation can produce (booking, request, order, lead,
-stay, handoff; `stay_by: day` books single dates instead of nights), niche rules, optional modules (`features: [level_test]`, `[area_price]`, `[repeat_order]`, `[route_price]`), demo data and evaluation dialogues. Design: [docs/multi-niche-design.md](docs/multi-niche-design.md).
+stay, handoff; `stay_by: day` books single dates instead of nights), niche rules, optional modules (`features: [level_test]`, `[area_price]`, `[repeat_order]`, `[route_price]`, `[prescription]`), demo data and evaluation dialogues. Design: [docs/multi-niche-design.md](docs/multi-niche-design.md).
 
 First market: private dental clinics in Bishkek, where messages that arrive in the evening and at
 weekends often go unanswered until the next working day.
@@ -427,7 +428,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 665 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 673 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
