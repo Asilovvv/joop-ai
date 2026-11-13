@@ -31,7 +31,7 @@ from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
 from ..followups import capture_rating
-from .. import area_price, intake, jobs, memberships, order_status, repeat_order, routes, stays, waitlist
+from .. import area_price, intake, jobs, memberships, order_status, prescription, repeat_order, routes, stays, waitlist
 from .prompt import CHANNEL_LABELS, build_history, build_system_prompt
 
 log = logging.getLogger(__name__)
@@ -868,6 +868,11 @@ def _try_order(
     if problems or not lines:
         detail = "; ".join(dict.fromkeys(problems)) or "в заказе нет позиций"
         return f"Не получилось оформить заказ: {detail}. Выберите, пожалуйста, из списка.", None
+    rx_note = ""
+    if "prescription" in pack.features:  # the pharmacy marks what needs a prescription; the code decides delivery
+        refusal, rx_note = prescription.check([item for item, _, _ in lines], mode)
+        if refusal:
+            return refusal, None
 
     items_total = None if any(item.price_value is None for item, _, _ in lines) else sum(item.price_value * q for item, q, _ in lines)
     if items_total is not None and business.min_order and items_total < business.min_order:
@@ -882,7 +887,8 @@ def _try_order(
     total = None if items_total is None else items_total + fee
     order = Order(
         business_id=business.id, conversation_id=conv.id, customer_name=name, customer_phone=phone, mode=mode,
-        address=address, wanted_time=(data.get("time") or "").strip()[:100], comment=(data.get("comment") or "").strip()[:300],
+        address=address, wanted_time=(data.get("time") or "").strip()[:100],
+        comment=" ".join(x for x in ((data.get("comment") or "").strip()[:300], rx_note) if x),
         total=total, delivery_fee=fee, channel=channel, chat_id=conv.chat_id, created_at=now, created_off_hours=off,
     )
     session.add(order)
@@ -898,7 +904,7 @@ def _try_order(
         summary = f"Сумма заказа: {_som(total)}, включая доставку {_som(fee)}."
     else:
         summary = f"Сумма заказа: {_som(total)}."
-    return f"{reply}\n{summary}", order
+    return f"{reply}\n{summary}" + (f"\n{rx_note}" if rx_note else ""), order
 
 
 def _som(value: int) -> str:
