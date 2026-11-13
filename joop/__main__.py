@@ -223,8 +223,8 @@ def cmd_chat(args) -> int:
     from .runtime import Runtime
 
     settings = get_settings()
-    if not settings.anthropic_api_key:
-        print("Не задан ANTHROPIC_API_KEY. Добавьте ключ в файл .env (см. .env.example).")
+    if not settings.model_key:
+        print(f"Не задан {settings.model_key_name}. Добавьте ключ в файл .env (см. .env.example).")
         return 1
     init_db()
     business = _find(args.slug)

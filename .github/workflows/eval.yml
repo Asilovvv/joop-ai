@@ -26,6 +26,14 @@ on:
         description: "Only the Kyrgyz suggestions check (eval/kyrgyz_fill.py): true/false"
         required: false
         default: "false"
+      provider:
+        description: "anthropic, or openai = any OpenAI-compatible API (needs the secret LLM_API_KEY and base_url)"
+        required: false
+        default: "anthropic"
+      base_url:
+        description: "OpenAI-compatible endpoint for provider=openai (docs/model-providers.md)"
+        required: false
+        default: ""
 
 permissions:
   contents: write  # only to push result files to the eval-results branch
@@ -53,8 +61,16 @@ jobs:
           REPEAT: ${{ inputs.repeat }}
           KYFILL: ${{ inputs.kyfill }}
           JOOP_MODEL: ${{ inputs.model }}
+          LLM_PROVIDER: ${{ inputs.provider }}
+          LLM_BASE_URL: ${{ inputs.base_url }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
+          if [ "$LLM_PROVIDER" = "openai" ]; then
+            if [ -z "$LLM_API_KEY" ] || [ -z "$LLM_BASE_URL" ] || [ -z "$JOOP_MODEL" ]; then
+              echo "::error::provider=openai needs the secret LLM_API_KEY and the inputs base_url and model"
+              exit 1
+            fi
+          elif [ -z "$ANTHROPIC_API_KEY" ]; then
             echo "::error::Add the repository secret ANTHROPIC_API_KEY (Settings -> Secrets and variables -> Actions)"
             exit 1
           fi

@@ -278,8 +278,8 @@ def main() -> None:
         out_dir.mkdir(parents=True, exist_ok=True)
     else:
         settings = get_settings()
-        if not settings.anthropic_api_key:
-            sys.exit("ANTHROPIC_API_KEY is not set (environment or .env); without a key use --dry-run")
+        if not settings.model_key:
+            sys.exit(f"{settings.model_key_name} is not set (environment or .env); without a key use --dry-run")
         rt = Runtime(settings)
         problem = preflight(rt.get_llm)
         if problem:

@@ -27,8 +27,13 @@ class Runtime:
 
     def get_llm(self) -> LLMClient:
         if self._llm is None:
-            if not self.settings.anthropic_api_key:
-                raise LLMError("ANTHROPIC_API_KEY is not set")
+            if not self.settings.model_key:
+                raise LLMError(f"{self.settings.model_key_name} is not set")
+            if self.settings.llm_provider == "openai":
+                from .agent.openai_compat import OpenAICompatLLM
+
+                self._llm = OpenAICompatLLM(self.settings.llm_base_url, self.settings.llm_api_key, self.settings.model)
+                return self._llm
             self._llm = AnthropicLLM(
                 api_key=self.settings.anthropic_api_key,
                 model=self.settings.model,

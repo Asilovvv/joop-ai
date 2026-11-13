@@ -124,6 +124,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | **Conversation core** | |
 | `joop/agent/prompt.py` | System prompt from the business's data; message history mapping |
 | `joop/agent/llm.py` | Claude client, response schema per niche, tolerant JSON parsing |
+| `joop/agent/openai_compat.py` | Second model provider: any OpenAI-compatible API (development and evaluation; docs/model-providers.md) |
 | `joop/agent/engine.py` | One message in: commands, media, pause, model call, checks of every booking, order and lead, language and confirmation guards |
 | `joop/dispatch.py` | Runs the engine in a DB session, then delivers the reply and staff notes |
 | `joop/channels/` | Telegram, WhatsApp and Instagram parsing and send clients; Telegram polling |
@@ -177,6 +178,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 641 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 646 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |
