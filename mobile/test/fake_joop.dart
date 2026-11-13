@@ -8,6 +8,27 @@ import 'package:joop_mobile/data/joop_repository.dart';
 
 /// A tiny stand-in for the Joop server's /api/mobile, enough for the app's tests.
 class FakeJoop {
+  FakeJoop({this.cafe = false});
+
+  /// A cafe: orders and requests, no bookings.
+  final bool cafe;
+
+  final orders = <Map<String, dynamic>>[
+    {
+      'id': 41, 'created_at': '2026-11-13T05:10:00Z', 'status': 'new', 'label': 'Новый', 'mode': 'delivery',
+      'address': 'Токтогула 1', 'wanted_time': '13:00', 'total': 1200, 'channel': 'telegram', 'comment': '',
+      'customer': {'name': 'Азамат', 'phone': '+996555000111'},
+      'lines': [{'name': 'Плов', 'quantity': 2, 'unit_price': 600}],
+      'next': [{'status': 'accepted', 'label': 'Принять'}, {'status': 'cancelled', 'label': 'Отменить'}],
+    },
+  ];
+  final leads = <Map<String, dynamic>>[
+    {
+      'id': 9, 'created_at': '2026-11-13T06:00:00Z', 'kind': 'handoff', 'summary': 'Можно банкет на 40 человек?',
+      'details': '', 'status': 'new', 'channel': 'whatsapp', 'customer': {'name': 'Айбек', 'phone': ''}, 'closed_by': '',
+    },
+  ];
+
   final bookings = <Map<String, dynamic>>[
     _booking(1, '2026-11-13T10:00:00', 'Айгуль', 'whatsapp'),
     _booking(2, '2026-11-13T15:30:00', 'Бакыт', 'telegram'),
@@ -37,11 +58,19 @@ class FakeJoop {
     calls.add('${request.method} $path');
     http.Response json(Object body, [int status = 200]) =>
         http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json; charset=utf-8'});
-    const account = {
-      'business': {'id': 1, 'slug': 'aktish', 'name': 'Ак-Тиш Дент', 'niche': 'dental'},
-      'who': 'Владелец',
-      'role': 'owner',
-    };
+    final account = cafe
+        ? {
+            'business': {'id': 2, 'slug': 'navat', 'name': 'Нават', 'niche': 'restaurant'},
+            'who': 'Владелец',
+            'role': 'owner',
+            'sections': {'bookings': false, 'orders': true, 'leads': true},
+          }
+        : {
+            'business': {'id': 1, 'slug': 'aktish', 'name': 'Ак-Тиш Дент', 'niche': 'dental'},
+            'who': 'Владелец',
+            'role': 'owner',
+            'sections': {'bookings': true, 'orders': false, 'leads': true},
+          };
     if (path == '/api/mobile/places/aktish') {
       return json({
         'slug': 'aktish', 'name': 'Ак-Тиш Дент', 'niche': 'dental', 'description': 'Семейная стоматология',
@@ -63,7 +92,9 @@ class FakeJoop {
     }
     if (path == '/api/mobile/login') {
       final body = jsonDecode(request.body) as Map;
-      if (body['company'] == 'aktish' && body['password'] == 'secret-pass') return json({'token': token, ...account});
+      if (body['company'] == (cafe ? 'navat' : 'aktish') && body['password'] == 'secret-pass') {
+        return json({'token': token, ...account});
+      }
       return json({'error': 'Неверный логин или пароль.'}, 401);
     }
     if (request.headers['Authorization'] != 'Bearer $token') return json({'error': 'Войдите заново.'}, 401);
@@ -84,6 +115,38 @@ class FakeJoop {
       if (b['status'] != 'booked') return json({'error': 'Запись уже отменена.'}, 409);
       b['status'] = 'cancelled';
       return json({'booking': b, 'waitlist_offered': 0});
+    }
+    if (path == '/api/mobile/orders') return json({'orders': orders});
+    final move = RegExp(r'^/api/mobile/orders/(\d+)/status$').firstMatch(path);
+    if (move != null) {
+      final o = orders.firstWhere((o) => o['id'] == int.parse(move.group(1)!));
+      final to = (jsonDecode(request.body) as Map)['status'] as String;
+      if (!(o['next'] as List).any((n) => n['status'] == to)) return json({'error': 'Заказ уже «${o['label']}».'}, 409);
+      const steps = {
+        'accepted': ('Принят', [
+          {'status': 'sent', 'label': 'В пути'},
+          {'status': 'done', 'label': 'Выполнен'},
+          {'status': 'cancelled', 'label': 'Отменить'},
+        ]),
+        'sent': ('В пути', [
+          {'status': 'done', 'label': 'Выполнен'},
+          {'status': 'cancelled', 'label': 'Отменить'},
+        ]),
+        'done': ('Выполнен', <Map<String, String>>[]),
+        'cancelled': ('Отменён', <Map<String, String>>[]),
+      };
+      o['status'] = to;
+      o['label'] = steps[to]!.$1;
+      o['next'] = steps[to]!.$2;
+      return json({'order': o, 'customer_told': to == 'accepted' || to == 'sent' ? true : null, 'why': ''});
+    }
+    if (path == '/api/mobile/leads') return json({'leads': leads});
+    final done = RegExp(r'^/api/mobile/leads/(\d+)/done$').firstMatch(path);
+    if (done != null) {
+      final x = leads.firstWhere((x) => x['id'] == int.parse(done.group(1)!));
+      x['status'] = 'done';
+      x['closed_by'] = 'Владелец';
+      return json({'lead': x});
     }
     if (path == '/api/mobile/services') {
       return json({

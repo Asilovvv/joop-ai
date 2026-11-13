@@ -1132,19 +1132,29 @@ def order_move(request: Request, item_id: int, status: str = Form(""), csrf: str
         elif not order_status.can_move(order, status):  # a stale tab: another person already moved this order
             _flash(request, f"Заказ #{order.id} уже «{order_status.label(order)}» — страница обновлена.", "error")
         else:
-            if status == "cancelled":
-                stock.return_for_order(s, order.id, _who(request), utcnow())  # the goods go back on the shelf
-            order.status = status
-            if status == "sent":
-                order.sent_at = utcnow()
-            s.add(order)
-            sent, why = order_status.notify(s, _rt(request), b, order, utcnow())  # «где мой заказ» answered before it is asked
+            sent, why = move_order(s, _rt(request), b, order, status, _who(request))
             if sent is not None:
                 _flash(request, f"Заказ #{order.id}: {order_status.label(order)}. " + (
                     "Клиенту отправлено сообщение." if sent else
                     f"Написать клиенту не получилось: {why} Телефон клиента: {order.customer_phone}"), "ok" if sent else "error")
             s.commit()
     return _back("/panel/orders")
+
+
+def move_order(s: Session, rt: Runtime, b: Business, order: Order, status: str, who: str) -> tuple[bool | None, str]:
+    """Move an order to its next status (the caller checked order_status.can_move); the panel and the app share it.
+
+    A cancelled order's goods go back on the shelf; the customer hears about the steps in order_status.NOTIFY.
+    Returns order_status.notify's (sent, why): sent is None when the step is not told to the customer.
+    The caller commits.
+    """
+    if status == "cancelled":
+        stock.return_for_order(s, order.id, who, utcnow())  # the goods go back on the shelf
+    order.status = status
+    if status == "sent":
+        order.sent_at = utcnow()
+    s.add(order)
+    return order_status.notify(s, rt, b, order, utcnow())  # «где мой заказ» answered before it is asked
 
 
 # --- leads and conversations ---------------------------------------------------------------------------

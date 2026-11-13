@@ -65,6 +65,28 @@ class JoopRepository {
     return Booking.fromJson(data['booking'] as Map<String, dynamic>);
   }
 
+  Future<List<Order>> orders() async {
+    final data = await _api.get('/api/mobile/orders') as Map<String, dynamic>;
+    return [for (final row in data['orders'] as List) Order.fromJson(row as Map<String, dynamic>)];
+  }
+
+  /// Moves an order on; [OrderMove.customerTold] is false when the customer's channel would not take the message.
+  Future<OrderMove> moveOrder(int orderId, String status) async {
+    final data = await _api.post('/api/mobile/orders/$orderId/status', {'status': status}) as Map<String, dynamic>;
+    return OrderMove(Order.fromJson(data['order'] as Map<String, dynamic>), data['customer_told'] as bool?,
+        (data['why'] as String?) ?? '');
+  }
+
+  Future<List<Lead>> leads() async {
+    final data = await _api.get('/api/mobile/leads') as Map<String, dynamic>;
+    return [for (final row in data['leads'] as List) Lead.fromJson(row as Map<String, dynamic>)];
+  }
+
+  Future<Lead> closeLead(int leadId) async {
+    final data = await _api.post('/api/mobile/leads/$leadId/done') as Map<String, dynamic>;
+    return Lead.fromJson(data['lead'] as Map<String, dynamic>);
+  }
+
   Future<List<Service>> services() async {
     final data = await _api.get('/api/mobile/services') as Map<String, dynamic>;
     return [for (final row in data['services'] as List) Service.fromJson(row as Map<String, dynamic>)];
@@ -73,3 +95,13 @@ class JoopRepository {
 
 String isoDay(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+class OrderMove {
+  const OrderMove(this.order, this.customerTold, this.why);
+
+  final Order order;
+
+  /// null: this step is not told to the customer; true: told; false: the channel did not take it ([why]).
+  final bool? customerTold;
+  final String why;
+}

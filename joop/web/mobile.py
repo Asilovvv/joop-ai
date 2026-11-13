@@ -22,13 +22,15 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from ..api import booking_json
+from .. import order_status
+from ..api import booking_json, lead_json, order_json
 from ..db import new_session
-from ..models import Booking, Business, PanelUser, Service
+from ..models import Booking, Business, Lead, Order, PanelUser, Service
+from ..niches import get_pack
 from ..security import verify_password
 from ..stats import not_test
 from ..timeutil import local_now
-from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, record_failure, throttled
+from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
 
 router = APIRouter()
 
@@ -56,9 +58,13 @@ class Who:
     def json(self) -> dict:
         b = self.business
         role = "owner" if self.user is None else ("master" if self.master_staff_id else "staff")
+        pack = get_pack(b.niche)
+        master = role == "master"  # a master's login opens only her bookings, as in the panel
         return {"business": {"id": b.id, "slug": b.slug, "name": b.name, "niche": b.niche, "timezone": b.timezone,
                              "address": b.address, "phone": b.phone},
-                "who": self.user.name if self.user else "Владелец", "role": role}
+                "who": self.user.name if self.user else "Владелец", "role": role,
+                "sections": {"bookings": pack.has("booking") or pack.has("request"),
+                             "orders": pack.has("order") and not master, "leads": not master}}
 
 
 def _serializer(request: Request) -> URLSafeTimedSerializer:
@@ -213,6 +219,101 @@ def mobile_services(request: Request):
                               "category": x.category, "available": x.available and not x.sold_out} for x in rows]}
 
 
+# --- orders and requests ---------------------------------------------------------------------------
+# Cafes, shops and water delivery work with orders; every niche gets requests (questions the AI handed to staff,
+# bookings without a free slot, qualified leads). A master's login has neither, as in the panel.
+
+OPEN_ORDERS = ("new", "accepted", "sent")
+RECENT = 30  # closed orders and requests shown after the open ones
+
+
+def _staff_only(s: Session, request: Request) -> tuple[Who | None, JSONResponse | None]:
+    who = _signed_in(s, request)
+    if who is None:
+        return None, _fail(401, "Войдите заново.")
+    if who.master_staff_id:
+        return None, _fail(403, "Этот раздел мастеру не открыт.")
+    return who, None
+
+
+ACTIONS = {"accepted": "Принять", "done": "Выполнен", "cancelled": "Отменить"}  # the panel's button words (orders.html)
+
+
+def _order(s: Session, o: Order) -> dict:
+    return {**order_json(s, o), "label": order_status.label(o),
+            "next": [{"status": x, "label": order_status.sent_label(o) if x == "sent" else ACTIONS[x]}
+                     for x in order_status.NEXT.get(o.status, ())]}
+
+
+@router.get("/api/mobile/orders")
+def mobile_orders(request: Request):
+    """Open orders, newest first, then the last RECENT closed ones."""
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        mine = [Order.business_id == who.business.id, not_test(Order, who.business.id)]
+        open_ = s.exec(select(Order).where(*mine, Order.status.in_(OPEN_ORDERS)).order_by(Order.id.desc())).all()
+        closed = s.exec(select(Order).where(*mine, Order.status.not_in(OPEN_ORDERS)).order_by(Order.id.desc()).limit(RECENT)).all()
+        return {"orders": [_order(s, o) for o in [*open_, *closed]]}
+
+
+class StatusIn(BaseModel):
+    status: str
+
+
+@router.post("/api/mobile/orders/{item_id}/status")
+def mobile_order_move(request: Request, item_id: int, body: StatusIn):
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        order = s.get(Order, item_id)
+        if order is None or order.business_id != who.business.id:
+            return _fail(404, "Заказ не найден.")
+        if not order_status.can_move(order, body.status):  # another person already moved it, or no such step
+            return _fail(409, f"Заказ уже «{order_status.label(order)}».")
+        sent, why = move_order(s, _rt(request), who.business, order, body.status, who.json()["who"])
+        s.commit()
+        s.refresh(order)
+        return {"order": _order(s, order),
+                "customer_told": sent, "why": why}
+
+
+def _lead(x: Lead) -> dict:
+    return {**lead_json(x), "closed_by": x.closed_by}
+
+
+@router.get("/api/mobile/leads")
+def mobile_leads(request: Request):
+    """New requests, newest first, then the last RECENT done ones."""
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        mine = [Lead.business_id == who.business.id, not_test(Lead, who.business.id)]
+        new = s.exec(select(Lead).where(*mine, Lead.status == "new").order_by(Lead.id.desc())).all()
+        done = s.exec(select(Lead).where(*mine, Lead.status == "done").order_by(Lead.id.desc()).limit(RECENT)).all()
+        return {"leads": [_lead(x) for x in [*new, *done]]}
+
+
+@router.post("/api/mobile/leads/{item_id}/done")
+def mobile_lead_done(request: Request, item_id: int):
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        lead = s.get(Lead, item_id)
+        if lead is None or lead.business_id != who.business.id:
+            return _fail(404, "Заявка не найдена.")
+        if lead.status != "done":
+            lead.status, lead.closed_by = "done", who.json()["who"]
+            s.add(lead)
+            s.commit()
+            s.refresh(lead)
+        return {"lead": _lead(lead)}
+
+
 # --- customers -------------------------------------------------------------------------------------
 # A customer opens one business by its code (the slug in its /c/<slug> link or QR code) and chats with its AI
 # through the web chat's own API (POST /c/<slug>/chat, GET /c/<slug>/updates). There is no list of all businesses:
@@ -223,7 +324,6 @@ def mobile_services(request: Request):
 def mobile_place(slug: str):
     """The public card of a business whose web chat is open: what its chat page and price page already show."""
     from .. import samples
-    from ..niches import get_pack
     from .webchat import _business as chat_business
 
     with new_session() as s:
