@@ -27,6 +27,12 @@ flutter run --dart-define=API_URL=https://your-joop-server
 Without `API_URL` the app uses `http://localhost:8000` (`http://10.0.2.2:8000` in the Android emulator). The sign-in
 screen has «Другой сервер» to change it on the device.
 
+## Release
+
+When the Joop server is public (docs/deploy.md), run **Actions → mobile-release → Run workflow** with its address
+(`PUBLIC_BASE_URL`, for example `https://joop.kg`). The workflow checks that the server answers and already has
+`/api/mobile`, builds the APK with that address built in, and attaches it to a GitHub Release.
+
 ## Tests
 
 `flutter test`: the blocs and a full sign-in → bookings → cancel → price list run against a stand-in server
