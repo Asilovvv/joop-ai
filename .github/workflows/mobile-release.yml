@@ -1,0 +1,65 @@
+# Builds the mobile app against a running Joop server and attaches the Android APK to a GitHub Release.
+# Started by hand: Actions -> mobile-release -> Run workflow, with the server's public address
+# (the PUBLIC_BASE_URL of the server, for example https://joop.kg). The app then needs no «Другой сервер».
+name: mobile-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release tag, for example mobile-v1.0.0"
+        required: true
+        default: mobile-v1.0.0
+      api_url:
+        description: "Public address of the Joop server, for example https://joop.kg"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  API_URL: ${{ inputs.api_url }}
+
+jobs:
+  check:
+    name: the server answers
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          case "$API_URL" in https://*) ;; *) echo "::error::The address must start with https://"; exit 1;; esac
+          curl -sf --max-time 30 "${API_URL%/}/health" || { echo "::error::${API_URL%/}/health does not answer."; exit 1; }
+          # The server must already have the mobile API (joop/web/mobile.py): a wrong password answers 401, not 404.
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+            -d '{"company":"-","password":"-"}' "${API_URL%/}/api/mobile/login")
+          [ "$code" = 401 ] || { echo "::error::/api/mobile/login answered $code: update the server first."; exit 1; }
+
+  android:
+    name: Android APK
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter test
+      - run: flutter build apk --release --dart-define=API_URL="${API_URL%/}"
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk="joop-ai-${{ inputs.version }}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "$apk"
+          notes="Joop AI for owners, staff and customers. Server: ${API_URL%/}. Install the APK on Android; allow installing from this source when asked."
+          gh release create "${{ inputs.version }}" "$apk" --target "${{ github.sha }}" --title "Joop AI mobile ${{ inputs.version }}" --notes "$notes" \
+            || gh release upload "${{ inputs.version }}" "$apk" --clobber
