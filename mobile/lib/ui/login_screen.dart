@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/auth_bloc.dart';
 import '../data/joop_repository.dart';
+import 'customer_home_screen.dart';
 import 'theme.dart';
 
 /// Sign-in with the panel's credentials.
@@ -145,7 +146,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text('Логин и пароль те же, что в панели Joop.',
+                    OutlinedButton.icon(
+                      key: const Key('customer'),
+                      onPressed: () => Navigator.of(context)
+                          .push(MaterialPageRoute(builder: (_) => const CustomerHomeScreen())),
+                      icon: const Icon(Icons.chat_bubble_outline),
+                      label: const Text('Я клиент: записаться'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white54),
+                        minimumSize: const Size.fromHeight(52),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Для владельцев и сотрудников: логин и пароль те же, что в панели Joop.',
                         textAlign: TextAlign.center, style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70)),
                   ],
                 ),

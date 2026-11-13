@@ -7,8 +7,11 @@ every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
 - **Записи** — the bookings of any day, with cancelling (the time becomes free, as in the panel);
 - **Прайс** — the price list the AI quotes.
 
+Customers press «Я клиент: записаться», open a business by its code or chat link, and talk to its AI administrator
+(prices, free time, booking), with staff replies from the panel in the same chat; «Цены и контакты» shows the card.
+
 It talks to the server only through [`/api/mobile`](../docs/mobile-api.md). State is managed with Bloc
-(`flutter_bloc`): `AuthBloc` and `BookingsBloc`, `SummaryCubit` and `ServicesCubit` in `lib/bloc/`.
+(`flutter_bloc`): `AuthBloc`, `BookingsBloc`, `ChatBloc`, `SummaryCubit`, `ServicesCubit` and `PlacesCubit` in `lib/bloc/`.
 
 The app started from the Smile AI mid-term project (github.com/Asilovvv/ai-clinic-booking): its HTTP client, theme
 and Bloc structure; the screens and data are Joop's.

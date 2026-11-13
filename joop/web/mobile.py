@@ -16,7 +16,7 @@ from __future__ import annotations
 import time as time_module
 from datetime import date, datetime, time, timedelta
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
@@ -208,3 +208,31 @@ def mobile_services(request: Request):
         rows = s.exec(select(Service).where(Service.business_id == who.business.id).order_by(Service.sort, Service.id)).all()
         return {"services": [{"id": x.id, "name": x.name, "name_ky": x.name_ky, "price": x.price, "price_value": x.price_value,
                               "category": x.category, "available": x.available and not x.sold_out} for x in rows]}
+
+
+# --- customers -------------------------------------------------------------------------------------
+# A customer opens one business by its code (the slug in its /c/<slug> link or QR code) and chats with its AI
+# through the web chat's own API (POST /c/<slug>/chat, GET /c/<slug>/updates). There is no list of all businesses:
+# a business joined Joop for its AI administrator, not for a public directory.
+
+
+@router.get("/api/mobile/places/{slug}")
+def mobile_place(slug: str):
+    """The public card of a business whose web chat is open: what its chat page and price page already show."""
+    from .. import samples
+    from ..niches import get_pack
+    from .webchat import _business as chat_business
+
+    with new_session() as s:
+        try:
+            b = chat_business(s, slug.strip().lower())
+        except HTTPException:
+            return _fail(404, "Такой компании нет или её чат выключен.")
+        hidden = samples.hidden_from_customers(s, b, "web")  # the sign-up example's prices and hours are not real
+        services = [x for x in s.exec(select(Service).where(Service.business_id == b.id, Service.available == True)  # noqa: E712
+                                      .order_by(Service.sort, Service.id)).all()
+                    if x.id not in hidden.services and not x.sold_out]
+        pack = get_pack(b.niche)
+        return {"slug": b.slug, "name": b.name, "niche": b.niche, "description": b.description, "address": b.address,
+                "phone": b.phone, "hours": "" if hidden.hours else b.hours_text, "booking": pack.has("booking"),
+                "services": [{"id": x.id, "name": x.name, "price": x.price, "category": x.category} for x in services]}
