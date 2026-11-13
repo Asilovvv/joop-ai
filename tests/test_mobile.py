@@ -1,0 +1,143 @@
+"""The mobile app's JSON API (/api/mobile): sign-in with the panel's credentials, bookings, cancelling, services."""
+
+from datetime import datetime, timedelta
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlmodel import select
+
+from joop import db
+from joop.models import Booking, Business, PanelUser, Slot, Staff
+from joop.security import hash_password
+from joop.web.app import _login_fails, create_app
+
+# NOW_UTC in conftest is Wednesday 4 November 2026, 23:14 in Bishkek: "today" is 4 Nov, "tomorrow" 5 Nov.
+TOMORROW = datetime(2026, 11, 5)
+
+
+@pytest.fixture
+def client(settings, rt, business):
+    _login_fails.clear()
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        yield c
+    _login_fails.clear()
+
+
+def sign_in(c, company="aktish", password="secret-pass", user=""):
+    return c.post("/api/mobile/login", json={"company": company, "password": password, "user": user})
+
+
+def auth(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+def book(business_id, slot: Slot, name="Айгуль", channel="whatsapp") -> int:
+    with db.new_session() as s:
+        slot = s.get(Slot, slot.id)
+        member = s.get(Staff, slot.staff_id)
+        slot.taken, slot.status = 1, "booked"
+        row = Booking(business_id=business_id, slot_id=slot.id, staff_id=member.id, staff_name=member.name, start=slot.start,
+                      service="Консультация", customer_name=name, customer_phone="+996700000001", channel=channel)
+        s.add(slot)
+        s.add(row)
+        s.commit()
+        return row.id
+
+
+def tomorrow_slots(business_id):
+    with db.new_session() as s:
+        return s.exec(select(Slot).where(Slot.business_id == business_id, Slot.status == "free", Slot.start >= TOMORROW,
+                                         Slot.start < TOMORROW + timedelta(days=1)).order_by(Slot.start)).all()
+
+
+def test_owner_signs_in_and_a_wrong_password_does_not(client, business):
+    r = sign_in(client)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["role"] == "owner" and data["business"]["slug"] == "aktish" and data["business"]["name"] == "Ак-Тиш Дент"
+    assert client.get("/api/mobile/me", headers=auth(data["token"])).json()["who"] == "Владелец"
+    assert sign_in(client, password="wrong").status_code == 401
+    assert client.get("/api/mobile/me").status_code == 401
+    assert client.get("/api/mobile/me", headers=auth("forged.token")).status_code == 401
+
+
+def test_repeated_wrong_passwords_are_throttled(client, business):
+    for _ in range(5):
+        assert sign_in(client, password="wrong").status_code == 401
+    assert sign_in(client).status_code == 429  # even the right password waits now
+
+
+def test_a_new_password_ends_old_tokens(client, business):
+    token = sign_in(client).json()["token"]
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.admin_password_hash = hash_password("another-pass-1")
+        s.add(b)
+        s.commit()
+    assert client.get("/api/mobile/me", headers=auth(token)).status_code == 401
+
+
+def test_bookings_of_a_day_summary_and_cancel(client, business):
+    slots = tomorrow_slots(business.id)
+    first, second = book(business.id, slots[0]), book(business.id, slots[1], name="Бакыт", channel="telegram")
+    book(business.id, slots[2], name="Тест", channel="console")  # the panel's test chat stays out
+    token = sign_in(client).json()["token"]
+
+    day = client.get("/api/mobile/bookings", params={"day": "2026-11-05"}, headers=auth(token)).json()
+    assert [b["id"] for b in day["bookings"]] == [first, second]
+    assert day["bookings"][0]["customer"]["name"] == "Айгуль" and day["bookings"][1]["channel"] == "telegram"
+    assert client.get("/api/mobile/bookings", headers=auth(token)).json()["bookings"] == []  # today, 4 Nov
+    assert client.get("/api/mobile/bookings", params={"day": "5 Nov"}, headers=auth(token)).status_code == 400
+
+    summary = client.get("/api/mobile/summary", headers=auth(token)).json()
+    assert summary["today"] == 0 and summary["tomorrow"] == 2 and summary["week"] == 2 and summary["next"]["id"] == first
+
+    r = client.post(f"/api/mobile/bookings/{first}/cancel", headers=auth(token))
+    assert r.status_code == 200 and r.json()["booking"]["status"] == "cancelled"
+    with db.new_session() as s:
+        assert s.get(Slot, slots[0].id).status == "free"  # the time is free again, as after cancelling in the panel
+    assert client.post(f"/api/mobile/bookings/{first}/cancel", headers=auth(token)).status_code == 409
+    assert client.get("/api/mobile/summary", headers=auth(token)).json()["tomorrow"] == 1
+
+
+def test_another_business_cannot_see_or_cancel(client, business):
+    from joop.presets import create_business
+
+    from .conftest import NOW_UTC
+
+    with db.new_session() as s:
+        create_business(s, slug="other", name="Другая клиника", password="other-pass-1", demo=True, now_utc=NOW_UTC)
+        s.commit()
+    mine = book(business.id, tomorrow_slots(business.id)[0])
+    stranger = sign_in(client, company="other", password="other-pass-1").json()["token"]
+    assert client.get("/api/mobile/bookings", params={"day": "2026-11-05"}, headers=auth(stranger)).json()["bookings"] == []
+    assert client.post(f"/api/mobile/bookings/{mine}/cancel", headers=auth(stranger)).status_code == 404
+
+
+def test_a_master_sees_and_cancels_only_her_own_bookings(client, business):
+    slots = tomorrow_slots(business.id)
+    a = slots[0]
+    b = next(x for x in slots if x.staff_id != a.staff_id)
+    hers, other = book(business.id, a), book(business.id, b, name="Бакыт")
+    with db.new_session() as s:
+        s.add(PanelUser(business_id=business.id, name="Айгерим", login="aigerim", password_hash=hash_password("staff-pass-1"),
+                        staff_id=a.staff_id))
+        s.commit()
+    r = sign_in(client, user="aigerim", password="staff-pass-1")
+    assert r.status_code == 200 and r.json()["role"] == "master" and r.json()["who"] == "Айгерим"
+    token = r.json()["token"]
+    day = client.get("/api/mobile/bookings", params={"day": "2026-11-05"}, headers=auth(token)).json()
+    assert [x["id"] for x in day["bookings"]] == [hers]
+    assert client.post(f"/api/mobile/bookings/{other}/cancel", headers=auth(token)).status_code == 404
+    with db.new_session() as s:
+        user = s.exec(select(PanelUser).where(PanelUser.login == "aigerim")).one()
+        user.active = False
+        s.add(user)
+        s.commit()
+    assert client.get("/api/mobile/me", headers=auth(token)).status_code == 401  # a switched-off login ends at once
+
+
+def test_services_list(client, business):
+    token = sign_in(client).json()["token"]
+    services = client.get("/api/mobile/services", headers=auth(token)).json()["services"]
+    assert services and all({"id", "name", "price", "available"} <= set(x) for x in services)

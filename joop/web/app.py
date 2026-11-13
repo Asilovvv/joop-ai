@@ -1061,20 +1061,31 @@ def booking_cancel(request: Request, item_id: int, csrf: str = Form("")):
     with new_session() as s:
         b = _business(s, request)
         booking = _own_booking(s, request, item_id, b.id)
-        if booking.status == "booked":
-            booking.status = "cancelled"
-            s.add(booking)
-            slot = s.get(Slot, booking.slot_id) if booking.slot_id else None
-            release_slot(s, booking.slot_id, seats_needed(slot, booking.party_size) if slot else 1)
-            s.flush()
-            told = 0
-            if slot is not None:
-                s.refresh(slot)
-                told = waitlist.offer_freed_slot(s, _rt(request), b, slot, utcnow())
+        told = cancel_booking(s, _rt(request), b, booking)
+        if told is not None:
             s.commit()
             _flash(request, "Запись отменена, время снова свободно. Клиенту сообщите сами."
                    + (f" Время предложено клиентам из листа ожидания: {told}." if told else ""))
     return _back("/panel/bookings")
+
+
+def cancel_booking(s: Session, rt: Runtime, b: Business, booking: Booking) -> int | None:
+    """Cancel a booked visit and free its time; the panel and the mobile app share it.
+
+    Returns how many waiting-list customers were offered the freed time, or None when the booking was not active.
+    The caller commits.
+    """
+    if booking.status != "booked":
+        return None
+    booking.status = "cancelled"
+    s.add(booking)
+    slot = s.get(Slot, booking.slot_id) if booking.slot_id else None
+    release_slot(s, booking.slot_id, seats_needed(slot, booking.party_size) if slot else 1)
+    s.flush()
+    if slot is None:
+        return 0
+    s.refresh(slot)
+    return waitlist.offer_freed_slot(s, rt, b, slot, utcnow())
 
 
 @router.post("/panel/bookings/{item_id}/paid")
@@ -2056,6 +2067,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .api import router as api_router
 
     app.include_router(api_router)
+    from .mobile import router as mobile_router
+
+    app.include_router(mobile_router)
     from .replies import router as replies_router
 
     app.include_router(replies_router)
