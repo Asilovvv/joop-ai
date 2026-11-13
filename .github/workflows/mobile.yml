@@ -1,0 +1,50 @@
+# The Flutter app in mobile/: analyze, tests, and an Android build, on every change to it.
+name: mobile
+
+on:
+  push:
+    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+  pull_request:
+    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: mobile
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test
+
+  android:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: joop-mobile-apk
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk

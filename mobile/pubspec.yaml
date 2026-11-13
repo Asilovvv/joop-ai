@@ -1,0 +1,49 @@
+name: joop_mobile
+description: "Joop AI for business owners and staff: today's bookings from every channel, cancelling, the price list."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.1.0
+  equatable: ^2.0.5
+  http: ^1.2.2
+  shared_preferences: ^2.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  bloc_test: ^10.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Roboto-Black.ttf
+          weight: 900
+  assets:
+    - assets/icon/icon.png
+
+# App icon from Joop's own (assets/icon/icon.png): dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/icon/icon.png"
+  web:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    background_color: "#0B7563"
+    theme_color: "#0B7563"

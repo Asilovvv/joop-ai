@@ -1,0 +1,14 @@
+{
+ "token": "redacted",
+ "business": {
+  "id": 1,
+  "slug": "aktish",
+  "name": "Ак-Тиш Дент",
+  "niche": "dental",
+  "timezone": "Asia/Bishkek",
+  "address": "Бишкек, ул. Токтогула 120 (демо-адрес)",
+  "phone": "+996 555 000 000"
+ },
+ "who": "Владелец",
+ "role": "owner"
+}
