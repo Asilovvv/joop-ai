@@ -8,11 +8,18 @@ class Account extends Equatable {
     required this.niche,
     required this.who,
     required this.role,
+    this.bookings = true,
+    this.orders = false,
+    this.leads = true,
   });
 
   factory Account.fromJson(Map<String, dynamic> json) {
     final business = json['business'] as Map<String, dynamic>;
+    final sections = (json['sections'] as Map?) ?? const {};
     return Account(
+      bookings: (sections['bookings'] as bool?) ?? true,
+      orders: (sections['orders'] as bool?) ?? false,
+      leads: (sections['leads'] as bool?) ?? true,
       businessName: business['name'] as String,
       slug: business['slug'] as String,
       niche: (business['niche'] as String?) ?? '',
@@ -29,10 +36,15 @@ class Account extends Equatable {
   /// owner | staff | master (a master sees only her own bookings).
   final String role;
 
+  /// Sections this login opens, by the business's niche: a cafe has orders, a master only her bookings.
+  final bool bookings;
+  final bool orders;
+  final bool leads;
+
   bool get isOwner => role == 'owner';
 
   @override
-  List<Object?> get props => [businessName, slug, niche, who, role];
+  List<Object?> get props => [businessName, slug, niche, who, role, bookings, orders, leads];
 }
 
 class Booking extends Equatable {
@@ -212,4 +224,152 @@ class ChatMessage extends Equatable {
 
   @override
   List<Object?> get props => [fromCustomer, text, staffId];
+}
+
+class OrderLine extends Equatable {
+  const OrderLine(this.name, this.quantity, this.unitPrice);
+
+  final String name;
+  final int quantity;
+  final int? unitPrice;
+
+  @override
+  List<Object?> get props => [name, quantity, unitPrice];
+}
+
+/// A next status the order can take, with the panel's label («Принят», «В пути», «Готов к выдаче»).
+class OrderStep extends Equatable {
+  const OrderStep(this.status, this.label);
+
+  final String status;
+  final String label;
+
+  @override
+  List<Object?> get props => [status, label];
+}
+
+class Order extends Equatable {
+  const Order({
+    required this.id,
+    required this.createdAt,
+    required this.status,
+    required this.label,
+    required this.delivery,
+    required this.address,
+    required this.wantedTime,
+    required this.total,
+    required this.customerName,
+    required this.customerPhone,
+    required this.channel,
+    required this.comment,
+    required this.lines,
+    required this.next,
+  });
+
+  factory Order.fromJson(Map<String, dynamic> json) {
+    final customer = (json['customer'] as Map?) ?? const {};
+    return Order(
+      id: json['id'] as int,
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+      status: json['status'] as String,
+      label: (json['label'] as String?) ?? json['status'] as String,
+      delivery: json['mode'] == 'delivery',
+      address: (json['address'] as String?) ?? '',
+      wantedTime: (json['wanted_time'] as String?) ?? '',
+      total: json['total'] as int?,
+      customerName: (customer['name'] as String?) ?? '',
+      customerPhone: (customer['phone'] as String?) ?? '',
+      channel: (json['channel'] as String?) ?? '',
+      comment: (json['comment'] as String?) ?? '',
+      lines: [
+        for (final l in (json['lines'] as List? ?? const []))
+          OrderLine((l as Map)['name'] as String, (l['quantity'] as int?) ?? 1, l['unit_price'] as int?),
+      ],
+      next: [
+        for (final n in (json['next'] as List? ?? const []))
+          OrderStep((n as Map)['status'] as String, n['label'] as String),
+      ],
+    );
+  }
+
+  final int id;
+  final DateTime createdAt;
+
+  /// new | accepted | sent | done | cancelled
+  final String status;
+  final String label;
+  final bool delivery;
+  final String address;
+  final String wantedTime;
+
+  /// Items and delivery, som; null when a price is not exact («от …»).
+  final int? total;
+  final String customerName;
+  final String customerPhone;
+  final String channel;
+  final String comment;
+  final List<OrderLine> lines;
+  final List<OrderStep> next;
+
+  bool get isOpen => next.isNotEmpty;
+
+  @override
+  List<Object?> get props =>
+      [id, createdAt, status, label, delivery, address, wantedTime, total, customerName, customerPhone, channel, comment, lines, next];
+}
+
+/// A request: a question the AI handed to staff, a booking without a free slot, or a qualified lead.
+class Lead extends Equatable {
+  const Lead({
+    required this.id,
+    required this.createdAt,
+    required this.kind,
+    required this.summary,
+    required this.details,
+    required this.customerName,
+    required this.customerPhone,
+    required this.channel,
+    required this.done,
+    required this.closedBy,
+  });
+
+  factory Lead.fromJson(Map<String, dynamic> json) {
+    final customer = (json['customer'] as Map?) ?? const {};
+    return Lead(
+      id: json['id'] as int,
+      createdAt: DateTime.parse(json['created_at'] as String).toLocal(),
+      kind: (json['kind'] as String?) ?? 'handoff',
+      summary: (json['summary'] as String?) ?? '',
+      details: (json['details'] as String?) ?? '',
+      customerName: (customer['name'] as String?) ?? '',
+      customerPhone: (customer['phone'] as String?) ?? '',
+      channel: (json['channel'] as String?) ?? '',
+      done: json['status'] == 'done',
+      closedBy: (json['closed_by'] as String?) ?? '',
+    );
+  }
+
+  final int id;
+  final DateTime createdAt;
+
+  /// handoff | request | lead | media | error
+  final String kind;
+  final String summary;
+  final String details;
+  final String customerName;
+  final String customerPhone;
+  final String channel;
+  final bool done;
+  final String closedBy;
+
+  String get kindLabel => switch (kind) {
+        'request' => 'Запись без окна',
+        'lead' => 'Заявка',
+        'media' => 'Фото или файл',
+        'error' => 'Сбой',
+        _ => 'Вопрос сотруднику',
+      };
+
+  @override
+  List<Object?> get props => [id, createdAt, kind, summary, details, customerName, customerPhone, channel, done, closedBy];
 }

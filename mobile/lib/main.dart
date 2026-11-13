@@ -38,7 +38,7 @@ class JoopApp extends StatelessWidget {
             buildWhen: (a, b) => a.runtimeType != b.runtimeType || b is AuthSignedIn,
             builder: (context, state) => switch (state) {
               AuthInitial() => const Scaffold(body: Center(child: CircularProgressIndicator())),
-              AuthSignedIn() => HomeShell(key: ValueKey(state.account), today: today ?? DateTime.now()),
+              AuthSignedIn() => HomeShell(key: ValueKey(state.account), account: state.account, today: today ?? DateTime.now()),
               _ => const LoginScreen(),
             },
           ),

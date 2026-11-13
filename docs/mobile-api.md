@@ -10,6 +10,10 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | `GET /api/mobile/summary` | active bookings today, tomorrow and in 7 days, and the next visit |
 | `GET /api/mobile/bookings?day=YYYY-MM-DD&days=N` | bookings of `N` days (1–31) from `day`, the business's local date |
 | `POST /api/mobile/bookings/{id}/cancel` | cancels a booking and frees its time, the same code as the panel's button |
+| `GET /api/mobile/orders` | open orders, newest first, then the last 30 closed; each with its next steps |
+| `POST /api/mobile/orders/{id}/status` | `{"status"}`: the next step, the same code as the panel (stock back on cancel, the customer told) |
+| `GET /api/mobile/leads` | new requests, then the last 30 done |
+| `POST /api/mobile/leads/{id}/done` | marks a request done, with the person's name |
 | `GET /api/mobile/services` | the price list |
 
 Every call after sign-in sends `Authorization: Bearer <token>`.
@@ -18,9 +22,11 @@ Every call after sign-in sends `Authorization: Bearer <token>`.
   member's own login. Failed attempts share the panel's limit: 5 per address, then 15 minutes.
 - **The token** is signed with `SESSION_SECRET` and is not stored. It lives 30 days and carries the last characters of
   the password hash, so a new password, or switching a staff login off, ends it at once.
-- **Rights** follow the panel: a master's login sees and cancels only her own bookings. Settings, channels and
-  payment stay in the panel.
-- The panel's test chat (`console`) is left out of bookings and counts.
+- **Rights** follow the panel: a master's login sees and cancels only her own bookings and has no orders or requests
+  (403). Settings, channels and payment stay in the panel.
+- **Sections**: `login` and `me` return `sections` (`bookings`, `orders`, `leads`) from the niche, so the app shows
+  the tabs the panel's menu would: a cafe gets orders, a shop has no bookings.
+- Test chats (the panel's and the owner's own test chats in real channels) are left out of bookings, orders and requests.
 
 ## Customers
 

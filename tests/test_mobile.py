@@ -174,3 +174,70 @@ def test_a_customer_chats_through_the_web_chat(client, business, llm):
     llm.replies.append(AgentReply("Здравствуйте! Консультация стоит 500 сом."))
     r = client.post("/c/aktish/chat", json={"text": "Сколько стоит консультация?", "visitor": "a" * 24})
     assert r.status_code == 200 and "500 сом" in r.json()["reply"] and r.json()["visitor"] == "a" * 24
+
+
+def _cafe_with_order_and_request():
+    from joop.models import Conversation, Lead, Order, OrderLine
+    from joop.presets import create_business
+
+    from .conftest import NOW_UTC
+
+    with db.new_session() as s:
+        cafe = create_business(s, slug="navat", name="Нават", password="cafe-pass-1", niche="restaurant", demo=True,
+                               now_utc=NOW_UTC)
+        cafe.telegram_bot_token = "456:CAFE"
+        s.add(cafe)
+        s.flush()
+        conv = Conversation(business_id=cafe.id, channel="telegram", chat_id="777")
+        s.add(conv)
+        s.flush()
+        order = Order(business_id=cafe.id, conversation_id=conv.id, customer_name="Азамат", customer_phone="+996555000111",
+                      mode="delivery", address="Токтогула 1", total=1200, channel="telegram", chat_id="777")
+        s.add(order)
+        s.flush()
+        s.add(OrderLine(order_id=order.id, name="Плов", quantity=2, unit_price=600))
+        s.add(Lead(business_id=cafe.id, conversation_id=conv.id, kind="handoff", summary="Можно ли банкет на 40 человек?",
+                   customer_name="Азамат", channel="telegram", chat_id="777"))
+        s.add(Lead(business_id=cafe.id, kind="handoff", summary="Тест из панели", channel="console", chat_id="t"))
+        s.commit()
+        return order.id
+
+
+def test_a_cafe_owner_moves_orders_and_closes_requests(client, business, rt):
+    order_id = _cafe_with_order_and_request()
+    r = sign_in(client, company="navat", password="cafe-pass-1").json()
+    assert r["sections"] == {"bookings": True, "orders": True, "leads": True}
+    token = r["token"]
+
+    orders = client.get("/api/mobile/orders", headers=auth(token)).json()["orders"]
+    assert [o["id"] for o in orders] == [order_id]
+    assert orders[0]["label"] == "Новый" and orders[0]["lines"][0]["name"] == "Плов"
+    assert [x["status"] for x in orders[0]["next"]] == ["accepted", "cancelled"]
+
+    moved = client.post(f"/api/mobile/orders/{order_id}/status", json={"status": "accepted"}, headers=auth(token)).json()
+    assert moved["order"]["status"] == "accepted" and moved["customer_told"] is True
+    assert rt.tg.sent and "777" == rt.tg.sent[-1][0]  # the customer heard it in Telegram, as from the panel
+    assert [x["label"] for x in moved["order"]["next"]] == ["В пути", "Выполнен", "Отменить"]
+    assert client.post(f"/api/mobile/orders/{order_id}/status", json={"status": "new"}, headers=auth(token)).status_code == 409
+
+    leads = client.get("/api/mobile/leads", headers=auth(token)).json()["leads"]
+    assert [x["summary"] for x in leads] == ["Можно ли банкет на 40 человек?"]  # the panel's test chat stays out
+    done = client.post(f"/api/mobile/leads/{leads[0]['id']}/done", headers=auth(token)).json()["lead"]
+    assert done["status"] == "done" and done["closed_by"] == "Владелец"
+
+
+def test_orders_and_requests_are_not_a_masters_or_another_business(client, business):
+    order_id = _cafe_with_order_and_request()
+    clinic = sign_in(client).json()
+    assert clinic["sections"]["orders"] is False  # a clinic takes bookings, not orders
+    assert client.post(f"/api/mobile/orders/{order_id}/status", json={"status": "accepted"},
+                       headers=auth(clinic["token"])).status_code == 404
+    with db.new_session() as s:
+        member = s.exec(select(Staff).where(Staff.business_id == business.id)).first()
+        s.add(PanelUser(business_id=business.id, name="Айгерим", login="aigerim", password_hash=hash_password("staff-pass-1"),
+                        staff_id=member.id))
+        s.commit()
+    master = sign_in(client, user="aigerim", password="staff-pass-1").json()
+    assert master["sections"] == {"bookings": True, "orders": False, "leads": False}
+    assert client.get("/api/mobile/leads", headers=auth(master["token"])).status_code == 403
+    assert client.get("/api/mobile/orders", headers=auth(master["token"])).status_code == 403
