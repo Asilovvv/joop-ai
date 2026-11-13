@@ -116,6 +116,9 @@ def settings():
         public_base_url="https://joop.test",
         scheduler_enabled=False,
         anthropic_api_key="",
+        llm_provider="anthropic",
+        llm_base_url="",
+        llm_api_key="",
     )
 
 

@@ -52,9 +52,15 @@ def launch_checks(settings: Settings, env: Mapping[str, str] | None = None,
     def add(name: str, ok: bool, required: bool, detail: str = "") -> None:
         checks.append(Check(name, ok, required, "" if ok else detail))
 
-    add("Ключ Anthropic (ANTHROPIC_API_KEY)", bool(settings.anthropic_api_key), True,
-        "без него ИИ не отвечает клиентам")
-    if live is not None and settings.anthropic_api_key:
+    if settings.llm_provider == "openai":
+        add("Ключ модели (LLM_API_KEY, LLM_BASE_URL)", bool(settings.model_key), True, "без него ИИ не отвечает клиентам")
+        add("Модель для настоящих клиентов", False, False,
+            "второй провайдер (LLM_PROVIDER=openai): бесплатные тарифы могут использовать переписку — "
+            "для клиентов включайте только платный тариф (docs/model-providers.md)")
+    else:
+        add("Ключ Anthropic (ANTHROPIC_API_KEY)", bool(settings.anthropic_api_key), True,
+            "без него ИИ не отвечает клиентам")
+    if live is not None and settings.model_key:
         problem = live()
         add("Модель отвечает", problem is None, True, _model_problem(problem or ""))
     add("Секрет сессий (SESSION_SECRET)", len(env.get("SESSION_SECRET", "").strip()) >= MIN_SECRET, True,
@@ -138,11 +144,10 @@ def _database_checks(settings: Settings) -> list[Check]:
 
 def live_model_check(settings: Settings) -> str | None:
     """One tiny call through the same client the server uses. None = the model answered."""
-    from .agent.llm import AnthropicLLM
+    from .runtime import Runtime
 
     try:
-        AnthropicLLM(api_key=settings.anthropic_api_key, model=settings.model, thinking=settings.thinking,
-                     effort=settings.effort).respond('Reply with the JSON {"reply": "ok"}.', [{"role": "user", "content": "ping"}])
+        Runtime(settings).get_llm().respond('Reply with the JSON {"reply": "ok"}.', [{"role": "user", "content": "ping"}])
     except Exception as exc:  # the reason goes to the owner; API error texts carry no key
         cause = getattr(exc, "__cause__", None)
         return f"{exc}" + (f" — {cause}" if cause else "")

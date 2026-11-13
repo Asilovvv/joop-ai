@@ -72,6 +72,21 @@ class Settings:
     price_som: int = 0  # monthly price; 0 = not published yet, sign-up still works with a trial
     annual_months: int = 0  # a year for the price of this many months, offered at the end of the second paid month; 0 = no offer text
     owner_password: str = ""  # founder console password; empty = console disabled
+    # The model provider: "anthropic" (default) or "openai" — any OpenAI-compatible API (joop/agent/openai_compat.py).
+    llm_provider: str = "anthropic"
+    llm_base_url: str = ""
+    llm_api_key: str = ""
+
+    @property
+    def model_key(self) -> str:
+        """The key of the provider in use; empty = the model cannot be called."""
+        if self.llm_provider == "openai":
+            return self.llm_api_key if self.llm_base_url else ""
+        return self.anthropic_api_key
+
+    @property
+    def model_key_name(self) -> str:
+        return "LLM_API_KEY и LLM_BASE_URL" if self.llm_provider == "openai" else "ANTHROPIC_API_KEY"
     site_demo_daily_limit: int = 300  # visitor messages a day to the live demo on the site; 0 = demo off
     founder_bot_token: str = ""  # Telegram bot that alerts the founder when the AI stops answering (joop/health.py)
     founder_chat_id: str = ""
@@ -104,6 +119,9 @@ def settings_from_env() -> Settings:
     return Settings(
         database_url=env.get("DATABASE_URL", "sqlite:///./joop.db"),
         anthropic_api_key=env.get("ANTHROPIC_API_KEY", "").strip(),
+        llm_provider="openai" if env.get("LLM_PROVIDER", "").strip().lower() == "openai" else "anthropic",
+        llm_base_url=env.get("LLM_BASE_URL", "").strip().rstrip("/"),
+        llm_api_key=env.get("LLM_API_KEY", "").strip(),
         model=env.get("JOOP_MODEL", "claude-haiku-5-5").strip() or "claude-haiku-5-5",
         thinking=env.get("JOOP_THINKING", "disabled").strip().lower(),
         effort=env.get("JOOP_EFFORT", "").strip().lower(),

@@ -27,8 +27,8 @@ def main() -> None:
     from joop.runtime import Runtime
 
     settings = get_settings()
-    if not settings.anthropic_api_key:
-        sys.exit("ANTHROPIC_API_KEY is not set (environment or .env)")
+    if not settings.model_key:
+        sys.exit(f"{settings.model_key_name} is not set (environment or .env)")
     llm = Runtime(settings).get_llm()
     from eval.run_eval import preflight
 
