@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:joop_mobile/core/api_client.dart';
+import 'package:joop_mobile/data/customer_repository.dart';
 import 'package:joop_mobile/data/joop_repository.dart';
 
 /// A tiny stand-in for the Joop server's /api/mobile, enough for the app's tests.
@@ -13,6 +14,10 @@ class FakeJoop {
     _booking(3, '2026-11-14T09:00:00', 'Нурлан', 'instagram'),
   ];
   final calls = <String>[];
+
+  /// Messages the web chat received, and staff replies waiting for the app to ask.
+  final chat = <Map<String, dynamic>>[];
+  final staffReplies = <Map<String, dynamic>>[];
 
   static Map<String, dynamic> _booking(int id, String start, String name, String channel) => {
         'id': id,
@@ -37,6 +42,25 @@ class FakeJoop {
       'who': 'Владелец',
       'role': 'owner',
     };
+    if (path == '/api/mobile/places/aktish') {
+      return json({
+        'slug': 'aktish', 'name': 'Ак-Тиш Дент', 'niche': 'dental', 'description': 'Семейная стоматология',
+        'address': 'ул. Киевская, 95', 'phone': '+996700000000', 'hours': 'Пн–Сб 9:00–19:00', 'booking': true,
+        'services': [
+          {'id': 1, 'name': 'Консультация', 'price': '500', 'category': ''},
+        ],
+      });
+    }
+    if (path.startsWith('/api/mobile/places/')) return json({'error': 'Такой компании нет или её чат выключен.'}, 404);
+    if (path == '/c/aktish/chat') {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      chat.add(body);
+      return json({'reply': 'Консультация стоит 500 сом. Свободно завтра в 10:00, записать?', 'visitor': body['visitor']});
+    }
+    if (path == '/c/aktish/updates') {
+      final after = int.parse(request.url.queryParameters['after'] ?? '0');
+      return json({'messages': staffReplies.where((m) => (m['id'] as int) > after).toList()});
+    }
     if (path == '/api/mobile/login') {
       final body = jsonDecode(request.body) as Map;
       if (body['company'] == 'aktish' && body['password'] == 'secret-pass') return json({'token': token, ...account});
@@ -72,5 +96,9 @@ class FakeJoop {
     return json({'error': 'not found'}, 404);
   });
 
-  JoopRepository repository() => JoopRepository(ApiClient(httpClient: client, baseUrl: 'https://joop.test'));
+  ApiClient api() => ApiClient(httpClient: client, baseUrl: 'https://joop.test');
+
+  JoopRepository repository() => JoopRepository(api());
+
+  CustomerRepository customers() => CustomerRepository(api());
 }

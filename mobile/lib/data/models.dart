@@ -135,3 +135,81 @@ class Service extends Equatable {
   @override
   List<Object?> get props => [id, name, price, category, available];
 }
+
+/// A business's public card, for customers.
+class Place extends Equatable {
+  const Place({
+    required this.slug,
+    required this.name,
+    required this.niche,
+    required this.description,
+    required this.address,
+    required this.phone,
+    required this.hours,
+    required this.booking,
+    required this.services,
+  });
+
+  factory Place.fromJson(Map<String, dynamic> json) => Place(
+        slug: json['slug'] as String,
+        name: json['name'] as String,
+        niche: (json['niche'] as String?) ?? '',
+        description: (json['description'] as String?) ?? '',
+        address: (json['address'] as String?) ?? '',
+        phone: (json['phone'] as String?) ?? '',
+        hours: (json['hours'] as String?) ?? '',
+        booking: (json['booking'] as bool?) ?? false,
+        services: [
+          for (final row in (json['services'] as List? ?? const []))
+            Service.fromJson({...(row as Map<String, dynamic>), 'available': true}),
+        ],
+      );
+
+  final String slug;
+  final String name;
+  final String niche;
+  final String description;
+  final String address;
+  final String phone;
+  final String hours;
+
+  /// The business takes bookings (a clinic, a salon), not only orders or questions.
+  final bool booking;
+  final List<Service> services;
+
+  @override
+  List<Object?> get props => [slug, name, niche, description, address, phone, hours, booking, services];
+}
+
+/// A business the customer opened before, kept on the device.
+class SavedPlace extends Equatable {
+  const SavedPlace(this.slug, this.name);
+
+  factory SavedPlace.fromJson(Map<String, dynamic> json) => SavedPlace(json['slug'] as String, json['name'] as String);
+
+  final String slug;
+  final String name;
+
+  Map<String, dynamic> toJson() => {'slug': slug, 'name': name};
+
+  @override
+  List<Object?> get props => [slug, name];
+}
+
+class ChatMessage extends Equatable {
+  const ChatMessage({required this.fromCustomer, required this.text, this.staffId});
+
+  factory ChatMessage.fromJson(Map<String, dynamic> json) =>
+      ChatMessage(fromCustomer: json['me'] as bool, text: json['text'] as String, staffId: json['staff'] as int?);
+
+  final bool fromCustomer;
+  final String text;
+
+  /// Set for a reply a staff member wrote from the panel (its message id on the server).
+  final int? staffId;
+
+  Map<String, dynamic> toJson() => {'me': fromCustomer, 'text': text, if (staffId != null) 'staff': staffId};
+
+  @override
+  List<Object?> get props => [fromCustomer, text, staffId];
+}

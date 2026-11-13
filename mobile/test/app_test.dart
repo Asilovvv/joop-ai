@@ -12,7 +12,7 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     final server = FakeJoop();
-    await tester.pumpWidget(JoopApp(repository: server.repository(), today: DateTime(2026, 11, 13)));
+    await tester.pumpWidget(JoopApp(repository: server.repository(), customers: server.customers(), today: DateTime(2026, 11, 13)));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byKey(const Key('company')), 'aktish');

@@ -1,7 +1,7 @@
 # Mobile app API
 
-The Joop mobile app (Flutter) talks to the server through `/api/mobile/...` (`joop/web/mobile.py`). It is for the
-business's owner and staff; customers keep writing in Telegram, WhatsApp, Instagram and the web chat.
+The Joop mobile app (Flutter, `mobile/`) talks to the server through `/api/mobile/...` (`joop/web/mobile.py`). It has
+two sides: the business's owner and staff (sign-in, bookings) and customers (a business's card and its AI chat).
 
 | Method and path | What it does |
 | --- | --- |
@@ -21,5 +21,21 @@ Every call after sign-in sends `Authorization: Bearer <token>`.
 - **Rights** follow the panel: a master's login sees and cancels only her own bookings. Settings, channels and
   payment stay in the panel.
 - The panel's test chat (`console`) is left out of bookings and counts.
+
+## Customers
+
+A customer opens one business by its code, the slug in its `/c/<slug>` chat link or QR code, and the app remembers it.
+There is no list of all businesses: a business joined Joop for its AI administrator, not for a public directory.
+
+| Method and path | What it does |
+| --- | --- |
+| `GET /api/mobile/places/{slug}` | the public card: name, address, phone, hours, whether it books, the price list |
+| `POST /c/{slug}/chat` | the web chat's own API: the same AI as in WhatsApp; `{"text", "visitor"}` → `{"reply"}` |
+| `GET /c/{slug}/updates?visitor=…&after=…` | replies staff wrote from the panel to this customer |
+
+The card shows only what the chat and price pages already show customers: the sign-up example's placeholder prices and
+hours are left out, and a business whose chat is switched off is not found. The app keeps one random `visitor` token,
+so a customer is the same web-chat visitor for every business; the web chat's limits per visitor, address and
+business apply.
 
 Tests: `tests/test_mobile.py`.

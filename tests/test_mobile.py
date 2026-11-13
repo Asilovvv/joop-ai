@@ -141,3 +141,36 @@ def test_services_list(client, business):
     token = sign_in(client).json()["token"]
     services = client.get("/api/mobile/services", headers=auth(token)).json()["services"]
     assert services and all({"id", "name", "price", "available"} <= set(x) for x in services)
+
+
+def test_a_customer_opens_a_business_card_by_its_code(client, business):
+    card = client.get("/api/mobile/places/AkTish").json()  # the code as a customer may type it
+    assert card["name"] == "Ак-Тиш Дент" and card["booking"] is True
+    assert card["services"] and all(set(x) == {"id", "name", "price", "category"} for x in card["services"])
+    assert client.get("/api/mobile/places/nobody").status_code == 404
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.bot_enabled = False
+        s.add(b)
+        s.commit()
+    assert client.get("/api/mobile/places/aktish").status_code == 404  # a switched-off chat is not offered
+
+
+def test_the_sign_up_example_is_not_shown_to_customers(client, business):
+    from joop.presets import create_business
+
+    from .conftest import NOW_UTC
+
+    with db.new_session() as s:
+        create_business(s, slug="fresh", name="Новая клиника", password="fresh-pass-1", demo=True, now_utc=NOW_UTC)
+        s.commit()
+    card = client.get("/api/mobile/places/fresh").json()
+    assert card["name"] == "Новая клиника" and card["services"] == []  # example prices are not the clinic's real ones
+
+
+def test_a_customer_chats_through_the_web_chat(client, business, llm):
+    from joop.agent.llm import AgentReply
+
+    llm.replies.append(AgentReply("Здравствуйте! Консультация стоит 500 сом."))
+    r = client.post("/c/aktish/chat", json={"text": "Сколько стоит консультация?", "visitor": "a" * 24})
+    assert r.status_code == 200 and "500 сом" in r.json()["reply"] and r.json()["visitor"] == "a" * 24
