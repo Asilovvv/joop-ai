@@ -1,0 +1,85 @@
+{
+    "services": [
+        {
+            "id": 1,
+            "name": "Консультация и осмотр",
+            "name_ky": "",
+            "price": "500",
+            "price_value": 500,
+            "category": "",
+            "available": true
+        },
+        {
+            "id": 2,
+            "name": "Лечение кариеса (пломба)",
+            "name_ky": "",
+            "price": "от 3 500",
+            "price_value": null,
+            "category": "",
+            "available": true
+        },
+        {
+            "id": 3,
+            "name": "Лечение каналов, 1 канал",
+            "name_ky": "",
+            "price": "от 4 000",
+            "price_value": null,
+            "category": "",
+            "available": true
+        },
+        {
+            "id": 4,
+            "name": "Профессиональная чистка",
+            "name_ky": "",
+            "price": "3 000",
+            "price_value": 3000,
+            "category": "",
+            "available": true
+        },
+        {
+            "id": 5,
+            "name": "Удаление зуба простое",
+            "name_ky": "",
+            "price": "2 000",
+            "price_value": 2000,
+            "category": "",
+            "available": true
+        },
+        {
+            "id": 6,
+            "name": "Удаление зуба мудрости",
+            "name_ky": "",
+            "price": "от 5 000",
+            "price_value": null,
+            "category": "",
+            "available": true
+        },
+        {
+            "id": 7,
+            "name": "Имплант под ключ (имплант и коронка)",
+            "name_ky": "",
+            "price": "от 65 000",
+            "price_value": null,
+            "category": "",
+            "available": true
+        },
+        {
+            "id": 8,
+            "name": "Коронка металлокерамика",
+            "name_ky": "",
+            "price": "12 000",
+            "price_value": 12000,
+            "category": "",
+            "available": true
+        },
+        {
+            "id": 9,
+            "name": "Детский приём",
+            "name_ky": "",
+            "price": "от 1 500",
+            "price_value": null,
+            "category": "",
+            "available": true
+        }
+    ]
+}
