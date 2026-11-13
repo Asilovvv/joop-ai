@@ -49,9 +49,10 @@ def test_the_code_multiplies_and_keeps_the_minimal_order(engine):
     asked, counted, small = (c["system"] for c in llm.calls)
     assert "Спроси площадь в квадратных метрах" in asked and "Расчёт по площади" not in asked
     assert "Расчёт по площади 70 м² (посчитано системой по прайсу):" in counted
-    assert "- Генеральная уборка: от 8 400 сом" in counted and "- Уборка после ремонта: от 10 500 сом" in counted
-    assert "- Химчистка ковра: 10 500 сом" in counted  # an exact price stays exact
-    assert "Мойка окон:" not in counted.split("Расчёт по площади")[1]  # priced per window, not per m²
+    hint = counted.split("Расчёт по площади")[1].split("Называй только")[0]
+    assert "- Генеральная уборка: от 8 400 сом" in hint  # «генеральная» was named a message earlier
+    assert "Уборка после ремонта" not in hint and "Химчистка ковра" not in hint  # a rug is not the flat's area
+    assert "Мойка окон" not in hint  # priced per window, not per m²
     assert "- Поддерживающая уборка: от 2 500 сом (минимальный заказ 2 500 сом)" in small  # 25 × 60 = 1 500 is below it
     assert "сам не умножай и не округляй" in counted
 

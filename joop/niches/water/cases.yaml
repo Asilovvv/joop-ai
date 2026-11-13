@@ -8,7 +8,7 @@
   must_contain_any: ["180"]
 - id: deposit_ru
   turns: ["Заказываю у вас впервые, бутылей у меня нет. Сколько будет 2 бутыля?"]
-  must_contain_any: ["залог", "400"]
+  must_contain_any: ["400", "800", "1 160", "1160"]
 - id: deposit_ky
   expect_lang: ky
   turns: ["Бөтөлкө үчүн күрөө канча?"]

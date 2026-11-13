@@ -15,7 +15,7 @@ from .models import Conversation, Message, Service
 
 LOOK_BACK = 6  # customer messages searched for an area
 MIN_AREA, MAX_AREA = 10, 2000  # m²; anything else is a typo or not an area
-_UNIT = r"(?:м\s?²|м2|m2|кв\.?\s?м\w*|квадрат\w*|кв\b\.?|чарчы\s+метр\w*)"
+_UNIT = r"(?:м\s?²|м2|m2|кв\.?\s?м(?:етр\w*)?\b|квадрат\w*|чарчы\s+метр\w*)"  # not a bare «кв»: that is a flat number
 _AREA = re.compile(rf"(?<![\d.,])(\d{{2,4}})\s*{_UNIT}", re.IGNORECASE)
 _RATE = re.compile(rf"(от\s+)?(\d[\d  ]*)\s*(?:сом\w*\s*)?(?:за|/)\s*(?:1\s*)?{_UNIT}", re.IGNORECASE)
 _MINIMUM = re.compile(r"минимальн\w+\s+(?:заказ|сумма|стоимость)\D{0,12}(\d[\d  ]*)", re.IGNORECASE)
@@ -30,13 +30,27 @@ def _som(value: int) -> str:
 
 
 def area_in(texts: list[str]) -> int | None:
-    """The area the customer named last, newest message first; None when there is none in a sane range."""
+    """The area in the newest message that names one (its first, in a sane range); None when there is none."""
     for text in texts:
         found = [int(m.group(1)) for m in _AREA.finditer(text or "")]
         found = [a for a in found if MIN_AREA <= a <= MAX_AREA]
         if found:
-            return found[-1]
+            return found[0]
     return None
+
+
+def _stems(name: str) -> set[str]:
+    return {w[:5] for w in re.findall(r"[а-яёөүңa-z]{5,}", name.lower())}
+
+
+def named(services: list[Service], texts: list[str]) -> list[Service]:
+    """The area-priced services the customer named («генеральная», «после ремонта»); all of them when none is."""
+    words = {w[:5] for t in texts for w in re.findall(r"[а-яёөүңa-z]{5,}", (t or "").lower())}
+    chosen = [s for s in services if _stems(s.name) & words - GENERIC]
+    return chosen or services
+
+
+GENERIC = {"уборк", "тазал", "квадр", "метр", "сколь", "стоит", "будет", "квартир"[:5], "чарчы"}  # words every request has
 
 
 def estimate(service: Service, area: int) -> tuple[int, bool, int] | None:
@@ -63,7 +77,7 @@ def prompt_hint(session: Session, conv: Conversation, services: list[Service], t
         return ("\nСтоимость по цене за м² сам не считай и не умножай. Спроси площадь в квадратных метрах: "
                 "система посчитает предварительную стоимость по прайсу.")
     lines = ["", f"Расчёт по площади {area} м² (посчитано системой по прайсу):"]
-    for service in priced:
+    for service in named(priced, texts):
         total, at_least, floor = estimate(service, area)
         line = f"- {service.name}: {'от ' if at_least else ''}{_som(total)}"
         lines.append(line + (f" (минимальный заказ {_som(floor)})" if floor else ""))
