@@ -26,7 +26,7 @@ from sqlmodel import Session, select
 
 from .followups import SERVICE_WINDOW, _kyrgyz, deliver_to_chat
 from .lang import is_kyrgyz_message
-from .models import Booking, Broadcast, BroadcastDelivery, Business, Conversation
+from .models import Booking, Broadcast, BroadcastDelivery, Business, Conversation, Order
 from .timeutil import utc_to_local
 from .stats import real_conversation
 
@@ -82,6 +82,8 @@ def opt_change(session: Session, conv: Conversation, text: str) -> bool | None:
     if t in STOP_AFTER_BROADCAST and conv.id is not None:
         got = session.exec(select(BroadcastDelivery.id).where(
             BroadcastDelivery.conversation_id == conv.id, BroadcastDelivery.status == "sent")).first()
+        if got is None:  # a reorder reminder (joop/reorders.py) ends with «напишите «стоп»» too
+            got = session.exec(select(Order.id).where(Order.conversation_id == conv.id, Order.reminded_at.is_not(None))).first()
         return True if got is not None else None
     return None
 

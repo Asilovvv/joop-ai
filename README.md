@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram, WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
 | Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 51 database migrations, 35 niche packs and a generic one |
-| Tests | 689 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 696 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -47,7 +47,7 @@ cakes to order (sold by weight, the date and the inscription in the order),
 medical laboratories (prices and preparation, home visits, never reading results),
 exam preparation and tutors for ОРТ, ЕНТ and IELTS (trial lessons and mock tests, no promised scores),
 cleaning companies (the code multiplies the price per m² by the area and keeps the minimal order; a crew is booked with the address),
-drinking water delivery (bottle deposit from the catalog, «как обычно» repeats the last order with the code checking it again),
+drinking water delivery (bottle deposit from the catalog, «как обычно» repeats the last order with the code checking it again; an optional «пора повторить заказ?» reminder at each customer's own pace),
 cargo and moving (the code finds the route in the price list in Russian, Kyrgyz or Latin spelling; a missing route gets no invented price),
 pharmacies (no dosing or medical advice; a medicine marked «по рецепту» is reserved for pickup only, never delivered, decided by code; a reservation not collected by the end of the next day goes back on the shelf by itself),
 optics (eye exams on the optometrist's free windows, glasses in work with «готово?» answered from the order),
@@ -429,7 +429,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 689 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 696 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
