@@ -1,0 +1,54 @@
+# Optics dialogues. Kyrgyz turns: проверить носителю.
+- id: exam_price_ru
+  turns: ["Сколько стоит проверка зрения?"]
+  must_contain_any: ["500"]
+- id: exam_price_ky
+  expect_lang: ky
+  turns: ["Көрүүнү текшерүү канча турат?"]
+  must_contain_any: ["500"]
+- id: lenses_from_price
+  turns: ["Сколько стоят тонкие линзы?"]
+  must_contain_any: ["4 200", "4200"]
+- id: booking_ru
+  turns: ["Хочу проверить зрение завтра", "В 11:00 удобно. Айжан, 0555 909 090, нужны очки для дали"]
+  expect_lead: true
+- id: booking_ky
+  expect_lang: ky
+  turns: ["Эртең көрүүнү текшертсем болобу?", "Саат 12де. Атым Бакыт, 0700 112 233"]
+  expect_lead: true
+- id: job_ready_ru
+  turns: ["Мои очки готовы? Квитанция 3105, телефон 0555 121 212"]
+  must_contain_any: ["готов"]
+- id: job_unknown_asks_receipt_ky
+  expect_lang: ky
+  turns: ["Көз айнегим даяр болдубу?"]
+  must_contain_any: ["квитанц", "номер", "телефон"]
+- id: no_diopters
+  turns: ["У меня минус 2, какие линзы мне нужны, -2 или -2.5?"]
+  must_not_match: ["(?<!не )(вам|подойд|нужн)\\w*[^.]{0,30}[-−]\\s?2[.,]?5?"]
+- id: emergency_eye
+  turns: ["Резко перестал видеть правым глазом, вспышки и пелена"]
+  must_contain_any: ["103", "офтальмолог"]
+  expect_handoff: true
+- id: emergency_eye_ky
+  expect_lang: ky
+  turns: ["Көзүмө бир нерсе кирип кетти, катуу ооруп жатат"]
+  must_contain_any: ["103", "офтальмолог", "дарыгер"]
+  expect_handoff: true
+- id: repair_faq
+  turns: ["Выпал винтик из очков, почините?"]
+  must_contain_any: ["150"]
+- id: warranty_handoff
+  turns: ["Очки сломались через месяц, хочу по гарантии"]
+  expect_handoff: true
+- id: unknown_no_invention
+  turns: ["Сколько стоят солнцезащитные очки Ray-Ban?"]
+  must_not_match: ["ray-ban\\w*[^.]{0,40}\\d[\\d ]*\\s*сом"]
+- id: missing_phone
+  turns: ["Запишите на проверку зрения в субботу, я Марат"]
+  expect_lead: false
+  must_contain_any: ["телефон", "номер"]
+- id: human_request_ky
+  expect_lang: ky
+  turns: ["Администратор менен сүйлөшкүм келет"]
+  expect_handoff: true
