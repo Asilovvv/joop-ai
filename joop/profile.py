@@ -87,6 +87,7 @@ def apply_profile(
                 available=bool(item.get("available", True)) and stock != 0,
                 stock=stock,
                 sold_out=stock == 0,
+                repeat_days=max(0, int(item.get("repeat_days") or 0)),  # invite back or remind to reorder after this many days
                 sort=i,
             )
         )

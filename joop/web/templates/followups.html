@@ -25,8 +25,13 @@
   </section>
   <section class="card stack">
     <h2>Пригласить снова</h2>
+    {% if pack.offers('repeat_order') %}
+    <label class="check"><input type="checkbox" name="return_invites" value="1" {{ 'checked' if business.return_invites }}> Напоминать клиентам повторить заказ</label>
+    <p class="muted small">Клиент получит одно сообщение с его прошлым заказом и ответит «да» — ИИ оформит такой же. Срок: если клиент заказывал хотя бы дважды — его обычный интервал, иначе число дней ниже (0 — не напоминать). После нового заказа, отмены или «стоп» напоминания не будет.</p>
+    {% else %}
     <label class="check"><input type="checkbox" name="return_invites" value="1" {{ 'checked' if business.return_invites }}> Приглашать клиентов повторить услугу</label>
     <p class="muted small">Через сколько дней после визита пригласить снова (0 — не приглашать). Если клиент уже записался сам, приглашения не будет.</p>
+    {% endif %}
     {% if services %}
     <div class="scroll"><table class="table">
       <tr><th>{{ pack.catalog_item|capitalize }}</th><th>Через, дней</th></tr>

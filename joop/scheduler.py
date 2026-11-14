@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, nudges, ops, recovery, trust, unfinished
+from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, nudges, ops, recovery, reorders, trust, unfinished
 from . import gaps as empty_slots
 from .db import new_session
 from .dispatch import notify_admins
@@ -425,6 +425,7 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
         business.last_reminder_date = today
         report["reminders"] = send_reminders(session, rt, business, now_utc)
         report["returns"] = send_return_invites(session, rt, business, now_utc)
+        report["reorders"] = reorders.send_due(session, rt, business, now_utc)
         return None
 
     def digest():
