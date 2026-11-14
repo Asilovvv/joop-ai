@@ -551,7 +551,7 @@ def _handle_echo(
     if _is_own_text(text, list(recent_ai)):
         return Outcome(skipped="own_echo")
     _add_message(session, business, conv, "staff", text or "[сообщение администратора]", now, off, incoming.external_id)
-    conv.ai_paused_until = now + takeover_pause(business)
+    conv.ai_paused_until = max(conv.ai_paused_until or now, now + takeover_pause(business))  # a longer manual pause stays
     session.add(conv)
     return Outcome(skipped="staff_reply")
 

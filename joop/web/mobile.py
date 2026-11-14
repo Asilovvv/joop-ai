@@ -326,7 +326,8 @@ def mobile_new_booking(request: Request, body: NewBookingIn):
         slot = s.get(Slot, body.slot_id)
         member = s.get(Staff, slot.staff_id) if slot else None
         if slot is None or member is None or slot.business_id != b.id \
-                or (who.master_staff_id and member.id != who.master_staff_id):
+                or (who.master_staff_id and member.id != who.master_staff_id) \
+                or member.id in example_staff_ids(s, b):  # the sign-up example is nobody: no bookings to it
             return _fail(404, "Такого времени нет.")
         client = _rt(request).altegio(b) if member.external_id else None
         if client is not None and not phone:

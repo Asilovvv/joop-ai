@@ -83,7 +83,7 @@ def opt_change(session: Session, conv: Conversation, text: str) -> bool | None:
         got = session.exec(select(BroadcastDelivery.id).where(
             BroadcastDelivery.conversation_id == conv.id, BroadcastDelivery.status == "sent")).first()
         if got is None:  # a reorder reminder (joop/reorders.py) ends with «напишите «стоп»» too
-            got = session.exec(select(Order.id).where(Order.conversation_id == conv.id, Order.reminded_at.is_not(None))).first()
+            got = session.exec(select(Order.id).where(Order.conversation_id == conv.id, Order.reminder_ok)).first()
         return True if got is not None else None
     return None
 

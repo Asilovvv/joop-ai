@@ -1,9 +1,11 @@
 """Reservations that expire (pharmacies): a pickup order not collected in time goes back on the shelf by itself.
 
-A pack sets ``hold_days`` (pharmacy: 1 = «до конца следующего дня»). A pickup order placed on day D and still not
-done or cancelled after the end of day D + hold_days, in the business's own time zone, is cancelled by the
-scheduler: its goods are returned to stock, the customer is told in the chat it came from, and the staff get one
-note. Delivery orders are never released: they are on their way, not on a shelf.
+A pack sets ``hold_days`` (pharmacy: 1 = «до конца следующего дня»). The hold counts from the day the order became
+the customer's to collect: the day staff marked it «Готов к выдаче», or — for an order nobody touched, still «Новый»
+— the day it was placed. After the end of that day + hold_days, in the business's own time zone, the scheduler
+cancels it: its goods are returned to stock, the customer is told in the chat it came from, and the staff get one
+note (with a phone to call when the channel would not take the message). An order staff accepted but have not
+readied (the medicine is on its way) is not released, and neither is a delivery: it is on its way, not on a shelf.
 """
 
 from __future__ import annotations
@@ -24,12 +26,13 @@ from .timeutil import local_to_utc, utc_to_local
 if TYPE_CHECKING:
     from .runtime import Runtime
 
-OPEN = ("new", "accepted", "sent")
+HELD = ("new", "sent")  # «Принят» = staff are getting it ready: not on the shelf yet
 
 
 def expires_at(business: Business, order: Order, hold_days: int) -> datetime:
-    """UTC moment the reservation ends: local midnight after day «placed + hold_days»."""
-    placed = utc_to_local(order.created_at, business.timezone).date()
+    """UTC moment the reservation ends: local midnight after day «ready (or placed) + hold_days»."""
+    since = order.sent_at if order.status == "sent" and order.sent_at else order.created_at
+    placed = utc_to_local(since, business.timezone).date()
     return local_to_utc(datetime.combine(placed + timedelta(days=hold_days + 1), time.min), business.timezone)
 
 
@@ -44,8 +47,8 @@ def release_expired(session: Session, rt: "Runtime", business: Business, now_utc
     if hold_days <= 0:
         return []
     rows = session.exec(select(Order).where(Order.business_id == business.id, Order.mode == "pickup",
-                                            Order.status.in_(OPEN)).order_by(Order.id)).all()
-    released, real = [], []
+                                            Order.status.in_(HELD)).order_by(Order.id)).all()
+    released, real, call = [], [], []
     for order in rows:
         if now_utc < expires_at(business, order, hold_days):
             continue
@@ -54,18 +57,23 @@ def release_expired(session: Session, rt: "Runtime", business: Business, now_utc
         session.add(order)
         released.append(order.id)
         conv = session.get(Conversation, order.conversation_id) if order.conversation_id else None
-        if conv is None:
-            real.append(order.id)
+        told = False
+        if conv is not None:
+            text = notice(order, _kyrgyz(session, conv.id))
+            if conv.channel in (TEST_CHANNEL, "web"):  # the test chat and the site chat show it as they show order notices
+                session.add(Message(business_id=business.id, conversation_id=conv.id,
+                                    role="ai" if conv.channel == TEST_CHANNEL else "staff", text=text, created_at=now_utc))
+                told = True
+            else:  # WhatsApp and Instagram refuse outside 24 hours: staff call instead
+                told = deliver_to_chat(session, rt, business, conv, text, now_utc)
+        if conv is not None and is_test(conv):
             continue
-        text = notice(order, _kyrgyz(session, conv.id))
-        if conv.channel in (TEST_CHANNEL, "web"):  # the test chat and the site chat show it as they show order notices
-            session.add(Message(business_id=business.id, conversation_id=conv.id,
-                                role="ai" if conv.channel == TEST_CHANNEL else "staff", text=text, created_at=now_utc))
-        else:
-            deliver_to_chat(session, rt, business, conv, text, now_utc)
-        if not is_test(conv):
-            real.append(order.id)
+        real.append(order.id)
+        if not told:
+            call.append(f"№{order.id} — {order.customer_name or 'клиент'}, {order.customer_phone or 'телефон не указан'}")
     if real:
-        notify_admins(rt, business, ["Снят резерв (срок хранения истёк, товар вернулся на склад): "
-                                     + ", ".join(f"№{n}" for n in real) + "."])
+        note = "Снят резерв (срок хранения истёк, товар вернулся на склад): " + ", ".join(f"№{n}" for n in real) + "."
+        if call:
+            note += "\nКлиенту написать не получилось — позвоните: " + "; ".join(call) + "."
+        notify_admins(rt, business, [note])
     return released
