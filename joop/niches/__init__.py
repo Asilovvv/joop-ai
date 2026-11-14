@@ -42,12 +42,20 @@ class Pack:
     stay_by: str = "night"
     jobs_delivered: bool = False  # jobs are made to order and delivered (furniture), not picked up (repair)
     lead_minutes: int = 60  # free times offered no sooner than this; a car wash takes «можно сейчас?» in 15 minutes
+    job_overrides: tuple[tuple[str, str], ...] = ()  # pack.yaml «job_words»: the «Заказы в работе» page's own words
 
     def has(self, outcome: str) -> bool:
         return outcome in self.outcomes
 
     def offers(self, feature: str) -> bool:
         return feature in self.features
+
+    @property
+    def job_words(self) -> dict[str, str]:
+        """Words of the «Заказы в работе» page: repair (picked up), furniture (delivered), or the pack's own."""
+        words = dict(JOB_WORDS["delivered" if self.jobs_delivered else "repair"])
+        words.update(dict(self.job_overrides))
+        return words
 
     @property
     def serves_tables(self) -> bool:
@@ -96,6 +104,20 @@ class Pack:
         return self.dir / "cases.yaml"
 
 
+JOB_WORDS = {
+    "repair": {
+        "intro": "Принимаете вещь, телефон или машину — запишите здесь.",
+        "item_label": "Что сдали и что сделать", "item_placeholder": "Пальто, химчистка",
+        "price_placeholder": "600 сом", "note_placeholder": "например: ждём запчасть",
+    },
+    "delivered": {
+        "intro": "Изготавливаете на заказ — запишите заказ здесь.",
+        "item_label": "Что изготавливаем", "item_placeholder": "Кухня 3,2 м, фасады МДФ",
+        "price_placeholder": "150 000 сом", "note_placeholder": "например: ждём фасады",
+    },
+}
+
+
 def _load(name: str) -> Pack:
     data = yaml.safe_load((PACKS_DIR / name / "pack.yaml").read_text(encoding="utf-8")) or {}
     outcomes = frozenset(data.get("outcomes") or ["booking", "request", "handoff"])
@@ -125,7 +147,15 @@ def _load(name: str) -> Pack:
         stay_by=stay_by,
         jobs_delivered=bool(data.get("jobs_delivered", False)),
         lead_minutes=max(0, int(data.get("lead_minutes", 60))),
+        job_overrides=_job_words(name, data.get("job_words") or {}),
     )
+
+
+def _job_words(name: str, words: dict) -> tuple[tuple[str, str], ...]:
+    unknown = set(words) - set(JOB_WORDS["repair"])
+    if unknown:
+        raise ValueError(f"Pack {name}: unknown job_words {sorted(unknown)}")
+    return tuple((k, str(v)) for k, v in words.items())
 
 
 DEFAULT_EXAMPLES = ("Сколько стоит консультация?", "Эртең жазылсам болобу?")

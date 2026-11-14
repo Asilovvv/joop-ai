@@ -3,7 +3,7 @@
 {% block content %}
 <section class="stack">
   <h1>Заказы в работе</h1>
-  <p class="muted">{% if pack.jobs_delivered %}Изготавливаете на заказ — запишите заказ здесь. Клиент спрашивает в чате «когда будет готово?», ИИ отвечает по статусу и сроку: с номера WhatsApp из квитанции сразу, в Telegram и Instagram — по номеру квитанции и телефону. Ставите «готов» — клиенту сразу приходит сообщение, что заказ готов и вы согласуете день доставки и сборки.{% else %}Принимаете вещь, телефон или машину — запишите здесь. Клиент спрашивает в чате «готово?», ИИ отвечает по статусу: с номера WhatsApp из квитанции сразу, в Telegram и Instagram — по номеру квитанции и телефону. Ставите «готов» — клиенту сразу приходит сообщение «можно забирать».{% endif %}</p>
+  <p class="muted">{% if pack.jobs_delivered %}{{ pack.job_words.intro }} Клиент спрашивает в чате «когда будет готово?», ИИ отвечает по статусу и сроку: с номера WhatsApp из квитанции сразу, в Telegram и Instagram — по номеру квитанции и телефону. Ставите «готов» — клиенту сразу приходит сообщение, что заказ готов и вы согласуете день доставки и сборки.{% else %}{{ pack.job_words.intro }} Клиент спрашивает в чате «готово?», ИИ отвечает по статусу: с номера WhatsApp из квитанции сразу, в Telegram и Instagram — по номеру квитанции и телефону. Ставите «готов» — клиенту сразу приходит сообщение «можно забирать».{% endif %}</p>
 </section>
 <section class="card">
   <h2>Принять заказ</h2>
@@ -13,11 +13,11 @@
       <label>Номер квитанции<input name="number" value="{{ next_number }}" maxlength="20"></label>
       <label>Телефон клиента<input name="customer_phone" required placeholder="0555 123 456"></label>
       <label>Имя<input name="customer_name" maxlength="120"></label>
-      <label>{{ 'Что изготавливаем' if pack.jobs_delivered else 'Что сдали и что сделать' }}<input name="item" required maxlength="300" placeholder="{{ 'Кухня 3,2 м, фасады МДФ' if pack.jobs_delivered else 'Пальто, химчистка' }}"></label>
-      <label>Стоимость<input name="price" maxlength="60" placeholder="{{ '150 000 сом' if pack.jobs_delivered else '600 сом' }}"></label>
+      <label>{{ pack.job_words.item_label }}<input name="item" required maxlength="300" placeholder="{{ pack.job_words.item_placeholder }}"></label>
+      <label>Стоимость<input name="price" maxlength="60" placeholder="{{ pack.job_words.price_placeholder }}"></label>
       <label>Готово к<input name="ready_by" type="date"></label>
     </div>
-    <label>Заметка для клиента<input name="note" maxlength="300" placeholder="{{ 'например: ждём фасады' if pack.jobs_delivered else 'например: ждём запчасть' }}"></label>
+    <label>Заметка для клиента<input name="note" maxlength="300" placeholder="{{ pack.job_words.note_placeholder }}"></label>
     <div class="actions" style="justify-content: flex-start"><button class="btn small" type="submit">Принять</button></div>
   </form>
 </section>
