@@ -22,14 +22,14 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from .. import order_status
+from .. import order_status, staff_reply
 from ..api import booking_json, lead_json, order_json
 from ..db import new_session
-from ..models import Booking, Business, Lead, Order, PanelUser, Service
+from ..models import Booking, Business, Conversation, Lead, Message, Order, PanelUser, Service
 from ..niches import get_pack
 from ..security import verify_password
 from ..stats import not_test
-from ..timeutil import local_now
+from ..timeutil import local_now, utcnow
 from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
 
 router = APIRouter()
@@ -281,7 +281,7 @@ def mobile_order_move(request: Request, item_id: int, body: StatusIn):
 
 
 def _lead(x: Lead) -> dict:
-    return {**lead_json(x), "closed_by": x.closed_by}
+    return {**lead_json(x), "closed_by": x.closed_by, "conversation_id": x.conversation_id}
 
 
 @router.get("/api/mobile/leads")
@@ -312,6 +312,68 @@ def mobile_lead_done(request: Request, item_id: int):
             s.commit()
             s.refresh(lead)
         return {"lead": _lead(lead)}
+
+
+# --- answering a customer --------------------------------------------------------------------------
+# The owner answers a request's customer from the phone, through the customer's channel: the same code as the
+# panel's «Ответить» (joop/staff_reply.py), with WhatsApp's and Instagram's 24-hour rule, the AI paused in that chat
+# and its open requests closed.
+
+DIALOGUE = 50  # messages shown
+
+
+def _conversation(s: Session, who: Who, item_id: int) -> Conversation | None:
+    conv = s.get(Conversation, item_id)
+    return conv if conv is not None and conv.business_id == who.business.id else None
+
+
+def _dialogue(s: Session, conv: Conversation) -> dict:
+    now = utcnow()
+    rows = list(reversed(s.exec(select(Message).where(Message.conversation_id == conv.id)
+                                .order_by(Message.id.desc()).limit(DIALOGUE)).all()))
+    return {"id": conv.id, "channel": conv.channel, "customer": {"name": conv.customer_name, "phone": conv.customer_phone},
+            "ai_paused": bool(conv.ai_paused_until and conv.ai_paused_until > now),
+            "reply_blocked": staff_reply.blocked(conv, now),
+            "messages": [{"id": m.id, "role": m.role, "text": m.text, "created_at": m.created_at.isoformat() + "Z",
+                          "author": m.author} for m in rows if m.role in ("customer", "ai", "staff")]}
+
+
+@router.get("/api/mobile/conversations/{item_id}")
+def mobile_conversation(request: Request, item_id: int):
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        conv = _conversation(s, who, item_id)
+        if conv is None:
+            return _fail(404, "Диалог не найден.")
+        if conv.reviewed_at is None:  # the business's first look, as when the panel opens the dialogue
+            conv.reviewed_at = utcnow()
+            s.add(conv)
+            s.commit()
+            s.refresh(conv)
+        return _dialogue(s, conv)
+
+
+class ReplyIn(BaseModel):
+    text: str
+
+
+@router.post("/api/mobile/conversations/{item_id}/reply")
+def mobile_reply(request: Request, item_id: int, body: ReplyIn):
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        conv = _conversation(s, who, item_id)
+        if conv is None:
+            return _fail(404, "Диалог не найден.")
+        sent, problem = staff_reply.send(s, _rt(request), who.business, conv, body.text, utcnow(), author=who.json()["who"])
+        s.commit()
+        if not sent:
+            return _fail(422, problem)
+        s.refresh(conv)
+        return _dialogue(s, conv)
 
 
 # --- customers -------------------------------------------------------------------------------------

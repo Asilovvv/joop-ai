@@ -333,6 +333,7 @@ class Lead extends Equatable {
     required this.channel,
     required this.done,
     required this.closedBy,
+    this.conversationId,
   });
 
   factory Lead.fromJson(Map<String, dynamic> json) {
@@ -348,6 +349,7 @@ class Lead extends Equatable {
       channel: (json['channel'] as String?) ?? '',
       done: json['status'] == 'done',
       closedBy: (json['closed_by'] as String?) ?? '',
+      conversationId: json['conversation_id'] as int?,
     );
   }
 
@@ -364,8 +366,82 @@ class Lead extends Equatable {
   final bool done;
   final String closedBy;
 
+  /// The dialogue the request came from; null for one made without a chat.
+  final int? conversationId;
+
   String get kindLabel => S.current.leadKinds[kind] ?? S.current.leadKinds['handoff']!;
 
   @override
-  List<Object?> get props => [id, createdAt, kind, summary, details, customerName, customerPhone, channel, done, closedBy];
+  List<Object?> get props =>
+      [id, createdAt, kind, summary, details, customerName, customerPhone, channel, done, closedBy, conversationId];
+}
+
+class DialogueMessage extends Equatable {
+  const DialogueMessage({required this.id, required this.role, required this.text, required this.at, required this.author});
+
+  factory DialogueMessage.fromJson(Map<String, dynamic> json) => DialogueMessage(
+        id: json['id'] as int,
+        role: json['role'] as String,
+        text: json['text'] as String,
+        at: DateTime.parse(json['created_at'] as String).toLocal(),
+        author: (json['author'] as String?) ?? '',
+      );
+
+  final int id;
+
+  /// customer | ai | staff
+  final String role;
+  final String text;
+  final DateTime at;
+
+  /// Who of the staff wrote a staff message.
+  final String author;
+
+  bool get fromCustomer => role == 'customer';
+
+  @override
+  List<Object?> get props => [id, role, text, at, author];
+}
+
+/// A customer's dialogue with the business: the AI's answers, staff replies, and whether staff can answer now.
+class Dialogue extends Equatable {
+  const Dialogue({
+    required this.id,
+    required this.channel,
+    required this.customerName,
+    required this.customerPhone,
+    required this.aiPaused,
+    required this.replyBlocked,
+    required this.messages,
+  });
+
+  factory Dialogue.fromJson(Map<String, dynamic> json) {
+    final customer = (json['customer'] as Map?) ?? const {};
+    return Dialogue(
+      id: json['id'] as int,
+      channel: (json['channel'] as String?) ?? '',
+      customerName: (customer['name'] as String?) ?? '',
+      customerPhone: (customer['phone'] as String?) ?? '',
+      aiPaused: (json['ai_paused'] as bool?) ?? false,
+      replyBlocked: (json['reply_blocked'] as String?) ?? '',
+      messages: [
+        for (final m in (json['messages'] as List? ?? const [])) DialogueMessage.fromJson(m as Map<String, dynamic>),
+      ],
+    );
+  }
+
+  final int id;
+  final String channel;
+  final String customerName;
+  final String customerPhone;
+
+  /// The AI stays out of this chat for a while after a staff reply.
+  final bool aiPaused;
+
+  /// Why staff cannot answer now (WhatsApp's and Instagram's 24 hours), from the server; empty when they can.
+  final String replyBlocked;
+  final List<DialogueMessage> messages;
+
+  @override
+  List<Object?> get props => [id, channel, customerName, customerPhone, aiPaused, replyBlocked, messages];
 }

@@ -87,6 +87,13 @@ class JoopRepository {
     return Lead.fromJson(data['lead'] as Map<String, dynamic>);
   }
 
+  Future<Dialogue> dialogue(int conversationId) async =>
+      Dialogue.fromJson(await _api.get('/api/mobile/conversations/$conversationId') as Map<String, dynamic>);
+
+  /// Answers the customer through their channel; the server says why when it cannot (422).
+  Future<Dialogue> reply(int conversationId, String text) async => Dialogue.fromJson(
+      await _api.post('/api/mobile/conversations/$conversationId/reply', {'text': text}) as Map<String, dynamic>);
+
   Future<List<Service>> services() async {
     final data = await _api.get('/api/mobile/services') as Map<String, dynamic>;
     return [for (final row in data['services'] as List) Service.fromJson(row as Map<String, dynamic>)];

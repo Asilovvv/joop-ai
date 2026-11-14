@@ -164,6 +164,56 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Закрыл: Владелец'), findsOneWidget);
   });
+
+  dialogueTests();
+}
+
+void dialogueTests() {
+  Future<FakeJoop> openRequest(WidgetTester tester, [FakeJoop? server]) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final cafe = server ?? FakeJoop(cafe: true);
+    await tester.pumpWidget(JoopApp(repository: cafe.repository(), customers: cafe.customers(), today: DateTime(2026, 11, 13)));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('company')), 'navat');
+    await tester.enterText(find.byKey(const Key('password')), 'secret-pass');
+    await tester.tap(find.byKey(const Key('login')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Заявки').last);
+    await tester.pumpAndSettle();
+    return cafe;
+  }
+
+  testWidgets('the owner answers a request customer from the app, and the request closes', (tester) async {
+    final cafe = await openRequest(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Ответить'));
+    await tester.pumpAndSettle();
+    expect(find.text('Передал вопрос администратору.'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('reply-input')), 'Да, банкетный зал на 50 мест свободен в субботу.');
+    await tester.tap(find.byKey(const Key('reply-send')));
+    await tester.pumpAndSettle();
+    expect(find.text('Да, банкетный зал на 50 мест свободен в субботу.'), findsOneWidget);
+    expect(find.text('Ответ отправлен, заявка закрыта'), findsOneWidget);
+    expect(cafe.calls, contains('POST /api/mobile/conversations/70/reply'));
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Закрыл: Владелец'), findsOneWidget);
+  });
+
+  testWidgets('when the channel no longer allows a reply, the app says why and gives the phone', (tester) async {
+    final cafe = FakeJoop(cafe: true);
+    cafe.dialogues[70]!['reply_blocked'] = 'WhatsApp разрешает отвечать только 24 часа после сообщения клиента.';
+    await openRequest(tester, cafe);
+    await tester.tap(find.widgetWithText(FilledButton, 'Ответить'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('reply-input')), findsNothing);
+    expect(find.textContaining('только 24 часа'), findsOneWidget);
+    expect(find.textContaining('+996700111222'), findsOneWidget);
+  });
 }
 
 Map<String, dynamic> _newOrder(int id) => {

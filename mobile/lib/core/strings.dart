@@ -107,6 +107,13 @@ class S {
     required this.answeredBy,
     required this.staffReply,
     required this.askPricesInChat,
+    required this.answer,
+    required this.answerHint,
+    required this.answerSent,
+    required this.aiPausedNote,
+    required this.aiLabel,
+    required this.customerLabel,
+    required this.callInstead,
   });
 
   final String code;
@@ -221,6 +228,13 @@ class S {
   final String Function(String name) answeredBy;
   final String staffReply;
   final String askPricesInChat;
+  final String answer;
+  final String answerHint;
+  final String answerSent;
+  final String aiPausedNote;
+  final String aiLabel;
+  final String customerLabel;
+  final String Function(String phone) callInstead;
 
   static S current = ru;
 
@@ -338,6 +352,13 @@ class S {
     answeredBy: _ruAnsweredBy,
     staffReply: 'Администратор',
     askPricesInChat: 'Цены уточните в чате.',
+    answer: 'Ответить',
+    answerHint: 'Ответ клиенту',
+    answerSent: 'Ответ отправлен, заявка закрыта',
+    aiPausedNote: 'ИИ не вмешивается в этот диалог 12 часов после ответа сотрудника.',
+    aiLabel: 'ИИ',
+    customerLabel: 'Клиент',
+    callInstead: _ruCallInstead,
   );
 
   static const ky = S._(
@@ -453,6 +474,13 @@ class S {
     answeredBy: _kyAnsweredBy,
     staffReply: 'Администратор',
     askPricesInChat: 'Бааларды чаттан сураңыз.',
+    answer: 'Жооп берүү',
+    answerHint: 'Кардарга жооп',
+    answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
+    aiPausedNote: 'Кызматкер жооп бергенден кийин ИИ бул диалогго 12 саат кийлигишпейт.',
+    aiLabel: 'ИИ',
+    customerLabel: 'Кардар',
+    callInstead: _kyCallInstead,
   );
 }
 
@@ -498,3 +526,5 @@ String _ruOrderMoved(int id, String label, String told) => 'Заказ №$id: $
 String _kyOrderMoved(int id, String label, String told) => '№$id буйрутма: $label.$told';
 String _ruAnsweredBy(String name) => 'Отвечает ИИ-администратор $name';
 String _kyAnsweredBy(String name) => '$name ИИ-администратору жооп берет';
+String _ruCallInstead(String phone) => phone.isEmpty ? '' : 'Телефон клиента: $phone';
+String _kyCallInstead(String phone) => phone.isEmpty ? '' : 'Кардардын телефону: $phone';

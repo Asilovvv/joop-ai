@@ -6,6 +6,7 @@ import '../bloc/work_cubits.dart';
 import '../core/format.dart';
 import '../core/strings.dart';
 import '../data/models.dart';
+import 'dialogue_screen.dart';
 import 'theme.dart';
 
 /// «Заказы»: open orders first, each with the next steps as buttons with the panel's words («Принять», «Отменить»).
@@ -269,14 +270,32 @@ class _LeadCard extends StatelessWidget {
           if (lead.customerPhone.isNotEmpty) _Tag(lead.customerPhone, scheme.outline),
           if (lead.done) _Tag(lead.closedBy.isEmpty ? S.current.done : S.current.closedBy(lead.closedBy), const Color(0xFF2E9E5B)),
         ]),
-        if (!lead.done) ...[
+        if (!lead.done || lead.conversationId != null) ...[
           const SizedBox(height: 12),
           busy
               ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
-              : FilledButton.tonal(
-                  onPressed: () => context.read<LeadsCubit>().markDone(lead),
-                  child: Text(S.current.done),
-                ),
+              : Wrap(spacing: 8, runSpacing: 8, children: [
+                  if (lead.conversationId != null)
+                    FilledButton.icon(
+                      onPressed: () {
+                        final leads = context.read<LeadsCubit>();
+                        Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => DialogueScreen(
+                            conversationId: lead.conversationId!,
+                            title: lead.customerName.isEmpty ? channelName(lead.channel) : lead.customerName,
+                            onAnswered: leads.load, // the server closed the request with the reply
+                          ),
+                        ));
+                      },
+                      icon: const Icon(Icons.reply, size: 18),
+                      label: Text(S.current.answer),
+                    ),
+                  if (!lead.done)
+                    FilledButton.tonal(
+                      onPressed: () => context.read<LeadsCubit>().markDone(lead),
+                      child: Text(S.current.done),
+                    ),
+                ]),
         ],
       ],
     );
