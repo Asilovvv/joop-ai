@@ -9,6 +9,7 @@ from sqlmodel import select
 from joop import db
 from joop.models import Booking, Business, PanelUser, Slot, Staff
 from joop.security import hash_password
+from joop.stats import activity
 from joop.web.app import _login_fails, create_app
 
 # NOW_UTC in conftest is Wednesday 4 November 2026, 23:14 in Bishkek: "today" is 4 Nov, "tomorrow" 5 Nov.
@@ -312,3 +313,87 @@ def test_a_master_or_another_business_cannot_read_or_answer(client, business):
     assert client.get(f"/api/mobile/conversations/{conv_id}", headers=auth(stranger)).status_code == 404
     assert client.post(f"/api/mobile/conversations/{conv_id}/reply", json={"text": "x"}, headers=auth(stranger)).status_code == 404
     assert client.get(f"/api/mobile/conversations/{conv_id}", headers=auth(master)).status_code == 403
+
+
+# --- a booking made by staff from the app ---------------------------------------------------------------
+
+
+def test_the_owner_books_a_phoned_customer_into_a_free_time(client, business):
+    token = sign_in(client).json()["token"]
+    free = client.get("/api/mobile/slots", params={"day": "2026-11-05"}, headers=auth(token)).json()
+    assert free["day"] == "2026-11-05" and free["slots"]
+    first = free["slots"][0]
+    r = client.post("/api/mobile/bookings", json={"slot_id": first["id"], "name": "Нурлан", "phone": "0555 123 456",
+                                                  "service": "Консультация"}, headers=auth(token))
+    assert r.status_code == 200, r.text
+    made = r.json()["booking"]
+    assert made["customer"] == {"name": "Нурлан", "phone": "+996555123456"} and made["source"] == "staff"
+    assert made["start_local"] == first["start_local"] and made["staff"] == first["staff"] and made["channel"] == ""
+    again = client.get("/api/mobile/slots", params={"day": "2026-11-05"}, headers=auth(token)).json()["slots"]
+    assert first["id"] not in [x["id"] for x in again]  # the time is taken, as when the AI books it
+    r = client.post("/api/mobile/bookings", json={"slot_id": first["id"], "name": "Бакыт"}, headers=auth(token))
+    assert r.status_code == 409 and "занято" in r.json()["error"]
+    day = client.get("/api/mobile/bookings", params={"day": "2026-11-05"}, headers=auth(token)).json()["bookings"]
+    assert [x["customer"]["name"] for x in day] == ["Нурлан"]
+    with db.new_session() as s:  # the AI's figures count only what the AI booked
+        assert activity(s, business.id, datetime(2026, 1, 1))["bookings"] == 0
+
+
+def test_a_staff_booking_needs_a_name_and_a_real_phone_and_a_future_time(client, business):
+    token = sign_in(client).json()["token"]
+    slot = tomorrow_slots(business.id)[0]
+    post = lambda body: client.post("/api/mobile/bookings", json={"slot_id": slot.id, **body}, headers=auth(token))  # noqa: E731
+    assert post({"name": "  "}).status_code == 422
+    assert post({"name": "Нурлан", "phone": "12"}).json()["error"].startswith("Телефон")
+    assert post({"name": "Нурлан"}).status_code == 200  # a walk-in without a phone is fine
+    past = client.get("/api/mobile/slots", params={"day": "2026-11-04"}, headers=auth(token)).json()["slots"]
+    assert all(x["start_local"] > "2026-11-04T23:14" for x in past)  # NOW is 23:14 Bishkek: nothing earlier is offered
+
+
+def test_a_master_books_only_into_her_own_times_and_another_business_into_none(client, business):
+    slots = tomorrow_slots(business.id)
+    mine = slots[0]
+    other = next(x for x in slots if x.staff_id != mine.staff_id)
+    with db.new_session() as s:
+        s.add(PanelUser(business_id=business.id, name="Айгерим", login="aigerim", password_hash=hash_password("staff-pass-1"),
+                        staff_id=mine.staff_id))
+        s.add(Business(slug="other", name="Другая", admin_password_hash=hash_password("other-pass-1")))
+        s.commit()
+    token = sign_in(client, user="aigerim", password="staff-pass-1").json()["token"]
+    offered = client.get("/api/mobile/slots", params={"day": "2026-11-05"}, headers=auth(token)).json()["slots"]
+    assert offered and {x["staff_id"] for x in offered} == {mine.staff_id}
+    assert client.post("/api/mobile/bookings", json={"slot_id": other.id, "name": "Нурлан"}, headers=auth(token)).status_code == 404
+    stranger = sign_in(client, company="other", password="other-pass-1").json()["token"]
+    assert client.post("/api/mobile/bookings", json={"slot_id": mine.id, "name": "Нурлан"}, headers=auth(stranger)).status_code == 404
+    assert client.get("/api/mobile/slots", params={"day": "2026-11-05"}, headers=auth(stranger)).json()["slots"] == []
+
+
+def test_a_staff_booking_goes_to_altegio_too(client, business, rt):
+    from .test_altegio import FakeAltegio, make_client
+
+    from .conftest import NOW_UTC
+    from joop.timeutil import utc_to_local
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.altegio_location_id = 4242
+        member = s.get(Staff, tomorrow_slots(business.id)[0].staff_id)
+        member.external_id = "7"
+        s.add(b)
+        s.add(member)
+        s.commit()
+        slot_id = tomorrow_slots(business.id)[0].id
+    fake = FakeAltegio(utc_to_local(NOW_UTC, "Asia/Bishkek"))
+    rt.altegio = lambda _b: make_client(fake)
+    token = sign_in(client).json()["token"]
+    assert client.post("/api/mobile/bookings", json={"slot_id": slot_id, "name": "Нурлан"}, headers=auth(token)).status_code == 422
+    fake.record_status = 502
+    r = client.post("/api/mobile/bookings", json={"slot_id": slot_id, "name": "Нурлан", "phone": "0555123456"}, headers=auth(token))
+    assert r.status_code == 502
+    with db.new_session() as s:
+        assert s.get(Slot, slot_id).status == "free"  # Altegio was down: the time is free again
+    fake.record_status = 201
+    r = client.post("/api/mobile/bookings", json={"slot_id": slot_id, "name": "Нурлан", "phone": "0555123456"}, headers=auth(token))
+    assert r.status_code == 200 and fake.paths("POST")[-1] == "book_record/4242"
+    with db.new_session() as s:
+        assert s.exec(select(Booking).where(Booking.slot_id == slot_id)).one().external_id == "987654"

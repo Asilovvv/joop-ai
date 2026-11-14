@@ -8,11 +8,13 @@ import '../bloc/bookings_bloc.dart';
 import '../bloc/services_cubit.dart';
 import '../bloc/summary_cubit.dart';
 import '../bloc/work_cubits.dart';
+import '../core/format.dart';
 import '../core/strings.dart';
 import '../data/joop_repository.dart';
 import '../data/models.dart';
 import 'bookings_screen.dart';
 import 'language_button.dart';
+import 'new_booking_screen.dart';
 import 'services_screen.dart';
 import 'today_screen.dart';
 import 'work_screens.dart';
@@ -150,6 +152,21 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     };
   }
 
+  /// A customer phoned or walked in: book them, then show their day.
+  Future<void> _newBooking(BuildContext context, _Tab from) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final day = from == _Tab.bookings ? _bookings.state.day : widget.today;
+    final booking = await Navigator.of(context).push<Booking>(MaterialPageRoute(
+      builder: (_) => NewBookingScreen(day: day.isBefore(widget.today) ? widget.today : day, today: widget.today),
+    ));
+    if (booking == null || !mounted) return;
+    _summary.load();
+    _bookings.add(BookingsDayChanged(booking.start));
+    setState(() => _index = _tabs.indexOf(_Tab.bookings));
+    messenger.showSnackBar(SnackBar(
+        content: Text(S.current.bookedNotice(booking.customerName, '${formatDay(booking.start)}, ${formatTime(booking.start)}'))));
+  }
+
   @override
   Widget build(BuildContext context) {
     final tabs = _tabs;
@@ -175,6 +192,14 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             ],
           ),
           body: IndexedStack(index: _index, children: [for (final t in tabs) _screen(t)]),
+          floatingActionButton: tabs[_index] == _Tab.today || tabs[_index] == _Tab.bookings
+              ? FloatingActionButton.extended(
+                  key: const Key('new-booking'),
+                  onPressed: () => _newBooking(context, tabs[_index]),
+                  icon: const Icon(Icons.add),
+                  label: Text(S.current.bookAction),
+                )
+              : null,
           bottomNavigationBar: NavigationBar(
             selectedIndex: _index,
             onDestinationSelected: (i) => setState(() => _index = i),

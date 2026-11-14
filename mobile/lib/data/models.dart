@@ -445,3 +445,31 @@ class Dialogue extends Equatable {
   @override
   List<Object?> get props => [id, channel, customerName, customerPhone, aiPaused, replyBlocked, messages];
 }
+
+/// A free time staff can book a customer into (GET /api/mobile/slots).
+class FreeSlot extends Equatable {
+  const FreeSlot({required this.id, required this.start, required this.staffId, required this.staff, required this.seatsLeft, required this.seats});
+
+  factory FreeSlot.fromJson(Map<String, dynamic> json) => FreeSlot(
+        id: json['id'] as int,
+        start: DateTime.parse(json['start_local'] as String),
+        staffId: json['staff_id'] as int,
+        staff: json['staff'] as String,
+        seatsLeft: (json['seats_left'] as int?) ?? 1,
+        seats: (json['seats'] as int?) ?? 1,
+      );
+
+  final int id;
+
+  /// The business's local time, as bookings carry it.
+  final DateTime start;
+  final int staffId;
+  final String staff;
+
+  /// For a group class: places left of [seats].
+  final int seatsLeft;
+  final int seats;
+
+  @override
+  List<Object?> get props => [id, start, staffId, staff, seatsLeft, seats];
+}

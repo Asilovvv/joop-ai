@@ -22,12 +22,15 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from .. import order_status, staff_reply
+from .. import altegio, order_status, staff_reply
 from ..api import booking_json, lead_json, order_json
 from ..db import new_session
-from ..models import Booking, Business, Conversation, Lead, Message, Order, PanelUser, Service
+from ..models import Booking, Business, Conversation, Lead, Message, Order, PanelUser, Service, Slot, Staff
 from ..niches import get_pack
+from ..phone import normalize_phone
+from ..samples import example_staff_ids
 from ..security import verify_password
+from ..slots import claim_slot, release_slot, seats_left, seats_needed
 from ..stats import not_test
 from ..timeutil import local_now, utcnow
 from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
@@ -206,6 +209,93 @@ def mobile_cancel(request: Request, item_id: int):
         s.commit()
         s.refresh(booking)
         return {"booking": booking_json(booking), "waitlist_offered": told}
+
+
+# --- a booking made by staff (a customer phoned or walked in) ------------------------------------------
+# It takes a free slot the same way the AI does (claim_slot), goes to Altegio when the salon uses it, and is marked
+# source="staff", so the AI's figures (stats, the founder digest, the case study) do not count it.
+
+
+def _free(s: Session, who: Who, day: date, now_local: datetime) -> list[tuple[Slot, Staff]]:
+    hidden = example_staff_ids(s, who.business)  # the sign-up example's people are nobody to come to
+    own = [Slot.staff_id == who.master_staff_id] if who.master_staff_id else []
+    rows = s.exec(
+        select(Slot, Staff).join(Staff, Staff.id == Slot.staff_id)
+        .where(Slot.business_id == who.business.id, Slot.status == "free", Staff.active == True,  # noqa: E712
+               Slot.start >= datetime.combine(day, time.min), Slot.start < datetime.combine(day + timedelta(days=1), time.min),
+               Slot.start > now_local, *own)
+        .order_by(Slot.start, Staff.name)
+    ).all()
+    return [(slot, member) for slot, member in rows if member.id not in hidden]
+
+
+@router.get("/api/mobile/slots")
+def mobile_slots(request: Request, day: str = ""):
+    """Free times on `day` (the business's local date; today when empty) that staff can book a customer into."""
+    with new_session() as s:
+        who = _signed_in(s, request)
+        if who is None:
+            return _fail(401, "Войдите заново.")
+        now = local_now(who.business.timezone)
+        first = _day(day, now.date())
+        if first is None or abs((first - now.date()).days) > MAX_SPAN_DAYS:
+            return _fail(400, "day: нужна дата в виде 2026-11-20, не дальше трёх лет от сегодня.")
+        return {"day": first.isoformat(), "slots": [
+            {"id": slot.id, "start_local": slot.start.isoformat(timespec="seconds"), "staff_id": member.id,
+             "staff": member.name, "seats_left": seats_left(slot), "seats": slot.seats}
+            for slot, member in _free(s, who, first, now.replace(tzinfo=None))]}
+
+
+class NewBookingIn(BaseModel):
+    slot_id: int
+    name: str
+    phone: str = ""
+    service: str = ""
+
+
+@router.post("/api/mobile/bookings")
+def mobile_new_booking(request: Request, body: NewBookingIn):
+    with new_session() as s:
+        who = _signed_in(s, request)
+        if who is None:
+            return _fail(401, "Войдите заново.")
+        name, service = body.name.strip()[:120], body.service.strip()[:200]
+        phone = normalize_phone(body.phone) if body.phone.strip() else ""
+        if not name:
+            return _fail(422, "Укажите имя клиента.")
+        if phone is None:
+            return _fail(422, "Телефон не похож на номер. Пример: 0555 123 456.")
+        b = who.business
+        now = local_now(b.timezone).replace(tzinfo=None)
+        slot = s.get(Slot, body.slot_id)
+        member = s.get(Staff, slot.staff_id) if slot else None
+        if slot is None or member is None or slot.business_id != b.id \
+                or (who.master_staff_id and member.id != who.master_staff_id):
+            return _fail(404, "Такого времени нет.")
+        client = _rt(request).altegio(b) if member.external_id else None
+        if client is not None and not phone:
+            return _fail(422, "Для записи в Altegio нужен телефон клиента.")
+        if slot.start <= now or not member.active or not claim_slot(s, slot.id, seats_needed(slot, 1)):
+            return _fail(409, "Это время уже занято. Выберите другое.")
+        record_id = ""
+        if client is not None:
+            try:
+                record_id = altegio.push_booking(s, b, client, slot, member, service, name, phone or "",
+                                                 api_id=f"joop-{b.id}-{slot.id}")
+            except altegio.AltegioError as exc:
+                if exc.taken:  # booked in Altegio meanwhile: the slot stays closed here too
+                    s.commit()
+                    return _fail(409, "В Altegio это время уже занято. Выберите другое.")
+                release_slot(s, slot.id, seats_needed(slot, 1))
+                s.commit()
+                return _fail(502, "Altegio сейчас не отвечает, запись не создана. Попробуйте ещё раз.")
+        booking = Booking(business_id=b.id, slot_id=slot.id, staff_id=member.id, staff_name=member.name, start=slot.start,
+                          service=service, customer_name=name, customer_phone=phone or "", channel="", source="staff",
+                          created_at=utcnow(), external_id=record_id)
+        s.add(booking)
+        s.commit()
+        s.refresh(booking)
+        return {"booking": booking_json(booking)}
 
 
 @router.get("/api/mobile/services")

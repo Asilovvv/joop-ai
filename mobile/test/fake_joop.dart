@@ -49,6 +49,12 @@ class FakeJoop {
   ];
   final calls = <String>[];
 
+  /// Free times staff can book a customer into; booking one takes it, as on the server.
+  final freeSlots = <Map<String, dynamic>>[
+    {'id': 31, 'start_local': '2026-11-13T12:00:00', 'staff_id': 1, 'staff': 'Др. Асанова', 'seats_left': 1, 'seats': 1},
+    {'id': 32, 'start_local': '2026-11-13T17:00:00', 'staff_id': 2, 'staff': 'Др. Бекова', 'seats_left': 1, 'seats': 1},
+  ];
+
   /// Messages the web chat received, and staff replies waiting for the app to ask.
   final chat = <Map<String, dynamic>>[];
   final staffReplies = <Map<String, dynamic>>[];
@@ -117,6 +123,26 @@ class FakeJoop {
       int on(String day) => active.where((b) => (b['start_local'] as String).startsWith(day)).length;
       return json({'today': on('2026-11-13'), 'tomorrow': on('2026-11-14'), 'week': active.length,
           'next': active.isEmpty ? null : active.first});
+    }
+    if (path == '/api/mobile/slots') {
+      final day = request.url.queryParameters['day']!;
+      return json({'day': day, 'slots': freeSlots.where((x) => (x['start_local'] as String).startsWith(day)).toList()});
+    }
+    if (path == '/api/mobile/bookings' && request.method == 'POST') {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final slot = freeSlots.where((x) => x['id'] == body['slot_id']).firstOrNull;
+      if (slot == null) return json({'error': 'Это время уже занято. Выберите другое.'}, 409);
+      if ((body['phone'] as String).isNotEmpty && (body['phone'] as String).length < 9) {
+        return json({'error': 'Телефон не похож на номер. Пример: 0555 123 456.'}, 422);
+      }
+      freeSlots.remove(slot);
+      final made = {
+        ..._booking(10 + bookings.length, slot['start_local'] as String, body['name'] as String, ''),
+        'staff': slot['staff'], 'service': body['service'], 'source': 'staff',
+        'customer': {'name': body['name'], 'phone': body['phone']}, 'confirmed': false,
+      };
+      bookings.add(made);
+      return json({'booking': made});
     }
     if (path == '/api/mobile/bookings') {
       final day = request.url.queryParameters['day']!;

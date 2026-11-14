@@ -1,0 +1,29 @@
+{
+  "day": "2026-11-16",
+  "slots": [
+    {
+      "id": 10,
+      "start_local": "2026-11-16T09:00:00",
+      "staff_id": 1,
+      "staff": "Айгерим Садыкова",
+      "seats_left": 1,
+      "seats": 1
+    },
+    {
+      "id": 64,
+      "start_local": "2026-11-16T09:00:00",
+      "staff_id": 2,
+      "staff": "Нурлан Абдыкадыров",
+      "seats_left": 1,
+      "seats": 1
+    },
+    {
+      "id": 118,
+      "start_local": "2026-11-16T09:00:00",
+      "staff_id": 3,
+      "staff": "Элина Ким",
+      "seats_left": 1,
+      "seats": 1
+    }
+  ]
+}

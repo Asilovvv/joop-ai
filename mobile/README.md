@@ -4,7 +4,8 @@ A Flutter app for the business's owner and staff. It signs in with the panel's l
 every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
 
 - **Сегодня** — bookings today, tomorrow and in 7 days, and the next visit;
-- **Записи** — the bookings of any day, with cancelling (the time becomes free, as in the panel);
+- **Записи** — the bookings of any day, with cancelling (the time becomes free, as in the panel); «Записать» books a
+  customer who phoned or walked in into a free time (marked «Вручную», not counted as the AI's work);
 - **Заказы** — orders the AI collected (cafes, shops, delivery), moved through the panel's steps;
 - **Заявки** — questions the AI handed to staff, bookings without a free slot, qualified leads; «Ответить» opens the
   customer's dialogue and sends the owner's answer through their channel (or says why WhatsApp/Instagram no longer allow it);
