@@ -24,6 +24,14 @@ It talks to the server only through [`/api/mobile`](../docs/mobile-api.md). Stat
 The app started from the Smile AI mid-term project (github.com/Asilovvv/ai-clinic-booking): its HTTP client, theme
 and Bloc structure; the screens and data are Joop's.
 
+## Languages
+
+Russian and Kyrgyz, switched with «RU / KY» on the sign-in screen and in the app bar, and kept on the device. All texts
+are in `lib/core/strings.dart`; the Kyrgyz ones need a check by a native speaker, as Joop's own Kyrgyz pages do. The
+customer chat sends the language to Joop's web chat (`lang`), whose own messages have Kyrgyz versions; the AI answers
+in the language the customer writes in. Order status words are translated in the app by status code, matching
+`joop/order_status.py`. Messages the server writes itself (a wrong password, a delivery failure's reason) stay Russian.
+
 ## Run
 
 ```bash

@@ -5,6 +5,7 @@ import '../bloc/bookings_bloc.dart';
 import '../bloc/load_status.dart';
 import '../bloc/summary_cubit.dart';
 import '../core/format.dart';
+import '../core/strings.dart';
 import 'booking_tile.dart';
 
 /// Bookings of one day from every channel, with the day switcher and cancelling.
@@ -15,11 +16,11 @@ class BookingsScreen extends StatelessWidget {
     final yes = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Отменить запись?'),
-        content: Text('Запись «$who» будет отменена, время снова станет свободным. Клиенту сообщите сами.'),
+        title: Text(S.current.cancelBookingQuestion),
+        content: Text(S.current.cancelBookingText(who)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Нет')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Отменить запись')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(S.current.no)),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(S.current.cancelBooking)),
         ],
       ),
     );
@@ -44,7 +45,7 @@ class BookingsScreen extends StatelessWidget {
               child: Row(
                 children: [
                   IconButton(
-                    tooltip: 'Предыдущий день',
+                    tooltip: S.current.previousDay,
                     icon: const Icon(Icons.chevron_left),
                     onPressed: () => bloc.add(BookingsDayChanged(state.day.subtract(const Duration(days: 1)))),
                   ),
@@ -75,7 +76,7 @@ class BookingsScreen extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    tooltip: 'Следующий день',
+                    tooltip: S.current.nextDay,
                     icon: const Icon(Icons.chevron_right),
                     onPressed: () => bloc.add(BookingsDayChanged(state.day.add(const Duration(days: 1)))),
                   ),
@@ -88,13 +89,13 @@ class BookingsScreen extends StatelessWidget {
                 child: switch (state.status) {
                   LoadStatus.failure when state.bookings.isEmpty => _Centered(
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Text(state.error ?? 'Не удалось загрузить'),
-                        TextButton(onPressed: () => bloc.add(const BookingsRefreshed()), child: const Text('Повторить')),
+                        Text(state.error ?? S.current.loadFailed),
+                        TextButton(onPressed: () => bloc.add(const BookingsRefreshed()), child: Text(S.current.retry)),
                       ]),
                     ),
                   LoadStatus.initial || LoadStatus.loading when state.bookings.isEmpty =>
                     const _Centered(child: CircularProgressIndicator()),
-                  _ when state.bookings.isEmpty => const _Centered(child: Text('В этот день записей нет.')),
+                  _ when state.bookings.isEmpty => _Centered(child: Text(S.current.noBookingsThisDay)),
                   _ => ListView.separated(
                       padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
                       itemCount: state.bookings.length,

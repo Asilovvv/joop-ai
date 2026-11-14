@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../core/strings.dart';
+
 /// The signed-in person and their business, as /api/mobile/login and /api/mobile/me return them.
 class Account extends Equatable {
   const Account({
@@ -362,13 +364,7 @@ class Lead extends Equatable {
   final bool done;
   final String closedBy;
 
-  String get kindLabel => switch (kind) {
-        'request' => 'Запись без окна',
-        'lead' => 'Заявка',
-        'media' => 'Фото или файл',
-        'error' => 'Сбой',
-        _ => 'Вопрос сотруднику',
-      };
+  String get kindLabel => S.current.leadKinds[kind] ?? S.current.leadKinds['handoff']!;
 
   @override
   List<Object?> get props => [id, createdAt, kind, summary, details, customerName, customerPhone, channel, done, closedBy];

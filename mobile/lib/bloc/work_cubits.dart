@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/api_client.dart';
+import '../core/strings.dart';
 import '../data/joop_repository.dart';
 import '../data/models.dart';
 import 'load_status.dart';
@@ -59,8 +60,8 @@ class OrdersCubit extends Cubit<WorkState<Order>> {
         notice: fresh.isEmpty
             ? null
             : fresh.length == 1
-                ? 'Новый заказ №${fresh.single.id}'
-                : 'Новых заказов: ${fresh.length}',
+                ? S.current.newOrder(fresh.single.id)
+                : S.current.newOrders(fresh.length),
       ));
     } on ApiException {
       // The next check tries again.
@@ -72,14 +73,14 @@ class OrdersCubit extends Cubit<WorkState<Order>> {
     try {
       final result = await _repository.moveOrder(order.id, step.status);
       final told = switch (result.customerTold) {
-        true => ' Клиенту отправлено сообщение.',
-        false => ' Написать клиенту не получилось: ${result.why} Телефон: ${result.order.customerPhone}',
+        true => S.current.customerTold,
+        false => S.current.customerNotTold(result.why, result.order.customerPhone),
         null => '',
       };
       emit(state.copyWith(
         items: [for (final o in state.items) o.id == order.id ? result.order : o],
         clearBusy: true,
-        notice: 'Заказ №${order.id}: ${result.order.label}.$told',
+        notice: S.current.orderMoved(order.id, S.current.orderStatus(result.order.status, delivery: result.order.delivery), told),
       ));
     } on ApiException catch (e) {
       emit(state.copyWith(clearBusy: true, error: e.message));
@@ -115,7 +116,7 @@ class LeadsCubit extends Cubit<WorkState<Lead>> {
       final fresh = rows.where((x) => !known.contains(x.id) && !x.done).length;
       emit(state.copyWith(
         items: rows,
-        notice: fresh == 0 ? null : (fresh == 1 ? 'Новая заявка' : 'Новых заявок: $fresh'),
+        notice: fresh == 0 ? null : (fresh == 1 ? S.current.newLead : S.current.newLeads(fresh)),
       ));
     } on ApiException {
       // The next check tries again.
@@ -129,7 +130,7 @@ class LeadsCubit extends Cubit<WorkState<Lead>> {
       emit(state.copyWith(
         items: [for (final x in state.items) x.id == lead.id ? done : x],
         clearBusy: true,
-        notice: 'Заявка закрыта',
+        notice: S.current.leadClosed,
       ));
     } on ApiException catch (e) {
       emit(state.copyWith(clearBusy: true, error: e.message));

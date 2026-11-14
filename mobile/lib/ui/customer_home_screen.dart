@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/places_cubit.dart';
+import '../core/strings.dart';
 import '../data/customer_repository.dart';
+import 'language_button.dart';
 import 'place_screen.dart';
 import 'theme.dart';
 
@@ -39,7 +41,10 @@ class _CustomerHomeState extends State<_CustomerHome> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Записаться', style: TextStyle(fontWeight: FontWeight.w800))),
+      appBar: AppBar(
+        title: Text(S.current.book, style: const TextStyle(fontWeight: FontWeight.w800)),
+        actions: const [LanguageButton()],
+      ),
       body: BlocConsumer<PlacesCubit, PlacesState>(
         listenWhen: (a, b) => b.opened != null && a.opened != b.opened,
         listener: (context, state) {
@@ -55,10 +60,10 @@ class _CustomerHomeState extends State<_CustomerHome> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Цены, свободное время и запись',
+                  Text(S.current.customerHero,
                       style: theme.textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 6),
-                  Text('Отвечает ИИ-администратор компании, сразу и в любое время.',
+                  Text(S.current.customerHeroText,
                       style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70)),
                 ],
               ),
@@ -68,8 +73,8 @@ class _CustomerHomeState extends State<_CustomerHome> {
               key: const Key('place-code'),
               controller: _code,
               decoration: InputDecoration(
-                labelText: 'Код компании или ссылка на её чат',
-                helperText: 'Код есть на QR-коде и в ссылке: …/c/код',
+                labelText: S.current.placeCode,
+                helperText: S.current.placeCodeHelp,
                 errorText: state.error,
                 suffixIcon: state.adding
                     ? const Padding(
@@ -78,7 +83,7 @@ class _CustomerHomeState extends State<_CustomerHome> {
                       )
                     : IconButton(
                         key: const Key('place-open'),
-                        tooltip: 'Открыть',
+                        tooltip: S.current.open,
                         icon: const Icon(Icons.arrow_forward),
                         onPressed: () => _open(context, _code.text),
                       ),
@@ -88,7 +93,7 @@ class _CustomerHomeState extends State<_CustomerHome> {
             ),
             const SizedBox(height: 20),
             if (state.places.isNotEmpty) ...[
-              Text('Мои компании', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Text(S.current.myPlaces, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               for (final p in state.places)
                 Card(
@@ -105,7 +110,7 @@ class _CustomerHomeState extends State<_CustomerHome> {
                     subtitle: Text(p.slug),
                     onTap: () => _open(context, p.slug),
                     trailing: IconButton(
-                      tooltip: 'Убрать из списка',
+                      tooltip: S.current.removeFromList,
                       icon: const Icon(Icons.close),
                       onPressed: () => context.read<PlacesCubit>().remove(p.slug),
                     ),

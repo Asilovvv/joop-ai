@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/load_status.dart';
 import '../bloc/services_cubit.dart';
+import '../core/strings.dart';
 import 'theme.dart';
 
 /// The price list the AI quotes to customers. Editing stays in the panel.
@@ -21,8 +22,8 @@ class ServicesScreen extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.all(32),
                 child: Column(children: [
-                  Text(state.error ?? 'Не удалось загрузить'),
-                  TextButton(onPressed: () => context.read<ServicesCubit>().load(), child: const Text('Повторить')),
+                  Text(state.error ?? S.current.loadFailed),
+                  TextButton(onPressed: () => context.read<ServicesCubit>().load(), child: Text(S.current.retry)),
                 ]),
               ),
             ]);
@@ -33,7 +34,7 @@ class ServicesScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(32),
                 child: Center(
                   child: state.status == LoadStatus.success
-                      ? const Text('Прайс пуст. Добавьте услуги в панели Joop.')
+                      ? Text(S.current.pricesEmpty)
                       : const CircularProgressIndicator(),
                 ),
               ),
@@ -44,7 +45,7 @@ class ServicesScreen extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-                child: Text('Эти цены ИИ называет клиентам. Изменить их можно в панели Joop.',
+                child: Text(S.current.pricesNote,
                     style: theme.textTheme.bodySmall),
               ),
               for (final s in state.services)
@@ -56,8 +57,8 @@ class ServicesScreen extends StatelessWidget {
                     title: Text(s.name),
                     subtitle: s.available
                         ? (s.category.isEmpty ? null : Text(s.category))
-                        : Text('Нет в наличии', style: TextStyle(color: theme.colorScheme.error)),
-                    trailing: Text(s.price.isEmpty ? '—' : '${s.price} сом',
+                        : Text(S.current.soldOut, style: TextStyle(color: theme.colorScheme.error)),
+                    trailing: Text(s.price.isEmpty ? '—' : '${s.price} ${S.current.som}',
                         style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
                   ),
                 ),
