@@ -155,7 +155,15 @@ class Summary extends Equatable {
 }
 
 class Service extends Equatable {
-  const Service({required this.id, required this.name, required this.price, required this.category, required this.available});
+  const Service({
+    required this.id,
+    required this.name,
+    required this.price,
+    required this.category,
+    required this.available,
+    this.soldOut = false,
+    this.fromAltegio = false,
+  });
 
   factory Service.fromJson(Map<String, dynamic> json) => Service(
         id: json['id'] as int,
@@ -163,16 +171,29 @@ class Service extends Equatable {
         price: (json['price'] as String?) ?? '',
         category: (json['category'] as String?) ?? '',
         available: (json['available'] as bool?) ?? true,
+        soldOut: (json['sold_out'] as bool?) ?? false,
+        fromAltegio: (json['from_altegio'] as bool?) ?? false,
       );
 
   final int id;
   final String name;
   final String price;
   final String category;
+
+  /// The AI offers it.
   final bool available;
 
+  /// The stock reached zero: back on sale when the panel's «Склад» gets a new count.
+  final bool soldOut;
+
+  /// The salon's Altegio price list sets it, so it is switched there.
+  final bool fromAltegio;
+
+  /// The owner can put it on the stop list or back from the app.
+  bool get switchable => !fromAltegio && !soldOut;
+
   @override
-  List<Object?> get props => [id, name, price, category, available];
+  List<Object?> get props => [id, name, price, category, available, soldOut, fromAltegio];
 }
 
 /// A business's public card, for customers.

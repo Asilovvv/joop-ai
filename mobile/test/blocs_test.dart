@@ -104,7 +104,7 @@ void main() {
       act: (cubit) => cubit.load(),
       expect: () => [
         const ServicesState(status: LoadStatus.loading),
-        isA<ServicesState>().having((s) => s.services.map((x) => x.available), 'available', [true, false]),
+        isA<ServicesState>().having((s) => s.services.map((x) => x.available), 'available', [true, false, false]),
       ],
     );
   });

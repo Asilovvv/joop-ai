@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import select
 
 from joop import cash, db
-from joop.models import Booking, Business, PanelUser, Slot, Staff
+from joop.models import Booking, Business, PanelUser, Service, Slot, Staff
 from joop.security import hash_password
 from joop.stats import activity
 from joop.web.app import _login_fails, create_app
@@ -458,3 +458,61 @@ def test_a_visit_that_passed_without_a_payment_is_listed(client, business):
     token = sign_in(client).json()["token"]
     day = client.get("/api/mobile/cash", params={"day": "2026-11-04"}, headers=auth(token)).json()
     assert [x["customer"]["name"] for x in day["unpaid"]] == ["Нурлан"]
+
+
+# --- the stop list ----------------------------------------------------------------------------------------
+
+
+def _first_service(business_id):
+    with db.new_session() as s:
+        return s.exec(select(Service).where(Service.business_id == business_id).order_by(Service.id)).first()
+
+
+def test_the_owner_puts_an_item_on_the_stop_list_and_back(client, business):
+    item = _first_service(business.id)
+    token = sign_in(client).json()["token"]
+    stop = lambda on: client.post(f"/api/mobile/services/{item.id}/available", json={"available": on}, headers=auth(token))  # noqa: E731
+    r = stop(False)
+    assert r.status_code == 200 and r.json()["service"]["available"] is False
+    with db.new_session() as s:
+        assert s.get(Service, item.id).available is False  # the AI no longer offers it
+    listed = {x["id"]: x for x in client.get("/api/mobile/services", headers=auth(token)).json()["services"]}
+    assert listed[item.id]["available"] is False and listed[item.id]["sold_out"] is False
+    assert stop(True).json()["service"]["available"] is True
+
+
+def test_sold_out_or_altegio_items_are_not_switched_from_the_app(client, business):
+    item = _first_service(business.id)
+    with db.new_session() as s:
+        row = s.get(Service, item.id)
+        row.stock, row.available, row.sold_out = 0, False, True
+        s.add(row)
+        s.commit()
+    token = sign_in(client).json()["token"]
+    r = client.post(f"/api/mobile/services/{item.id}/available", json={"available": True}, headers=auth(token))
+    assert r.status_code == 409 and "Склад" in r.json()["error"]
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.altegio_location_id = 4242
+        s.add(b)
+        s.commit()
+    r = client.post(f"/api/mobile/services/{item.id}/available", json={"available": False}, headers=auth(token))
+    assert r.status_code == 409 and "Altegio" in r.json()["error"]
+    assert client.get("/api/mobile/services", headers=auth(token)).json()["services"][0]["from_altegio"] is True
+
+
+def test_a_master_or_another_business_cannot_change_the_stop_list(client, business):
+    item = _first_service(business.id)
+    with db.new_session() as s:
+        member = s.exec(select(Staff).where(Staff.business_id == business.id)).first()
+        s.add(PanelUser(business_id=business.id, name="Айгерим", login="aigerim", password_hash=hash_password("staff-pass-1"),
+                        staff_id=member.id))
+        s.add(Business(slug="other", name="Другая", admin_password_hash=hash_password("other-pass-1")))
+        s.commit()
+    master = sign_in(client, user="aigerim", password="staff-pass-1").json()["token"]
+    stranger = sign_in(client, company="other", password="other-pass-1").json()["token"]
+    body = {"available": False}
+    assert client.post(f"/api/mobile/services/{item.id}/available", json=body, headers=auth(master)).status_code == 403
+    assert client.post(f"/api/mobile/services/{item.id}/available", json=body, headers=auth(stranger)).status_code == 404
+    with db.new_session() as s:
+        assert s.get(Service, item.id).available is True

@@ -75,6 +75,12 @@ class JoopRepository {
   Future<CashDay> cash(DateTime day) async =>
       CashDay.fromJson(await _api.get('/api/mobile/cash', query: {'day': isoDay(day)}) as Map<String, dynamic>);
 
+  /// The stop list: false and the AI stops offering it; true and it is on sale again.
+  Future<Service> setAvailable(int serviceId, bool available) async {
+    final data = await _api.post('/api/mobile/services/$serviceId/available', {'available': available}) as Map<String, dynamic>;
+    return Service.fromJson(data['service'] as Map<String, dynamic>);
+  }
+
   Future<List<FreeSlot>> freeSlots(DateTime day) async {
     final data = await _api.get('/api/mobile/slots', query: {'day': isoDay(day)}) as Map<String, dynamic>;
     return [for (final row in data['slots'] as List) FreeSlot.fromJson(row as Map<String, dynamic>)];

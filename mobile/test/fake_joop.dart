@@ -49,6 +49,12 @@ class FakeJoop {
   ];
   final calls = <String>[];
 
+  final services = <Map<String, dynamic>>[
+    {'id': 1, 'name': 'Консультация', 'price': '500', 'category': 'Терапия', 'available': true},
+    {'id': 2, 'name': 'Отбеливание', 'price': 'от 8 000', 'category': '', 'available': false},
+    {'id': 3, 'name': 'Зубная щётка', 'price': '300', 'category': '', 'available': false, 'sold_out': true},
+  ];
+
   /// Free times staff can book a customer into; booking one takes it, as on the server.
   final freeSlots = <Map<String, dynamic>>[
     {'id': 31, 'start_local': '2026-11-13T12:00:00', 'staff_id': 1, 'staff': 'Др. Асанова', 'seats_left': 1, 'seats': 1},
@@ -230,13 +236,13 @@ class FakeJoop {
       }
       return json(d);
     }
-    if (path == '/api/mobile/services') {
-      return json({
-        'services': [
-          {'id': 1, 'name': 'Консультация', 'price': '500', 'category': 'Терапия', 'available': true},
-          {'id': 2, 'name': 'Отбеливание', 'price': 'от 8 000', 'category': '', 'available': false},
-        ]
-      });
+    if (path == '/api/mobile/services') return json({'services': services});
+    final stop = RegExp(r'^/api/mobile/services/(\d+)/available$').firstMatch(path);
+    if (stop != null) {
+      final x = services.firstWhere((x) => x['id'] == int.parse(stop.group(1)!));
+      if (x['sold_out'] == true) return json({'error': 'Закончилось на складе.'}, 409);
+      x['available'] = (jsonDecode(request.body) as Map)['available'];
+      return json({'service': x});
     }
     return json({'error': 'not found'}, 404);
   });

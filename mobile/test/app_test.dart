@@ -49,7 +49,7 @@ void main() {
     await tester.tap(find.text('Прайс').last);
     await tester.pumpAndSettle();
     expect(find.text('Консультация'), findsOneWidget);
-    expect(find.text('Нет в наличии'), findsOneWidget);
+    expect(find.text('от 8 000 сом · Стоп-лист: ИИ не предлагает'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Выйти'));
     await tester.pumpAndSettle();
