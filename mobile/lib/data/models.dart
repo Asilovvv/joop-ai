@@ -13,6 +13,7 @@ class Account extends Equatable {
     this.bookings = true,
     this.orders = false,
     this.leads = true,
+    this.cash = false,
   });
 
   factory Account.fromJson(Map<String, dynamic> json) {
@@ -22,6 +23,7 @@ class Account extends Equatable {
       bookings: (sections['bookings'] as bool?) ?? true,
       orders: (sections['orders'] as bool?) ?? false,
       leads: (sections['leads'] as bool?) ?? true,
+      cash: (sections['cash'] as bool?) ?? false,
       businessName: business['name'] as String,
       slug: business['slug'] as String,
       niche: (business['niche'] as String?) ?? '',
@@ -43,10 +45,13 @@ class Account extends Equatable {
   final bool orders;
   final bool leads;
 
+  /// Payments after visits (the panel's Касса).
+  final bool cash;
+
   bool get isOwner => role == 'owner';
 
   @override
-  List<Object?> get props => [businessName, slug, niche, who, role, bookings, orders, leads];
+  List<Object?> get props => [businessName, slug, niche, who, role, bookings, orders, leads, cash];
 }
 
 class Booking extends Equatable {
@@ -60,6 +65,9 @@ class Booking extends Equatable {
     required this.channel,
     required this.status,
     required this.confirmed,
+    this.paidSom = 0,
+    this.paidMethod = '',
+    this.suggestedSom = 0,
   });
 
   factory Booking.fromJson(Map<String, dynamic> json) {
@@ -75,6 +83,9 @@ class Booking extends Equatable {
       channel: (json['channel'] as String?) ?? '',
       status: json['status'] as String,
       confirmed: (json['confirmed'] as bool?) ?? false,
+      paidSom: ((json['paid'] as Map?)?['som'] as int?) ?? 0,
+      paidMethod: ((json['paid'] as Map?)?['method'] as String?) ?? '',
+      suggestedSom: (json['suggested_som'] as int?) ?? 0,
     );
   }
 
@@ -92,7 +103,17 @@ class Booking extends Equatable {
   /// The customer answered "да" to the reminder.
   final bool confirmed;
 
+  /// What the customer paid after the visit, som; 0 = not recorded.
+  final int paidSom;
+
+  /// cash | card | transfer
+  final String paidMethod;
+
+  /// The price-list amount to pre-fill an unpaid visit's payment with; 0 when unknown.
+  final int suggestedSom;
+
   bool get isActive => status == 'booked';
+  bool get isPaid => paidSom > 0;
 
   Booking copyWith({String? status}) => Booking(
         id: id,
@@ -104,10 +125,14 @@ class Booking extends Equatable {
         channel: channel,
         status: status ?? this.status,
         confirmed: confirmed,
+        paidSom: paidSom,
+        paidMethod: paidMethod,
+        suggestedSom: suggestedSom,
       );
 
   @override
-  List<Object?> get props => [id, start, service, staff, customerName, customerPhone, channel, status, confirmed];
+  List<Object?> get props =>
+      [id, start, service, staff, customerName, customerPhone, channel, status, confirmed, paidSom, paidMethod, suggestedSom];
 }
 
 class Summary extends Equatable {
@@ -472,4 +497,26 @@ class FreeSlot extends Equatable {
 
   @override
   List<Object?> get props => [id, start, staffId, staff, seatsLeft, seats];
+}
+
+/// A day's takings (GET /api/mobile/cash): what was paid, by method, and visits that passed without a payment.
+class CashDay extends Equatable {
+  const CashDay({required this.total, required this.byMethod, required this.visits, required this.unpaid, required this.monthTotal});
+
+  factory CashDay.fromJson(Map<String, dynamic> json) => CashDay(
+        total: json['total'] as int,
+        byMethod: {for (final e in ((json['by_method'] as Map?) ?? const {}).entries) e.key as String: e.value as int},
+        visits: (json['visits'] as int?) ?? 0,
+        unpaid: [for (final r in (json['unpaid'] as List? ?? const [])) Booking.fromJson(r as Map<String, dynamic>)],
+        monthTotal: ((json['month'] as Map?)?['total'] as int?) ?? 0,
+      );
+
+  final int total;
+  final Map<String, int> byMethod;
+  final int visits;
+  final List<Booking> unpaid;
+  final int monthTotal;
+
+  @override
+  List<Object?> get props => [total, byMethod, visits, unpaid, monthTotal];
 }

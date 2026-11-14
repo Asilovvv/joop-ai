@@ -22,7 +22,7 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from .. import altegio, order_status, staff_reply
+from .. import altegio, cash, order_status, staff_reply
 from ..api import booking_json, lead_json, order_json
 from ..db import new_session
 from ..models import Booking, Business, Conversation, Lead, Message, Order, PanelUser, Service, Slot, Staff
@@ -66,7 +66,7 @@ class Who:
         return {"business": {"id": b.id, "slug": b.slug, "name": b.name, "niche": b.niche, "timezone": b.timezone,
                              "address": b.address, "phone": b.phone},
                 "who": self.user.name if self.user else "Владелец", "role": role,
-                "sections": {"bookings": pack.has("booking") or pack.has("request"),
+                "sections": {"bookings": pack.has("booking") or pack.has("request"), "cash": pack.has("booking"),
                              "orders": pack.has("order") and not master, "leads": not master}}
 
 
@@ -151,6 +151,11 @@ def _day(text: str, today: date) -> date | None:
 MAX_SPAN_DAYS = 3 * 366  # a date further away is a typo, and 9999-12-31 + 1 day overflows
 
 
+def _booking(s: Session, b: Booking) -> dict:
+    """booking_json plus the price-list amount to pre-fill the payment with (the panel's Касса does the same)."""
+    return {**booking_json(b), "suggested_som": 0 if b.paid_som or b.status != "booked" else cash.suggested(s, b)}
+
+
 def _bookings(s: Session, who: Who, first: date, last: date) -> list[Booking]:
     own = [Booking.staff_id == who.master_staff_id] if who.master_staff_id else []
     return list(s.exec(
@@ -173,7 +178,7 @@ def mobile_bookings(request: Request, day: str = "", days: int = 1):
             return _fail(400, "day: нужна дата в виде 2026-11-20, не дальше трёх лет от сегодня.")
         days = max(1, min(days, MAX_DAYS))
         rows = _bookings(s, who, first, first + timedelta(days=days - 1))
-        return {"from": first.isoformat(), "days": days, "bookings": [booking_json(b) for b in rows]}
+        return {"from": first.isoformat(), "days": days, "bookings": [_booking(s, b) for b in rows]}
 
 
 @router.get("/api/mobile/summary")
@@ -209,6 +214,57 @@ def mobile_cancel(request: Request, item_id: int):
         s.commit()
         s.refresh(booking)
         return {"booking": booking_json(booking), "waitlist_offered": told}
+
+
+# --- payment after the visit (the panel's Касса) ---------------------------------------------------------
+
+
+class PaymentIn(BaseModel):
+    amount: int
+    method: str = "cash"
+    receipt: bool = False
+
+
+@router.post("/api/mobile/bookings/{item_id}/pay")
+def mobile_pay(request: Request, item_id: int, body: PaymentIn):
+    """What the customer paid, by method; amount 0 removes a payment recorded by mistake."""
+    with new_session() as s:
+        who = _signed_in(s, request)
+        if who is None:
+            return _fail(401, "Войдите заново.")
+        booking = s.get(Booking, item_id)
+        if booking is None or booking.business_id != who.business.id \
+                or (who.master_staff_id and booking.staff_id != who.master_staff_id):
+            return _fail(404, "Запись не найдена.")
+        if booking.status != "booked":
+            return _fail(409, "Запись отменена: оплату к ней не записать.")
+        if body.method not in cash.METHODS:
+            return _fail(422, "Способ оплаты: наличные, карта или перевод.")
+        if not 0 <= body.amount <= cash.MAX_PAYMENT:
+            return _fail(422, "Сумма — целое число сомов, не больше 10 000 000.")
+        cash.record(booking, body.amount, body.method, utcnow(), receipt=body.receipt)
+        s.add(booking)
+        s.commit()
+        s.refresh(booking)
+        return {"booking": _booking(s, booking)}
+
+
+@router.get("/api/mobile/cash")
+def mobile_cash(request: Request, day: str = ""):
+    """The day's takings by method, visits that passed without a payment, and the month so far (a master: her own)."""
+    with new_session() as s:
+        who = _signed_in(s, request)
+        if who is None:
+            return _fail(401, "Войдите заново.")
+        now = local_now(who.business.timezone).replace(tzinfo=None)
+        first = _day(day, now.date())
+        if first is None or abs((first - now.date()).days) > MAX_SPAN_DAYS:
+            return _fail(400, "day: нужна дата в виде 2026-11-20, не дальше трёх лет от сегодня.")
+        chosen = datetime.combine(first, time.min)
+        d = cash.day(s, who.business, chosen, now, staff_id=who.master_staff_id)
+        m = cash.month(s, who.business, chosen, staff_id=who.master_staff_id)
+        return {"day": first.isoformat(), "total": d.total, "by_method": d.by_method, "visits": len(d.rows),
+                "unpaid": [_booking(s, b) for b in d.unpaid], "month": {"total": m.total, "paid_visits": m.visits}}
 
 
 # --- a booking made by staff (a customer phoned or walked in) ------------------------------------------

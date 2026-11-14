@@ -3,14 +3,18 @@ import 'package:flutter/material.dart';
 import '../core/format.dart';
 import '../core/strings.dart';
 import '../data/models.dart';
+import 'payment_sheet.dart';
 import 'theme.dart';
 
 /// One booking: time, customer, service and specialist, the channel it came from.
 class BookingTile extends StatelessWidget {
-  const BookingTile({super.key, required this.booking, this.onCancel, this.busy = false, this.showDay = false});
+  const BookingTile({super.key, required this.booking, this.onCancel, this.onPay, this.busy = false, this.showDay = false});
 
   final Booking booking;
   final VoidCallback? onCancel;
+
+  /// Records the payment after the visit; null where payments are not kept.
+  final VoidCallback? onPay;
   final bool busy;
   final bool showDay;
 
@@ -63,23 +67,33 @@ class BookingTile extends StatelessWidget {
                       _Chip(channelName(booking.channel), channelColor(booking.channel)),
                       if (!active) _Chip(S.current.cancelled, scheme.outline),
                       if (active && booking.confirmed) _Chip(S.current.confirmed, const Color(0xFF2E9E5B)),
+                      if (active && booking.isPaid) _Chip(paidLabel(booking), const Color(0xFF2E9E5B)),
                       if (booking.customerPhone.isNotEmpty) _Chip(booking.customerPhone, scheme.outline),
                     ],
                   ),
                 ],
               ),
             ),
-            if (active && onCancel != null)
+            if (active && (onCancel != null || onPay != null))
               busy
                   ? const Padding(
                       padding: EdgeInsets.all(12),
                       child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
                     )
-                  : IconButton(
-                      tooltip: S.current.cancelBooking,
-                      icon: const Icon(Icons.event_busy_outlined),
-                      onPressed: onCancel,
-                    ),
+                  : Column(mainAxisSize: MainAxisSize.min, children: [
+                      if (onCancel != null)
+                        IconButton(
+                          tooltip: S.current.cancelBooking,
+                          icon: const Icon(Icons.event_busy_outlined),
+                          onPressed: onCancel,
+                        ),
+                      if (onPay != null)
+                        IconButton(
+                          tooltip: S.current.payment,
+                          icon: Icon(booking.isPaid ? Icons.payments : Icons.payments_outlined),
+                          onPressed: onPay,
+                        ),
+                    ]),
           ],
         ),
       ),

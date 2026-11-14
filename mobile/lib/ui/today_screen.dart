@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/auth_bloc.dart';
+import '../bloc/cash_cubit.dart';
 import '../bloc/load_status.dart';
 import '../bloc/summary_cubit.dart';
 import '../core/format.dart';
@@ -22,7 +23,10 @@ class TodayScreen extends StatelessWidget {
     final auth = context.watch<AuthBloc>().state;
     final account = auth is AuthSignedIn ? auth.account : null;
     return RefreshIndicator(
-      onRefresh: () => context.read<SummaryCubit>().load(),
+      onRefresh: () async {
+        if (account != null && account.cash) context.read<CashCubit>().load();
+        await context.read<SummaryCubit>().load();
+      },
       child: BlocBuilder<SummaryCubit, SummaryState>(
         builder: (context, state) {
           final summary = state.summary;
@@ -56,6 +60,7 @@ class TodayScreen extends StatelessWidget {
                   Expanded(child: _Stat(S.current.next7days, summary?.week, () => onOpenBookings(0))),
                 ],
               ),
+              if (account != null && account.cash) _CashCard(onOpen: () => onOpenBookings(0)),
               const SizedBox(height: 20),
               Text(S.current.nextVisit, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
@@ -71,6 +76,55 @@ class TodayScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Today's takings, the month so far, and visits that passed without a payment (they open today's bookings).
+class _CashCard extends StatelessWidget {
+  const _CashCard({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final s = S.current;
+    return BlocBuilder<CashCubit, CashState>(
+      builder: (context, state) {
+        final day = state.day;
+        return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Card(
+            elevation: 0,
+            color: cardColor(theme.colorScheme),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: onOpen,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(s.cashToday, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline)),
+                  const SizedBox(height: 2),
+                  Text(day == null ? '…' : formatSom(day.total),
+                      key: const Key('cash-today'),
+                      style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                  if (day != null) ...[
+                    Text(s.monthTakings(formatSom(day.monthTotal)), style: theme.textTheme.bodySmall),
+                    if (day.unpaid.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(s.unpaidVisits(day.unpaid.length),
+                            style: TextStyle(color: theme.colorScheme.error, fontWeight: FontWeight.w600)),
+                      ),
+                  ],
+                ]),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

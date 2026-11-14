@@ -117,6 +117,19 @@ class S {
     required this.nameNeeded,
     required this.bookedNotice,
     required this.seatsLeft,
+    required this.payment,
+    required this.amountLabel,
+    required this.methodCash,
+    required this.methodCard,
+    required this.methodTransfer,
+    required this.save,
+    required this.removePayment,
+    required this.paymentSaved,
+    required this.paymentRemoved,
+    required this.cashToday,
+    required this.amountNeeded,
+    required this.unpaidVisits,
+    required this.monthTakings,
     required this.answer,
     required this.answerHint,
     required this.answerSent,
@@ -248,6 +261,19 @@ class S {
   final String nameNeeded;
   final String Function(String name, String when) bookedNotice;
   final String Function(int n) seatsLeft;
+  final String payment;
+  final String amountLabel;
+  final String methodCash;
+  final String methodCard;
+  final String methodTransfer;
+  final String save;
+  final String removePayment;
+  final String paymentSaved;
+  final String paymentRemoved;
+  final String cashToday;
+  final String amountNeeded;
+  final String Function(int n) unpaidVisits;
+  final String Function(String amount) monthTakings;
   final String answer;
   final String answerHint;
   final String answerSent;
@@ -382,6 +408,19 @@ class S {
     nameNeeded: 'Укажите имя клиента',
     bookedNotice: _ruBooked,
     seatsLeft: _ruSeats,
+    payment: 'Оплата',
+    amountLabel: 'Сумма, сом',
+    methodCash: 'Наличные',
+    methodCard: 'Карта',
+    methodTransfer: 'Перевод',
+    save: 'Сохранить',
+    removePayment: 'Удалить оплату',
+    paymentSaved: 'Оплата записана',
+    paymentRemoved: 'Оплата удалена',
+    cashToday: 'Касса сегодня',
+    amountNeeded: 'Введите сумму',
+    unpaidVisits: _ruUnpaid,
+    monthTakings: _ruMonth,
     answer: 'Ответить',
     answerHint: 'Ответ клиенту',
     answerSent: 'Ответ отправлен, заявка закрыта',
@@ -514,6 +553,19 @@ class S {
     nameNeeded: 'Кардардын атын жазыңыз',
     bookedNotice: _kyBooked,
     seatsLeft: _kySeats,
+    payment: 'Төлөм',
+    amountLabel: 'Сумма, сом',
+    methodCash: 'Накталай',
+    methodCard: 'Карта',
+    methodTransfer: 'Которуу',
+    save: 'Сактоо',
+    removePayment: 'Төлөмдү өчүрүү',
+    paymentSaved: 'Төлөм жазылды',
+    paymentRemoved: 'Төлөм өчүрүлдү',
+    cashToday: 'Бүгүнкү касса',
+    amountNeeded: 'Сумманы жазыңыз',
+    unpaidVisits: _kyUnpaid,
+    monthTakings: _kyMonth,
     answer: 'Жооп берүү',
     answerHint: 'Кардарга жооп',
     answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
@@ -572,3 +624,7 @@ String _ruBooked(String name, String when) => 'Записали: $name, $when';
 String _kyBooked(String name, String when) => '$name жазылды: $when';
 String _ruSeats(int n) => 'мест: $n';
 String _kySeats(int n) => 'орун: $n';
+String _ruUnpaid(int n) => 'Прошли без оплаты: $n';
+String _kyUnpaid(int n) => 'Төлөмсүз өткөн визиттер: $n';
+String _ruMonth(String amount) => 'За месяц: $amount';
+String _kyMonth(String amount) => 'Ай ичинде: $amount';

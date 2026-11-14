@@ -24,3 +24,14 @@ String channelName(String channel) => switch (channel) {
 
 /// "1 запись", "2 записи", "5 записей"; "5 жазылуу".
 String bookingsWord(int n) => S.current.bookingsCount(n);
+
+/// 1200 -> "1 200 сом".
+String formatSom(int value) {
+  final digits = value.toString();
+  final out = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) out.write(' ');
+    out.write(digits[i]);
+  }
+  return '$out ${S.current.som}';
+}

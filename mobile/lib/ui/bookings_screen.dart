@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../bloc/auth_bloc.dart';
 import '../bloc/bookings_bloc.dart';
+import '../bloc/cash_cubit.dart';
 import '../bloc/load_status.dart';
 import '../bloc/summary_cubit.dart';
 import '../core/format.dart';
 import '../core/strings.dart';
+import '../data/models.dart';
 import 'booking_tile.dart';
+import 'payment_sheet.dart';
 
 /// Bookings of one day from every channel, with the day switcher and cancelling.
 class BookingsScreen extends StatelessWidget {
@@ -27,9 +31,21 @@ class BookingsScreen extends StatelessWidget {
     if (yes == true && context.mounted) context.read<BookingsBloc>().add(BookingCancelRequested(id));
   }
 
+  Future<void> _pay(BuildContext context, Booking booking) async {
+    final updated = await showPaymentSheet(context, booking);
+    if (updated == null || !context.mounted) return;
+    context.read<BookingsBloc>().add(BookingUpdated(updated));
+    context.read<CashCubit>().load();
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar() // a second payment in a row shows at once, not after the first notice
+      ..showSnackBar(SnackBar(content: Text(updated.isPaid ? S.current.paymentSaved : S.current.paymentRemoved)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final auth = context.watch<AuthBloc>().state;
+    final payments = auth is AuthSignedIn && auth.account.cash;
     return BlocConsumer<BookingsBloc, BookingsState>(
       listenWhen: (a, b) => b.notice != null || (b.error != null && b.status != LoadStatus.failure),
       listener: (context, state) {
@@ -93,7 +109,8 @@ class BookingsScreen extends StatelessWidget {
                         TextButton(onPressed: () => bloc.add(const BookingsRefreshed()), child: Text(S.current.retry)),
                       ]),
                     ),
-                  LoadStatus.initial || LoadStatus.loading when state.bookings.isEmpty =>
+                  LoadStatus.initial ||
+                  LoadStatus.loading when state.bookings.isEmpty =>
                     const _Centered(child: CircularProgressIndicator()),
                   _ when state.bookings.isEmpty => _Centered(child: Text(S.current.noBookingsThisDay)),
                   _ => ListView.separated(
@@ -106,6 +123,7 @@ class BookingsScreen extends StatelessWidget {
                           booking: b,
                           busy: state.cancelling == b.id,
                           onCancel: () => _confirmCancel(context, b.id, b.customerName),
+                          onPay: payments ? () => _pay(context, b) : null,
                         );
                       },
                     ),
