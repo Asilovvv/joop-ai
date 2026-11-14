@@ -241,3 +241,74 @@ def test_orders_and_requests_are_not_a_masters_or_another_business(client, busin
     assert master["sections"] == {"bookings": True, "orders": False, "leads": False}
     assert client.get("/api/mobile/leads", headers=auth(master["token"])).status_code == 403
     assert client.get("/api/mobile/orders", headers=auth(master["token"])).status_code == 403
+
+
+def _handed_off(channel: str, chat_id: str, last_customer_hours_ago: float):
+    from joop.models import Conversation, Lead, Message
+
+    from .conftest import NOW_UTC
+
+    with db.new_session() as s:
+        b = s.exec(select(Business).where(Business.slug == "aktish")).one()
+        conv = Conversation(business_id=b.id, channel=channel, chat_id=chat_id, customer_name="Айгуль",
+                            last_customer_at=NOW_UTC - timedelta(hours=last_customer_hours_ago))
+        s.add(conv)
+        s.flush()
+        s.add(Message(business_id=b.id, conversation_id=conv.id, role="customer", text="Можно ли лечить зуб под наркозом?"))
+        s.add(Message(business_id=b.id, conversation_id=conv.id, role="ai", text="Передаю вопрос администратору."))
+        s.add(Lead(business_id=b.id, conversation_id=conv.id, kind="handoff", summary="Лечение под наркозом",
+                   customer_name="Айгуль", channel=channel, chat_id=chat_id))
+        s.commit()
+        return conv.id
+
+
+def test_the_owner_answers_a_handed_off_customer(client, business, rt):
+    conv_id = _handed_off("telegram", "5551", last_customer_hours_ago=2)
+    token = sign_in(client).json()["token"]
+    lead = client.get("/api/mobile/leads", headers=auth(token)).json()["leads"][0]
+    assert lead["conversation_id"] == conv_id
+
+    dialogue = client.get(f"/api/mobile/conversations/{conv_id}", headers=auth(token)).json()
+    assert [m["role"] for m in dialogue["messages"]] == ["customer", "ai"] and dialogue["reply_blocked"] == ""
+
+    r = client.post(f"/api/mobile/conversations/{conv_id}/reply", json={"text": "Да, можно. Позвоним вам сегодня."},
+                    headers=auth(token))
+    assert r.status_code == 200
+    after = r.json()
+    assert after["messages"][-1] == {**after["messages"][-1], "role": "staff", "author": "Владелец"}
+    assert after["ai_paused"] is True  # the AI stays out of this chat, as after a reply from the panel
+    assert rt.tg.sent[-1][:2] == ("5551", "Да, можно. Позвоним вам сегодня.")
+    assert client.get("/api/mobile/leads", headers=auth(token)).json()["leads"][0]["status"] == "done"
+    with db.new_session() as s:
+        from joop.models import Conversation
+
+        assert s.get(Conversation, conv_id).reviewed_at is not None
+
+
+def test_whatsapp_after_a_day_cannot_be_answered_and_says_why(client, business):
+    conv_id = _handed_off("whatsapp", "996700000001", last_customer_hours_ago=30)
+    token = sign_in(client).json()["token"]
+    dialogue = client.get(f"/api/mobile/conversations/{conv_id}", headers=auth(token)).json()
+    assert "в течение суток" in dialogue["reply_blocked"]
+    r = client.post(f"/api/mobile/conversations/{conv_id}/reply", json={"text": "Здравствуйте"}, headers=auth(token))
+    assert r.status_code == 422 and "в течение суток" in r.json()["error"]
+    assert client.post(f"/api/mobile/conversations/{conv_id}/reply", json={"text": "  "}, headers=auth(token)).status_code == 422
+
+
+def test_a_master_or_another_business_cannot_read_or_answer(client, business):
+    from joop.presets import create_business
+
+    from .conftest import NOW_UTC
+
+    conv_id = _handed_off("telegram", "5552", last_customer_hours_ago=1)
+    with db.new_session() as s:
+        create_business(s, slug="other", name="Другая", password="other-pass-1", demo=True, now_utc=NOW_UTC)
+        member = s.exec(select(Staff).where(Staff.business_id == business.id)).first()
+        s.add(PanelUser(business_id=business.id, name="Айгерим", login="aigerim", password_hash=hash_password("staff-pass-1"),
+                        staff_id=member.id))
+        s.commit()
+    stranger = sign_in(client, company="other", password="other-pass-1").json()["token"]
+    master = sign_in(client, user="aigerim", password="staff-pass-1").json()["token"]
+    assert client.get(f"/api/mobile/conversations/{conv_id}", headers=auth(stranger)).status_code == 404
+    assert client.post(f"/api/mobile/conversations/{conv_id}/reply", json={"text": "x"}, headers=auth(stranger)).status_code == 404
+    assert client.get(f"/api/mobile/conversations/{conv_id}", headers=auth(master)).status_code == 403

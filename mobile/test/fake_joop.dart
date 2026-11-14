@@ -26,8 +26,21 @@ class FakeJoop {
     {
       'id': 9, 'created_at': '2026-11-13T06:00:00Z', 'kind': 'handoff', 'summary': 'Можно банкет на 40 человек?',
       'details': '', 'status': 'new', 'channel': 'whatsapp', 'customer': {'name': 'Айбек', 'phone': ''}, 'closed_by': '',
+      'conversation_id': 70,
     },
   ];
+
+  /// Dialogues behind requests; a non-empty reply_blocked makes the reply fail as the server does.
+  final dialogues = <int, Map<String, dynamic>>{
+    70: {
+      'id': 70, 'channel': 'whatsapp', 'customer': {'name': 'Айбек', 'phone': '+996700111222'},
+      'ai_paused': false, 'reply_blocked': '',
+      'messages': [
+        {'id': 1, 'role': 'customer', 'text': 'Можно банкет на 40 человек?', 'created_at': '2026-11-13T06:00:00Z', 'author': ''},
+        {'id': 2, 'role': 'ai', 'text': 'Передал вопрос администратору.', 'created_at': '2026-11-13T06:00:05Z', 'author': ''},
+      ],
+    },
+  };
 
   final bookings = <Map<String, dynamic>>[
     _booking(1, '2026-11-13T10:00:00', 'Айгуль', 'whatsapp'),
@@ -147,6 +160,22 @@ class FakeJoop {
       x['status'] = 'done';
       x['closed_by'] = 'Владелец';
       return json({'lead': x});
+    }
+    final talk = RegExp(r'^/api/mobile/conversations/(\d+)(/reply)?$').firstMatch(path);
+    if (talk != null) {
+      final d = dialogues[int.parse(talk.group(1)!)];
+      if (d == null) return json({'error': 'Диалог не найден.'}, 404);
+      if (talk.group(2) == null) return json(d);
+      if ((d['reply_blocked'] as String).isNotEmpty) return json({'error': d['reply_blocked']}, 422);
+      final text = (jsonDecode(request.body) as Map)['text'] as String;
+      (d['messages'] as List).add(
+          {'id': 100, 'role': 'staff', 'text': text, 'created_at': '2026-11-13T07:00:00Z', 'author': 'Владелец'});
+      d['ai_paused'] = true;
+      for (final x in leads.where((x) => x['conversation_id'] == d['id'])) {
+        x['status'] = 'done';
+        x['closed_by'] = 'Владелец';
+      }
+      return json(d);
     }
     if (path == '/api/mobile/services') {
       return json({

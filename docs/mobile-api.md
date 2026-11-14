@@ -14,6 +14,8 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | `POST /api/mobile/orders/{id}/status` | `{"status"}`: the next step, the same code as the panel (stock back on cancel, the customer told) |
 | `GET /api/mobile/leads` | new requests, then the last 30 done |
 | `POST /api/mobile/leads/{id}/done` | marks a request done, with the person's name |
+| `GET /api/mobile/conversations/{id}` | a request's dialogue (last 50 messages), `ai_paused`, `reply_blocked`; masters get 403 |
+| `POST /api/mobile/conversations/{id}/reply` | `{text}` → staff reply through the customer's channel, same code as the panel: pauses the AI, closes the open requests; 422 with the reason when the channel no longer allows it (WhatsApp/Instagram 24 h) |
 | `GET /api/mobile/services` | the price list |
 
 Every call after sign-in sends `Authorization: Bearer <token>`.

@@ -28,4 +28,11 @@ void main() {
     expect(services.first.price, '500');
     expect(services.length, greaterThan(3));
   });
+
+  test('a WhatsApp dialogue that can no longer be answered', () {
+    final d = Dialogue.fromJson(fixture('dialogue'));
+    expect(d.customerPhone, '+996700111222');
+    expect(d.messages.map((m) => m.role), ['customer', 'ai']);
+    expect(d.replyBlocked, contains('WhatsApp'));
+  });
 }
