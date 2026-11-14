@@ -173,7 +173,8 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     label = pack.catalog_label
     act = ("забронируйте зал на дату" if pack.by_day else "забронируйте машину" if pack.rental
            else "забронируйте номер" if pack.has("stay")
-           else "закажите" if pack.has("order") and not pack.has("booking") else "запишитесь")
+           else "закажите" if pack.has("order") and not pack.has("booking")
+           else "оставьте заявку" if not pack.has("booking") else "запишитесь")
     missing = [w for w, v in (("адрес", b.address), ("телефон", b.phone), ("часы работы", b.hours_text)) if not v]
     if samples.hours_are_example(b):  # copied from the example at sign-up: confirm or change
         missing.append(f"часы работы (сейчас из примера: {b.hours_text})")
@@ -196,7 +197,8 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
                  if admin_link(b) else "Сначала подключите бота: потом здесь будет кнопка, которая привяжет ваш Telegram."},
         {"done": real > 0, "title": "Первый настоящий клиент", "href": "/panel/card", "key": "real",
          "hint": (f"Ссылка на бота: {bot.removeprefix('https://')} — поставьте её в шапку Instagram и в 2ГИС. " if bot else "")
-                 + "Табличка с QR-кодом у кассы — самый быстрый первый клиент."},
+                 + ("Наклейка с QR-кодом на машине и визитке — самый быстрый первый клиент." if pack.comes_to_client
+                    else "Табличка с QR-кодом у кассы — самый быстрый первый клиент.")},
         {"done": paid or free, "title": "Бесплатный тариф: один мастер, без срока" if free else "Оплата", "href": "/panel/billing", "key": "pay",
          "hint": "Второй мастер и ответы без подписи Joop — на платном тарифе." if free else "После пробного периода ИИ работает по подписке."},
     ]
