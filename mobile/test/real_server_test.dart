@@ -42,4 +42,12 @@ void main() {
     expect(slots.first.staff, 'Айгерим Садыкова');
     expect(slots.first.seats, 1);
   });
+
+  test("a day's takings after a card payment", () {
+    final day = CashDay.fromJson(fixture('cash'));
+    expect(day.total, 3000);
+    expect(day.byMethod, {'card': 3000});
+    expect(day.unpaid, isEmpty);
+    expect(day.monthTotal, 3000);
+  });
 }

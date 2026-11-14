@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/auth_bloc.dart';
 import '../bloc/bookings_bloc.dart';
+import '../bloc/cash_cubit.dart';
 import '../bloc/services_cubit.dart';
 import '../bloc/summary_cubit.dart';
 import '../bloc/work_cubits.dart';
@@ -47,6 +48,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   late final BookingsBloc _bookings = BookingsBloc(_repository, today: widget.today);
   late final OrdersCubit _orders = OrdersCubit(_repository);
   late final LeadsCubit _leads = LeadsCubit(_repository);
+  late final CashCubit _cash = CashCubit(_repository, widget.today);
   late final ServicesCubit _services = ServicesCubit(_repository)..load();
 
   Account get _account => widget.account;
@@ -58,6 +60,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       _summary.load();
       _bookings.add(BookingsDayChanged(widget.today));
     }
+    if (_account.cash) _cash.load();
     if (_account.orders) _orders.load();
     if (_account.leads) _leads.load();
     WidgetsBinding.instance.addObserver(this);
@@ -75,6 +78,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       _summary.refresh();
       _bookings.add(const BookingsPolled());
     }
+    if (_account.cash) _cash.load();
     if (_account.orders) _orders.refresh();
     if (_account.leads) _leads.refresh();
   }
@@ -93,7 +97,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
-    for (final c in [_summary, _orders, _leads, _services]) {
+    for (final c in [_summary, _orders, _leads, _services, _cash]) {
       c.close();
     }
     _bookings.close();
@@ -177,6 +181,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         BlocProvider.value(value: _orders),
         BlocProvider.value(value: _leads),
         BlocProvider.value(value: _services),
+        BlocProvider.value(value: _cash),
       ],
       child: Builder(
         builder: (context) => Scaffold(

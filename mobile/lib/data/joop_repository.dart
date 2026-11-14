@@ -65,6 +65,16 @@ class JoopRepository {
     return Booking.fromJson(data['booking'] as Map<String, dynamic>);
   }
 
+  /// What the customer paid after the visit; amount 0 removes a payment recorded by mistake.
+  Future<Booking> pay(int bookingId, int amount, String method) async {
+    final data = await _api.post('/api/mobile/bookings/$bookingId/pay', {'amount': amount, 'method': method})
+        as Map<String, dynamic>;
+    return Booking.fromJson(data['booking'] as Map<String, dynamic>);
+  }
+
+  Future<CashDay> cash(DateTime day) async =>
+      CashDay.fromJson(await _api.get('/api/mobile/cash', query: {'day': isoDay(day)}) as Map<String, dynamic>);
+
   Future<List<FreeSlot>> freeSlots(DateTime day) async {
     final data = await _api.get('/api/mobile/slots', query: {'day': isoDay(day)}) as Map<String, dynamic>;
     return [for (final row in data['slots'] as List) FreeSlot.fromJson(row as Map<String, dynamic>)];

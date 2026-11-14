@@ -99,15 +99,6 @@ class _WorkList<T, C extends Cubit<WorkState<T>>> extends StatelessWidget {
 
 String _when(DateTime d) => '${formatDay(d)}, ${formatTime(d)}';
 
-String _som(int value) {
-  final digits = value.toString();
-  final out = StringBuffer();
-  for (var i = 0; i < digits.length; i++) {
-    if (i > 0 && (digits.length - i) % 3 == 0) out.write(' ');
-    out.write(digits[i]);
-  }
-  return '$out ${S.current.som}';
-}
 
 class _Card extends StatelessWidget {
   const _Card({required this.children, this.muted = false});
@@ -203,7 +194,7 @@ class _OrderCard extends StatelessWidget {
               ),
             ),
             if (order.total != null)
-              Text(_som(order.total!), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Text(formatSom(order.total!), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           ],
         ),
         const SizedBox(height: 8),

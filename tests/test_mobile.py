@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import select
 
-from joop import db
+from joop import cash, db
 from joop.models import Booking, Business, PanelUser, Slot, Staff
 from joop.security import hash_password
 from joop.stats import activity
@@ -207,7 +207,7 @@ def _cafe_with_order_and_request():
 def test_a_cafe_owner_moves_orders_and_closes_requests(client, business, rt):
     order_id = _cafe_with_order_and_request()
     r = sign_in(client, company="navat", password="cafe-pass-1").json()
-    assert r["sections"] == {"bookings": True, "orders": True, "leads": True}
+    assert r["sections"] == {"bookings": True, "orders": True, "leads": True, "cash": True}
     token = r["token"]
 
     orders = client.get("/api/mobile/orders", headers=auth(token)).json()["orders"]
@@ -239,7 +239,7 @@ def test_orders_and_requests_are_not_a_masters_or_another_business(client, busin
                         staff_id=member.id))
         s.commit()
     master = sign_in(client, user="aigerim", password="staff-pass-1").json()
-    assert master["sections"] == {"bookings": True, "orders": False, "leads": False}
+    assert master["sections"] == {"bookings": True, "orders": False, "leads": False, "cash": True}
     assert client.get("/api/mobile/leads", headers=auth(master["token"])).status_code == 403
     assert client.get("/api/mobile/orders", headers=auth(master["token"])).status_code == 403
 
@@ -397,3 +397,64 @@ def test_a_staff_booking_goes_to_altegio_too(client, business, rt):
     assert r.status_code == 200 and fake.paths("POST")[-1] == "book_record/4242"
     with db.new_session() as s:
         assert s.exec(select(Booking).where(Booking.slot_id == slot_id)).one().external_id == "987654"
+
+
+# --- payment after the visit ----------------------------------------------------------------------------
+
+
+def test_the_owner_records_a_payment_and_sees_the_days_takings(client, business):
+    slot = tomorrow_slots(business.id)[0]
+    paid_id, unpaid_id = book(business.id, slot), book(business.id, tomorrow_slots(business.id)[0], name="Бакыт")
+    token = sign_in(client).json()["token"]
+    assert sign_in(client).json()["sections"]["cash"] is True  # a clinic has the panel's Касса
+    rows = client.get("/api/mobile/bookings", params={"day": "2026-11-05"}, headers=auth(token)).json()["bookings"]
+    with db.new_session() as s:
+        expected = cash.suggested(s, s.get(Booking, paid_id))
+    assert rows[0]["suggested_som"] == expected
+    r = client.post(f"/api/mobile/bookings/{paid_id}/pay", json={"amount": 1500, "method": "card"}, headers=auth(token))
+    assert r.status_code == 200
+    made = r.json()["booking"]
+    assert made["paid"]["som"] == 1500 and made["paid"]["method"] == "card" and made["suggested_som"] == 0
+    day = client.get("/api/mobile/cash", params={"day": "2026-11-05"}, headers=auth(token)).json()
+    assert day["total"] == 1500 and day["by_method"] == {"card": 1500} and day["visits"] == 2
+    assert day["unpaid"] == []  # tomorrow's visits have not passed yet: nothing to ask about
+    assert day["month"] == {"total": 1500, "paid_visits": 1}
+    assert client.post(f"/api/mobile/bookings/{paid_id}/pay", json={"amount": 0}, headers=auth(token)).status_code == 200
+    assert client.get("/api/mobile/cash", params={"day": "2026-11-05"}, headers=auth(token)).json()["total"] == 0
+    assert unpaid_id
+
+
+def test_a_payment_is_checked_and_stays_within_the_business_and_the_master(client, business):
+    slots = tomorrow_slots(business.id)
+    mine = slots[0]
+    other = next(x for x in slots if x.staff_id != mine.staff_id)
+    hers, theirs = book(business.id, mine), book(business.id, other, name="Бакыт")
+    token = sign_in(client).json()["token"]
+    pay = lambda bid, body, t=token: client.post(f"/api/mobile/bookings/{bid}/pay", json=body, headers=auth(t))  # noqa: E731
+    assert pay(hers, {"amount": 100, "method": "crypto"}).status_code == 422
+    assert pay(hers, {"amount": -5}).status_code == 422
+    assert pay(hers, {"amount": 10_000_001}).status_code == 422
+    client.post(f"/api/mobile/bookings/{theirs}/cancel", headers=auth(token))
+    assert pay(theirs, {"amount": 100}).status_code == 409
+    with db.new_session() as s:
+        s.add(PanelUser(business_id=business.id, name="Айгерим", login="aigerim", password_hash=hash_password("staff-pass-1"),
+                        staff_id=mine.staff_id))
+        s.add(Business(slug="other", name="Другая", admin_password_hash=hash_password("other-pass-1")))
+        s.commit()
+    master = sign_in(client, user="aigerim", password="staff-pass-1").json()["token"]
+    assert pay(theirs, {"amount": 100}, master).status_code == 404
+    assert pay(hers, {"amount": 700}, master).status_code == 200
+    stranger = sign_in(client, company="other", password="other-pass-1").json()["token"]
+    assert pay(hers, {"amount": 1}, stranger).status_code == 404
+    assert client.get("/api/mobile/cash", params={"day": "2026-11-05"}, headers=auth(master)).json()["total"] == 700
+
+
+def test_a_visit_that_passed_without_a_payment_is_listed(client, business):
+    with db.new_session() as s:
+        member = s.exec(select(Staff).where(Staff.business_id == business.id)).first()
+        s.add(Booking(business_id=business.id, staff_id=member.id, staff_name=member.name, start=datetime(2026, 11, 4, 10),
+                      service="Консультация", customer_name="Нурлан", channel=""))
+        s.commit()
+    token = sign_in(client).json()["token"]
+    day = client.get("/api/mobile/cash", params={"day": "2026-11-04"}, headers=auth(token)).json()
+    assert [x["customer"]["name"] for x in day["unpaid"]] == ["Нурлан"]

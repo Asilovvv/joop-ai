@@ -68,6 +68,8 @@ class FakeJoop {
         'channel': channel,
         'status': 'booked',
         'confirmed': id == 1,
+        'suggested_som': 1500,
+        'paid': null,
       };
 
   static const token = 'good-token';
@@ -88,7 +90,7 @@ class FakeJoop {
             'business': {'id': 1, 'slug': 'aktish', 'name': 'Ак-Тиш Дент', 'niche': 'dental'},
             'who': 'Владелец',
             'role': 'owner',
-            'sections': {'bookings': true, 'orders': false, 'leads': true},
+            'sections': {'bookings': true, 'orders': false, 'leads': true, 'cash': true},
           };
     if (path == '/api/mobile/places/aktish') {
       return json({
@@ -123,6 +125,31 @@ class FakeJoop {
       int on(String day) => active.where((b) => (b['start_local'] as String).startsWith(day)).length;
       return json({'today': on('2026-11-13'), 'tomorrow': on('2026-11-14'), 'week': active.length,
           'next': active.isEmpty ? null : active.first});
+    }
+    final pay = RegExp(r'^/api/mobile/bookings/(\d+)/pay$').firstMatch(path);
+    if (pay != null) {
+      final b = bookings.firstWhere((x) => x['id'] == int.parse(pay.group(1)!));
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final amount = body['amount'] as int;
+      b['paid'] = amount == 0 ? null : {'som': amount, 'method': body['method']};
+      b['suggested_som'] = amount == 0 ? 1500 : 0;
+      return json({'booking': b});
+    }
+    if (path == '/api/mobile/cash') {
+      final day = request.url.queryParameters['day']!;
+      final rows = bookings.where((b) => (b['start_local'] as String).startsWith(day) && b['status'] == 'booked');
+      final paid = rows.where((b) => b['paid'] != null);
+      final byMethod = <String, int>{};
+      for (final b in paid) {
+        final p = b['paid'] as Map;
+        byMethod[p['method'] as String] = (byMethod[p['method']] ?? 0) + (p['som'] as int);
+      }
+      final total = byMethod.values.fold(0, (a, b) => a + b);
+      return json({
+        'day': day, 'total': total, 'by_method': byMethod, 'visits': rows.length,
+        'unpaid': rows.where((b) => b['paid'] == null && (b['start_local'] as String).compareTo('${day}T11:00') < 0).toList(),
+        'month': {'total': total, 'paid_visits': paid.length},
+      });
     }
     if (path == '/api/mobile/slots') {
       final day = request.url.queryParameters['day']!;

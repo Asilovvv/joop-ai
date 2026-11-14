@@ -14,6 +14,8 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | `POST /api/mobile/orders/{id}/status` | `{"status"}`: the next step, the same code as the panel (stock back on cancel, the customer told) |
 | `GET /api/mobile/leads` | new requests, then the last 30 done |
 | `POST /api/mobile/leads/{id}/done` | marks a request done, with the person's name |
+| `POST /api/mobile/bookings/{id}/pay` | `{amount, method, receipt?}` → what the customer paid after the visit (`cash`/`card`/`transfer`), the panel's Касса code (`cash.record`); amount 0 removes it; 409 for a cancelled booking, 422 for a wrong method or amount |
+| `GET /api/mobile/cash?day=` | the day's takings `total`, `by_method`, `visits`, `unpaid` (visits that passed without a payment), `month` {`total`, `paid_visits`}; a master sees her own |
 | `GET /api/mobile/slots?day=` | free times of the day that staff can book a customer into (a master: only hers; the sign-up example's people left out) |
 | `POST /api/mobile/bookings` | `{slot_id, name, phone?, service?}` → a booking made by staff (`source: "staff"`, `channel: ""`): takes the slot with `claim_slot` as the AI does, goes to Altegio when the salon uses it (then a phone is required); 409 when the time is taken, 422 for no name or a phone that is not a number. The AI's figures do not count it |
 | `GET /api/mobile/conversations/{id}` | a request's dialogue (last 50 messages), `ai_paused`, `reply_blocked`; masters get 403 |
@@ -28,7 +30,7 @@ Every call after sign-in sends `Authorization: Bearer <token>`.
   the password hash, so a new password, or switching a staff login off, ends it at once.
 - **Rights** follow the panel: a master's login sees and cancels only her own bookings and has no orders or requests
   (403). Settings, channels and payment stay in the panel.
-- **Sections**: `login` and `me` return `sections` (`bookings`, `orders`, `leads`) from the niche, so the app shows
+- **Sections**: `login` and `me` return `sections` (`bookings`, `orders`, `leads`, `cash`) from the niche, so the app shows
   the tabs the panel's menu would: a cafe gets orders, a shop has no bookings.
 - Test chats (the panel's and the owner's own test chats in real channels) are left out of bookings, orders and requests.
 
@@ -49,3 +51,5 @@ so a customer is the same web-chat visitor for every business; the web chat's li
 business apply.
 
 Tests: `tests/test_mobile.py`.
+
+- **Payments**: every booking in `/api/mobile/bookings` carries `suggested_som`, the price-list amount for an unpaid visit (exact service name, plus an accepted add-on), as the panel pre-fills it; 0 when unknown or already paid.

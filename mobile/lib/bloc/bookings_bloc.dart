@@ -44,6 +44,16 @@ final class BookingCancelRequested extends BookingsEvent {
   List<Object?> get props => [bookingId];
 }
 
+/// A booking changed elsewhere (a payment recorded): show it as the server returned it.
+final class BookingUpdated extends BookingsEvent {
+  const BookingUpdated(this.booking);
+
+  final Booking booking;
+
+  @override
+  List<Object?> get props => [booking];
+}
+
 // ---------------------------------------------------------------- state
 
 class BookingsState extends Equatable {
@@ -100,6 +110,8 @@ class BookingsBloc extends Bloc<BookingsEvent, BookingsState> {
     on<BookingsRefreshed>((event, emit) => _load(emit, state.day));
     on<BookingsPolled>(_onPolled);
     on<BookingCancelRequested>(_onCancel);
+    on<BookingUpdated>((event, emit) =>
+        emit(state.copyWith(bookings: [for (final b in state.bookings) b.id == event.booking.id ? event.booking : b])));
   }
 
   final JoopRepository _repository;

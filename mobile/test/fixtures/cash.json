@@ -1,0 +1,13 @@
+{
+    "day": "2026-11-15",
+    "total": 3000,
+    "by_method": {
+        "card": 3000
+    },
+    "visits": 1,
+    "unpaid": [],
+    "month": {
+        "total": 3000,
+        "paid_visits": 1
+    }
+}
