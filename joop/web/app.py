@@ -26,8 +26,8 @@ from ..config import Settings, get_settings
 from ..db import init_db, new_session
 from ..dispatch import admin_chat_ids, admin_link, process_incoming
 from ..catalog import parse_price
-from ..models import (Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service, SignatureClick, Slot,
-                      Staff, Stay, StockMove, WaitlistEntry)
+from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service,
+                      SignatureClick, Slot, Staff, Stay, StockMove, WaitlistEntry, takeover_words)
 from ..niches import all_packs, get_pack, picker_packs
 from ..phone import normalize_phone
 from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, order_status, quick_replies, samples, staff_reply, stock, waitlist
@@ -46,6 +46,8 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 templates.env.filters["local"] = lambda dt, tz: fmt_dt(utc_to_local(dt, tz)) if dt else ""
 templates.env.filters["slot"] = lambda dt: fmt_slot(dt) if dt else ""
 templates.env.filters["dt"] = fmt_dt
+templates.env.globals["takeover_words"] = takeover_words
+templates.env.globals["takeover_choices"] = TAKEOVER_CHOICES
 
 def nav_for(business: Business | None) -> list[tuple[str, str, str]]:
     """Panel sections for this business's niche: a cafe gets orders, a wholesaler has no slots."""
@@ -1490,7 +1492,7 @@ def conversation_reply(request: Request, item_id: int, text: str = Form(""), csr
         sent, problem = staff_reply.send(s, _rt(request), b, conv, text, utcnow(), author=_who(request))
         s.commit()
     if sent:
-        _flash(request, "Ответ отправлен. ИИ не вмешивается в этот диалог 12 часов; заявки из него отмечены выполненными.")
+        _flash(request, f"Ответ отправлен. ИИ не вмешивается в этот диалог {takeover_words(b.takeover_minutes)}; заявки из него отмечены выполненными.")
     else:
         _flash(request, problem, "error")
     return _back(f"/panel/conversations/{item_id}")
@@ -1650,6 +1652,11 @@ async def settings_save(request: Request):
                 setattr(b, key, max(0, int(str(form.get(key) or 0).replace(" ", ""))))
             except ValueError:
                 pass
+        try:
+            minutes = int(str(form.get("takeover_minutes") or b.takeover_minutes))
+            b.takeover_minutes = minutes if minutes in TAKEOVER_CHOICES else b.takeover_minutes
+        except ValueError:
+            pass
         b.reminder_hour = hour("reminder_hour", b.reminder_hour)
         b.digest_hour = hour("digest_hour", b.digest_hour)
         if "lead_nudge_minutes" in form:

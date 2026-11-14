@@ -37,6 +37,7 @@ class Business(SQLModel, table=True):
     bot_enabled: bool = True
     reminder_hour: int = 18
     digest_hour: int = 8
+    takeover_minutes: int = 720  # after a staff reply the AI stays out of that chat this long (joop/agent/engine.py)
     # Orders (cafes, wholesale), in som. 0 = not set.
     min_order: int = 0
     delivery_fee: int = 0
@@ -184,6 +185,13 @@ class Conversation(SQLModel, table=True):
     def silenced(self) -> bool:
         """Nothing Joop starts goes to this chat: the customer said «стоп», or staff blocked it."""
         return self.broadcast_opt_out or self.blocked_at is not None
+
+
+TAKEOVER_CHOICES = {15: "15 минут", 60: "1 час", 180: "3 часа", 720: "12 часов", 1440: "24 часа"}
+
+
+def takeover_words(minutes: int) -> str:
+    return TAKEOVER_CHOICES.get(minutes) or f"{minutes} мин"
 
 
 class Message(SQLModel, table=True):

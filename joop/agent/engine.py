@@ -38,7 +38,13 @@ log = logging.getLogger(__name__)
 
 HISTORY_LIMIT = 20
 HISTORY_WINDOW = timedelta(hours=72)
-STAFF_TAKEOVER_PAUSE = timedelta(hours=12)
+STAFF_TAKEOVER_PAUSE = timedelta(hours=12)  # the default; each business picks its own in «Настройки»
+
+
+def takeover_pause(business: Business) -> timedelta:
+    """How long the AI stays out of a chat after staff answered in it: a staff reply extends it again."""
+    return timedelta(minutes=business.takeover_minutes) if business.takeover_minutes and business.takeover_minutes > 0 \
+        else STAFF_TAKEOVER_PAUSE
 
 # Fixed replies sent without the model: both languages, since we do not know which one the customer reads.
 # The Kyrgyz lines should be checked by a native speaker.
@@ -545,7 +551,7 @@ def _handle_echo(
     if _is_own_text(text, list(recent_ai)):
         return Outcome(skipped="own_echo")
     _add_message(session, business, conv, "staff", text or "[сообщение администратора]", now, off, incoming.external_id)
-    conv.ai_paused_until = now + STAFF_TAKEOVER_PAUSE
+    conv.ai_paused_until = now + takeover_pause(business)
     session.add(conv)
     return Outcome(skipped="staff_reply")
 
