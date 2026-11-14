@@ -361,8 +361,41 @@ def mobile_services(request: Request):
         if who is None:
             return _fail(401, "Войдите заново.")
         rows = s.exec(select(Service).where(Service.business_id == who.business.id).order_by(Service.sort, Service.id)).all()
-        return {"services": [{"id": x.id, "name": x.name, "name_ky": x.name_ky, "price": x.price, "price_value": x.price_value,
-                              "category": x.category, "available": x.available and not x.sold_out} for x in rows]}
+        return {"services": [_service(who.business, x) for x in rows]}
+
+
+def _service(b: Business, x: Service) -> dict:
+    """`available`: the AI offers it. `sold_out`: the stock reached zero (joop/stock.py). `from_altegio`: the salon's
+    Altegio price list sets it on every sync, so a stop here would not last."""
+    return {"id": x.id, "name": x.name, "name_ky": x.name_ky, "price": x.price, "price_value": x.price_value,
+            "category": x.category, "available": x.available and not x.sold_out, "sold_out": x.sold_out,
+            "from_altegio": bool(b.altegio_location_id)}
+
+
+class AvailableIn(BaseModel):
+    available: bool
+
+
+@router.post("/api/mobile/services/{item_id}/available")
+def mobile_stop_list(request: Request, item_id: int, body: AvailableIn):
+    """The stop list: the AI stops offering an item (a dish ran out, a doctor does not do it this week) and offers it
+    again when it is back. What the panel's «В продаже» box does; masters do not edit the price list there either."""
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        row = s.get(Service, item_id)
+        if row is None or row.business_id != who.business.id:
+            return _fail(404, "Такой позиции нет.")
+        if who.business.altegio_location_id:
+            return _fail(409, "Прайс берётся из Altegio: снимите или верните услугу там, Joop подхватит это сам.")
+        if row.sold_out and body.available:
+            return _fail(409, "Закончилось на складе. Укажите новый остаток в панели («Склад») — позиция вернётся в продажу.")
+        row.available = body.available
+        s.add(row)
+        s.commit()
+        s.refresh(row)
+        return {"service": _service(who.business, row)}
 
 
 # --- orders and requests ---------------------------------------------------------------------------

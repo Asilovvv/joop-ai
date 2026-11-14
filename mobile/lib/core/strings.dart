@@ -130,6 +130,11 @@ class S {
     required this.amountNeeded,
     required this.unpaidVisits,
     required this.monthTakings,
+    required this.onSale,
+    required this.stopListed,
+    required this.soldOutStock,
+    required this.fromAltegioNote,
+    required this.stopListNote,
     required this.answer,
     required this.answerHint,
     required this.answerSent,
@@ -274,6 +279,11 @@ class S {
   final String amountNeeded;
   final String Function(int n) unpaidVisits;
   final String Function(String amount) monthTakings;
+  final String onSale;
+  final String stopListed;
+  final String soldOutStock;
+  final String fromAltegioNote;
+  final String stopListNote;
   final String answer;
   final String answerHint;
   final String answerSent;
@@ -421,6 +431,11 @@ class S {
     amountNeeded: 'Введите сумму',
     unpaidVisits: _ruUnpaid,
     monthTakings: _ruMonth,
+    onSale: 'В продаже',
+    stopListed: 'Стоп-лист: ИИ не предлагает',
+    soldOutStock: 'Закончилось на складе',
+    fromAltegioNote: 'Прайс берётся из Altegio — меняйте его там.',
+    stopListNote: 'Выключите позицию — ИИ перестанет её предлагать. Цены меняются в панели Joop.',
     answer: 'Ответить',
     answerHint: 'Ответ клиенту',
     answerSent: 'Ответ отправлен, заявка закрыта',
@@ -566,6 +581,11 @@ class S {
     amountNeeded: 'Сумманы жазыңыз',
     unpaidVisits: _kyUnpaid,
     monthTakings: _kyMonth,
+    onSale: 'Сатыкта',
+    stopListed: 'Стоп-тизме: ИИ сунуштабайт',
+    soldOutStock: 'Кампада түгөндү',
+    fromAltegioNote: "Прайс Altegio'дон алынат — ошол жерден өзгөртүңүз.",
+    stopListNote: 'Позицияны өчүрсөңүз, ИИ аны сунуштабай калат. Баалар Joop панелинде өзгөрөт.',
     answer: 'Жооп берүү',
     answerHint: 'Кардарга жооп',
     answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
