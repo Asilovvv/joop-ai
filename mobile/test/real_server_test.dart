@@ -35,4 +35,11 @@ void main() {
     expect(d.messages.map((m) => m.role), ['customer', 'ai']);
     expect(d.replyBlocked, contains('WhatsApp'));
   });
+
+  test('free times for a booking made by staff', () {
+    final slots = [for (final r in fixture('slots')['slots'] as List) FreeSlot.fromJson(r as Map<String, dynamic>)];
+    expect(slots.first.start, DateTime(2026, 11, 16, 9));
+    expect(slots.first.staff, 'Айгерим Садыкова');
+    expect(slots.first.seats, 1);
+  });
 }

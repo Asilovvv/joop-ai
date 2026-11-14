@@ -107,6 +107,16 @@ class S {
     required this.answeredBy,
     required this.staffReply,
     required this.askPricesInChat,
+    required this.newBooking,
+    required this.bookAction,
+    required this.customerName,
+    required this.customerPhoneOptional,
+    required this.serviceOptional,
+    required this.noFreeTimes,
+    required this.chooseTime,
+    required this.nameNeeded,
+    required this.bookedNotice,
+    required this.seatsLeft,
     required this.answer,
     required this.answerHint,
     required this.answerSent,
@@ -228,6 +238,16 @@ class S {
   final String Function(String name) answeredBy;
   final String staffReply;
   final String askPricesInChat;
+  final String newBooking;
+  final String bookAction;
+  final String customerName;
+  final String customerPhoneOptional;
+  final String serviceOptional;
+  final String noFreeTimes;
+  final String chooseTime;
+  final String nameNeeded;
+  final String Function(String name, String when) bookedNotice;
+  final String Function(int n) seatsLeft;
   final String answer;
   final String answerHint;
   final String answerSent;
@@ -352,6 +372,16 @@ class S {
     answeredBy: _ruAnsweredBy,
     staffReply: 'Администратор',
     askPricesInChat: 'Цены уточните в чате.',
+    newBooking: 'Записать клиента',
+    bookAction: 'Записать',
+    customerName: 'Имя клиента',
+    customerPhoneOptional: 'Телефон (для напоминания)',
+    serviceOptional: 'Услуга (необязательно)',
+    noFreeTimes: 'На этот день свободного времени нет',
+    chooseTime: 'Выберите время',
+    nameNeeded: 'Укажите имя клиента',
+    bookedNotice: _ruBooked,
+    seatsLeft: _ruSeats,
     answer: 'Ответить',
     answerHint: 'Ответ клиенту',
     answerSent: 'Ответ отправлен, заявка закрыта',
@@ -474,6 +504,16 @@ class S {
     answeredBy: _kyAnsweredBy,
     staffReply: 'Администратор',
     askPricesInChat: 'Бааларды чаттан сураңыз.',
+    newBooking: 'Кардарды жазуу',
+    bookAction: 'Жазуу',
+    customerName: 'Кардардын аты',
+    customerPhoneOptional: 'Телефон (эскертүү үчүн)',
+    serviceOptional: 'Кызмат (милдеттүү эмес)',
+    noFreeTimes: 'Бул күнгө бош убакыт жок',
+    chooseTime: 'Убакытты тандаңыз',
+    nameNeeded: 'Кардардын атын жазыңыз',
+    bookedNotice: _kyBooked,
+    seatsLeft: _kySeats,
     answer: 'Жооп берүү',
     answerHint: 'Кардарга жооп',
     answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
@@ -528,3 +568,7 @@ String _ruAnsweredBy(String name) => 'Отвечает ИИ-администра
 String _kyAnsweredBy(String name) => '$name ИИ-администратору жооп берет';
 String _ruCallInstead(String phone) => phone.isEmpty ? '' : 'Телефон клиента: $phone';
 String _kyCallInstead(String phone) => phone.isEmpty ? '' : 'Кардардын телефону: $phone';
+String _ruBooked(String name, String when) => 'Записали: $name, $when';
+String _kyBooked(String name, String when) => '$name жазылды: $when';
+String _ruSeats(int n) => 'мест: $n';
+String _kySeats(int n) => 'орун: $n';

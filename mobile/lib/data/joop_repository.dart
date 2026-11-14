@@ -65,6 +65,18 @@ class JoopRepository {
     return Booking.fromJson(data['booking'] as Map<String, dynamic>);
   }
 
+  Future<List<FreeSlot>> freeSlots(DateTime day) async {
+    final data = await _api.get('/api/mobile/slots', query: {'day': isoDay(day)}) as Map<String, dynamic>;
+    return [for (final row in data['slots'] as List) FreeSlot.fromJson(row as Map<String, dynamic>)];
+  }
+
+  /// A customer who phoned or walked in, booked into a free time by staff.
+  Future<Booking> book({required int slotId, required String name, String phone = '', String service = ''}) async {
+    final data = await _api.post('/api/mobile/bookings', {'slot_id': slotId, 'name': name, 'phone': phone, 'service': service})
+        as Map<String, dynamic>;
+    return Booking.fromJson(data['booking'] as Map<String, dynamic>);
+  }
+
   Future<List<Order>> orders() async {
     final data = await _api.get('/api/mobile/orders') as Map<String, dynamic>;
     return [for (final row in data['orders'] as List) Order.fromJson(row as Map<String, dynamic>)];
