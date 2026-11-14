@@ -15,7 +15,7 @@ on:
         required: true
 
 permissions:
-  contents: write
+  contents: read  # the build runs third-party packages: no write token there; only «publish» may write
 
 env:
   API_URL: ${{ inputs.api_url }}
@@ -43,6 +43,8 @@ jobs:
         working-directory: mobile
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -54,12 +56,29 @@ jobs:
       - run: flutter pub get
       - run: flutter test
       - run: flutter build apk --release --dart-define=API_URL="${API_URL%/}"
+      - run: cp build/app/outputs/flutter-apk/app-release.apk "joop-ai-${{ inputs.version }}.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: mobile/joop-ai-${{ inputs.version }}.apk
+          retention-days: 3
+
+  publish:
+    name: GitHub Release
+    needs: android
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           apk="joop-ai-${{ inputs.version }}.apk"
-          cp build/app/outputs/flutter-apk/app-release.apk "$apk"
           notes="Joop AI for owners, staff and customers. Server: ${API_URL%/}. Install the APK on Android; allow installing from this source when asked."
           gh release create "${{ inputs.version }}" "$apk" --target "${{ github.sha }}" --title "Joop AI mobile ${{ inputs.version }}" --notes "$notes" \
             || gh release upload "${{ inputs.version }}" "$apk" --clobber

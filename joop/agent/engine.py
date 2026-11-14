@@ -825,6 +825,19 @@ def _booking_request(
     return reply, _add_lead(session, business, conv, "request", summary, now, off)
 
 
+_MODE_WORDS = {"delivery": "delivery", "доставка": "delivery", "жеткирүү": "delivery",
+               "pickup": "pickup", "самовывоз": "pickup", "өзү алып кетет": "pickup"}
+
+
+def _order_mode(raw: object, address: str, pack: Pack) -> str:
+    """The model's mode in any case or language; none or an unknown one with an address means delivery.
+    A delivery the pack does not do falls back to its first mode (a pickup-only shop)."""
+    mode = _MODE_WORDS.get(str(raw or "").strip().lower(), "")
+    if not mode:
+        mode = "delivery" if address else "pickup"
+    return mode if mode in pack.order_modes else pack.order_modes[0]
+
+
 MAX_QUANTITY = 50
 ASK_ORDER_CONTACTS = "Чтобы оформить заказ, напишите, пожалуйста, имя и номер телефона."
 
@@ -839,8 +852,10 @@ def _try_order(
     phone = normalize_phone(data.get("phone"))
     if not name or not phone:
         return ASK_ORDER_CONTACTS, None
-    mode = data.get("mode") if data.get("mode") in pack.order_modes else pack.order_modes[0]
     address = (data.get("address") or "").strip()[:300]
+    mode = _order_mode(data.get("mode"), address, pack)
+    if mode == "pickup":
+        address = ""  # a pickup order with an address reads as a delivery to the staff
     if mode == "delivery" and not address:
         return "Напишите, пожалуйста, адрес доставки.", None
 
