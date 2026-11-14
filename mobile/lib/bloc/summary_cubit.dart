@@ -23,6 +23,16 @@ class SummaryCubit extends Cubit<SummaryState> {
 
   final JoopRepository _repository;
 
+  /// A background check: keeps the shown numbers while asking, and keeps them when the check fails.
+  Future<void> refresh() async {
+    if (state.status == LoadStatus.loading) return;
+    try {
+      emit(SummaryState(status: LoadStatus.success, summary: await _repository.summary()));
+    } on ApiException {
+      // The next check tries again.
+    }
+  }
+
   Future<void> load() async {
     emit(SummaryState(status: LoadStatus.loading, summary: state.summary));
     try {
