@@ -42,6 +42,7 @@ class Pack:
     stay_by: str = "night"
     jobs_delivered: bool = False  # jobs are made to order and delivered (furniture), not picked up (repair)
     lead_minutes: int = 60  # free times offered no sooner than this; a car wash takes «можно сейчас?» in 15 minutes
+    hold_days: int = 0  # pickup orders not collected by the end of «placed + hold_days» are released (joop/holds.py)
     job_overrides: tuple[tuple[str, str], ...] = ()  # pack.yaml «job_words»: the «Заказы в работе» page's own words
 
     def has(self, outcome: str) -> bool:
@@ -147,6 +148,7 @@ def _load(name: str) -> Pack:
         stay_by=stay_by,
         jobs_delivered=bool(data.get("jobs_delivered", False)),
         lead_minutes=max(0, int(data.get("lead_minutes", 60))),
+        hold_days=max(0, int(data.get("hold_days", 0))),
         job_overrides=_job_words(name, data.get("job_words") or {}),
     )
 
