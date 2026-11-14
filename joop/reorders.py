@@ -55,7 +55,7 @@ def send_due(session: Session, rt: "Runtime", business: Business, now_utc: datet
         return {}
     today = utc_to_local(now_utc, business.timezone).date()
     rows = session.exec(select(Order).where(
-        Order.business_id == business.id, Order.status != "cancelled", Order.conversation_id.is_not(None),
+        Order.business_id == business.id, Order.conversation_id.is_not(None),
         Order.created_at >= now_utc - LOOK_BACK, not_test(Order, business.id),
     ).order_by(Order.created_at)).all()
     by_chat: dict[int, list[Order]] = {}
@@ -65,8 +65,9 @@ def send_due(session: Session, rt: "Runtime", business: Business, now_utc: datet
     sent = failed = 0
     for conv_id, orders in by_chat.items():
         last = orders[-1]
-        if last.reminded_at is not None:
+        if last.reminded_at is not None or last.status == "cancelled":  # a cancelled latest order is no habit to repeat
             continue
+        orders = [o for o in orders if o.status != "cancelled"]
         conv = session.get(Conversation, conv_id)
         if conv is None or conv.silenced:
             continue
@@ -79,6 +80,7 @@ def send_due(session: Session, rt: "Runtime", business: Business, now_utc: datet
             continue
         ok = deliver_to_chat(session, rt, business, conv, text(business, last, lines, _kyrgyz(session, conv.id)), now_utc)
         last.reminded_at = now_utc  # one try per order: a channel that refused (WhatsApp after 24 hours) is not retried daily
+        last.reminder_ok = ok
         session.add(last)
         sent, failed = sent + ok, failed + (not ok)
     return {"sent": sent, "failed": failed} if sent or failed else {}

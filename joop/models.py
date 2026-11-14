@@ -293,7 +293,8 @@ class Order(SQLModel, table=True):
     created_off_hours: bool = False
     crm_id: str = ""  # deal id in amoCRM ("-" = the CRM rejected it), joop/crm.py
     sent_at: Optional[NaiveDatetime] = None  # marked «В пути» / «Готов к выдаче»: an uncollected pickup counts from here
-    reminded_at: Optional[NaiveDatetime] = None  # «пора повторить заказ?» sent after this order (joop/reorders.py)
+    reminded_at: Optional[NaiveDatetime] = None  # «пора повторить заказ?» tried after this order (joop/reorders.py)
+    reminder_ok: bool = False  # ...and the channel took it: only then is a bare «стоп» an answer to it
 
 
 class OrderLine(SQLModel, table=True):

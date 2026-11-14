@@ -58,8 +58,9 @@ def _example(niche: str) -> tuple[frozenset, frozenset, frozenset]:
     except (ProfileError, OSError, KeyError):
         return frozenset(), frozenset(), frozenset()
     services = frozenset((_t(x.get("name")), _t(x.get("price"))) for x in data.get("services") or [])
-    staff = frozenset(_staff_key(_t(x.get("name")), _t(x.get("role")), _t(x.get("handles")), x.get("capacity"), x.get("group_size"))
-                      for x in data.get("resources") or [])
+    staff = frozenset(_staff_key(_t(name), _t(x.get("role")), _t(x.get("handles")), x.get("capacity"), x.get("group_size"))
+                      for x in data.get("resources") or []
+                      for name in [x.get("name"), *(x.get("was") or [])])  # «was»: names an older demo used, still example
     faq = frozenset((_t(x.get("q")), _t(x.get("a"))) for x in data.get("faq") or [])
     return services, staff, faq
 
