@@ -35,7 +35,8 @@ class OrdersCubit extends Cubit<WorkState<Order>> {
 
   final JoopRepository _repository;
 
-  int get openCount => state.items.where((o) => o.isOpen).length;
+  /// Orders nobody has accepted yet: the tab's counter.
+  int get newCount => state.items.where((o) => o.status == 'new').length;
 
   Future<void> load() async {
     emit(state.copyWith(status: LoadStatus.loading));
@@ -43,6 +44,26 @@ class OrdersCubit extends Cubit<WorkState<Order>> {
       emit(state.copyWith(status: LoadStatus.success, items: await _repository.orders()));
     } on ApiException catch (e) {
       emit(state.copyWith(status: LoadStatus.failure, error: e.message));
+    }
+  }
+
+  /// A background check while the app is open: no spinner, no error message, and a notice for orders that came in.
+  Future<void> refresh() async {
+    if (state.status != LoadStatus.success || state.busyId != null) return;
+    try {
+      final rows = await _repository.orders();
+      final known = {for (final o in state.items) o.id};
+      final fresh = rows.where((o) => !known.contains(o.id) && o.status == 'new').toList();
+      emit(state.copyWith(
+        items: rows,
+        notice: fresh.isEmpty
+            ? null
+            : fresh.length == 1
+                ? 'Новый заказ №${fresh.single.id}'
+                : 'Новых заказов: ${fresh.length}',
+      ));
+    } on ApiException {
+      // The next check tries again.
     }
   }
 
@@ -79,6 +100,25 @@ class LeadsCubit extends Cubit<WorkState<Lead>> {
       emit(state.copyWith(status: LoadStatus.success, items: await _repository.leads()));
     } on ApiException catch (e) {
       emit(state.copyWith(status: LoadStatus.failure, error: e.message));
+    }
+  }
+
+  /// New requests: the tab's counter.
+  int get newCount => state.items.where((x) => !x.done).length;
+
+  /// A background check while the app is open, as for orders.
+  Future<void> refresh() async {
+    if (state.status != LoadStatus.success || state.busyId != null) return;
+    try {
+      final rows = await _repository.leads();
+      final known = {for (final x in state.items) x.id};
+      final fresh = rows.where((x) => !known.contains(x.id) && !x.done).length;
+      emit(state.copyWith(
+        items: rows,
+        notice: fresh == 0 ? null : (fresh == 1 ? 'Новая заявка' : 'Новых заявок: $fresh'),
+      ));
+    } on ApiException {
+      // The next check tries again.
     }
   }
 

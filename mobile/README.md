@@ -11,6 +11,10 @@ every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
 
 The tabs follow the niche, as the panel's menu does: a clinic has no «Заказы», a shop has no «Сегодня» and «Записи».
 
+While the app is open it checks the server every 30 seconds: a new order or request shows a notice, and the tabs
+carry counters of orders nobody accepted and requests nobody closed. Checks stop in the background and run at once when
+the app comes back. Notifications on a locked phone need push (Firebase) and are not there yet.
+
 Customers press «Я клиент: записаться», open a business by its code or chat link, and talk to its AI administrator
 (prices, free time, booking), with staff replies from the panel in the same chat; «Цены и контакты» shows the card.
 

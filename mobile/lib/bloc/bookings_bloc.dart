@@ -29,6 +29,11 @@ final class BookingsRefreshed extends BookingsEvent {
   const BookingsRefreshed();
 }
 
+/// A background check while the app is open: the same day, no spinner, no error message.
+final class BookingsPolled extends BookingsEvent {
+  const BookingsPolled();
+}
+
 final class BookingCancelRequested extends BookingsEvent {
   const BookingCancelRequested(this.bookingId);
 
@@ -92,6 +97,7 @@ class BookingsBloc extends Bloc<BookingsEvent, BookingsState> {
       : super(BookingsState(day: DateTime(today.year, today.month, today.day))) {
     on<BookingsDayChanged>((event, emit) => _load(emit, DateTime(event.day.year, event.day.month, event.day.day)));
     on<BookingsRefreshed>((event, emit) => _load(emit, state.day));
+    on<BookingsPolled>(_onPolled);
     on<BookingCancelRequested>(_onCancel);
   }
 
@@ -106,6 +112,17 @@ class BookingsBloc extends Bloc<BookingsEvent, BookingsState> {
       emit(state.copyWith(status: LoadStatus.success, bookings: rows));
     } on ApiException catch (e) {
       emit(state.copyWith(status: LoadStatus.failure, error: e.message));
+    }
+  }
+
+  Future<void> _onPolled(BookingsPolled event, Emitter<BookingsState> emit) async {
+    if (state.status != LoadStatus.success || state.cancelling != null) return;
+    final day = state.day;
+    try {
+      final rows = await _repository.bookings(day);
+      if (state.day == day) emit(state.copyWith(bookings: rows));
+    } on ApiException {
+      // The next check tries again.
     }
   }
 
