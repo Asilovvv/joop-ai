@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/auth_bloc.dart';
+import '../core/strings.dart';
 import '../data/joop_repository.dart';
 import 'customer_home_screen.dart';
+import 'language_button.dart';
 import 'theme.dart';
 
 /// Sign-in with the panel's credentials.
@@ -61,6 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const Align(alignment: Alignment.centerRight, child: LanguageButton(color: Colors.white)),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(22),
                       child: Image.asset('assets/icon/icon.png', width: 84, height: 84),
@@ -70,7 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         textAlign: TextAlign.center,
                         style: theme.textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
                     const SizedBox(height: 6),
-                    Text('Записи из всех каналов в одном приложении',
+                    Text(S.current.tagline,
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70)),
                     const SizedBox(height: 28),
@@ -89,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 TextField(
                                   key: const Key('company'),
                                   controller: _company,
-                                  decoration: const InputDecoration(labelText: 'Логин компании или телефон'),
+                                  decoration: InputDecoration(labelText: S.current.companyLogin),
                                   textInputAction: TextInputAction.next,
                                 ),
                                 const SizedBox(height: 12),
@@ -97,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   TextField(
                                     key: const Key('user'),
                                     controller: _user,
-                                    decoration: const InputDecoration(labelText: 'Ваш логин сотрудника'),
+                                    decoration: InputDecoration(labelText: S.current.staffLogin),
                                     textInputAction: TextInputAction.next,
                                   ),
                                   const SizedBox(height: 12),
@@ -106,19 +109,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                   key: const Key('password'),
                                   controller: _password,
                                   obscureText: true,
-                                  decoration: const InputDecoration(labelText: 'Пароль'),
+                                  decoration: InputDecoration(labelText: S.current.password),
                                   onSubmitted: (_) => _submit(),
                                 ),
                                 SwitchListTile(
                                   contentPadding: EdgeInsets.zero,
-                                  title: const Text('Я сотрудник'),
+                                  title: Text(S.current.iAmStaff),
                                   value: _staff,
                                   onChanged: (v) => setState(() => _staff = v),
                                 ),
                                 if (_showServer) ...[
                                   TextField(
                                     controller: _server,
-                                    decoration: const InputDecoration(labelText: 'Адрес сервера Joop'),
+                                    decoration: InputDecoration(labelText: S.current.serverAddress),
                                     keyboardType: TextInputType.url,
                                   ),
                                   const SizedBox(height: 12),
@@ -133,11 +136,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                   style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                                   child: busy
                                       ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
-                                      : const Text('Войти'),
+                                      : Text(S.current.signIn),
                                 ),
                                 TextButton(
                                   onPressed: () => setState(() => _showServer = !_showServer),
-                                  child: Text(_showServer ? 'Скрыть адрес сервера' : 'Другой сервер'),
+                                  child: Text(_showServer ? S.current.hideServer : S.current.otherServer),
                                 ),
                               ],
                             );
@@ -151,7 +154,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: () => Navigator.of(context)
                           .push(MaterialPageRoute(builder: (_) => const CustomerHomeScreen())),
                       icon: const Icon(Icons.chat_bubble_outline),
-                      label: const Text('Я клиент: записаться'),
+                      label: Text(S.current.iAmCustomer),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white,
                         side: const BorderSide(color: Colors.white54),
@@ -159,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text('Для владельцев и сотрудников: логин и пароль те же, что в панели Joop.',
+                    Text(S.current.sameAsPanel,
                         textAlign: TextAlign.center, style: theme.textTheme.bodySmall?.copyWith(color: Colors.white70)),
                   ],
                 ),

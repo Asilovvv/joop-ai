@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/api_client.dart';
+import '../core/strings.dart';
 import '../data/joop_repository.dart';
 import '../data/models.dart';
 import 'load_status.dart';
@@ -133,7 +134,7 @@ class BookingsBloc extends Bloc<BookingsEvent, BookingsState> {
       emit(state.copyWith(
         bookings: [for (final b in state.bookings) b.id == updated.id ? updated : b],
         clearCancelling: true,
-        notice: 'Запись отменена, время снова свободно',
+        notice: S.current.bookingCancelled,
       ));
     } on ApiException catch (e) {
       emit(state.copyWith(clearCancelling: true, error: e.message));

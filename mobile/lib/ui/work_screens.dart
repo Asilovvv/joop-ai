@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/load_status.dart';
 import '../bloc/work_cubits.dart';
 import '../core/format.dart';
+import '../core/strings.dart';
 import '../data/models.dart';
 import 'theme.dart';
 
@@ -14,9 +15,9 @@ class OrdersScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _WorkList<Order, OrdersCubit>(
-      empty: 'Заказов пока нет. Их собирает ИИ в чатах.',
+      empty: S.current.noOrders,
       reload: (c) => c.load(),
-      header: (items) => 'Открытых: ${items.where((o) => o.isOpen).length}',
+      header: (items) => S.current.openCount(items.where((o) => o.isOpen).length),
       item: (context, o, busy) => _OrderCard(order: o, busy: busy),
     );
   }
@@ -29,9 +30,9 @@ class LeadsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _WorkList<Lead, LeadsCubit>(
-      empty: 'Заявок нет. Сюда попадают вопросы, на которые ИИ не ответил сам.',
+      empty: S.current.noLeads,
       reload: (c) => c.load(),
-      header: (items) => 'Новых: ${items.where((x) => !x.done).length}',
+      header: (items) => S.current.newCount(items.where((x) => !x.done).length),
       item: (context, x, busy) => _LeadCard(lead: x, busy: busy),
     );
   }
@@ -61,8 +62,8 @@ class _WorkList<T, C extends Cubit<WorkState<T>>> extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(32),
               child: Column(children: [
-                Text(state.error ?? 'Не удалось загрузить'),
-                TextButton(onPressed: () => reload(cubit), child: const Text('Повторить')),
+                Text(state.error ?? S.current.loadFailed),
+                TextButton(onPressed: () => reload(cubit), child: Text(S.current.retry)),
               ]),
             ),
           ]);
@@ -104,7 +105,7 @@ String _som(int value) {
     if (i > 0 && (digits.length - i) % 3 == 0) out.write(' ');
     out.write(digits[i]);
   }
-  return '$out сом';
+  return '$out ${S.current.som}';
 }
 
 class _Card extends StatelessWidget {
@@ -164,11 +165,11 @@ class _OrderCard extends StatelessWidget {
       final yes = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text('Отменить заказ №${order.id}?'),
-          content: const Text('Товары вернутся на склад.'),
+          title: Text(S.current.cancelOrderQuestion(order.id)),
+          content: Text(S.current.goodsBackToStock),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Нет')),
-            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Отменить заказ')),
+            TextButton(onPressed: () => Navigator.pop(context, false), child: Text(S.current.no)),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: Text(S.current.cancelOrder)),
           ],
         ),
       );
@@ -181,7 +182,8 @@ class _OrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final where = order.delivery ? (order.address.isEmpty ? 'Доставка' : 'Доставка: ${order.address}') : 'Самовывоз';
+    final s = S.current;
+    final where = order.delivery ? (order.address.isEmpty ? s.delivery : s.deliveryTo(order.address)) : s.pickup;
     return _Card(
       muted: !order.isOpen,
       children: [
@@ -195,7 +197,7 @@ class _OrderCard extends StatelessWidget {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text('№${order.id}', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
-                  _Tag(order.label, _orderColor(order.status, scheme)),
+                  _Tag(s.orderStatus(order.status, delivery: order.delivery), _orderColor(order.status, scheme)),
                 ],
               ),
             ),
@@ -207,7 +209,7 @@ class _OrderCard extends StatelessWidget {
         for (final l in order.lines) Text('${l.quantity} × ${l.name}'),
         const SizedBox(height: 8),
         Text(where, style: theme.textTheme.bodyMedium),
-        if (order.wantedTime.isNotEmpty) Text('Ко времени: ${order.wantedTime}', style: theme.textTheme.bodyMedium),
+        if (order.wantedTime.isNotEmpty) Text(s.byTime(order.wantedTime), style: theme.textTheme.bodyMedium),
         if (order.comment.isNotEmpty) Text(order.comment, style: theme.textTheme.bodySmall),
         const SizedBox(height: 8),
         Wrap(spacing: 6, runSpacing: 6, children: [
@@ -224,8 +226,8 @@ class _OrderCard extends StatelessWidget {
             Wrap(spacing: 8, runSpacing: 8, children: [
               for (final step in order.next)
                 step.status == 'cancelled'
-                    ? OutlinedButton(onPressed: () => _move(context, step), child: Text(step.label))
-                    : FilledButton(onPressed: () => _move(context, step), child: Text(step.label)),
+                    ? OutlinedButton(onPressed: () => _move(context, step), child: Text(s.orderAction(step.status, delivery: order.delivery)))
+                    : FilledButton(onPressed: () => _move(context, step), child: Text(s.orderAction(step.status, delivery: order.delivery))),
             ]),
         ],
       ],
@@ -256,7 +258,7 @@ class _LeadCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Text(lead.summary.isEmpty ? 'Без описания' : lead.summary,
+        Text(lead.summary.isEmpty ? S.current.noDescription : lead.summary,
             style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
         if (lead.details.isNotEmpty)
           Padding(padding: const EdgeInsets.only(top: 4), child: Text(lead.details, style: theme.textTheme.bodyMedium)),
@@ -265,7 +267,7 @@ class _LeadCard extends StatelessWidget {
           _Tag(channelName(lead.channel), channelColor(lead.channel)),
           if (lead.customerName.isNotEmpty) _Tag(lead.customerName, scheme.outline),
           if (lead.customerPhone.isNotEmpty) _Tag(lead.customerPhone, scheme.outline),
-          if (lead.done) _Tag(lead.closedBy.isEmpty ? 'Готово' : 'Закрыл: ${lead.closedBy}', const Color(0xFF2E9E5B)),
+          if (lead.done) _Tag(lead.closedBy.isEmpty ? S.current.done : S.current.closedBy(lead.closedBy), const Color(0xFF2E9E5B)),
         ]),
         if (!lead.done) ...[
           const SizedBox(height: 12),
@@ -273,7 +275,7 @@ class _LeadCard extends StatelessWidget {
               ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
               : FilledButton.tonal(
                   onPressed: () => context.read<LeadsCubit>().markDone(lead),
-                  child: const Text('Готово'),
+                  child: Text(S.current.done),
                 ),
         ],
       ],

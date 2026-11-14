@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'strings.dart';
+
 import 'config.dart';
 
 class ApiException implements Exception {
@@ -62,7 +64,7 @@ class ApiClient {
       // Long enough for a free cloud server to wake up after it was idle.
       response = await request().timeout(const Duration(seconds: 90));
     } catch (_) {
-      throw ApiException(0, 'Нет связи с сервером ($_baseUrl)');
+      throw ApiException(0, S.current.noConnection(_baseUrl));
     }
     dynamic data;
     final text = utf8.decode(response.bodyBytes);
@@ -85,9 +87,9 @@ class ApiClient {
       final detail = data['detail'];
       if (detail is String) return detail;
       if (detail is List && detail.isNotEmpty && detail.first is Map) {
-        return (detail.first as Map)['msg']?.toString() ?? 'Ошибка запроса';
+        return (detail.first as Map)['msg']?.toString() ?? S.current.requestFailed;
       }
     }
-    return 'Ошибка запроса';
+    return S.current.requestFailed;
   }
 }

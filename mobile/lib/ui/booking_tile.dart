@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/format.dart';
+import '../core/strings.dart';
 import '../data/models.dart';
 import 'theme.dart';
 
@@ -47,7 +48,7 @@ class BookingTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(booking.customerName.isEmpty ? 'Без имени' : booking.customerName,
+                  Text(booking.customerName.isEmpty ? S.current.noName : booking.customerName,
                       style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: muted)),
                   if (details.isNotEmpty)
                     Padding(
@@ -60,8 +61,8 @@ class BookingTile extends StatelessWidget {
                     runSpacing: 6,
                     children: [
                       _Chip(channelName(booking.channel), channelColor(booking.channel)),
-                      if (!active) _Chip('Отменена', scheme.outline),
-                      if (active && booking.confirmed) const _Chip('Подтвердил', Color(0xFF2E9E5B)),
+                      if (!active) _Chip(S.current.cancelled, scheme.outline),
+                      if (active && booking.confirmed) _Chip(S.current.confirmed, const Color(0xFF2E9E5B)),
                       if (booking.customerPhone.isNotEmpty) _Chip(booking.customerPhone, scheme.outline),
                     ],
                   ),
@@ -75,7 +76,7 @@ class BookingTile extends StatelessWidget {
                       child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
                     )
                   : IconButton(
-                      tooltip: 'Отменить запись',
+                      tooltip: S.current.cancelBooking,
                       icon: const Icon(Icons.event_busy_outlined),
                       onPressed: onCancel,
                     ),

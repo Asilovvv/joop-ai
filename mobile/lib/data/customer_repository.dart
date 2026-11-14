@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/api_client.dart';
+import '../core/strings.dart';
 import 'models.dart';
 
 /// The customer side: a business's public card and its web chat (`/c/<slug>/chat`), the same AI as in WhatsApp.
@@ -49,7 +50,7 @@ class CustomerRepository {
 
   /// Sends a message to the business's AI and returns its answer.
   Future<String> send(String slug, String text) async {
-    final data = await _api.post('/c/${Uri.encodeComponent(slug)}/chat', {'text': text, 'visitor': await visitor(), 'lang': 'ru'})
+    final data = await _api.post('/c/${Uri.encodeComponent(slug)}/chat', {'text': text, 'visitor': await visitor(), 'lang': S.current.code})
         as Map<String, dynamic>;
     return (data['reply'] as String?) ?? '';
   }

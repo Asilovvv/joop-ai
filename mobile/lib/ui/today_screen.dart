@@ -5,6 +5,7 @@ import '../bloc/auth_bloc.dart';
 import '../bloc/load_status.dart';
 import '../bloc/summary_cubit.dart';
 import '../core/format.dart';
+import '../core/strings.dart';
 import 'booking_tile.dart';
 import 'theme.dart';
 
@@ -37,33 +38,33 @@ class TodayScreen extends StatelessWidget {
                     Text(account?.businessName ?? '',
                         style: theme.textTheme.titleLarge?.copyWith(color: Colors.white, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
-                    Text(account == null ? '' : 'Вы вошли: ${account.who}',
+                    Text(account == null ? '' : S.current.signedInAs(account.isOwner ? S.current.owner : account.who),
                         style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70)),
                     const SizedBox(height: 18),
                     Text(summary == null ? '…' : bookingsWord(summary.today),
                         key: const Key('today-count'),
                         style: theme.textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
-                    Text('сегодня', style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70)),
+                    Text(S.current.today, style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70)),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(child: _Stat('Завтра', summary?.tomorrow, () => onOpenBookings(1))),
+                  Expanded(child: _Stat(S.current.tomorrow, summary?.tomorrow, () => onOpenBookings(1))),
                   const SizedBox(width: 12),
-                  Expanded(child: _Stat('За 7 дней', summary?.week, () => onOpenBookings(0))),
+                  Expanded(child: _Stat(S.current.next7days, summary?.week, () => onOpenBookings(0))),
                 ],
               ),
               const SizedBox(height: 20),
-              Text('Ближайший визит', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              Text(S.current.nextVisit, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               if (state.status == LoadStatus.failure)
-                _Message(state.error ?? 'Не удалось загрузить', retry: () => context.read<SummaryCubit>().load())
+                _Message(state.error ?? S.current.loadFailed, retry: () => context.read<SummaryCubit>().load())
               else if (summary == null)
                 const Padding(padding: EdgeInsets.all(24), child: Center(child: CircularProgressIndicator()))
               else if (summary.next == null)
-                const _Message('На ближайшие 7 дней записей нет.')
+                _Message(S.current.noBookings7days)
               else
                 BookingTile(booking: summary.next!, showDay: true),
             ],
@@ -118,7 +119,7 @@ class _Message extends StatelessWidget {
         child: Column(
           children: [
             Text(text, textAlign: TextAlign.center),
-            if (retry != null) TextButton(onPressed: retry, child: const Text('Повторить')),
+            if (retry != null) TextButton(onPressed: retry, child: Text(S.current.retry)),
           ],
         ),
       );

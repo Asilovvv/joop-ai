@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/chat_bloc.dart';
+import '../core/strings.dart';
 import '../data/customer_repository.dart';
 import '../data/models.dart';
 import 'theme.dart';
@@ -24,7 +25,7 @@ class PlaceScreen extends StatelessWidget {
         child: Scaffold(
           appBar: AppBar(
             title: Text(place.name, style: const TextStyle(fontWeight: FontWeight.w800)),
-            bottom: const TabBar(tabs: [Tab(text: 'Чат'), Tab(text: 'Цены и контакты')]),
+            bottom: TabBar(tabs: [Tab(text: S.current.tabChat), Tab(text: S.current.tabPricesContacts)]),
           ),
           body: TabBarView(children: [_Chat(place: place), _About(place: place)]),
         ),
@@ -63,8 +64,8 @@ class _ChatState extends State<_Chat> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hello = widget.place.booking
-        ? 'Здравствуйте! Спросите цену или свободное время, и я запишу вас.'
-        : 'Здравствуйте! Напишите ваш вопрос: цены, наличие, заказ.';
+        ? S.current.helloBooking
+        : S.current.helloOther;
     return Column(
       children: [
         Expanded(
@@ -109,14 +110,14 @@ class _ChatState extends State<_Chat> {
                     maxLines: 4,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _send(),
-                    decoration: const InputDecoration(hintText: 'Сообщение'),
+                    decoration: InputDecoration(hintText: S.current.message),
                   ),
                 ),
                 const SizedBox(width: 6),
                 BlocBuilder<ChatBloc, ChatState>(
                   builder: (context, state) => IconButton.filled(
                     key: const Key('chat-send'),
-                    tooltip: 'Отправить',
+                    tooltip: S.current.send,
                     onPressed: state.waiting ? null : _send,
                     icon: const Icon(Icons.send),
                   ),
@@ -127,7 +128,7 @@ class _ChatState extends State<_Chat> {
         ),
         Padding(
           padding: const EdgeInsets.only(bottom: 4),
-          child: Text('Отвечает ИИ-администратор ${widget.place.name}', style: theme.textTheme.bodySmall),
+          child: Text(S.current.answeredBy(widget.place.name), style: theme.textTheme.bodySmall),
         ),
       ],
     );
@@ -160,7 +161,7 @@ class _Bubble extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (staff)
-              Text('Администратор', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.primary)),
+              Text(S.current.staffReply, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.primary)),
             Text(text, style: TextStyle(color: mine ? Colors.white : scheme.onSurface)),
           ],
         ),
@@ -190,7 +191,7 @@ class _About extends StatelessWidget {
         for (final (icon, text) in rows) ListTile(leading: Icon(icon), title: Text(text), dense: true),
         const SizedBox(height: 8),
         if (place.services.isEmpty)
-          const Padding(padding: EdgeInsets.all(16), child: Text('Цены уточните в чате.'))
+          Padding(padding: const EdgeInsets.all(16), child: Text(S.current.askPricesInChat))
         else
           for (final s in place.services)
             Card(
@@ -200,7 +201,7 @@ class _About extends StatelessWidget {
               child: ListTile(
                 title: Text(s.name),
                 subtitle: s.category.isEmpty ? null : Text(s.category),
-                trailing: Text(s.price.isEmpty ? '—' : (RegExp(r'\d').hasMatch(s.price) && !s.price.contains('сом') ? '${s.price} сом' : s.price),
+                trailing: Text(s.price.isEmpty ? '—' : (RegExp(r'\d').hasMatch(s.price) && !s.price.contains('сом') ? '${s.price} ${S.current.som}' : s.price),
                     style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
               ),
             ),

@@ -8,9 +8,11 @@ import '../bloc/bookings_bloc.dart';
 import '../bloc/services_cubit.dart';
 import '../bloc/summary_cubit.dart';
 import '../bloc/work_cubits.dart';
+import '../core/strings.dart';
 import '../data/joop_repository.dart';
 import '../data/models.dart';
 import 'bookings_screen.dart';
+import 'language_button.dart';
 import 'services_screen.dart';
 import 'today_screen.dart';
 import 'work_screens.dart';
@@ -103,13 +105,13 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         _Tab.prices,
       ];
 
-  static const _titles = {
-    _Tab.today: 'Сегодня',
-    _Tab.bookings: 'Записи',
-    _Tab.orders: 'Заказы',
-    _Tab.leads: 'Заявки',
-    _Tab.prices: 'Прайс',
-  };
+  Map<_Tab, String> get _titles => {
+        _Tab.today: S.current.tabToday,
+        _Tab.bookings: S.current.tabBookings,
+        _Tab.orders: S.current.tabOrders,
+        _Tab.leads: S.current.tabLeads,
+        _Tab.prices: S.current.tabPrices,
+      };
 
   static const _icons = {
     _Tab.today: (Icons.today_outlined, Icons.today),
@@ -128,6 +130,13 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         _Tab.orders => const OrdersScreen(),
         _Tab.leads => const LeadsScreen(),
         _Tab.prices => const ServicesScreen(),
+      };
+
+  String _navLabel(_Tab tab) => switch (tab) {
+        _Tab.bookings => S.current.navBookings,
+        _Tab.orders => S.current.navOrders,
+        _Tab.leads => S.current.navLeads,
+        _ => _titles[tab]!,
       };
 
   /// The tab's icon with a counter: orders nobody accepted, requests nobody closed.
@@ -157,8 +166,9 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           appBar: AppBar(
             title: Text(_titles[tabs[_index]]!, style: const TextStyle(fontWeight: FontWeight.w800)),
             actions: [
+              const LanguageButton(),
               IconButton(
-                tooltip: 'Выйти',
+                tooltip: S.current.signOut,
                 icon: const Icon(Icons.logout),
                 onPressed: () => context.read<AuthBloc>().add(const AuthLogoutRequested()),
               ),
@@ -170,7 +180,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             onDestinationSelected: (i) => setState(() => _index = i),
             destinations: [
               for (final t in tabs)
-                NavigationDestination(icon: _icon(t, false), selectedIcon: _icon(t, true), label: _titles[t]!),
+                NavigationDestination(icon: _icon(t, false), selectedIcon: _icon(t, true), label: _navLabel(t)),
             ],
           ),
         ),

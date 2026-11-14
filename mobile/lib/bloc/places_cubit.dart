@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/api_client.dart';
+import '../core/strings.dart';
 import '../data/customer_repository.dart';
 import '../data/models.dart';
 
@@ -30,7 +31,7 @@ class PlacesCubit extends Cubit<PlacesState> {
   Future<void> open(String input) async {
     final code = codeFrom(input);
     if (code == null) {
-      emit(PlacesState(places: state.places, error: 'Введите код компании, например aktish, или ссылку на её чат.'));
+      emit(PlacesState(places: state.places, error: S.current.placeCodeInvalid));
       return;
     }
     emit(PlacesState(places: state.places, adding: true));
