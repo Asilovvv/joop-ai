@@ -9,7 +9,7 @@ web chat: the bot's chat is not in the staff's own Telegram, and a website visit
   and on the next visit from the same browser).
 
 A reply is stored in the dialogue as a staff message, so the AI sees it later; the AI stays quiet in this chat
-for STAFF_TAKEOVER_PAUSE, as when staff answer from their own app, and the chat's open requests are closed.
+for the business's takeover pause (12 hours unless the owner chose otherwise), as when staff answer from their own app, and the chat's open requests are closed.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
 
-from .agent.engine import STAFF_TAKEOVER_PAUSE
+from .agent.engine import takeover_pause
 from . import funnel
 from .followups import SERVICE_WINDOW
 from .models import Business, Conversation, Lead, Message
@@ -63,7 +63,7 @@ def send(session: Session, rt: "Runtime", business: Business, conv: Conversation
     session.add(Message(business_id=business.id, conversation_id=conv.id, role="staff", text=text, created_at=now_utc,
                         author=author[:80]))
     conv.last_message_at = now_utc
-    conv.ai_paused_until = max(conv.ai_paused_until or now_utc, now_utc + STAFF_TAKEOVER_PAUSE)
+    conv.ai_paused_until = max(conv.ai_paused_until or now_utc, now_utc + takeover_pause(business))
     session.add(conv)
     for lead in session.exec(select(Lead).where(Lead.conversation_id == conv.id, Lead.status == "new")).all():
         lead.status, lead.closed_by = "done", author[:80]

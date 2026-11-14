@@ -36,7 +36,7 @@
     <textarea id="reply" name="text" rows="3" maxlength="2000" required aria-label="Ответ клиенту" placeholder="Здравствуйте! Это администратор…">{{ draft }}</textarea>
     <div class="actions" style="justify-content: flex-start"><button class="btn" type="submit">Отправить клиенту</button></div>
   </form>
-  <p class="muted small">Сообщение уйдёт от имени {{ business.name }}{% if conv.channel == 'web' %}: клиент увидит его в чате на сайте, пока страница открыта, или когда откроет её снова{% endif %}. После ответа ИИ 12 часов не вмешивается в этот диалог.</p>
+  <p class="muted small">Сообщение уйдёт от имени {{ business.name }}{% if conv.channel == 'web' %}: клиент увидит его в чате на сайте, пока страница открыта, или когда откроет её снова{% endif %}. После ответа ИИ не вмешивается в этот диалог {{ takeover_words(business.takeover_minutes) }}.</p>
   {% endif %}
 </section>
 <section class="card stack" id="notes">
