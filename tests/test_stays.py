@@ -137,3 +137,19 @@ def test_a_hotels_numbers_reports_and_dashboard_count_the_stays(engine, settings
         assert "броней номеров сделал ИИ" in page and "Ближайшие брони" in page and "Алмаз" in page
         assert "заявок на запись" not in page  # a hotel takes no booking requests
         assert "Номеров этого типа" in c.get("/panel/staff").text and "удаление зубов" not in c.get("/panel/staff").text
+
+
+def test_the_booked_dates_in_the_reply_come_from_the_booking(engine):
+    b, rooms = hotel()
+    family = rooms["Семейный номер"].id
+    d = TODAY + timedelta(days=10)
+    data = {"room_id": family, "check_in": d.isoformat(), "check_out": (d + timedelta(days=3)).isoformat(),
+            "guests": 2, "name": "Алмаз", "phone": "0555667788"}
+    dates = f"{d:%d.%m.%Y}–{d + timedelta(days=3):%d.%m.%Y}"
+    wrong = say(b.id, "Семейный, Алмаз 0555667788", FakeLLM([AgentReply("Забронировала с 01.01 по 04.01!", stay=dict(data))]), "d1", chat="d1")
+    assert wrong.reply == f"Забронировала «Семейный номер» на {dates}, гостей: 2. Администратор свяжется с вами насчёт оплаты."
+    plain = say(b.id, "Семейный, Алмаз 0555667788", FakeLLM([AgentReply("Забронировала!", stay=dict(data))]), "d2", chat="d2")
+    assert plain.reply == f"Забронировала!\nБронь: «Семейный номер», {dates}, гостей: 2."
+    right_text = f"Ждём вас с {d:%d.%m} по {d + timedelta(days=3):%d.%m}."
+    right = say(b.id, "Семейный, Алмаз 0555667788", FakeLLM([AgentReply(right_text, stay=dict(data))]), "d3", chat="d3")
+    assert right.reply == right_text

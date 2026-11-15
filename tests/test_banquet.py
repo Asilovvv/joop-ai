@@ -158,3 +158,14 @@ def test_full_dates_use_theme_colours(settings, rt, engine):
         c.post("/login", data={"slug": "toi", "password": "toi-pass-123", "csrf": token})
         page = c.get("/panel/stays").text
         assert '<td class="mono small full">1/1</td>' in page and "#f9eeda" not in page
+
+
+def test_the_held_date_in_the_reply_comes_from_the_booking(engine):
+    b, halls = venue()
+    hall, name = next((v, k) for k, v in halls.items())
+    wrong = hold(hall)
+    wrong.reply = "Забронировала зал на 15.09!"
+    out = say(b.id, "Зал на 14 сентября, 250 гостей, Айгерим 0555123456", FakeLLM([wrong]), "h1", chat="h1")
+    assert out.stay_id and out.reply.startswith(f"Предварительно забронировала «{name}» на {EVENT:%d.%m.%Y}, гостей: 250.")
+    plain = say(b.id, "Зал на 14 сентября, 250 гостей, Айгерим 0555123456", FakeLLM([hold(hall, when=EVENT + timedelta(days=1))]), "h2", chat="h2")
+    assert plain.reply.endswith(f"\nБронь: «{name}», {EVENT + timedelta(days=1):%d.%m.%Y}, гостей: 250.")

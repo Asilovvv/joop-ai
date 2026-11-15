@@ -979,7 +979,16 @@ def _try_order(
         summary = f"Сумма заказа: {_som(total)}, включая доставку {_som(fee)}."
     else:
         summary = f"Сумма заказа: {_som(total)}."
-    return f"{reply}\n{summary}" + (f"\n{rx_note}" if rx_note else ""), order
+    summary = "Ваш заказ: " + ", ".join(f"{qty} × {item.name}" for item, qty, _ in lines) + ". " + summary
+    # The model never sets prices; a sum in its words that the order does not have must not reach the customer.
+    allowed = {x for x in (total, items_total, fee) if x is not None}
+    allowed |= {v for item, qty, _ in lines if item.price_value is not None for v in (item.price_value, item.price_value * qty)}
+    named = {int(re.sub(r"[ \u00a0,]", "", x)) for x in _SOM.findall(reply)}
+    head = "Оформила заказ." if named - allowed else reply
+    return f"{head}\n{summary}" + (f"\n{rx_note}" if rx_note else ""), order
+
+
+_SOM = re.compile(r"(?<![\d])(\d{1,3}(?:[ \u00a0,]\d{3})+|\d+)\s*(?:сом|с\.|KGS)", re.I)
 
 
 def _som(value: int) -> str:
