@@ -2,6 +2,7 @@ import json
 from datetime import timedelta
 
 import httpx
+from sqlmodel import select
 
 from joop import db
 from joop.agent.engine import handle_incoming
@@ -217,3 +218,41 @@ def test_personal_telegram_chats_get_no_broadcasts_and_business_messages_only_wi
         rt.telegram = lambda business: type("C", (), {"send_text": lambda self, chat, text: sent.append(chat) or True})()
         assert deliver_to_chat(s, rt, b, personal, "Ждём вас завтра", NOW_UTC) and sent == ["bc:conn-1:900"]
         assert not deliver_to_chat(s, rt, b, personal, "Ждём вас", NOW_UTC + timedelta(days=1))  # Telegram would refuse
+
+
+def test_personal_telegram_chats_follow_the_24_hour_window_everywhere_the_business_writes_first():
+    from joop import staff_reply
+    from joop.followups import can_write
+    from joop.models import Conversation
+
+    day_ago, hour_ago = NOW_UTC - timedelta(hours=25), NOW_UTC - timedelta(hours=1)
+    assert can_write("telegram", "777", None, NOW_UTC)  # a bot chat: always
+    assert can_write("telegram", "bc:conn-1:900", hour_ago, NOW_UTC)
+    assert not can_write("telegram", "bc:conn-1:900", day_ago, NOW_UTC) and not can_write("telegram", "bc:conn-1:900", None, NOW_UTC)
+    assert can_write("whatsapp", "996555", hour_ago, NOW_UTC) and not can_write("whatsapp", "996555", day_ago, NOW_UTC)
+    assert not can_write("console", "try", hour_ago, NOW_UTC)
+    old = Conversation(business_id=1, channel="telegram", chat_id="bc:conn-1:900", last_customer_at=day_ago)
+    assert "личном Telegram" in staff_reply.blocked(old, NOW_UTC)
+    old.last_customer_at = hour_ago
+    assert staff_reply.blocked(old, NOW_UTC) == ""
+    assert staff_reply.blocked(Conversation(business_id=1, channel="telegram", chat_id="777"), NOW_UTC) == ""
+
+
+def test_no_reminder_attempt_to_a_personal_telegram_chat_outside_24_hours(business, rt):
+    from joop.models import Booking, Conversation, Slot
+    from joop.scheduler import _send_reminder
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.telegram_bot_token = "1:x"
+        conv = Conversation(business_id=b.id, channel="telegram", chat_id="bc:conn-1:900", last_customer_at=NOW_UTC - timedelta(days=3))
+        s.add_all([b, conv])
+        s.flush()
+        slot = s.exec(select(Slot).where(Slot.business_id == b.id)).first()
+        booking = Booking(business_id=b.id, slot_id=slot.id, staff_name="Айгуль", start=slot.start, service="Чистка",
+                          customer_name="Айгерим", channel="telegram", chat_id=conv.chat_id, conversation_id=conv.id)
+        s.add(booking)
+        s.flush()
+        assert _send_reminder(s, rt, b, booking, NOW_UTC) == "" and rt.tg.sent == []
+        conv.last_customer_at = NOW_UTC - timedelta(hours=2)
+        assert _send_reminder(s, rt, b, booking, NOW_UTC) == "sent" and rt.tg.sent[-1][0] == "bc:conn-1:900"

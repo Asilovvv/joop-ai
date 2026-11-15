@@ -48,6 +48,17 @@ def _kyrgyz(session: Session, conversation_id: int | None) -> bool:
     return chat_is_kyrgyz(list(texts))
 
 
+def can_write(channel: str, chat_id: str, last_customer_at: datetime | None, now_utc: datetime) -> bool:
+    """The channel lets the business write to this chat first now.
+
+    A Telegram bot chat: always. WhatsApp, Instagram and a chat in the owner's personal Telegram (Telegram Business):
+    only within SERVICE_WINDOW of the customer's last message."""
+    in_window = bool(last_customer_at and now_utc - last_customer_at < SERVICE_WINDOW)
+    if channel == "telegram":
+        return in_window if is_personal(chat_id) else True
+    return channel in {"whatsapp", "instagram"} and in_window
+
+
 def deliver_to_chat(session: Session, rt: "Runtime", business: Business, conv: Conversation | None, text: str,
                     now_utc: datetime) -> bool:
     """Send a message the business starts, where the channel allows it, and keep it in the dialogue.
@@ -55,10 +66,7 @@ def deliver_to_chat(session: Session, rt: "Runtime", business: Business, conv: C
     Nothing goes to a chat on the block list: reminders, review requests, offers and job notices alike."""
     if conv is None or not conv.chat_id or conv.blocked_at:
         return False
-    in_window = bool(conv.last_customer_at and now_utc - conv.last_customer_at < SERVICE_WINDOW)
-    if is_personal(conv.chat_id) and not in_window:
-        return False  # the owner's personal Telegram: Telegram lets the bot write there only within 24 hours
-    if conv.channel != "telegram" and not (conv.channel in {"whatsapp", "instagram"} and in_window):
+    if not can_write(conv.channel, conv.chat_id, conv.last_customer_at, now_utc):
         return False
     client = rt.channel_client(business, conv.channel)
     if not (client and client.send_text(conv.chat_id, text)):
