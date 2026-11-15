@@ -166,6 +166,17 @@ class JoopRepository {
     return Lead.fromJson(data['lead'] as Map<String, dynamic>);
   }
 
+  Future<List<Stay>> stays() async {
+    final data = await _api.get('/api/mobile/stays') as Map<String, dynamic>;
+    return [for (final row in data['stays'] as List) Stay.fromJson(row as Map<String, dynamic>)];
+  }
+
+  /// The room, car or hall is free again for those dates; the customer is told by staff, as in the panel.
+  Future<Stay> cancelStay(int stayId) async {
+    final data = await _api.post('/api/mobile/stays/$stayId/cancel') as Map<String, dynamic>;
+    return Stay.fromJson(data['stay'] as Map<String, dynamic>);
+  }
+
   Future<AiResults> aiResults() async =>
       AiResults.fromJson(await _api.get('/api/mobile/ai-results') as Map<String, dynamic>);
 

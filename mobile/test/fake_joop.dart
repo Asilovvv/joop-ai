@@ -8,10 +8,26 @@ import 'package:joop_mobile/data/joop_repository.dart';
 
 /// A tiny stand-in for the Joop server's /api/mobile, enough for the app's tests.
 class FakeJoop {
-  FakeJoop({this.cafe = false});
+  FakeJoop({this.cafe = false, this.hotel = false});
 
   /// A cafe: orders and requests, no bookings.
   final bool cafe;
+
+  /// A guest house: rooms booked by dates («Брони»), requests, no bookings of anyone's time.
+  final bool hotel;
+
+  final stays = <Map<String, dynamic>>[
+    {
+      'id': 7, 'room': 'Семейный номер', 'check_in': '2026-11-16', 'check_out': '2026-11-19', 'nights': 3, 'guests': 2,
+      'customer_name': 'Алмаз', 'customer_phone': '+996555667788', 'customer_key': '555667788', 'channel': 'telegram',
+      'conversation_id': 70, 'status': 'booked',
+    },
+    {
+      'id': 8, 'room': 'Стандарт', 'check_in': '2026-11-20', 'check_out': '2026-11-21', 'nights': 1, 'guests': 1,
+      'customer_name': 'Бакыт', 'customer_phone': '+996700112233', 'customer_key': '700112233', 'channel': 'whatsapp',
+      'conversation_id': null, 'status': 'booked',
+    },
+  ];
 
   final orders = <Map<String, dynamic>>[
     {
@@ -129,7 +145,15 @@ class FakeJoop {
     calls.add('${request.method} $path');
     http.Response json(Object body, [int status = 200]) =>
         http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json; charset=utf-8'});
-    final account = cafe
+    final account = hotel
+        ? {
+            'business': {'id': 3, 'slug': 'uyut', 'name': 'Гостевой дом Уют', 'niche': 'hotel'},
+            'who': 'Владелец',
+            'role': 'owner',
+            'sections': {'bookings': false, 'orders': false, 'leads': true, 'cash': false, 'stays': true},
+            'stay_kind': 'room',
+          }
+        : cafe
         ? {
             'business': {'id': 2, 'slug': 'navat', 'name': 'Нават', 'niche': 'restaurant'},
             'who': 'Владелец',
@@ -163,7 +187,7 @@ class FakeJoop {
     }
     if (path == '/api/mobile/login') {
       final body = jsonDecode(request.body) as Map;
-      if (body['company'] == (cafe ? 'navat' : 'aktish') && body['password'] == 'secret-pass') {
+      if (body['company'] == (hotel ? 'uyut' : cafe ? 'navat' : 'aktish') && body['password'] == 'secret-pass') {
         return json({'token': token, ...account});
       }
       return json({'error': 'Неверный логин или пароль.'}, 401);
@@ -315,6 +339,13 @@ class FakeJoop {
       return json({'order': o, 'customer_told': to == 'accepted' || to == 'sent' ? true : null, 'why': ''});
     }
     if (path == '/api/mobile/leads') return json({'leads': leads});
+    if (path == '/api/mobile/stays') return json({'kind': 'room', 'stays': stays});
+    final cancelStay = RegExp(r'^/api/mobile/stays/(\d+)/cancel$').firstMatch(path);
+    if (cancelStay != null) {
+      final x = stays.firstWhere((x) => x['id'] == int.parse(cancelStay.group(1)!));
+      x['status'] = 'cancelled';
+      return json({'stay': x});
+    }
     final done = RegExp(r'^/api/mobile/leads/(\d+)/done$').firstMatch(path);
     if (done != null) {
       final x = leads.firstWhere((x) => x['id'] == int.parse(done.group(1)!));

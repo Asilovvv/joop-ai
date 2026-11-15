@@ -258,6 +258,39 @@ void dialogueTests() {
     expect(find.textContaining('только 24 часа'), findsOneWidget);
     expect(find.textContaining('+996700111222'), findsOneWidget);
   });
+
+  testWidgets('a guest house sees its room bookings and cancels one, which frees the dates', (tester) async {
+    SharedPreferences.setMockInitialValues({}); // setUp signed the cafe in: start at the sign-in screen
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final hotel = FakeJoop(hotel: true);
+    await tester.pumpWidget(JoopApp(repository: hotel.repository(), customers: hotel.customers(), today: DateTime(2026, 11, 15)));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('company')), 'uyut');
+    await tester.enterText(find.byKey(const Key('password')), 'secret-pass');
+    await tester.tap(find.byKey(const Key('login')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Брони номеров'), findsOneWidget); // the first tab: no «Сегодня» and «Записи» for a hotel
+    expect(find.text('Записи'), findsNothing);
+    expect(find.text('Действующих броней: 2'), findsOneWidget);
+    expect(find.text('3 ночи'), findsOneWidget);
+    expect(find.text('Семейный номер · гостей: 2'), findsOneWidget);
+    expect(find.byKey(const Key('stay-chat-7')), findsOneWidget); // the AI booked it in a chat
+    expect(find.byKey(const Key('stay-chat-8')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('cancel-stay-7')));
+    await tester.pumpAndSettle();
+    expect(find.text('Отменить бронь: Алмаз?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('confirm-cancel-stay')));
+    await tester.pumpAndSettle();
+    expect(hotel.calls, contains('POST /api/mobile/stays/7/cancel'));
+    expect(find.text('Бронь отменена, номер на эти даты снова свободен. Гостю сообщите сами.'), findsOneWidget);
+    expect(find.text('отменена'), findsOneWidget);
+    expect(find.text('Действующих броней: 1'), findsOneWidget);
+    expect(find.byKey(const Key('cancel-stay-7')), findsNothing);
+  });
 }
 
 Map<String, dynamic> _newOrder(int id) => {

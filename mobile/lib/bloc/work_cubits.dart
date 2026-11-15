@@ -137,3 +137,49 @@ class LeadsCubit extends Cubit<WorkState<Lead>> {
     }
   }
 }
+
+/// Hotel rooms, cars or banquet halls the AI booked by dates (the panel's «Брони»), and cancelling one.
+class StaysCubit extends Cubit<WorkState<Stay>> {
+  StaysCubit(this._repository, this.kind) : super(const WorkState());
+
+  final JoopRepository _repository;
+
+  /// room | car | hall: the words of the notice.
+  final String kind;
+
+  Future<void> load() async {
+    emit(state.copyWith(status: LoadStatus.loading));
+    try {
+      emit(state.copyWith(status: LoadStatus.success, items: await _repository.stays()));
+    } on ApiException catch (e) {
+      emit(state.copyWith(status: LoadStatus.failure, error: e.message));
+    }
+  }
+
+  /// A background check while the app is open: no spinner, and a notice when the AI booked something new.
+  Future<void> refresh() async {
+    if (state.status != LoadStatus.success || state.busyId != null) return;
+    try {
+      final rows = await _repository.stays();
+      final known = {for (final x in state.items) x.id};
+      final fresh = rows.where((x) => !known.contains(x.id) && !x.cancelled).length;
+      emit(state.copyWith(items: rows, notice: fresh == 0 ? null : S.current.newStays(fresh)));
+    } on ApiException {
+      // The next check tries again.
+    }
+  }
+
+  Future<void> cancel(Stay stay) async {
+    emit(state.copyWith(busyId: stay.id));
+    try {
+      final done = await _repository.cancelStay(stay.id);
+      emit(state.copyWith(
+        items: [for (final x in state.items) x.id == stay.id ? done : x],
+        clearBusy: true,
+        notice: S.current.stayCancelled(kind),
+      ));
+    } on ApiException catch (e) {
+      emit(state.copyWith(clearBusy: true, error: e.message));
+    }
+  }
+}
