@@ -17,6 +17,7 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | `GET /api/mobile/customers/{key}` | the customer card (`customers.cards`, the panel's Клиенты): visits, `spend_som`, `rating`, `note`, `tags`, `upcoming`, the last 20 bookings and 10 orders; a master sees only her visits (`customers.for_staff`), 404 when the customer never came to her |
 | `POST /api/mobile/customers/{key}` | `{note, tags}` → the card's note and tags (comma-separated, de-duplicated), the panel's code |
 | `POST /api/mobile/bookings/{id}/move` | `{slot_id}` → the booking moves to another free time (`joop/reschedule.py`): the new time taken with `claim_slot`, the old one freed and offered to the waiting list, reminder and «да» reset, the customer told in their chat where the channel allows; returns `{booking, told}`; 409 for a taken time or a booking that does not move (cancelled, in Altegio, paid, more than two hours past its start, or awaiting a prepayment whose deadline is after the new time); a master moves only within her own times |
+| `POST /api/mobile/bookings/{id}/deposit` | the panel's «Предоплата получена» (`deposits.mark_paid`): the customer is told in their chat where the channel allows; returns `{booking, told}`; 409 when the booking no longer waits for a prepayment; a master marks only her own |
 | `POST /api/mobile/bookings/{id}/pay` | `{amount, method, receipt?}` → what the customer paid after the visit (`cash`/`card`/`transfer`), the panel's Касса code (`cash.record`); amount 0 removes it; 409 for a cancelled booking, 422 for a wrong method or amount |
 | `GET /api/mobile/cash?day=` | the day's takings `total`, `by_method`, `visits`, `unpaid` (visits that passed without a payment), `month` {`total`, `paid_visits`}; a master sees her own |
 | `POST /api/mobile/services/{id}/available` | `{available}` → the stop list (the panel's «В продаже»): the AI stops offering the item and orders refuse it; masters 403; 409 when the item is sold out by the stock (back via «Склад») or the price list comes from Altegio |
@@ -62,6 +63,7 @@ business apply.
 
 Tests: `tests/test_mobile.py`.
 
+- **Deposit**: every booking carries `deposit` — `{due, status, deadline}` (status `awaiting` / `check` / `paid` / `overdue` / `expired`, deadline UTC) or null; `/api/mobile/summary` adds `deposits`, the upcoming bookings whose receipt waits for a look (`check`) or whose deadline passed (`overdue`).
 - **Movable**: every booking carries `movable` — false for a visit that has happened or is kept in Altegio; the app offers «Перенести» only when it is true.
 - **Customer key**: every booking carries `customer_key`, the card it belongs to (the phone's last nine digits, else the chat), empty when none.
 - **Payments**: every booking in `/api/mobile/bookings` carries `suggested_som`, the price-list amount for an unpaid visit (exact service name, plus an accepted add-on), as the panel pre-fills it; 0 when unknown or already paid.

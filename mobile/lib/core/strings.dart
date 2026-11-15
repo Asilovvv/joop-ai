@@ -177,6 +177,14 @@ class S {
     required this.gotIt,
     required this.closedTimes,
     required this.openedTimes,
+    required this.depositReceived,
+    required this.depositsToCheck,
+    required this.depositOverdue,
+    required this.depositToldCustomer,
+    required this.depositTellYourself,
+    required this.depositAwaiting,
+    required this.depositCheck,
+    required this.depositPaid,
     required this.answer,
     required this.answerHint,
     required this.answerSent,
@@ -371,6 +379,14 @@ class S {
   final String gotIt;
   final String Function(int n) closedTimes;
   final String Function(int n, int offered) openedTimes;
+  final String depositReceived;
+  final String depositsToCheck;
+  final String depositOverdue;
+  final String depositToldCustomer;
+  final String depositTellYourself;
+  final String Function(String amount, String until) depositAwaiting;
+  final String Function(String amount) depositCheck;
+  final String Function(String amount) depositPaid;
   final String answer;
   final String answerHint;
   final String answerSent;
@@ -566,6 +582,14 @@ class S {
     gotIt: 'Понятно',
     closedTimes: _ruClosedTimes,
     openedTimes: _ruOpenedTimes,
+    depositReceived: 'Предоплата получена',
+    depositsToCheck: 'Проверьте предоплату',
+    depositOverdue: 'предоплата не пришла',
+    depositToldCustomer: 'Предоплата отмечена. Клиенту отправлено подтверждение.',
+    depositTellYourself: 'Предоплата отмечена. Подтвердите клиенту сами: написать ему из Joop сейчас нельзя.',
+    depositAwaiting: _ruDepAwait,
+    depositCheck: _ruDepCheck,
+    depositPaid: _ruDepPaid,
     answer: 'Ответить',
     answerHint: 'Ответ клиенту',
     answerSent: 'Ответ отправлен, заявка закрыта',
@@ -759,6 +783,14 @@ class S {
     gotIt: 'Түшүнүктүү',
     closedTimes: _kyClosedTimes,
     openedTimes: _kyOpenedTimes,
+    depositReceived: 'Алдын ала төлөм алынды',
+    depositsToCheck: 'Алдын ала төлөмдү текшериңиз',
+    depositOverdue: 'алдын ала төлөм келген жок',
+    depositToldCustomer: 'Алдын ала төлөм белгиленди. Кардарга ырастоо жөнөтүлдү.',
+    depositTellYourself: 'Алдын ала төлөм белгиленди. Кардарга өзүңүз билдириңиз: Joopтон азыр жазуу мүмкүн эмес.',
+    depositAwaiting: _kyDepAwait,
+    depositCheck: _kyDepCheck,
+    depositPaid: _kyDepPaid,
     answer: 'Жооп берүү',
     answerHint: 'Кардарга жооп',
     answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
@@ -866,3 +898,9 @@ String _ruOpenedTimes(int n, int offered) =>
     'Открыто времени: $n.${offered > 0 ? ' Предложено клиентам из листа ожидания: $offered.' : ''}';
 String _kyOpenedTimes(int n, int offered) =>
     'Ачылды: $n.${offered > 0 ? ' Күтүү тизмесиндеги кардарларга сунушталды: $offered.' : ''}';
+String _ruDepAwait(String amount, String until) => 'ждём предоплату $amount до $until';
+String _kyDepAwait(String amount, String until) => '$amount алдын ала төлөм күтүлүүдө, $until чейин';
+String _ruDepCheck(String amount) => 'прислал чек — проверьте $amount';
+String _kyDepCheck(String amount) => 'чек жөнөттү — $amount текшериңиз';
+String _ruDepPaid(String amount) => 'предоплата $amount получена';
+String _kyDepPaid(String amount) => '$amount алдын ала төлөм алынды';

@@ -164,7 +164,18 @@ class FakeJoop {
       final active = bookings.where((b) => b['status'] == 'booked').toList();
       int on(String day) => active.where((b) => (b['start_local'] as String).startsWith(day)).length;
       return json({'today': on('2026-11-13'), 'tomorrow': on('2026-11-14'), 'week': active.length,
-          'next': active.isEmpty ? null : active.first});
+          'next': active.isEmpty ? null : active.first,
+          'deposits': active.where((b) => (b['deposit'] as Map?)?['status'] == 'check').toList()});
+    }
+    final deposit = RegExp(r'^/api/mobile/bookings/(\d+)/deposit$').firstMatch(path);
+    if (deposit != null) {
+      final b = bookings.firstWhere((x) => x['id'] == int.parse(deposit.group(1)!));
+      final d = b['deposit'] as Map?;
+      if (d == null || !const {'awaiting', 'check', 'overdue'}.contains(d['status'])) {
+        return json({'error': 'Эта запись уже не ждёт предоплаты: её отметили раньше или сняли по сроку.'}, 409);
+      }
+      d['status'] = 'paid';
+      return json({'booking': b, 'told': (b['channel'] as String).isNotEmpty});
     }
     final moveTo = RegExp(r'^/api/mobile/bookings/(\d+)/move$').firstMatch(path);
     if (moveTo != null) {

@@ -71,6 +71,12 @@ class JoopRepository {
     return (Booking.fromJson(data['booking'] as Map<String, dynamic>), (data['told'] as bool?) ?? false);
   }
 
+  /// Staff saw the prepayment; returns the booking and whether the customer was told in their chat.
+  Future<(Booking, bool)> depositPaid(int bookingId) async {
+    final data = await _api.post('/api/mobile/bookings/$bookingId/deposit', const {}) as Map<String, dynamic>;
+    return (Booking.fromJson(data['booking'] as Map<String, dynamic>), (data['told'] as bool?) ?? false);
+  }
+
   /// What the customer paid after the visit; amount 0 removes a payment recorded by mistake.
   Future<Booking> pay(int bookingId, int amount, String method) async {
     final data = await _api.post('/api/mobile/bookings/$bookingId/pay', {'amount': amount, 'method': method})
