@@ -226,3 +226,11 @@ def test_a_shop_that_books_nobody_only_has_to_drop_the_example_people(app_client
 
         staff = {i["key"]: i for i in checklist(s, b, utcnow())}["staff"]
     assert staff["done"] and staff["title"] == "Флористы: 0", staff
+
+
+def test_a_hotel_launch_asks_to_replace_the_example_rooms(app_client):  # noqa: F811
+    """Example rooms, halls and cars are not offered to guests either: the checklist says so."""
+    signup(app_client, name="Гостевой дом Ала-Тоо", niche="hotel")
+    setup = app_client.get("/panel/setup").text
+    assert "Номера: " in setup and "из них пример:" in setup and "не предлагает и не бронирует" in setup
+    assert "Свободные окна для записи" not in setup

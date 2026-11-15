@@ -211,12 +211,18 @@ def _people_steps(s: Session, b: Business, pack, now) -> list[dict[str, Any]]:
 
     Without these the launch looked finished while real customers could not book at all: the example's people are
     hidden from customers (joop/samples.py), and their free times with them."""
-    if not (pack.has("booking") or pack.has("request")):
+    if not (pack.has("booking") or pack.has("request") or pack.has("stay")):
         return []
     example = samples.example_staff_ids(s, b)
     active = s.exec(select(Staff.id).where(Staff.business_id == b.id, Staff.active == True)).all()  # noqa: E712
     own = [x for x in active if x not in example]
     label, booking = pack.resource_label, pack.has("booking")
+    if pack.has("stay"):  # rooms, halls, cars: the example ones are not offered to guests either (stays.book)
+        return [{"done": bool(own) and not example, "key": "rooms", "href": "/panel/staff",
+                 "title": f"{label}: {len(active)}" + (f", из них пример: {len(example)}" if example else ""),
+                 "hint": "Это пример из вашей сферы: настоящим клиентам ИИ его не предлагает и не бронирует. "
+                         "Впишите свои — название, вместимость и сколько таких." if example
+                         else "Впишите то, что бронируют клиенты."}]
     # Without bookings (a flower shop, a repair shop taking requests) customers come to no one's time: own people are
     # optional there, only the example must go. With bookings there is nobody to book without them.
     done = (bool(own) if booking else True) and not example
@@ -249,7 +255,7 @@ def setup_page(request: Request):
     return _render(request, "setup.html", "setup", b, items=items, done=done, total=len(items), sub_state=st, next=next_step(items))
 
 
-NEXT_ACTION = {"contacts": "Заполнить контакты", "prices": "Заменить пример на свои цены", "staff": "Вписать своих людей",
+NEXT_ACTION = {"contacts": "Заполнить контакты", "prices": "Заменить пример на свои цены", "staff": "Вписать своих людей", "rooms": "Заменить пример своим",
                "slots": "Открыть окна для записи", "try": "Открыть тестовый чат",
                "telegram": "Подключить бота", "admin": "Подключить уведомления", "real": "Табличка с QR-кодом", "pay": "Выбрать тариф"}
 

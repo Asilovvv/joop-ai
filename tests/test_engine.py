@@ -221,17 +221,20 @@ def test_outage_sends_one_note_then_summaries(business):
 
 
 def test_the_booked_time_in_the_reply_comes_from_the_code():
-    """The model chose the slot and the code booked it; the day, time and person the customer reads are the booking's."""
+    """The model chose the slot and the code booked it; the day, time and person the customer reads are the booking's.
+    Only a claim sentence with another time or date goes; the rest of the model's reply stays."""
     from datetime import datetime
 
-    from joop.agent.engine import with_booking_line
+    from joop.confirmations import with_booking
     from joop.models import Booking
 
     b = Booking(business_id=1, start=datetime(2026, 11, 5, 12, 0), staff_name="Бакыт Осмонов")
     line = "Ваша запись: Чт 05.11 12:00, Бакыт Осмонов."
-    assert with_booking_line("Записала вас на 13:00!", b, False) == "Записала вас. " + line  # the model named another time
-    assert with_booking_line("Готово, ждём вас 05.11 в 12:00.", b, False) == "Готово, ждём вас 05.11 в 12:00."  # right day and time
-    assert with_booking_line("Записала на завтра в 12:00.", b, False) == "Записала на завтра в 12:00.\n" + line
-    assert with_booking_line("Записала!", b, False) == "Записала!\n" + line
-    assert with_booking_line("Сизди 9:30га жаздым", b, True) == "Жазып койдум. Жазылдыңыз: бейш 05.11 12:00, Бакыт Осмонов."
-    assert with_booking_line("Записала на 12:00, оплатите 05.11 до 10:00", b, False).endswith("05.11 до 10:00")  # booked time named
+    assert with_booking("Записала вас на 13:00! Адрес: Киевская 10.", b, False) == f"Записала вас. Адрес: Киевская 10.\n{line}"
+    assert with_booking("Готово, записала вас на 05.11 в 12:00.", b, False) == "Готово, записала вас на 05.11 в 12:00."
+    assert with_booking("Записала на 12.00, адрес Киевская 10. Работаем до 20:00.", b, False) == (
+        f"Записала на 12.00, адрес Киевская 10. Работаем до 20:00.\n{line}")  # «12.00» is the booked time; hours stay
+    assert with_booking("Записала вас на 06.11 в 12:00. Предоплата до 05.11.", b, False) == (
+        f"Записала вас. Предоплата до 05.11.\n{line}")  # the wrong day goes, though 05.11 appears elsewhere
+    assert with_booking("Записала!", b, False) == f"Записала!\n{line}"
+    assert with_booking("Сизди 9:30га жаздым.", b, True) == "Жазып койдум.\nЖазылдыңыз: бейш 05.11 12:00, Бакыт Осмонов."

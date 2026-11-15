@@ -141,40 +141,14 @@ def _fmt(d: date) -> str:
     return f"{d:%d.%m.%Y}"
 
 
-_DAY_MONTH = re.compile(r"(?<![\d.])(\d{1,2})\.(\d{1,2})(?:\.(?:\d{4}|\d{2}))?(?![\d])")
+def confirmation(business: Business, stay: Stay) -> str:
+    """The niche's own full confirmation of a saved booking (joop/confirmations.py uses it when the reply had none)."""
+    if by_day(business):
+        return (f"Предварительно забронировала «{stay.room_name}» на {_fmt(stay.check_in)}, гостей: {stay.guests}. "
+                "Менеджер свяжется с вами насчёт предоплаты и меню.")
+    return words(business).confirm.format(name=stay.room_name, dates=f"{_fmt(stay.check_in)}–{_fmt(stay.check_out)}",
+                                          guests=stay.guests)
 
-
-def _named_days(reply: str) -> set[tuple[int, int]]:
-    return {(int(d), int(m)) for d, m in _DAY_MONTH.findall(reply) if 1 <= int(d) <= 31 and 1 <= int(m) <= 12}
-
-
-def checked_dates(reply: str, stay: Stay, fixed: str) -> str:
-    """The model's own words naming dates but not the booked first day are replaced by the fixed confirmation.
-    Checked before the language guard, on what the model wrote; the line with the dates follows after it."""
-    named = _named_days(reply)
-    return fixed if named and (stay.check_in.day, stay.check_in.month) not in named else reply
-
-
-def stay_line(business: Business, stay: Stay, kyrgyz: bool) -> str:
-    """The booked room or hall and dates, written by the code (KY: проверить носителю)."""
-    one_date = by_day(business)
-    dates = _fmt(stay.check_in) if one_date else f"{_fmt(stay.check_in)}–{_fmt(stay.check_out)}"
-    guests = one_date or "{guests}" in words(business).confirm  # a car rental has no guests
-    if kyrgyz:
-        return f"Брон: «{stay.room_name}», {dates}" + (f", конок саны: {stay.guests}." if guests else ".")
-    return f"Бронь: «{stay.room_name}», {dates}" + (f", гостей: {stay.guests}." if guests else ".")
-
-
-def with_stay_line(reply: str, stay: Stay, line: str) -> str:
-    """The booked dates come from the booking, not from the model's wording (as engine.with_booking_line for times).
-    Added after the language guard, so no Kyrgyz rewrite by the model touches it; a reply naming the booked first and
-    last day keeps as is."""
-    named = _named_days(reply)
-    first = (stay.check_in.day, stay.check_in.month)
-    last = stay.check_out - timedelta(days=1) if stay.check_out - stay.check_in == timedelta(days=1) else stay.check_out
-    if first in named and (last.day, last.month) in named:
-        return reply
-    return f"{reply.rstrip()}\n{line}"
 
 
 @dataclass
@@ -229,7 +203,7 @@ def book(session: Session, business: Business, conv: Conversation, data: dict, r
     fixed = w.confirm.format(name=room.name, dates=dates, guests=guests)
     if check_in.year != asked_year and str(asked_year) in reply:  # the model's confirmation names the wrong year
         reply = fixed
-    return StayResult(checked_dates(reply, stay, fixed), stay)  # the line follows after the guards: stay_line
+    return StayResult(reply, stay)  # the dates and guests are added from the booking (joop/confirmations.py)
 
 
 def _book_date(session: Session, business: Business, conv: Conversation, data: dict, reply: str, when: date, asked_year: int,
@@ -259,7 +233,7 @@ def _book_date(session: Session, business: Business, conv: Conversation, data: d
              "Менеджер свяжется с вами насчёт предоплаты и меню.")
     if when.year != asked_year and str(asked_year) in reply:  # the model's confirmation names the wrong year
         reply = fixed
-    return StayResult(checked_dates(reply, stay, fixed), stay)  # the line follows after the guards: stay_line
+    return StayResult(reply, stay)  # the date and guests are added from the booking (joop/confirmations.py)
 
 
 def _hall_options(session: Session, business: Business, when: date, guests: int, hidden: frozenset[int] = frozenset()) -> str:
