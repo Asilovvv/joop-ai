@@ -519,6 +519,7 @@ class Dialogue extends Equatable {
     required this.messages,
     this.aiPausedUntil,
     this.takeoverMinutes = 720,
+    this.quickReplies = const [],
   });
 
   factory Dialogue.fromJson(Map<String, dynamic> json) {
@@ -532,6 +533,10 @@ class Dialogue extends Equatable {
       aiPausedUntil:
           json['ai_paused_until'] == null ? null : DateTime.parse(json['ai_paused_until'] as String).toLocal(),
       takeoverMinutes: (json['takeover_minutes'] as int?) ?? 720,
+      quickReplies: [
+        for (final r in (json['quick_replies'] as List? ?? const []))
+          (title: (r as Map)['title'] as String, text: r['text'] as String),
+      ],
       replyBlocked: (json['reply_blocked'] as String?) ?? '',
       messages: [
         for (final m in (json['messages'] as List? ?? const [])) DialogueMessage.fromJson(m as Map<String, dynamic>),
@@ -553,13 +558,26 @@ class Dialogue extends Equatable {
   /// How long each staff reply keeps the AI out, as the owner chose in the panel's settings.
   final int takeoverMinutes;
 
+  /// The panel's «Готовые ответы», already filled for this customer.
+  final List<({String title, String text})> quickReplies;
+
   /// Why staff cannot answer now (WhatsApp's and Instagram's 24 hours), from the server; empty when they can.
   final String replyBlocked;
   final List<DialogueMessage> messages;
 
   @override
-  List<Object?> get props =>
-      [id, channel, customerName, customerPhone, aiPaused, replyBlocked, messages, aiPausedUntil, takeoverMinutes];
+  List<Object?> get props => [
+        id,
+        channel,
+        customerName,
+        customerPhone,
+        aiPaused,
+        replyBlocked,
+        messages,
+        aiPausedUntil,
+        takeoverMinutes,
+        quickReplies
+      ];
 }
 
 /// A free time staff can book a customer into (GET /api/mobile/slots).

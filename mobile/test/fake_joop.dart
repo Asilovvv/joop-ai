@@ -44,6 +44,9 @@ class FakeJoop {
     70: {
       'id': 70, 'channel': 'whatsapp', 'customer': {'name': 'Айбек', 'phone': '+996700111222'},
       'ai_paused': false, 'reply_blocked': '',
+      'quick_replies': [
+        {'id': 1, 'title': 'Перезвоним', 'text': 'Айбек, спасибо! Администратор перезвонит вам в ближайшие 15 минут.'},
+      ],
       'messages': [
         {'id': 1, 'role': 'customer', 'text': 'Можно банкет на 40 человек?', 'created_at': '2026-11-13T06:00:00Z', 'author': ''},
         {'id': 2, 'role': 'ai', 'text': 'Передал вопрос администратору.', 'created_at': '2026-11-13T06:00:05Z', 'author': ''},

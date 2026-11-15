@@ -134,33 +134,58 @@ class _DialogueState extends State<_Dialogue> {
                           style: TextStyle(color: theme.colorScheme.onErrorContainer),
                         ),
                       )
-                    : Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 4, 8, 8),
-                        child: Row(children: [
-                          Expanded(
-                            child: TextField(
-                              key: const Key('reply-input'),
-                              controller: _text,
-                              minLines: 1,
-                              maxLines: 5,
-                              decoration: InputDecoration(hintText: s.answerHint),
+                    : Column(mainAxisSize: MainAxisSize.min, children: [
+                        if (dialogue.quickReplies.isNotEmpty)
+                          SizedBox(
+                            height: 44,
+                            child: ListView(
+                              key: const Key('quick-replies'),
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              children: [
+                                for (final r in dialogue.quickReplies)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: ActionChip(
+                                      label: Text(r.title),
+                                      // into the box, not sent: the person reads it and presses send
+                                      onPressed: () => _text.value = TextEditingValue(
+                                        text: r.text,
+                                        selection: TextSelection.collapsed(offset: r.text.length),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 6),
-                          state.sending
-                              ? const Padding(
-                                  padding: EdgeInsets.all(12),
-                                  child:
-                                      SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
-                                )
-                              : IconButton.filled(
-                                  key: const Key('reply-send'),
-                                  tooltip: s.send,
-                                  onPressed: _send,
-                                  icon: const Icon(Icons.send),
-                                ),
-                        ]),
-                      ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 4, 8, 8),
+                          child: Row(children: [
+                            Expanded(
+                              child: TextField(
+                                key: const Key('reply-input'),
+                                controller: _text,
+                                minLines: 1,
+                                maxLines: 5,
+                                decoration: InputDecoration(hintText: s.answerHint),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            state.sending
+                                ? const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: SizedBox(
+                                        width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+                                  )
+                                : IconButton.filled(
+                                    key: const Key('reply-send'),
+                                    tooltip: s.send,
+                                    onPressed: _send,
+                                    icon: const Icon(Icons.send),
+                                  ),
+                          ]),
+                        ),
+                      ]),
               ),
             ],
           );
