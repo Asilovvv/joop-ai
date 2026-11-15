@@ -23,6 +23,7 @@ import re
 import sys
 import tempfile
 import time
+from datetime import timedelta
 from pathlib import Path
 
 import yaml
@@ -39,14 +40,18 @@ def looks_russian(text: str) -> bool:
     """Short neutral replies ("Манты — 300 сом") are fine in either language; a Russian sentence is not."""
     words = re.findall(r"[а-яё]+", text.lower())
     return sum(1 for w in words if w in RU_MESSAGE_MARKERS) >= 2
-from joop.models import Business, Lead
+from joop.models import Booking, Business, Conversation, Lead
+from joop.phone import normalize_phone
 from joop.presets import create_business
 from joop.pricing import cost_usd, empty_usage
 from joop.niches import all_packs
 from joop.profile import apply_profile, load_profile
+from joop.slots import claim_slot, free_on_day
+from joop.timeutil import local_now, utcnow
 
 
-def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, order_saved: bool = False) -> list[str]:
+def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, order_saved: bool = False,
+               changed: bool = False) -> list[str]:
     """Return a list of failure reasons (empty = pass)."""
     fails = []
     low = final_text.lower()
@@ -60,6 +65,8 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, ord
         fails.append(f"expect_lead={case['expect_lead']} got {lead_saved}")
     if "expect_order" in case and bool(case["expect_order"]) != order_saved:
         fails.append(f"expect_order={case['expect_order']} got {order_saved}")
+    if "expect_change" in case and bool(case["expect_change"]) != changed:
+        fails.append(f"expect_change={case['expect_change']} got {changed}")
     if "expect_handoff" in case and bool(case["expect_handoff"]) != handoff:
         fails.append(f"expect_handoff={case['expect_handoff']} got {handoff}")
     any_of = case.get("must_contain_any")
@@ -78,13 +85,14 @@ def check_case(case: dict, final_text: str, lead_saved: bool, handoff: bool, ord
 METRICS = {
     "facts": "No invented facts",  # must_not_contain / must_not_match: a forbidden fact or claim is absent
     "answer": "Correct answer",  # must_contain_any: the expected fact is in the reply
-    "action": "Action accuracy",  # expect_lead / expect_order: saved exactly when expected
+    "action": "Action accuracy",  # expect_lead / expect_order / expect_change: done exactly when expected
     "handoff": "Hand-off accuracy",  # expect_handoff: handed to a person exactly when expected
     "kyrgyz": "Kyrgyz reply",  # expect_lang ky: the reply is not in Russian
 }
 
 
-def case_metrics(case: dict, final_text: str, lead_saved: bool, handoff: bool, order_saved: bool = False) -> dict[str, bool]:
+def case_metrics(case: dict, final_text: str, lead_saved: bool, handoff: bool, order_saved: bool = False,
+                 changed: bool = False) -> dict[str, bool]:
     """{metric: passed} for the metrics this case covers; the same rules as check_case.
 
     No answer (the fallback after a failed model call, or nothing) fails every metric the case covers: the bilingual
@@ -98,7 +106,7 @@ def case_metrics(case: dict, final_text: str, lead_saved: bool, handoff: bool, o
         )
     if case.get("must_contain_any"):
         m["answer"] = any(s.lower() in low for s in case["must_contain_any"])
-    got = {"expect_lead": lead_saved, "expect_order": order_saved}
+    got = {"expect_lead": lead_saved, "expect_order": order_saved, "expect_change": changed}
     if any(k in case for k in got):
         m["action"] = all(bool(case[k]) == v for k, v in got.items() if k in case)
     if "expect_handoff" in case:
@@ -164,10 +172,37 @@ def preflight(get_llm) -> str | None:
     return None
 
 
+CHANNEL, CHAT = "telegram", "eval"
+
+
+def seed_booking(session, business: Business, given: dict) -> Booking:
+    """`given_booking: {days, service, name, phone}` in a case: the customer booked from this chat earlier, at the
+    first free time `days` (default 2) or more days ahead, so the dialogue starts the way it does in life:
+    «не смогу прийти, перенесите» (joop/selfservice.py). Raises when the profile has no free time to book."""
+    now_local = local_now(business.timezone).replace(tzinfo=None)
+    first = now_local.date() + timedelta(days=int(given.get("days", 2)))
+    free = next((f for f in (free_on_day(session, business.id, first + timedelta(days=n), now_local) for n in range(8)) if f), [])
+    if not free:
+        raise ValueError(f"given_booking: no free time from {first} on in this profile")
+    slot, member = free[0]
+    name, phone = given.get("name", "Айгуль"), normalize_phone(given.get("phone", "0555 111 222")) or ""
+    conv = Conversation(business_id=business.id, channel=CHANNEL, chat_id=CHAT, customer_name=name, customer_phone=phone,
+                        created_at=utcnow(), last_message_at=utcnow())
+    session.add(conv)
+    session.flush()
+    claim_slot(session, slot.id)
+    booking = Booking(business_id=business.id, conversation_id=conv.id, slot_id=slot.id, staff_id=member.id,
+                      staff_name=member.name, start=slot.start, service=given.get("service", ""), customer_name=name,
+                      customer_phone=phone, channel=CHANNEL, chat_id=CHAT, created_at=utcnow())
+    session.add(booking)
+    return booking
+
+
 def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict:
     """One case = one new business and one conversation.
 
-    'lead' = a booking, a booking request or a qualified lead; 'order' = an order with checked lines.
+    'lead' = a booking, a booking request or a qualified lead; 'order' = an order with checked lines;
+    'changed' = the customer's own booking (`given_booking`) cancelled or moved by the AI.
     """
     with db.new_session() as s:
         business = create_business(
@@ -175,10 +210,12 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
         )
         apply_profile(s, business, profile)
         business.example_ok = True  # the profile is this test business's real data, not the sign-up example (joop/samples.py)
+        if case.get("given_booking"):
+            seed_booking(s, business, case["given_booking"])
         s.commit()
         business_id = business.id
 
-    lead = handoff = order = language_fixed = confirmation_fixed = False
+    lead = handoff = order = changed = language_fixed = confirmation_fixed = False
     final = ""
     latencies: list[float] = []
     usage = empty_usage()
@@ -186,7 +223,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
     logging.getLogger("joop").addHandler(collect)
     try:
         for turn_no, turn in enumerate(case["turns"]):
-            incoming = IncomingMessage("telegram", "eval", "text", turn, "eval", f"eval:{index}:{turn_no}")
+            incoming = IncomingMessage(CHANNEL, CHAT, "text", turn, "eval", f"eval:{index}:{turn_no}")
             t0 = time.perf_counter()
             with db.new_session() as s:
                 business = s.get(Business, business_id)
@@ -197,6 +234,7 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
             latencies.append(time.perf_counter() - t0)
             lead = lead or any(x is not None for x in (out.booking_id, out.request_id, out.qualified_lead_id, out.stay_id))
             order = order or out.order_id is not None
+            changed = changed or out.changed_booking_id is not None
             language_fixed = language_fixed or out.language_fixed
             confirmation_fixed = confirmation_fixed or out.confirmation_fixed
             final = out.reply or ""
@@ -205,20 +243,21 @@ def run_case(get_llm, profile: dict, case: dict, model: str, index: int) -> dict
     finally:
         logging.getLogger("joop").removeHandler(collect)
 
-    fails = check_case(case, final, lead, handoff, order)
+    fails = check_case(case, final, lead, handoff, order, changed)
     return {
         "id": case["id"],
         "turns": list(case["turns"]),  # for the native-speaker review sheet (eval/review_sheet.py)
         "lang": case.get("expect_lang", ""),
         "passed": not fails,
         "fails": fails,
-        "metrics": case_metrics(case, final, lead, handoff, order),
+        "metrics": case_metrics(case, final, lead, handoff, order, changed),
         "fallback": final.strip() == ERROR_REPLY,
         **({"errors": collect.items[:3]} if collect.items else {}),
         "final_reply": final,
         "lead": lead,
         "handoff": handoff,
         "order": order,
+        "changed": changed,
         "avg_latency_s": round(sum(latencies) / len(latencies), 2),
         "usage": usage,
         "cost_usd": cost_usd(usage, model),

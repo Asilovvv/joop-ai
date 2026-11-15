@@ -468,7 +468,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 800 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 802 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
@@ -500,8 +500,10 @@ Run workflow does the same with the repository secret `ANTHROPIC_API_KEY` and ke
 Kyrgyz cases and the `name_ky` values before reporting results.
 
 Each case also counts towards the metrics its expectations check: invented facts (`must_not_contain`,
-`must_not_match`), correct answer (`must_contain_any`), action accuracy (`expect_lead`, `expect_order`),
-hand-off accuracy (`expect_handoff`) and Kyrgyz reply (`expect_lang: ky`). The thesis table, per set and
+`must_not_match`), correct answer (`must_contain_any`), action accuracy (`expect_lead`, `expect_order`,
+`expect_change`), hand-off accuracy (`expect_handoff`) and Kyrgyz reply (`expect_lang: ky`). A case with
+`given_booking` starts with the customer's own booking already made from that chat, so `expect_change` measures the
+AI cancelling or moving it on request (the dental pack's `selfservice_*` cases). The thesis table, per set and
 in total, in Markdown or LaTeX:
 
 ```bash

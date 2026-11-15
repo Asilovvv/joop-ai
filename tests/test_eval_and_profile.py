@@ -238,3 +238,41 @@ def test_dry_run_refuses_to_write_over_real_results(tmp_path, monkeypatch):
     with pytest.raises(SystemExit, match="dry run writes only to eval/dryrun"):
         run_eval.main()
     assert not (tmp_path / "eval" / "results.json").exists()
+
+
+def test_a_given_booking_lets_a_case_measure_the_ai_cancelling_it(tmp_path):
+    """`given_booking` seeds the customer's own booking in the eval chat; `expect_change` checks the AI changed it."""
+    import re
+
+    pack = str(ROOT / "joop" / "niches" / "dental" / "demo.yaml")
+    cases = [
+        {"id": "cancel", "given_booking": {"service": "Консультация и осмотр"}, "turns": ["Отмените мою запись"],
+         "expect_change": True},
+        {"id": "ignored", "given_booking": {}, "turns": ["Отмените мою запись"], "expect_change": True},
+    ]
+    cases_file = tmp_path / "cases.yaml"
+    cases_file.write_text(json.dumps(cases, ensure_ascii=False), "utf-8")
+    seen = []
+
+    def cancel_it(system, messages):
+        seen.append(system)
+        booking_id = int(re.search(r"- запись (\d+): ", system).group(1))
+        return AgentReply("Отменила.", change={"booking_id": booking_id, "action": "cancel", "slot_id": None})
+
+    llm = FakeLLM([cancel_it, AgentReply("Хорошо, передам администратору.")])
+    data = run(pack, str(cases_file), lambda: llm, "claude-haiku-5-5")
+    done, ignored = data["cases"]
+    assert "Айгуль" in seen[0] and "Консультация и осмотр" in seen[0]  # the seeded booking is this chat's own
+    assert done["changed"] and done["passed"] and done["metrics"] == {"action": True}
+    assert done["final_reply"].startswith("Отменила вашу запись на")  # the code's confirmation, not the model's
+    assert not ignored["changed"] and ignored["fails"] == ["expect_change=True got False"]
+    assert ignored["metrics"] == {"action": False}
+
+
+def test_expect_change_is_checked_like_the_other_actions():
+    from eval.run_eval import case_metrics
+
+    assert check_case({"expect_change": True}, "Готово", False, False, changed=True) == []
+    assert check_case({"expect_change": False}, "Готово", False, False, changed=True) == ["expect_change=False got True"]
+    assert case_metrics({"expect_change": True, "expect_lead": False}, "Готово", False, False, changed=True) == {"action": True}
+    assert case_metrics({"expect_change": True}, "Готово", True, False) == {"action": False}

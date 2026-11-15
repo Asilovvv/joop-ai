@@ -48,3 +48,26 @@
   expect_lang: ky
   turns: ['Балдарды кабыл аласыздарбы?']
   must_contain_any: ['3', Элина]
+# The customer's own booking, made from this chat earlier (given_booking), cancelled or moved by the AI itself
+# (joop/selfservice.py). The code writes the confirmation; the model only has to pick the action and the time.
+# Kyrgyz turns: проверить носителю.
+- id: selfservice_move_ru
+  given_booking: {service: "Профессиональная чистка", name: "Айгуль", phone: "0555 111 222"}
+  turns: ["Здравствуйте, не смогу прийти на свою запись. Перенесите, пожалуйста, на другой день", "Давайте первое из предложенных"]
+  expect_change: true
+  expect_handoff: false
+- id: selfservice_cancel_ru
+  given_booking: {service: "Консультация и осмотр", name: "Эрлан", phone: "0700 222 333"}
+  turns: ["Отмените, пожалуйста, мою запись — я заболел"]
+  expect_change: true
+  expect_handoff: false
+- id: selfservice_move_ky
+  expect_lang: ky
+  given_booking: {service: "Профессиональная чистка", name: "Гүлнара", phone: "0555 321 654"}
+  turns: ["Саламатсызбы, жазылган убактыма келе албай калдым. Башка күнгө которуп бериңизчи", "Биринчисине жазыңыз"]
+  expect_change: true
+- id: selfservice_cancel_ky
+  expect_lang: ky
+  given_booking: {service: "Консультация и осмотр", name: "Бакыт", phone: "0777 444 555"}
+  turns: ["Жазылуумду жокко чыгарыңызчы, ооруп калдым"]
+  expect_change: true
