@@ -67,7 +67,7 @@ def test_restaurant_order_total_is_computed_by_code(engine):
         "mode": "pickup", "address": "", "time": "19:00", "name": "Айбек", "phone": "0555 123 456", "comment": "",
     })])
     out = say(b, "2 плова и чай, заберу в 19:00, Айбек 0555123456", llm, "o1")
-    assert out.order_id and out.reply.endswith("Сумма заказа: 820 сом.")
+    assert out.order_id and out.reply.endswith("Ваш заказ: Плов × 2; Чай чёрный, чайник. Сумма: 820 сом.")
     assert "Новый заказ" in out.admin_notes[0] and "2 × Плов" in out.admin_notes[0] and "с лимоном" in out.admin_notes[0]
     with db.new_session() as s:
         order = s.get(Order, out.order_id)
@@ -184,7 +184,7 @@ def test_eval_runs_a_pack_with_orders(tmp_path):
 
     data = run(str(pack.demo_file), str(f), lambda: FakeLLM([scripted]), "claude-haiku-5-5")
     assert data["summary"]["passed"] == 1, data["cases"]
-    assert data["cases"][0]["final_reply"].endswith("Сумма заказа: 700 сом.")
+    assert data["cases"][0]["final_reply"].endswith("Ваш заказ: Плов × 2. Сумма: 700 сом.")
 
 
 def test_min_order_and_delivery_fee(engine):
@@ -199,9 +199,9 @@ def test_min_order_and_delivery_fee(engine):
     ])
     small = say(b, "1 плов", llm, "m1")
     assert small.order_id is None and small.reply.startswith("Минимальная сумма заказа — 600 сом, сейчас в заказе на 350 сом.")
-    assert say(b, "2 плова", llm, "m2").reply.endswith("Сумма заказа: 850 сом, включая доставку 150 сом.")
-    assert say(b, "5 шашлыков", llm, "m3").reply.endswith("Сумма заказа: 2 250 сом.")
-    assert say(b, "2 плова сам", llm, "m4").reply.endswith("Сумма заказа: 700 сом.")
+    assert say(b, "2 плова", llm, "m2").reply.endswith("Ваш заказ: Плов × 2. Сумма: 850 сом, включая доставку 150 сом.")
+    assert say(b, "5 шашлыков", llm, "m3").reply.endswith("Ваш заказ: Шашлык из баранины × 5. Сумма: 2 250 сом.")
+    assert say(b, "2 плова сам", llm, "m4").reply.endswith("Ваш заказ: Плов × 2. Сумма: 700 сом.")
     assert "Условия заказа: минимальная сумма заказа 600 сом; доставка 150 сом; бесплатная доставка от 2000 сом." in llm.calls[0]["system"]
 
 
@@ -243,3 +243,35 @@ def test_kyrgyz_faq_wording_reaches_the_prompt(engine):
         handle_incoming(s, b, IncomingMessage("telegram", "1", "text", "Итим менен келсем болобу?", "", "x1"), lambda: llm, NOW_UTC)
     system = llm.calls[0]["system"]
     assert "Можно с животными? (по-кыргызски: Үй жаныбарлары менен келсе болобу?)" in system and "по смыслу" in system
+
+
+def test_the_order_line_is_the_code_s_and_a_wrong_sum_is_replaced(engine):
+    """The customer reads what was ordered and the total from the order itself, never the model's arithmetic."""
+    b = make("restaurant")  # demo: min order 600, delivery 150, free from 2000
+    plov = item(b, "Плов")
+    base = {"address": "Киевская 1", "time": "", "name": "Айбек", "phone": "0555123456", "comment": "", "mode": "delivery",
+            "lines": [{"item_id": plov.id, "quantity": 2, "note": ""}]}
+    llm = FakeLLM([
+        AgentReply("Оформила! Итого 700 сом, курьер позвонит.", order=base),  # forgot the delivery: 850
+        AgentReply("Оформила: 2 плова по 350 сом, доставка 150 сом, итого 850 сом.", order=base),  # all true
+        AgentReply("Буйрутма кабыл алынды, жалпы 850 сом.", order=base),
+    ])
+    wrong = say(b, "2 плова на Киевскую 1", llm, "w1")
+    assert wrong.order_id and wrong.reply == "Заказ принят. Ваш заказ: Плов × 2. Сумма: 850 сом, включая доставку 150 сом."
+    right = say(b, "2 плова на Киевскую 1", llm, "w2")
+    assert right.reply.startswith("Оформила: 2 плова по 350 сом") and right.reply.endswith("включая доставку 150 сом.")
+    ky = say(b, "2 палоо Киевская 1 ге жеткирип бериңизчи", llm, "w3")
+    assert ky.reply.endswith("Буйрутмаңыз: Палоо × 2. Жалпы суммасы: 850 сом, анын ичинде жеткирүү 150 сом.")
+
+
+def test_the_language_rewrite_never_touches_the_order_line(engine):
+    """A Russian reply in a Kyrgyz chat is rewritten by the model: the code's sum is added only after that."""
+    b = make("restaurant")
+    plov = item(b, "Плов")
+    llm = FakeLLM([AgentReply("Заказ оформлен.", order={"address": "", "time": "", "name": "Айбек", "phone": "0555123456",
+                                                         "comment": "", "mode": "pickup",
+                                                         "lines": [{"item_id": plov.id, "quantity": 2, "note": ""}]})],
+                  rewrites=["Рахмат, буйрутмаңызды кабыл алдым, даяр болгондо жазам."])
+    out = say(b, "Саламатсызбы, эки палоо алып кетем, Айбек 0555123456", llm, "k1")
+    assert llm.rewrite_calls == ["Заказ оформлен."]  # the model rewrote its own words only
+    assert out.reply == "Рахмат, буйрутмаңызды кабыл алдым, даяр болгондо жазам.\nБуйрутмаңыз: Палоо × 2. Жалпы суммасы: 700 сом."

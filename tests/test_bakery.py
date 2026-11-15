@@ -28,6 +28,6 @@ def test_cake_by_weight_with_date_and_inscription(engine):
                                                                         "", "c1"), lambda: llm, NOW_UTC)
         s.commit()
         order = s.get(Order, out.order_id)
-    assert out.reply.endswith("Сумма заказа: 6 000 сом.") and order.total == 6000
+    assert out.reply.endswith("Ваш заказ: Торт «Красный бархат», за 1 кг × 3. Сумма: 6 000 сом.") and order.total == 6000
     assert order.wanted_time == "суббота 14.11, 15:00" and order.comment == "надпись «С днём рождения, Айым»"
     assert "у позиции «за 1 кг» количество в заказе — это целые килограммы" in llm.calls[0]["system"]

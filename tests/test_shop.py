@@ -53,7 +53,7 @@ def test_demo_stock_sold_out_size_is_not_offered_and_the_shelf_is_counted(engine
     assert f"[{m.id}] Платье миди бежевое, размер M" in system and "сетка: S — 42–44, M — 44–46, L — 46–48" in system
     assert "«Платье миди бежевое, размер L» сейчас нет в наличии" in say(b.id, "платье L", llm, "o2").reply
     ok = say(b.id, "одно платье M, Асель 0555 112 233, Джал 23", llm, "o3")
-    assert ok.order_id and ok.reply.endswith("Сумма заказа: 3 400 сом.")  # no delivery fee set: goods only
+    assert ok.order_id and ok.reply.endswith("Ваш заказ: Платье миди бежевое, размер M. Сумма: 3 400 сом.")  # no delivery fee: goods only
     with db.new_session() as s:
         assert s.get(Service, m.id).stock == 1
 

@@ -288,10 +288,12 @@ def _model_reply(
         result.booking = None
     if result.booking and result.booking.get("slot_id") is not None and not pack.has("booking"):
         result.booking["slot_id"] = None
+    ordered: Order | None = None
     if result.order and pack.has("order"):
         outcome.reply, order = _try_order(session, business, pack, conv, result.order, result.reply, now, off, channel,
                                           hidden.services)
         if order is not None:
+            ordered = order
             outcome.order_id = order.id
             outcome.admin_notes.append(_order_note(session, conv, order, off))
             outcome.admin_notes.extend(stock.take_for_order(session, order.id, now))
@@ -406,6 +408,8 @@ def _model_reply(
             outcome.admin_notes.append(f"Бонус: у {booked.customer_name} {booked.loyalty_visit}-й визит "
                                        f"({fmt_slot(booked.start)}) — {business.loyalty_reward.strip()}")
         session.add(booked)
+    if ordered is not None and outcome.reply:  # the same for an order: its lines and total, after the guards
+        outcome.reply = with_order_line(session, business, outcome.reply, ordered, is_kyrgyz_message(text))
 
     if outcome.reply and pack.has("order") and not outcome.order_id:  # «напишем, когда появится» (joop/restock.py)
         outcome.reply += restock.watch_line(session, business, conv, text, now, is_kyrgyz_message(text))
@@ -973,13 +977,48 @@ def _try_order(
     conv.customer_name, conv.customer_phone = name, phone
     session.add(conv)
     session.flush()
-    if total is None:
-        summary = "Точную сумму подтвердит администратор."
-    elif fee:
-        summary = f"Сумма заказа: {_som(total)}, включая доставку {_som(fee)}."
+    return reply + (f"\n{rx_note}" if rx_note else ""), order  # the lines and total follow: with_order_line
+
+
+ORDER_RU, ORDER_KY = "Ваш заказ: {items}. {total}", "Буйрутмаңыз: {items}. {total}"  # KY: проверить носителю
+TOTAL_RU, TOTAL_KY = "Сумма: {total}.", "Жалпы суммасы: {total}."  # KY: проверить носителю
+FEE_RU, FEE_KY = "Сумма: {total}, включая доставку {fee}.", "Жалпы суммасы: {total}, анын ичинде жеткирүү {fee}."  # KY: проверить носителю
+NO_TOTAL_RU, NO_TOTAL_KY = "Точную сумму подтвердит администратор.", "Так сумманы администратор тактайт."  # KY: проверить носителю
+TAKEN_RU, TAKEN_KY = "Заказ принят.", "Буйрутма кабыл алынды."  # KY: проверить носителю
+_SOM_AMOUNT = re.compile(r"(?<![\d.,])(\d{1,3}(?:[ \u00a0]\d{3})+|\d+)\s*(?:сом|som)\b", re.IGNORECASE)
+# «итого 700 сом» names the whole order: it must be the order's total, not a line's (700 for the food, 850 with delivery)
+_TOTAL_WORD = re.compile(r"(?:итог|всего|сумм|к оплате|жалпы|баары|бардыгы)\w*\D{0,25}?"
+                         r"(\d{1,3}(?:[ \u00a0]\d{3})+|\d+)\s*(?:сом|som)\b", re.IGNORECASE)
+
+
+def with_order_line(session: Session, business: Business, reply: str, order: Order, kyrgyz: bool) -> str:
+    """What was ordered and the total, written by the code: the customer must not rely on the model's wording.
+
+    The code checked every line and computed the total (_try_order); the reply is still the model's, and it can name
+    another sum («итого 1 200 сом» for a 1 500 order, or a delivery it forgot). A reply naming a sum the order does
+    not contain is replaced; otherwise the line is added. Written after the language guard, so no rewrite touches it."""
+    rows = session.exec(select(OrderLine).where(OrderLine.order_id == order.id).order_by(OrderLine.id)).all()
+    names = {}
+    if kyrgyz:
+        ids = [r.item_id for r in rows if r.item_id]
+        names = {s.id: s.name_ky for s in session.exec(select(Service).where(Service.id.in_(ids))).all() if s.name_ky}
+    items = "; ".join((names.get(r.item_id) or r.name) + (f" × {r.quantity}" if r.quantity != 1 else "") for r in rows)
+    if order.total is None:
+        total = NO_TOTAL_KY if kyrgyz else NO_TOTAL_RU
+    elif order.delivery_fee:
+        total = (FEE_KY if kyrgyz else FEE_RU).format(total=_som(order.total), fee=_som(order.delivery_fee))
     else:
-        summary = f"Сумма заказа: {_som(total)}."
-    return f"{reply}\n{summary}" + (f"\n{rx_note}" if rx_note else ""), order
+        total = (TOTAL_KY if kyrgyz else TOTAL_RU).format(total=_som(order.total))
+    line = (ORDER_KY if kyrgyz else ORDER_RU).format(items=items, total=total)
+    # sums the model may rightly name: the order's, each line's, and the shop's own delivery terms
+    known = {order.total, order.delivery_fee, business.delivery_fee, business.free_delivery_from, business.min_order}
+    known.update(r.unit_price for r in rows)
+    known.update(r.unit_price * r.quantity for r in rows if r.unit_price is not None)
+    named = {int(re.sub(r"\D", "", x)) for x in _SOM_AMOUNT.findall(reply)}
+    totals = {int(re.sub(r"\D", "", x)) for x in _TOTAL_WORD.findall(reply)}
+    if named - known or totals - {order.total}:
+        return f"{TAKEN_KY if kyrgyz else TAKEN_RU} {line}"
+    return f"{reply.rstrip()}\n{line}"
 
 
 def _som(value: int) -> str:
