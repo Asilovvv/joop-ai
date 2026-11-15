@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../bloc/ai_results_cubit.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/cash_cubit.dart';
 import '../bloc/load_status.dart';
 import '../bloc/summary_cubit.dart';
 import '../core/format.dart';
 import '../core/strings.dart';
+import '../data/models.dart';
 import 'booking_tile.dart';
 import 'customer_screen.dart';
 import 'theme.dart';
@@ -26,13 +28,14 @@ class TodayScreen extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () async {
         if (account != null && account.cash) context.read<CashCubit>().load();
+        if (account != null && account.role != 'master') context.read<AiResultsCubit>().load();
         await context.read<SummaryCubit>().load();
       },
       child: BlocBuilder<SummaryCubit, SummaryState>(
         builder: (context, state) {
           final summary = state.summary;
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96), // room under the «Записать» button
             children: [
               Container(
                 padding: const EdgeInsets.all(20),
@@ -77,6 +80,7 @@ class TodayScreen extends StatelessWidget {
                   showDay: true,
                   onOpen: summary.next!.customerKey.isEmpty ? null : () => openCustomer(context, summary.next!),
                 ),
+              if (account != null && account.role != 'master') const _AiCard(),
             ],
           );
         },
@@ -126,6 +130,57 @@ class _CashCard extends StatelessWidget {
                   ],
                 ]),
               ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// What the AI did in the last two weeks: the figures the panel's Сводка shows, those the niche has.
+class _AiCard extends StatelessWidget {
+  const _AiCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final s = S.current;
+    return BlocBuilder<AiResultsCubit, AiResults?>(
+      builder: (context, results) {
+        if (results == null) return const SizedBox.shrink();
+        final shown = results.figures.entries.where((e) => s.aiFigure(e.key).isNotEmpty).toList();
+        return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: Card(
+            key: const Key('ai-results'),
+            elevation: 0,
+            color: cardColor(theme.colorScheme),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(s.aiResultsTitle(results.days),
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                LayoutBuilder(
+                  builder: (context, box) => Wrap(
+                    runSpacing: 12,
+                    children: [
+                      for (final e in shown)
+                        SizedBox(
+                          width: (box.maxWidth - 1) / 2,
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('${e.value}',
+                                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                            Text(s.aiFigure(e.key),
+                                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
+                          ]),
+                        ),
+                    ],
+                  ),
+                ),
+              ]),
             ),
           ),
         );

@@ -647,3 +647,43 @@ def test_staff_switch_the_ai_off_in_a_chat_and_back_on(client, business):
         s.commit()
     master = sign_in(client, user="aigerim", password="staff-pass-1").json()["token"]
     assert client.post(f"/api/mobile/conversations/{conv_id}/ai", json={"on": False}, headers=auth(master)).status_code == 403
+
+
+# --- what the AI did -------------------------------------------------------------------------------------
+
+
+def test_the_owner_sees_what_the_ai_did_in_two_weeks(client, business):
+    from joop.models import Conversation, Message
+
+    from .conftest import NOW_UTC
+
+    slot = tomorrow_slots(business.id)[0]
+    with db.new_session() as s:
+        conv = Conversation(business_id=business.id, channel="telegram", chat_id="8001", customer_name="Нурлан")
+        s.add(conv)
+        s.flush()
+        s.add(Message(business_id=business.id, conversation_id=conv.id, role="customer", text="Можно записаться?",
+                      created_at=NOW_UTC.replace(tzinfo=None) - timedelta(days=1), off_hours=True))
+        s.add(Message(business_id=business.id, conversation_id=conv.id, role="customer", text="Давно",
+                      created_at=NOW_UTC.replace(tzinfo=None) - timedelta(days=20)))
+        member = s.get(Staff, slot.staff_id)
+        s.add(Booking(business_id=business.id, staff_id=member.id, staff_name=member.name, start=slot.start, source="ai",
+                      customer_name="Нурлан", channel="telegram", conversation_id=conv.id,
+                      created_at=NOW_UTC.replace(tzinfo=None) - timedelta(days=1)))
+        s.add(Booking(business_id=business.id, staff_id=member.id, staff_name=member.name, start=slot.start, source="staff",
+                      customer_name="Бакыт", channel="", created_at=NOW_UTC.replace(tzinfo=None) - timedelta(days=1)))
+        s.commit()
+    token = sign_in(client).json()["token"]
+    r = client.get("/api/mobile/ai-results", headers=auth(token)).json()
+    assert r["days"] == 14
+    f = r["figures"]
+    assert f["conversations"] == 1 and f["off_hours_conversations"] == 1
+    assert f["bookings"] == 1  # the staff's own booking is not the AI's
+    assert "orders" not in f  # a clinic takes no orders
+    with db.new_session() as s:
+        member = s.exec(select(Staff).where(Staff.business_id == business.id)).first()
+        s.add(PanelUser(business_id=business.id, name="Айгерим", login="aigerim", password_hash=hash_password("staff-pass-1"),
+                        staff_id=member.id))
+        s.commit()
+    master = sign_in(client, user="aigerim", password="staff-pass-1").json()["token"]
+    assert client.get("/api/mobile/ai-results", headers=auth(master)).status_code == 403

@@ -664,3 +664,19 @@ class ChatSummary extends Equatable {
   @override
   List<Object?> get props => [id, channel, customerName, customerPhone, lastAt, lastRole, lastText, aiPaused, blocked];
 }
+
+/// What the AI did lately (GET /api/mobile/ai-results): figures by key, only those the niche has, in server order.
+class AiResults extends Equatable {
+  const AiResults({required this.days, required this.figures});
+
+  factory AiResults.fromJson(Map<String, dynamic> json) => AiResults(
+        days: json['days'] as int,
+        figures: {for (final e in (json['figures'] as Map).entries) e.key as String: e.value as int},
+      );
+
+  final int days;
+  final Map<String, int> figures;
+
+  @override
+  List<Object?> get props => [days, figures];
+}

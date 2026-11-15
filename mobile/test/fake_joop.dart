@@ -262,6 +262,11 @@ class FakeJoop {
       x['closed_by'] = 'Владелец';
       return json({'lead': x});
     }
+    if (path == '/api/mobile/ai-results') {
+      if (role == 'master') return json({'error': 'Нет доступа.'}, 403);
+      return json({'days': 14, 'figures': {'conversations': 128, 'off_hours_conversations': 41, 'bookings': 37,
+        'off_hours_bookings': 12, 'requests': 5, 'handed_to_people': 9}});
+    }
     if (path == '/api/mobile/conversations') {
       final q = (request.url.queryParameters['q'] ?? '').toLowerCase();
       return json({'conversations': chats.where((c) => q.isEmpty || (c['customer']['name'] as String).toLowerCase().contains(q)).toList()});

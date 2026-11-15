@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/auth_bloc.dart';
+import '../bloc/ai_results_cubit.dart';
 import '../bloc/bookings_bloc.dart';
 import '../bloc/cash_cubit.dart';
 import '../bloc/services_cubit.dart';
@@ -50,6 +51,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   late final OrdersCubit _orders = OrdersCubit(_repository);
   late final LeadsCubit _leads = LeadsCubit(_repository);
   late final CashCubit _cash = CashCubit(_repository, widget.today);
+  late final AiResultsCubit _aiResults = AiResultsCubit(_repository);
   late final ServicesCubit _services = ServicesCubit(_repository)..load();
 
   Account get _account => widget.account;
@@ -62,6 +64,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       _bookings.add(BookingsDayChanged(widget.today));
     }
     if (_account.cash) _cash.load();
+    if (_account.role != 'master') _aiResults.load();
     if (_account.orders) _orders.load();
     if (_account.leads) _leads.load();
     WidgetsBinding.instance.addObserver(this);
@@ -98,7 +101,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
-    for (final c in [_summary, _orders, _leads, _services, _cash]) {
+    for (final c in [_summary, _orders, _leads, _services, _cash, _aiResults]) {
       c.close();
     }
     _bookings.close();
@@ -183,6 +186,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         BlocProvider.value(value: _leads),
         BlocProvider.value(value: _services),
         BlocProvider.value(value: _cash),
+        BlocProvider.value(value: _aiResults),
       ],
       child: Builder(
         builder: (context) => Scaffold(
