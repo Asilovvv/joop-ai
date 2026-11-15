@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram (a bot, or the owner's personal account through Telegram Business), WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
 | Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 51 database migrations, 35 niche packs and a generic one |
-| Tests | 764 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 774 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -298,6 +298,12 @@ WhatsApp message fees for reminders.
   after 30 minutes (settings, 0 = off) goes to the staff's Telegram once, several in one message; a request
   that came at night is due 30 minutes after opening. It counts as answered when marked "Готово" or when
   staff replied in that chat. The morning summary counts requests still open.
+- **Missed calls** ("Каналы" → "Пропущенные звонки", `joop/missed_calls.py`): the owner's Android phone
+  (MacroDroid: trigger "Call Missed", action "HTTP Request") or a virtual PBX posts each missed call to
+  `/webhooks/missed-call/<slug>` with the secret in the `X-Joop-Token` header. Joop writes to the caller in
+  WhatsApp (free text within the 24-hour window, else the owner's approved template, `{{1}}` = business name)
+  so the AI can take it from there, and tells staff in the alerts chat; without a template or WhatsApp, staff
+  just get «Пропущенный звонок: номер. Перезвоните». Repeated rings within 30 minutes count once.
 - **Price list and FAQ from text** ("Прайс" and "Вопросы", "Заполнить из текста"): the owner pastes a price
   list from Instagram, a WhatsApp message or a page of the website; the AI proposes services and FAQ entries,
   and code keeps a price only if every number of it is in the pasted text, drops services with no word from
@@ -450,7 +456,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 764 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 774 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

@@ -61,6 +61,8 @@ class Business(SQLModel, table=True):
     wa_access_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
     wa_reminder_template: str = ""
     wa_template_lang: str = "ru"
+    wa_missed_call_template: str = ""  # approved WhatsApp template for «мы пропустили ваш звонок», {{1}} = name (joop/missed_calls.py)
+    missed_call_token: str = ""  # secret of /webhooks/missed-call/<slug>; empty = missed calls are not taken
     ig_account_id: str = Field(default="", index=True)
     ig_access_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
     altegio_location_id: int = 0  # Altegio location the schedule lives in; 0 = not connected (joop/altegio.py)

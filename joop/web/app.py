@@ -25,7 +25,7 @@ from ..channels.telegram import parse_update
 from ..config import Settings, get_settings
 from ..db import init_db, new_session
 from ..dispatch import admin_chat_ids, admin_link, process_incoming
-from .. import tgbusiness
+from .. import missed_calls, tgbusiness
 from ..catalog import parse_price
 from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service,
                       SignatureClick, Slot, Staff, Stay, StockMove, WaitlistEntry, takeover_words)
@@ -36,7 +36,7 @@ from ..faq_gaps import open_gaps
 from ..reschedule import blocked as move_blocked, reschedule
 from ..runtime import Runtime
 from ..scheduler import Scheduler
-from ..security import hash_password, new_link_code, new_test_code, verify_password
+from ..security import hash_password, new_link_code, new_secret, new_test_code, verify_password
 from ..slots import CLOSED, add_slots, free_on_day, generate_slots, parse_times, release_slot, resize_group, seats_left, seats_needed
 from ..stats import TEST_CHANNEL, activity, by_hour, hour_bars
 from ..timeutil import WEEKDAYS_SHORT, fmt_date_long, fmt_dt, fmt_slot, local_now, parse_days_off, parse_hhmm, utc_to_local, utcnow
@@ -1975,8 +1975,8 @@ async def channels_save(request: Request):
                 setattr(b, field, value(field))
                 if field == "ig_access_token":
                     b.ig_token_refreshed_at = utcnow()  # a freshly pasted token is valid for 60 days
-        for field in ("wa_phone_number_id", "wa_reminder_template", "ig_account_id"):
-            setattr(b, field, value(field))
+        for field in ("wa_phone_number_id", "wa_reminder_template", "wa_missed_call_template", "ig_account_id"):
+            setattr(b, field, value(field)[:120])
         b.ig_comments = bool(form.get("ig_comments"))
         b.ig_comment_keywords = value("ig_comment_keywords")[:300]
         b.ig_comment_public_reply = value("ig_comment_public_reply")[:200]
@@ -1995,6 +1995,20 @@ async def channels_save(request: Request):
         s.commit()
     _flash(request, "WhatsApp и Instagram сохранены.")
     return _back("/panel/channels")
+
+
+@router.post("/panel/channels/missed-calls")
+def missed_calls_switch(request: Request, csrf: str = Form(""), action: str = Form("")):
+    """Turn the missed-call address on (a new secret each time, so an old phone setup stops working) or off."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        b.missed_call_token = new_secret() if action == "on" else ""
+        s.add(b)
+        s.commit()
+    _flash(request, "Пропущенные звонки включены: настройте телефон по шагам ниже." if action == "on"
+           else "Пропущенные звонки отключены.")
+    return _back("/panel/channels#missed-calls")
 
 
 @router.post("/panel/channels/telegram/disconnect")
@@ -2067,6 +2081,33 @@ async def telegram_webhook(slug: str, request: Request, background: BackgroundTa
     if incoming is not None:
         background.add_task(process_incoming, _rt(request), business.id, incoming)
     return {"ok": True}
+
+
+@router.post("/webhooks/missed-call/{slug}")
+async def missed_call_webhook(slug: str, request: Request, background: BackgroundTasks):
+    """A missed call from the owner's phone (an Android automation app) or a PBX: joop/missed_calls.py.
+
+    The secret goes in the X-Joop-Token header, not in the address, so it never lands in access logs; the number
+    goes in the body (form or JSON), or in the address for a PBX that can send nothing else."""
+    token = request.headers.get("x-joop-token", "")
+    with new_session() as s:
+        business = s.exec(select(Business).where(Business.slug == slug)).first()
+    if business is None or not business.missed_call_token or not hmac.compare_digest(token, business.missed_call_token):
+        raise HTTPException(status_code=403)
+    params: dict = dict(request.query_params)
+    if "json" in request.headers.get("content-type", ""):
+        try:
+            body = await request.json()
+        except ValueError:
+            body = None
+        if isinstance(body, dict):
+            params.update(body)
+    else:
+        params.update(dict(await request.form()))
+    phone = missed_calls.caller(params)
+    if phone:
+        background.add_task(missed_calls.process, _rt(request), business.id, phone)
+    return {"ok": True, "phone": bool(phone)}
 
 
 @router.get("/webhooks/meta")
