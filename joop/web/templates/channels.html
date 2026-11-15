@@ -26,6 +26,15 @@
   <p>Ваш бот: <a href="https://t.me/{{ business.telegram_bot_username }}" target="_blank" rel="noopener"><b>@{{ business.telegram_bot_username }}</b></a></p>
   <p class="row-tail"><a class="btn small" href="https://t.me/{{ business.telegram_bot_username }}?start=test_{{ business.test_link_code }}" target="_blank" rel="noopener">Написать боту как клиент</a></p>
   <p class="small muted">Проверьте настоящего бота со своего телефона. Этот чат помечается как тест: ИИ отвечает как клиенту, но в цифры, отчёты и CRM он не попадает. Так же считается чат, куда приходят уведомления. Ссылку не пересылайте клиентам: их чат тоже станет тестом.</p>
+  <details id="telegram-business">
+    <summary>Клиенты пишут вам в личный Telegram? ИИ может отвечать и там</summary>
+    <ol class="small">
+      <li>У @BotFather: выберите бота @{{ business.telegram_bot_username }} → Bot Settings → Business Mode → включить.</li>
+      <li>В своём Telegram: Настройки → Telegram Business → Чат-боты → введите @{{ business.telegram_bot_username }}. Нужна подписка Telegram Premium.</li>
+      <li>Там же выберите, в каких чатах отвечать: исключите контакты, чтобы ИИ не отвечал родным и друзьям.</li>
+    </ol>
+    <p class="small muted">Клиент видит ответ от вашего имени. Когда вы пишете клиенту сами, ИИ в этом чате замолкает, как после ответа сотрудника. Telegram разрешает боту писать только в чатах, где переписка была за последние 24 часа, поэтому напоминание о записи через несколько дней может не дойти — ответьте такому клиенту сами.</p>
+  </details>
   {% endif %}
   <p class="small muted">Создайте бота у @BotFather и вставьте его токен. Joop сразу проверит токен у Telegram и подключит бота —
     клиенты пишут ему, ИИ отвечает.</p>

@@ -11,9 +11,9 @@ requests and CI runs document its progress.
 | At a glance (3 November 2026) | |
 | --- | --- |
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
-| Channels | Telegram, WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
+| Channels | Telegram (a bot, or the owner's personal account through Telegram Business), WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
 | Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 51 database migrations, 35 niche packs and a generic one |
-| Tests | 737 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 742 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -112,6 +112,13 @@ python -m joop import-profile --slug aktish --file clients/aktish.yaml   # updat
 
 `dev` mode polls Telegram, so it needs no public address. For WhatsApp and Instagram you need a
 server with HTTPS.
+
+Customers who write to the owner's personal Telegram can be answered too (Telegram Business,
+needs Telegram Premium): turn on Business Mode for the bot in @BotFather, then add the bot under
+Settings → Telegram Business → Chatbots. Replies go out as the owner; when the owner types in a
+chat, the AI pauses there as after any staff reply. Telegram lets the bot write only in chats
+active in the last 24 hours. Chats are stored as `bc:<connection>:<chat id>`
+(`joop/channels/telegram.py`).
 
 ## Deploy to a server
 
@@ -429,7 +436,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 737 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 742 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
