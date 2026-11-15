@@ -31,7 +31,9 @@ server](docs/deploy.md), [pilot economics](docs/pilot-economics.md),
 An AI administrator for small businesses in Kyrgyzstan. It answers customers in Telegram,
 WhatsApp and Instagram Direct, in Russian or Kyrgyz, quotes prices from the business's own price
 list, books customers into real free time slots, reminds them the day before, and hands anything
-it cannot handle to staff in Telegram.
+it cannot handle to staff in Telegram. After a booking the customer reads the day, time and person
+from the booking itself, not from the model's wording (`with_booking_line` in `joop/agent/engine.py`);
+likewise an order's composition and total, and a room's or hall's dates (`stays.with_stay_line`).
 
 One core serves many niches through **niche packs** (`joop/niches/<name>/`): dental clinics, beauty
 salons, cafes and restaurants (table booking, orders with code-computed totals, stop list), real
