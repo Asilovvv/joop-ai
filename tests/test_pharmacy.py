@@ -70,3 +70,23 @@ def test_over_the_counter_items_are_delivered_and_other_niches_unaffected(engine
         s.commit()
     out, _ = order(shop.id, [{"item_id": dress.id, "quantity": 1, "note": ""}], "delivery", "s1")
     assert out.order_id
+
+
+def test_a_prescription_medicine_named_only_in_the_comment_is_not_delivered(engine):
+    from joop.agent.engine import handle_incoming
+    from joop.agent.llm import AgentReply
+    from joop.channels.base import IncomingMessage
+
+    b = pharmacy()
+    para = item(b.id, "Парацетамол 500 мг, 20 таблеток")
+    for comment, note in (("и амоксициллин ещё", ""), ("", "плюс Амоксициллин, если есть")):
+        llm = FakeLLM([AgentReply("Оформила.", order={"lines": [{"item_id": para.id, "quantity": 10, "note": note}], "mode": "delivery",
+                                                      "address": "Ахунбаева 100", "time": "", "name": "Марат", "phone": "0555565656",
+                                                      "comment": comment})])
+        with db.new_session() as s:
+            out = handle_incoming(s, s.get(Business, b.id), IncomingMessage("telegram", "c-" + comment[:3] + note[:3], "text", "Привезите",
+                                                                              "", f"x{comment}{note}"), lambda: llm, NOW_UTC)
+            s.commit()
+        assert out.order_id is None and "отпускается только по рецепту" in out.reply
+    out, _ = order(b.id, [{"item_id": para.id, "quantity": 10, "note": "термометр тоже"}], "delivery", "ok")  # not a prescription item
+    assert out.order_id
