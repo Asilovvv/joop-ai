@@ -894,7 +894,10 @@ def _try_order(
         return f"Не получилось оформить заказ: {detail}. Выберите, пожалуйста, из списка.", None
     rx_note = ""
     if "prescription" in pack.features:  # the pharmacy marks what needs a prescription; the code decides delivery
-        refusal, rx_note = prescription.check([item for item, _, _ in lines], mode)
+        # A medicine written only in the comment or a line's note is still a prescription medicine for staff to add.
+        free_text = " ".join([str(data.get("comment") or "")] + [str(x.get("note") or "") for x in (data.get("lines") or []) if isinstance(x, dict)])
+        mentioned = prescription.named_in(free_text, list(session.exec(select(Service).where(Service.business_id == business.id)).all()))
+        refusal, rx_note = prescription.check([item for item, _, _ in lines] + mentioned, mode)
         if refusal:
             return refusal, None
 
