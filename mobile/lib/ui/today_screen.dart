@@ -8,6 +8,7 @@ import '../bloc/summary_cubit.dart';
 import '../core/format.dart';
 import '../core/strings.dart';
 import 'booking_tile.dart';
+import 'customer_screen.dart';
 import 'theme.dart';
 
 /// Home: how many bookings today, tomorrow and this week, and who comes next.
@@ -71,7 +72,11 @@ class TodayScreen extends StatelessWidget {
               else if (summary.next == null)
                 _Message(S.current.noBookings7days)
               else
-                BookingTile(booking: summary.next!, showDay: true),
+                BookingTile(
+                  booking: summary.next!,
+                  showDay: true,
+                  onOpen: summary.next!.customerKey.isEmpty ? null : () => openCustomer(context, summary.next!),
+                ),
             ],
           );
         },

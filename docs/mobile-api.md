@@ -14,6 +14,8 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | `POST /api/mobile/orders/{id}/status` | `{"status"}`: the next step, the same code as the panel (stock back on cancel, the customer told) |
 | `GET /api/mobile/leads` | new requests, then the last 30 done |
 | `POST /api/mobile/leads/{id}/done` | marks a request done, with the person's name |
+| `GET /api/mobile/customers/{key}` | the customer card (`customers.cards`, the panel's Клиенты): visits, `spend_som`, `rating`, `note`, `tags`, `upcoming`, the last 20 bookings and 10 orders; a master sees only her visits (`customers.for_staff`), 404 when the customer never came to her |
+| `POST /api/mobile/customers/{key}` | `{note, tags}` → the card's note and tags (comma-separated, de-duplicated), the panel's code |
 | `POST /api/mobile/bookings/{id}/pay` | `{amount, method, receipt?}` → what the customer paid after the visit (`cash`/`card`/`transfer`), the panel's Касса code (`cash.record`); amount 0 removes it; 409 for a cancelled booking, 422 for a wrong method or amount |
 | `GET /api/mobile/cash?day=` | the day's takings `total`, `by_method`, `visits`, `unpaid` (visits that passed without a payment), `month` {`total`, `paid_visits`}; a master sees her own |
 | `POST /api/mobile/services/{id}/available` | `{available}` → the stop list (the panel's «В продаже»): the AI stops offering the item and orders refuse it; masters 403; 409 when the item is sold out by the stock (back via «Склад») or the price list comes from Altegio |
@@ -53,4 +55,5 @@ business apply.
 
 Tests: `tests/test_mobile.py`.
 
+- **Customer key**: every booking carries `customer_key`, the card it belongs to (the phone's last nine digits, else the chat), empty when none.
 - **Payments**: every booking in `/api/mobile/bookings` carries `suggested_som`, the price-list amount for an unpaid visit (exact service name, plus an accepted add-on), as the panel pre-fills it; 0 when unknown or already paid.

@@ -76,7 +76,11 @@ class FakeJoop {
         'confirmed': id == 1,
         'suggested_som': 1500,
         'paid': null,
+        'customer_key': id == 1 ? '700000001' : '',
       };
+
+  /// Notes saved on customer cards, by key.
+  final notes = <String, Map<String, dynamic>>{};
 
   static const token = 'good-token';
 
@@ -140,6 +144,32 @@ class FakeJoop {
       b['paid'] = amount == 0 ? null : {'som': amount, 'method': body['method']};
       b['suggested_som'] = amount == 0 ? 1500 : 0;
       return json({'booking': b});
+    }
+    final person = RegExp(r'^/api/mobile/customers/(.+)$').firstMatch(path);
+    if (person != null) {
+      final key = Uri.decodeComponent(person.group(1)!);
+      if (key != '700000001') return json({'error': 'Клиент не найден.'}, 404);
+      if (request.method == 'POST') {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        notes[key] = {
+          'note': body['note'],
+          'tags': [for (final t in (body['tags'] as String).split(',')) if (t.trim().isNotEmpty) t.trim()],
+        };
+        return json(notes[key]!);
+      }
+      final mine = bookings.where((b) => b['customer_key'] == key).toList();
+      return json({
+        'customer': {
+          'key': key, 'name': mine.first['customer']['name'], 'phone': '+996700000001', 'channels': ['telegram'],
+          'visits': 3, 'spend_som': 4500, 'rating': 4.7, 'note': notes[key]?['note'] ?? '', 'tags': notes[key]?['tags'] ?? [],
+          'upcoming': null, 'bookings': mine,
+          'orders': [
+            {'id': 77, 'created_at': '2026-10-02T08:00:00Z', 'status': 'done', 'label': 'Выполнен', 'mode': 'pickup',
+             'total': 600, 'channel': 'telegram', 'customer': {'name': 'x', 'phone': ''},
+             'lines': [{'name': 'Зубная паста', 'quantity': 2, 'unit_price': 300}]},
+          ],
+        },
+      });
     }
     if (path == '/api/mobile/cash') {
       final day = request.url.queryParameters['day']!;

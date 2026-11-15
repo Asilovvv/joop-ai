@@ -81,6 +81,18 @@ class JoopRepository {
     return Service.fromJson(data['service'] as Map<String, dynamic>);
   }
 
+  Future<CustomerCard> customer(String key) async {
+    final data = await _api.get('/api/mobile/customers/${Uri.encodeComponent(key)}') as Map<String, dynamic>;
+    return CustomerCard.fromJson(data['customer'] as Map<String, dynamic>);
+  }
+
+  /// Saves the card's note and tags (comma-separated); returns them as the server keeps them.
+  Future<(String, List<String>)> saveNote(String key, String note, String tags) async {
+    final data = await _api.post('/api/mobile/customers/${Uri.encodeComponent(key)}', {'note': note, 'tags': tags})
+        as Map<String, dynamic>;
+    return (data['note'] as String, [for (final t in data['tags'] as List) t as String]);
+  }
+
   Future<List<FreeSlot>> freeSlots(DateTime day) async {
     final data = await _api.get('/api/mobile/slots', query: {'day': isoDay(day)}) as Map<String, dynamic>;
     return [for (final row in data['slots'] as List) FreeSlot.fromJson(row as Map<String, dynamic>)];

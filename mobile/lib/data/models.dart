@@ -68,6 +68,7 @@ class Booking extends Equatable {
     this.paidSom = 0,
     this.paidMethod = '',
     this.suggestedSom = 0,
+    this.customerKey = '',
   });
 
   factory Booking.fromJson(Map<String, dynamic> json) {
@@ -86,6 +87,7 @@ class Booking extends Equatable {
       paidSom: ((json['paid'] as Map?)?['som'] as int?) ?? 0,
       paidMethod: ((json['paid'] as Map?)?['method'] as String?) ?? '',
       suggestedSom: (json['suggested_som'] as int?) ?? 0,
+      customerKey: (json['customer_key'] as String?) ?? '',
     );
   }
 
@@ -112,6 +114,9 @@ class Booking extends Equatable {
   /// The price-list amount to pre-fill an unpaid visit's payment with; 0 when unknown.
   final int suggestedSom;
 
+  /// The customer's card (the phone's last nine digits, else the chat); empty when there is none.
+  final String customerKey;
+
   bool get isActive => status == 'booked';
   bool get isPaid => paidSom > 0;
 
@@ -128,11 +133,12 @@ class Booking extends Equatable {
         paidSom: paidSom,
         paidMethod: paidMethod,
         suggestedSom: suggestedSom,
+        customerKey: customerKey,
       );
 
   @override
   List<Object?> get props =>
-      [id, start, service, staff, customerName, customerPhone, channel, status, confirmed, paidSom, paidMethod, suggestedSom];
+      [id, start, service, staff, customerName, customerPhone, channel, status, confirmed, paidSom, paidMethod, suggestedSom, customerKey];
 }
 
 class Summary extends Equatable {
@@ -551,4 +557,64 @@ class CashDay extends Equatable {
 
   @override
   List<Object?> get props => [total, byMethod, visits, unpaid, monthTotal];
+}
+
+/// Everything the business knows about one customer, assembled from bookings, orders and dialogues; staff add only a
+/// note and tags.
+class CustomerCard extends Equatable {
+  const CustomerCard({
+    required this.key,
+    required this.name,
+    required this.phone,
+    required this.channels,
+    required this.visits,
+    required this.spendSom,
+    required this.rating,
+    required this.note,
+    required this.tags,
+    required this.upcoming,
+    required this.bookings,
+    required this.orders,
+  });
+
+  factory CustomerCard.fromJson(Map<String, dynamic> json) => CustomerCard(
+        key: json['key'] as String,
+        name: (json['name'] as String?) ?? '',
+        phone: (json['phone'] as String?) ?? '',
+        channels: [for (final c in (json['channels'] as List? ?? const [])) c as String],
+        visits: (json['visits'] as int?) ?? 0,
+        spendSom: (json['spend_som'] as int?) ?? 0,
+        rating: (json['rating'] as num?)?.toDouble(),
+        note: (json['note'] as String?) ?? '',
+        tags: [for (final t in (json['tags'] as List? ?? const [])) t as String],
+        upcoming: json['upcoming'] == null ? null : Booking.fromJson(json['upcoming'] as Map<String, dynamic>),
+        bookings: [for (final b in (json['bookings'] as List? ?? const [])) Booking.fromJson(b as Map<String, dynamic>)],
+        orders: [for (final o in (json['orders'] as List? ?? const [])) Order.fromJson(o as Map<String, dynamic>)],
+      );
+
+  final String key;
+  final String name;
+  final String phone;
+  final List<String> channels;
+
+  /// Visits whose time has come.
+  final int visits;
+
+  /// What the customer paid, or the price list where nothing was recorded, plus orders.
+  final int spendSom;
+
+  /// The average of the customer's ratings after visits; null when none.
+  final double? rating;
+  final String note;
+  final List<String> tags;
+  final Booking? upcoming;
+  final List<Booking> bookings;
+  final List<Order> orders;
+
+  CustomerCard withNote(String note, List<String> tags) => CustomerCard(
+      key: key, name: name, phone: phone, channels: channels, visits: visits, spendSom: spendSom, rating: rating,
+      note: note, tags: tags, upcoming: upcoming, bookings: bookings, orders: orders);
+
+  @override
+  List<Object?> get props => [key, name, phone, channels, visits, spendSom, rating, note, tags, upcoming, bookings, orders];
 }

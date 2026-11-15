@@ -22,8 +22,8 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from .. import altegio, cash, order_status, staff_reply
-from ..api import booking_json, lead_json, order_json
+from .. import altegio, cash, customers, order_status, staff_reply
+from ..api import booking_json, customer_json, lead_json, order_json
 from ..db import new_session
 from ..models import Booking, Business, Conversation, Lead, Message, Order, PanelUser, Service, Slot, Staff
 from ..niches import get_pack
@@ -152,8 +152,14 @@ MAX_SPAN_DAYS = 3 * 366  # a date further away is a typo, and 9999-12-31 + 1 day
 
 
 def _booking(s: Session, b: Booking) -> dict:
-    """booking_json plus the price-list amount to pre-fill the payment with (the panel's Касса does the same)."""
-    return {**booking_json(b), "suggested_som": 0 if b.paid_som or b.status != "booked" else cash.suggested(s, b)}
+    """booking_json plus the price-list amount to pre-fill the payment with (the panel's Касса does the same), and the
+    key of the customer's card (customers.cards keys it the same way: the phone, else the chat)."""
+    key = customers.key_of(b.customer_phone, b.channel, "")
+    if not key and b.conversation_id:
+        conv = s.get(Conversation, b.conversation_id)
+        key = customers.key_of(conv.customer_phone, conv.channel, conv.chat_id) if conv else ""
+    return {**booking_json(b), "customer_key": key,
+            "suggested_som": 0 if b.paid_som or b.status != "booked" else cash.suggested(s, b)}
 
 
 def _bookings(s: Session, who: Who, first: date, last: date) -> list[Booking]:
@@ -195,7 +201,7 @@ def mobile_summary(request: Request):
         return {"today": sum(1 for b in week if b.start.date() == today),
                 "tomorrow": sum(1 for b in week if b.start.date() == today + timedelta(days=1)),
                 "week": len(week),
-                "next": booking_json(upcoming[0]) if upcoming else None}
+                "next": _booking(s, upcoming[0]) if upcoming else None}
 
 
 @router.post("/api/mobile/bookings/{item_id}/cancel")
@@ -214,6 +220,56 @@ def mobile_cancel(request: Request, item_id: int):
         s.commit()
         s.refresh(booking)
         return {"booking": booking_json(booking), "waitlist_offered": told}
+
+
+# --- the customer card (the panel's Клиенты) -------------------------------------------------------------
+# Assembled by customers.cards from bookings, orders and dialogues; staff add only a note and tags. A master sees
+# her own visits of the customer (customers.for_staff), as in the panel.
+
+CARD_BOOKINGS = 20
+CARD_ORDERS = 10
+
+
+def _card(s: Session, who: Who, key: str):
+    card = customers.cards(s, who.business).get(key)
+    if card is not None and who.master_staff_id:
+        card = customers.for_staff(card, who.master_staff_id)
+    return card
+
+
+@router.get("/api/mobile/customers/{key}")
+def mobile_customer(request: Request, key: str):
+    with new_session() as s:
+        who = _signed_in(s, request)
+        if who is None:
+            return _fail(401, "Войдите заново.")
+        card = _card(s, who, key)
+        if card is None:
+            return _fail(404, "Клиент не найден.")
+        upcoming = card.upcoming
+        return {"customer": {**customer_json(card), "rating": card.rating,
+                             "upcoming": _booking(s, upcoming) if upcoming else None,
+                             "bookings": [_booking(s, b) for b in card.bookings[:CARD_BOOKINGS]],
+                             "orders": [{**order_json(s, o), "label": order_status.label(o)} for o in card.orders[:CARD_ORDERS]]}}
+
+
+class NoteIn(BaseModel):
+    note: str = ""
+    tags: str = ""
+
+
+@router.post("/api/mobile/customers/{key}")
+def mobile_customer_note(request: Request, key: str, body: NoteIn):
+    """The note and tags staff keep on the card ("аллергия на лидокаин", "VIP"); the rest is assembled."""
+    with new_session() as s:
+        who = _signed_in(s, request)
+        if who is None:
+            return _fail(401, "Войдите заново.")
+        if _card(s, who, key) is None:
+            return _fail(404, "Клиент не найден.")
+        row = customers.save_note(s, who.business, key, body.note, body.tags)
+        s.commit()
+        return {"note": row.note, "tags": [t.strip() for t in row.tags.split(",") if t.strip()]}
 
 
 # --- payment after the visit (the panel's Касса) ---------------------------------------------------------
