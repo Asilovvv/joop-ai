@@ -719,6 +719,7 @@ def test_the_owner_moves_a_booking_and_the_customer_is_told(client, business, rt
     r = client.post(f"/api/mobile/bookings/{booking_id}/move", json={"slot_id": new.id}, headers=auth(token))
     assert r.status_code == 200, r.text
     assert r.json()["told"] is True and r.json()["booking"]["start_local"] == new.start.isoformat(timespec="seconds")
+    assert r.json()["booking"]["movable"] is True
     assert rt.tg.sent[-1][0] == "9001" and "перенесена" in rt.tg.sent[-1][1]
     with db.new_session() as s:
         moved = s.get(Booking, booking_id)
@@ -749,3 +750,16 @@ def test_a_move_is_refused_for_a_taken_time_altegio_a_cancelled_booking_or_a_str
     assert move(other, slots[4].id, stranger).status_code == 404
     with db.new_session() as s:
         assert s.get(Slot, slots[4].id).status == "free"
+
+
+def test_a_paid_visit_is_not_movable_in_the_app(client, business):
+    slots = tomorrow_slots(business.id)
+    booking_id = book(business.id, slots[0])
+    token = sign_in(client).json()["token"]
+    client.post(f"/api/mobile/bookings/{booking_id}/pay", json={"amount": 1500, "method": "cash"}, headers=auth(token))
+    row = client.get("/api/mobile/bookings", params={"day": "2026-11-05"}, headers=auth(token)).json()["bookings"][0]
+    assert row["movable"] is False
+    r = client.post(f"/api/mobile/bookings/{booking_id}/move", json={"slot_id": slots[3].id}, headers=auth(token))
+    assert r.status_code == 409 and "оплата" in r.json()["error"]
+    with db.new_session() as s:
+        assert s.get(Booking, booking_id).slot_id == slots[0].id and s.get(Slot, slots[3].id).status == "free"

@@ -124,6 +124,24 @@ def free_slots(
     return list(session.exec(query.order_by(Slot.start, Slot.id).limit(limit)).all())
 
 
+def free_on_day(session: Session, business_id: int, day: date, now_local: datetime, staff_id: int | None = None,
+                exclude_staff: frozenset[int] | set[int] = frozenset()) -> list[tuple[Slot, Staff]]:
+    """The day's free times staff can put a customer into (the panel's and the app's pickers), earliest first.
+    No lead time, unlike free_slots: a person at the desk may book a walk-in for ten minutes from now."""
+    query = (
+        select(Slot, Staff)
+        .join(Staff, Staff.id == Slot.staff_id)
+        .where(Slot.business_id == business_id, Slot.status == "free", Staff.active == True,  # noqa: E712
+               Slot.start >= datetime.combine(day, time.min), Slot.start < datetime.combine(day + timedelta(days=1), time.min),
+               Slot.start > now_local)
+    )
+    if staff_id is not None:
+        query = query.where(Slot.staff_id == staff_id)
+    if exclude_staff:  # the sign-up example's people are nobody to come to
+        query = query.where(Slot.staff_id.not_in(exclude_staff))
+    return list(session.exec(query.order_by(Slot.start, Staff.name)).all())
+
+
 def claim_slot(session: Session, slot_id: int, count: int = 1) -> bool:
     """Atomically take `count` seats of a free slot. False if someone took them first.
     The slot turns "booked" when it is full (always, for a one-seat slot)."""

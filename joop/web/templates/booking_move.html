@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Перенести запись{% endblock %}
+{% block content %}
+<section class="stack">
+  <h1>Перенести запись</h1>
+  <p class="muted">Сейчас: <b>{{ booking.start|slot }}</b> — {{ booking.customer_name or 'клиент' }}{% if booking.service %} · {{ booking.service }}{% endif %}{% if booking.staff_name %} · {{ booking.staff_name }}{% endif %}. Выберите новое время: старое освободится, а клиенту Joop напишет сам, если запись пришла из чата.</p>
+  <div class="row" style="display:flex;gap:10px;align-items:center;border:0">
+    {% if prev %}<a class="btn ghost small" href="/panel/bookings/{{ booking.id }}/move?day={{ prev }}">← {{ prev[8:] }}.{{ prev[5:7] }}</a>{% endif %}
+    <b>{{ weekday }} {{ chosen.strftime('%d.%m.%Y') }}</b>
+    {% if next %}<a class="btn ghost small" href="/panel/bookings/{{ booking.id }}/move?day={{ next }}">{{ next[8:] }}.{{ next[5:7] }} →</a>{% endif %}
+  </div>
+</section>
+<section class="card">
+  {% if by_staff %}
+  {% for name, slots in by_staff.items() %}
+  <h2>{{ name }}</h2>
+  <form method="post" action="/panel/bookings/{{ booking.id }}/move" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% for slot in slots %}<button class="btn small ghost" type="submit" name="slot_id" value="{{ slot.id }}">{{ slot.start.strftime('%H:%M') }}{% if slot.seats > 1 %} · мест: {{ seats_left(slot) }}{% endif %}</button>{% endfor %}
+  </form>
+  {% endfor %}
+  {% else %}<p class="muted">На этот день свободного времени нет. Посмотрите соседний день{% if not master %} или добавьте окна в разделе <a href="/panel/slots">«Окна»</a>{% endif %}.</p>{% endif %}
+  <p><a href="/panel/bookings">← К записям, ничего не менять</a></p>
+</section>
+{% endblock %}

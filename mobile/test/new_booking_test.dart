@@ -6,12 +6,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'fake_joop.dart';
 
 void main() {
-  Future<FakeJoop> signIn(WidgetTester tester) async {
+  Future<FakeJoop> signIn(WidgetTester tester, [FakeJoop? prepared]) async {
     SharedPreferences.setMockInitialValues({});
     tester.view.physicalSize = const Size(1080, 2340);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
-    final server = FakeJoop();
+    final server = prepared ?? FakeJoop();
     await tester.pumpWidget(JoopApp(repository: server.repository(), customers: server.customers(), today: DateTime(2026, 11, 13)));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('company')), 'aktish');
@@ -89,5 +89,18 @@ void main() {
     expect(server.calls, contains('POST /api/mobile/bookings/1/move'));
     expect(find.text('Перенесли на пт, 13 ноя, 17:00. Клиенту написали в чат.'), findsOneWidget);
     expect(server.bookings.first['start_local'], '2026-11-13T17:00:00');
+  });
+
+  testWidgets('a paid visit has happened: its menu no longer offers to move it', (tester) async {
+    final server = FakeJoop();
+    server.bookings.first['paid'] = {'som': 1500, 'method': 'cash'};
+    server.bookings.first['movable'] = false;
+    await signIn(tester, server);
+    await tester.tap(find.text('Записи').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('booking-menu-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Отменить запись'), findsOneWidget);
+    expect(find.text('Перенести'), findsNothing);
   });
 }

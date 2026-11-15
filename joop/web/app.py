@@ -32,10 +32,11 @@ from ..niches import all_packs, get_pack, picker_packs
 from ..phone import normalize_phone
 from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, order_status, quick_replies, samples, staff_reply, stock, waitlist
 from ..faq_gaps import open_gaps
+from ..reschedule import blocked as move_blocked, reschedule
 from ..runtime import Runtime
 from ..scheduler import Scheduler
 from ..security import hash_password, new_link_code, new_test_code, verify_password
-from ..slots import add_slots, generate_slots, parse_times, release_slot, resize_group, seats_needed
+from ..slots import add_slots, free_on_day, generate_slots, parse_times, release_slot, resize_group, seats_left, seats_needed
 from ..stats import TEST_CHANNEL, activity, by_hour, hour_bars
 from ..timeutil import WEEKDAYS_SHORT, fmt_date_long, fmt_dt, fmt_slot, local_now, parse_days_off, parse_hhmm, utc_to_local, utcnow
 
@@ -1041,8 +1042,10 @@ def bookings_page(request: Request):
                          .order_by(WaitlistEntry.created_at)).all()
         if own:
             waiting = []  # the waiting list is the whole business's customers, not a master's
+        now_local = _now_local(b)
+        movable = {x.id for x in upcoming if not move_blocked(x, now_local)}  # «Перенести»: visits that have not happened
         return _render(request, "bookings.html", "bookings", b, upcoming=upcoming, past=past, channel_names=CHANNEL_NAMES,
-                       waiting=waiting)
+                       waiting=waiting, movable=movable)
 
 
 @router.post("/panel/waitlist/{item_id}/remove")
@@ -1088,6 +1091,58 @@ def cancel_booking(s: Session, rt: Runtime, b: Business, booking: Booking) -> in
         return 0
     s.refresh(slot)
     return waitlist.offer_freed_slot(s, rt, b, slot, utcnow())
+
+
+MOVE_DAYS_AHEAD = 366  # how far the time picker goes; slots are not made further than that
+
+
+@router.get("/panel/bookings/{item_id}/move")
+def booking_move_page(request: Request, item_id: int, day: str = ""):
+    """Pick another free time for a booking: the customer asked for an hour later (joop/reschedule.py)."""
+    with new_session() as s:
+        b = _business(s, request)
+        booking = _own_booking(s, request, item_id, b.id)
+        now_local = _now_local(b)
+        if move_blocked(booking, now_local):
+            _flash(request, move_blocked(booking, now_local), "error")
+            return _back("/panel/bookings")
+        today = now_local.date()
+        chosen = min(max(_parse_date(day) or booking.start.date(), today), today + timedelta(days=MOVE_DAYS_AHEAD))
+        by_staff: dict[str, list[Slot]] = {}
+        mine = _staff_scope(s, request)  # a master picks among her own times
+        for slot, member in free_on_day(s, b.id, chosen, now_local, staff_id=mine,
+                                        exclude_staff=samples.example_staff_ids(s, b)):
+            if slot.id != booking.slot_id:  # a group class with places left: not "another" time
+                by_staff.setdefault(member.name, []).append(slot)
+        by_staff = dict(sorted(by_staff.items()))  # the same order of people on every day
+        return _render(request, "booking_move.html", "bookings", b, booking=booking, chosen=chosen, by_staff=by_staff,
+                       weekday=WEEKDAYS_SHORT[chosen.weekday()], seats_left=seats_left, master=bool(mine),
+                       prev=(chosen - timedelta(days=1)).isoformat() if chosen > today else "",
+                       next=(chosen + timedelta(days=1)).isoformat() if chosen < today + timedelta(days=MOVE_DAYS_AHEAD) else "")
+
+
+@router.post("/panel/bookings/{item_id}/move")
+def booking_move(request: Request, item_id: int, slot_id: int = Form(0), csrf: str = Form("")):
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        booking = _own_booking(s, request, item_id, b.id)
+        slot = s.get(Slot, slot_id)
+        mine = _staff_scope(s, request)
+        if slot is None or slot.business_id != b.id or (mine and slot.staff_id != mine):
+            raise HTTPException(status_code=404)  # a master moves only within her own times
+        day, when = slot.start.date().isoformat(), fmt_slot(slot.start)
+        now_local = _now_local(b)
+        moved = reschedule(s, _rt(request), b, booking, slot, now_local, utcnow(), hidden_staff=samples.example_staff_ids(s, b))
+        if moved.problem:
+            s.rollback()
+            _flash(request, moved.problem, "error")
+            # a taken time: pick another on the same day; a booking that cannot move at all: back to the list
+            return _back("/panel/bookings" if move_blocked(booking, now_local) else f"/panel/bookings/{item_id}/move?day={day}")
+        s.commit()
+        _flash(request, f"Запись перенесена на {when}. "
+               + ("Клиенту написали в чат." if moved.told else "Сообщите клиенту сами: написать ему из Joop сейчас нельзя."))
+    return _back("/panel/bookings")
 
 
 @router.post("/panel/bookings/{item_id}/paid")
