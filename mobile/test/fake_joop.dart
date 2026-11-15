@@ -58,6 +58,24 @@ class FakeJoop {
   ];
   final calls = <String>[];
 
+  /// The day's times by person, for «Окна».
+  final schedule = <Map<String, dynamic>>[
+    {
+      'id': 1, 'name': 'Др. Асанова', 'from_altegio': false,
+      'slots': [
+        {'id': 41, 'start_local': '2026-11-13T12:00:00', 'state': 'booked', 'seats': 1, 'taken': 1, 'customer': 'Айгуль'},
+        {'id': 42, 'start_local': '2026-11-13T13:00:00', 'state': 'free', 'seats': 1, 'taken': 0, 'customer': ''},
+        {'id': 43, 'start_local': '2026-11-13T14:00:00', 'state': 'busy', 'seats': 1, 'taken': 0, 'customer': ''},
+      ],
+    },
+    {
+      'id': 2, 'name': 'Др. Бекова', 'from_altegio': true,
+      'slots': [
+        {'id': 51, 'start_local': '2026-11-13T12:00:00', 'state': 'free', 'seats': 1, 'taken': 0, 'customer': ''},
+      ],
+    },
+  ];
+
   /// owner | staff | master: who the dental login signs in as.
   String role = 'owner';
 
@@ -273,6 +291,40 @@ class FakeJoop {
       x['status'] = 'done';
       x['closed_by'] = 'Владелец';
       return json({'lead': x});
+    }
+    if (path == '/api/mobile/schedule') {
+      final day = request.url.queryParameters['day']!;
+      return json({
+        'day': day,
+        'staff': [
+          for (final p in schedule)
+            {...p, 'slots': (p['slots'] as List).where((x) => (x['start_local'] as String).startsWith(day)).toList()},
+        ],
+      });
+    }
+    String reopened(Map x) => (x['customer'] as String).isNotEmpty ? 'booked' : 'free';
+    final oneTime = RegExp(r'^/api/mobile/schedule/slots/(\d+)$').firstMatch(path);
+    if (oneTime != null) {
+      final open = (jsonDecode(request.body) as Map)['open'] as bool;
+      final x = schedule.expand((p) => p['slots'] as List).firstWhere((x) => x['id'] == int.parse(oneTime.group(1)!)) as Map;
+      x['state'] = open ? reopened(x) : 'closed';
+      return json({'changed': 1, 'offered': 0, 'bookings': []});
+    }
+    if (path == '/api/mobile/schedule/day') {
+      final body = jsonDecode(request.body) as Map;
+      final person = schedule.firstWhere((p) => p['id'] == body['staff_id']);
+      if (person['from_altegio'] == true) return json({'error': 'Расписание из Altegio.'}, 409);
+      final open = body['open'] as bool;
+      final mine = (person['slots'] as List).cast<Map>().where((x) => (x['start_local'] as String).startsWith(body['day'] as String));
+      var changed = 0;
+      for (final x in mine) {
+        if (open ? x['state'] == 'closed' : x['state'] != 'closed') changed++;
+        x['state'] = open ? (x['state'] == 'closed' ? reopened(x) : x['state']) : 'closed';
+      }
+      return json({
+        'changed': changed, 'offered': open ? 2 : 0,
+        'bookings': open ? [] : [bookings.first],
+      });
     }
     if (path == '/api/mobile/ai-results') {
       if (role == 'master') return json({'error': 'Нет доступа.'}, 403);

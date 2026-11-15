@@ -14,6 +14,8 @@ every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
   customer's dialogue and sends the owner's answer through their channel (or says why WhatsApp/Instagram no longer allow it);
 - **Диалоги** (the button in the top bar, not for masters) — every real chat the AI is having, newest first, with search
   by name or phone; a tap opens the chat with the reply box;
+- **Окна** (the button on Записи, not for masters) — the day's times by person: «Закрыть день» for an ill doctor (the
+  AI stops booking it; the bookings left are listed to move or cancel), a tap closes or opens one time;
 - **Карточка клиента** — a tap on a booking: visits, what the customer spent, their rating, orders, and the note and
   tags staff keep (the panel's Клиенты; a master sees her own visits);
 - **Прайс** — the price list the AI quotes, with the stop list: a switch takes an item off sale (the AI stops offering

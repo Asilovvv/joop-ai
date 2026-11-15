@@ -13,6 +13,7 @@ from .timeutil import parse_days_off, parse_hhmm
 
 MAX_GENERATE_DAYS = 62
 LEAD_MINUTES = 60  # do not offer slots that start within the next hour
+CLOSED = "closed"  # Slot.status: staff closed this time (joop/schedule.py); nothing claims or reopens it by itself
 
 
 def parse_times(text: str) -> list[time]:
@@ -155,10 +156,13 @@ def claim_slot(session: Session, slot_id: int, count: int = 1) -> bool:
 
 
 def release_slot(session: Session, slot_id: int | None, count: int = 1) -> None:
+    """Give back seats of a cancelled or moved booking. A time staff closed (joop/schedule.py) stays closed: the
+    doctor is still ill after her patients are moved."""
     if slot_id is None:
         return
     session.exec(update(Slot).where(Slot.id == slot_id)
-                 .values(taken=case((Slot.taken > count, Slot.taken - count), else_=0), status="free"))
+                 .values(taken=case((Slot.taken > count, Slot.taken - count), else_=0),
+                         status=case((Slot.status == CLOSED, CLOSED), else_="free")))
 
 
 def seats_needed(slot: Slot, party_size: int) -> int:
@@ -175,9 +179,10 @@ def resize_group(session: Session, staff_id: int, group_size: int, now_local: da
     seats = max(1, group_size)
     changed = 0
     for slot in session.exec(select(Slot).where(Slot.staff_id == staff_id, Slot.start > now_local)).all():
-        if slot.seats != seats and (slot.status == "free" or slot.taken):
+        if slot.seats != seats and (slot.status in ("free", CLOSED) or slot.taken):
             slot.seats = max(seats, slot.taken)
-            slot.status = "booked" if slot.taken >= slot.seats else "free"
+            if slot.status != CLOSED:  # a closed class stays closed whatever its size
+                slot.status = "booked" if slot.taken >= slot.seats else "free"
             session.add(slot)
             changed += 1
     return changed
