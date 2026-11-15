@@ -207,7 +207,8 @@ def mobile_summary(request: Request):
         own = [Booking.staff_id == who.master_staff_id] if who.master_staff_id else []
         to_check = s.exec(select(Booking).where(  # the customer sent a receipt, or the deadline passed: someone must look
             Booking.business_id == who.business.id, Booking.status == "booked", Booking.deposit_status.in_(["check", "overdue"]),
-            Booking.start >= datetime.combine(today, time.min), *own).order_by(Booking.start).limit(20)).all()
+            Booking.start >= datetime.combine(today, time.min), not_test(Booking, who.business.id), *own)
+            .order_by(Booking.start).limit(20)).all()
         return {"today": sum(1 for b in week if b.start.date() == today),
                 "tomorrow": sum(1 for b in week if b.start.date() == today + timedelta(days=1)),
                 "week": len(week),

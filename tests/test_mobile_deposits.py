@@ -68,3 +68,15 @@ def test_a_master_marks_only_her_own_and_another_business_none(business, rt, set
     with db.new_session() as s:
         assert s.get(Booking, theirs).deposit_status == "check" and s.get(Booking, hers).deposit_status == "paid"
     _login_fails.clear()
+
+
+def test_a_test_chats_receipt_is_not_on_the_today_screen(business, rt, settings):
+    """The panel's test chat books like a customer; its prepayment is not a real one to check."""
+    _login_fails.clear()
+    slots = tomorrow_slots(business.id)
+    test_booking = book(business.id, slots[2], name="Тест", channel="console")
+    _awaiting(test_booking, "check")
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        token = sign_in(c).json()["token"]
+        assert c.get("/api/mobile/summary", headers=auth(token)).json()["deposits"] == []
+    _login_fails.clear()

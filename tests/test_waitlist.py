@@ -102,3 +102,19 @@ def test_request_only_niches_have_no_waitlist(engine):
     assert out.request_id and "освободится" not in out.reply
     with db.new_session() as s:
         assert not s.exec(select(WaitlistEntry)).all()
+
+
+def test_a_freed_time_of_the_sign_up_example_master_is_not_offered(business, rt, monkeypatch):
+    from joop import samples, waitlist
+    from joop.models import Staff
+
+    say(business.id, "Завтра в 10 можно? Айбек, 0555 123 456", FakeLLM([request("Айбек", "0555123456")]), "w1")
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        slot = next(x for x in s.exec(select(Slot).where(Slot.business_id == b.id, Slot.status == "free").order_by(Slot.start)).all()
+                    if x.start.date() == TOMORROW)
+        monkeypatch.setattr(samples, "example_staff_ids", lambda session, business: {slot.staff_id})
+        assert waitlist.offer_freed_slot(s, rt, b, slot, NOW_UTC) == 0 and not rt.tg.sent
+        monkeypatch.setattr(samples, "example_staff_ids", lambda session, business: set())
+        assert waitlist.offer_freed_slot(s, rt, b, slot, NOW_UTC) == 1
+        assert s.get(Staff, slot.staff_id) is not None

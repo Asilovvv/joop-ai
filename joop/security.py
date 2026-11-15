@@ -36,6 +36,12 @@ def new_test_code() -> str:
     return secrets.token_urlsafe(9)
 
 
+def same_secret(given: str, expected: str) -> bool:
+    """Constant-time comparison that also works for non-ASCII input: hmac.compare_digest raises on such strings,
+    which turned a request with a stray character in a header or a form field into a 500 instead of a refusal."""
+    return hmac.compare_digest((given or "").encode("utf-8"), (expected or "").encode("utf-8"))
+
+
 def new_secret() -> str:
     """URL-safe secret, valid as a Telegram webhook secret_token."""
     return secrets.token_urlsafe(24)

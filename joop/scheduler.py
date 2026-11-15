@@ -233,7 +233,7 @@ def weekly_report_text(session: Session, business: Business, now_utc: datetime) 
     told, bought, money = restock.results(session, business.id, since)
     if told:
         lines.append(f"Сообщили о поступлении товара: {told}, купили: {bought}" + (f" на {_som(money)} сом." if money else "."))
-    calls, written, replied, booked = missed_calls.results(session, business.id, since)
+    calls, written, replied, booked = missed_calls.results(session, business, since)
     if calls:
         lines.append(f"Пропущенных звонков: {calls}" + (
             f"; Joop написал звонившим в WhatsApp: {written}, ответили: {replied}, записались или заказали: {booked}."
