@@ -122,14 +122,15 @@ def test_the_app_shows_the_day_and_closes_and_opens_times(business, rt, settings
         assert mine["from_altegio"] is False
 
         closed = c.post("/api/mobile/schedule/day", json={"staff_id": doctor, "day": "2026-11-05", "open": False}, headers=auth(token))
-        assert closed.status_code == 200 and closed.json()["changed"] == len(day)
+        assert closed.status_code == 200 and closed.json()["changed"] == len(day) - 1  # the busy mark stays as it is
         assert [x["id"] for x in closed.json()["bookings"]] == [booked]
-        assert set(_states(doctor)) == {CLOSED}
+        assert _states(doctor)[1] == "booked" and set(_states(doctor)[:1] + _states(doctor)[2:]) == {CLOSED}
         opened = c.post(f"/api/mobile/schedule/slots/{day[2].id}", json={"open": True}, headers=auth(token)).json()
         assert opened["changed"] == 1 and _states(doctor)[2] == "free"
         c.post("/api/mobile/schedule/day", json={"staff_id": doctor, "day": "2026-11-05", "open": True}, headers=auth(token))
         states = _states(doctor)
-        assert states[0] == "booked" and states[1] == "free" and CLOSED not in states  # the busy mark went with the close
+        # a time staff marked busy (a phone customer) survives close-and-reopen: it must not become free for the AI
+        assert states[0] == "booked" and states[1] == "booked" and CLOSED not in states
         today = c.get("/api/mobile/schedule", headers=auth(token)).json()
         assert today["day"] == "2026-11-04" and all(x["start_local"] > "2026-11-04T23:14" for p in today["staff"] for x in p["slots"])
         assert c.get("/api/mobile/schedule", params={"day": "9999-12-31"}, headers=auth(token)).status_code == 400

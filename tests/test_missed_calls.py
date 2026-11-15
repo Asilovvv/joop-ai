@@ -135,7 +135,7 @@ def test_a_restart_does_not_repeat_the_message_and_the_weekly_report_shows_what_
         s.add(Booking(business_id=b.id, conversation_id=conv.id, customer_name="Бакыт", start=NOW_UTC + timedelta(days=1),
                       channel="whatsapp", source="ai", created_at=NOW_UTC + timedelta(minutes=25)))
         s.commit()
-        assert missed_calls.results(s, b.id, NOW_UTC - timedelta(days=1)) == (3, 2, 1, 1)
+        assert missed_calls.results(s, b, NOW_UTC - timedelta(days=1)) == (3, 2, 1, 1)
         text = weekly_report_text(s, b, NOW_UTC + timedelta(days=1))
     assert "Пропущенных звонков: 3; Joop написал звонившим в WhatsApp: 2, ответили: 1, записались или заказали: 1." in text
 
@@ -144,4 +144,75 @@ def test_calls_only_passed_to_staff_are_reported_as_such(business, rt):
     _setup(business.id, wa=False)
     missed_calls.process(rt, business.id, "+996555999888", NOW_UTC)
     with db.new_session() as s:
-        assert missed_calls.results(s, business.id, NOW_UTC - timedelta(days=1)) == (1, 0, 0, 0)
+        assert missed_calls.results(s, s.get(Business, business.id), NOW_UTC - timedelta(days=1)) == (1, 0, 0, 0)
+
+
+def test_a_leaked_code_cannot_turn_whatsapp_into_a_mailer(business, rt, monkeypatch):
+    _setup(business.id, template="missed_call")
+    monkeypatch.setattr(missed_calls, "PER_HOUR", 3)
+    for i in range(3):
+        assert missed_calls.process(rt, business.id, f"+99670011220{i}", NOW_UTC).sent == "template"
+    flood = missed_calls.process(rt, business.id, "+996700112299", NOW_UTC + timedelta(minutes=1))
+    assert flood.sent == "" and "смените код" in flood.notes[0] and len(rt.wa.templates) == 3
+    again = missed_calls.process(rt, business.id, "+996700112298", NOW_UTC + timedelta(minutes=2))
+    assert again.sent == "" and len(again.notes) == 1 and "смените код" not in again.notes[0]  # the warning once per flood
+    assert missed_calls.process(rt, business.id, "+996700112297", NOW_UTC + timedelta(hours=2)).sent == "template"
+
+
+def test_strangers_abroad_and_silent_callers_are_not_written_to_again(business, rt):
+    _setup(business.id, template="missed_call")
+    abroad = missed_calls.process(rt, business.id, "+8613800138000", NOW_UTC)
+    assert abroad.sent == "" and "другой страны" in abroad.notes[0] and rt.wa.templates == []
+    assert missed_calls.process(rt, business.id, "+996700112233", NOW_UTC).sent == "template"
+    second = missed_calls.process(rt, business.id, "+996700112233", NOW_UTC + timedelta(hours=1))
+    assert second.sent == "" and "снова" in second.notes[0] and len(rt.wa.templates) == 1
+    with db.new_session() as s:
+        conv = s.exec(select(Conversation).where(Conversation.chat_id == "996700112233")).one()
+        s.add(Message(business_id=business.id, conversation_id=conv.id, role="customer", text="Да, слушаю",
+                      created_at=NOW_UTC + timedelta(hours=2)))
+        conv.last_customer_at = NOW_UTC + timedelta(hours=2)
+        s.add(conv)
+        s.commit()
+    # they answered, then called again later: written to (within the 24-hour window, as free text)
+    assert missed_calls.process(rt, business.id, "+996700112233", NOW_UTC + timedelta(hours=3)).sent == "text"
+
+
+def test_results_credit_the_latest_call_and_leave_out_tests_and_the_owners_own_number(business, rt):
+    from joop.models import Booking
+
+    _setup(business.id, template="missed_call")
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.phone = "0555 000 111"
+        conv = Conversation(business_id=b.id, channel="whatsapp", chat_id="996700112233", last_customer_at=NOW_UTC - timedelta(hours=1))
+        test = Conversation(business_id=b.id, channel="whatsapp", chat_id="996777000999", last_customer_at=NOW_UTC - timedelta(hours=1),
+                            staff_test=True)
+        s.add_all([b, conv, test])
+        s.commit()
+    assert missed_calls.process(rt, business.id, "+996700112233", NOW_UTC).sent == "text"
+    with db.new_session() as s:
+        conv = s.exec(select(Conversation).where(Conversation.chat_id == "996700112233")).one()
+        s.add(Message(business_id=business.id, conversation_id=conv.id, role="customer", text="?", created_at=NOW_UTC + timedelta(minutes=5)))
+        s.commit()
+    assert missed_calls.process(rt, business.id, "+996700112233", NOW_UTC + timedelta(hours=2)).sent == "text"  # called again
+    assert missed_calls.process(rt, business.id, "+996777000999", NOW_UTC).sent == "text"  # the owner's test chat
+    assert missed_calls.process(rt, business.id, "+996555000111", NOW_UTC).sent == "template"  # the business's own phone
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        s.add(Message(business_id=b.id, conversation_id=conv.id, role="customer", text="Записываюсь", created_at=NOW_UTC + timedelta(hours=3)))
+        s.add(Booking(business_id=b.id, conversation_id=conv.id, customer_name="Бакыт", start=NOW_UTC + timedelta(days=1),
+                      channel="whatsapp", source="ai", created_at=NOW_UTC + timedelta(hours=3)))
+        s.commit()
+        assert missed_calls.results(s, b, NOW_UTC - timedelta(days=1)) == (2, 2, 2, 1)  # one booking, not two
+
+
+def test_unreadable_numbers_still_reach_staff_and_a_stray_character_is_a_refusal(web, business, rt):
+    assert missed_calls.raw_caller({"phone": " 998901234567"}) == "+998901234567"  # an unencoded "+" in a form body
+    assert missed_calls.caller({"phone": " 998901234567"}) == "+998901234567"
+    assert "номер не определился (Unknown)" in missed_calls.unknown_note("Unknown")
+    _setup(business.id)
+    url = f"/webhooks/missed-call/{business.slug}"
+    assert web.post(url, data={"phone": "Unknown"}, headers={"X-Joop-Token": "secret-token"}).json()["phone"] is False
+    assert rt.tg.sent[-1] == ("555", "Пропущенный звонок: номер не определился (Unknown). Проверьте журнал звонков на телефоне.")
+    assert web.post(url, data={"phone": "1"}, headers={"X-Joop-Token": "sécret".encode()}).status_code == 403
+    assert web.post(f"/webhooks/telegram/{business.slug}", json={}, headers={"X-Telegram-Bot-Api-Secret-Token": "é".encode()}).status_code == 403

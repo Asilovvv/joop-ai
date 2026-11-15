@@ -46,6 +46,11 @@ def _active(s: Session, slots: list[Slot]) -> list[Booking]:
                        .order_by(Booking.start, Booking.id)).all())
 
 
+def _busy_by_hand(s: Session, slot: Slot) -> bool:
+    """Staff marked it busy themselves (a customer booked by phone): no seats taken through Joop, no booking."""
+    return slot.status == "booked" and slot.taken == 0 and not _active(s, [slot])
+
+
 def close(s: Session, business: Business, member: Staff, slots: list[Slot], now_local: datetime) -> Changed:
     """Close the times that have not started yet; the bookings already on them stay and are returned."""
     if from_altegio(business, member):
@@ -53,6 +58,8 @@ def close(s: Session, business: Business, member: Staff, slots: list[Slot], now_
     ahead = [x for x in slots if x.start > now_local]
     out = Changed()
     for slot in ahead:
+        if _busy_by_hand(s, slot):
+            continue  # a phone customer's time: closing and reopening the day must not turn it free
         if slot.status != CLOSED:
             slot.status = CLOSED
             s.add(slot)
@@ -70,7 +77,7 @@ def reopen(s: Session, rt: "Runtime", business: Business, member: Staff, slots: 
         return Changed(problem=ALTEGIO)
     out = Changed()
     for slot in (x for x in slots if x.start > now_local):
-        busy = busy_too and slot.status == "booked" and slot.taken == 0 and not _active(s, [slot])
+        busy = busy_too and _busy_by_hand(s, slot)
         if slot.status != CLOSED and not busy:
             continue
         slot.status = "booked" if slot.taken >= slot.seats else "free"  # a closed time with its booking: taken again

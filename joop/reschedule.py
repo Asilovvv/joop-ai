@@ -21,6 +21,7 @@ from .confirm import fmt_slot_ky
 from .deposits import BEFORE_START
 from .followups import REVIEW_AFTER, _kyrgyz, deliver_to_chat
 from .models import Booking, Business, Conversation, Slot, Staff
+from .schedule import from_altegio
 from .slots import claim_slot, release_slot, seats_needed
 from .timeutil import fmt_dt, fmt_slot, local_to_utc, utc_to_local
 
@@ -69,6 +70,8 @@ def move(s: Session, business: Business, booking: Booking, slot: Slot, now_local
     member = s.get(Staff, slot.staff_id)
     if member is None or not member.active or member.id in hidden_staff:
         return Move("Такого времени нет.")
+    if from_altegio(business, member):  # Altegio still shows that time free: its next sync would cancel the moved booking
+        return Move(f"Расписание {member.name} ведётся в Altegio: запишите клиента на это время там, Joop подхватит запись.")
     if booking.deposit_status == "awaiting" and booking.deposit_deadline is not None \
             and local_to_utc(slot.start, business.timezone) - BEFORE_START < booking.deposit_deadline:
         # the prepayment deadline would fall after the visit, and a business that releases unpaid bookings

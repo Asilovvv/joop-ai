@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
 
+from . import samples
 from .followups import deliver_to_chat
 from .lang import is_kyrgyz_message
 from .models import Business, Conversation, Lead, Message, Slot, Staff, WaitlistEntry
@@ -71,6 +72,8 @@ def offer_freed_slot(session: Session, rt: "Runtime", business: Business, slot: 
         WaitlistEntry.created_at >= now_utc - KEEP,
     ).order_by(WaitlistEntry.created_at)).all()
     member = session.get(Staff, slot.staff_id)
+    if member is None or not member.active or member.id in samples.example_staff_ids(session, business):
+        return 0  # the sign-up example's master is nobody: a real customer must not be sent to her
     told = 0
     for entry in entries:
         if told >= OFFER_TO:

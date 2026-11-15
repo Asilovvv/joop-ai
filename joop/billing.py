@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from sqlmodel import Session, select
 
 from .models import Business, Payment, Subscription
+from .security import same_secret
 
 GRACE_DAYS = 3
 PERIOD_DAYS = 30
@@ -134,7 +135,7 @@ def fp_sign(script: str, params: dict, secret_key: str) -> str:
 
 def fp_verify(script: str, params: dict, secret_key: str) -> bool:
     sig = str(params.get("pg_sig", ""))
-    return bool(sig) and secrets.compare_digest(sig, fp_sign(script, params, secret_key))
+    return bool(sig) and same_secret(sig, fp_sign(script, params, secret_key))
 
 
 def fp_init_params(*, merchant_id: str, secret_key: str, payment: Payment, description: str, currency: str,

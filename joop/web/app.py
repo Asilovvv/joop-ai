@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hmac
 import json
 import logging
 import secrets
@@ -24,7 +23,7 @@ from ..channels.meta import parse_meta_payload, verify_signature
 from ..channels.telegram import parse_update
 from ..config import Settings, get_settings
 from ..db import init_db, new_session
-from ..dispatch import admin_chat_ids, admin_link, process_incoming
+from ..dispatch import admin_chat_ids, admin_link, notify_admins, process_incoming
 from .. import missed_calls, tgbusiness
 from ..catalog import parse_price
 from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service,
@@ -36,7 +35,7 @@ from ..faq_gaps import open_gaps
 from ..reschedule import blocked as move_blocked, cancel as cancel_core, reschedule
 from ..runtime import Runtime
 from ..scheduler import Scheduler
-from ..security import hash_password, new_link_code, new_secret, new_test_code, verify_password
+from ..security import hash_password, new_link_code, new_secret, new_test_code, same_secret, verify_password
 from ..slots import CLOSED, add_slots, free_on_day, generate_slots, parse_times, release_slot, resize_group, seats_left, seats_needed
 from ..stats import TEST_CHANNEL, activity, by_hour, hour_bars
 from ..timeutil import WEEKDAYS_SHORT, fmt_date_long, fmt_dt, fmt_slot, local_now, parse_days_off, parse_hhmm, utc_to_local, utcnow
@@ -139,7 +138,7 @@ def _csrf(request: Request) -> str:
 
 def _check_csrf(request: Request, token: str) -> None:
     expected = request.session.get("csrf", "")
-    if not token or not expected or not hmac.compare_digest(token, expected):
+    if not token or not expected or not same_secret(token, expected):
         raise HTTPException(status_code=403, detail="Форма устарела. Обновите страницу и повторите.")
 
 
@@ -1152,7 +1151,7 @@ def booking_move_page(request: Request, item_id: int, day: str = ""):
         mine = _staff_scope(s, request)  # a master picks among her own times
         for slot, member in free_on_day(s, b.id, chosen, now_local, staff_id=mine,
                                         exclude_staff=samples.example_staff_ids(s, b)):
-            if slot.id != booking.slot_id:  # a group class with places left: not "another" time
+            if slot.id != booking.slot_id and not schedule.from_altegio(b, member):  # same time / Altegio's own schedule: not offered
                 by_staff.setdefault(member.name, []).append(slot)
         by_staff = dict(sorted(by_staff.items()))  # the same order of people on every day
         return _render(request, "booking_move.html", "bookings", b, booking=booking, chosen=chosen, by_staff=by_staff,
@@ -2065,7 +2064,7 @@ async def telegram_webhook(slug: str, request: Request, background: BackgroundTa
     secret = request.headers.get("x-telegram-bot-api-secret-token", "")
     with new_session() as s:
         business = s.exec(select(Business).where(Business.slug == slug)).first()
-    if business is None or not business.telegram_secret or not hmac.compare_digest(secret, business.telegram_secret):
+    if business is None or not business.telegram_secret or not same_secret(secret, business.telegram_secret):
         raise HTTPException(status_code=403)
     try:
         update = await request.json()
@@ -2089,7 +2088,7 @@ async def missed_call_webhook(slug: str, request: Request, background: Backgroun
     token = request.headers.get("x-joop-token", "")
     with new_session() as s:
         business = s.exec(select(Business).where(Business.slug == slug)).first()
-    if business is None or not business.missed_call_token or not hmac.compare_digest(token, business.missed_call_token):
+    if business is None or not business.missed_call_token or not same_secret(token, business.missed_call_token):
         raise HTTPException(status_code=403)
     params: dict = dict(request.query_params)
     if "json" in request.headers.get("content-type", ""):
@@ -2104,6 +2103,8 @@ async def missed_call_webhook(slug: str, request: Request, background: Backgroun
     phone = missed_calls.caller(params)
     if phone:
         background.add_task(missed_calls.process, _rt(request), business.id, phone)
+    else:  # hidden or unreadable number: the call is still not lost
+        background.add_task(notify_admins, _rt(request), business, [missed_calls.unknown_note(missed_calls.raw_caller(params))])
     return {"ok": True, "phone": bool(phone)}
 
 
@@ -2111,7 +2112,7 @@ async def missed_call_webhook(slug: str, request: Request, background: Backgroun
 def meta_verify(request: Request):
     params = request.query_params
     token = _settings(request).meta_verify_token
-    if params.get("hub.mode") == "subscribe" and token and hmac.compare_digest(params.get("hub.verify_token", ""), token):
+    if params.get("hub.mode") == "subscribe" and token and same_secret(params.get("hub.verify_token", ""), token):
         return PlainTextResponse(params.get("hub.challenge", ""))
     raise HTTPException(status_code=403)
 
