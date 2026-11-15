@@ -14,6 +14,7 @@ from joop.models import Business
 from joop.scheduler import TOKEN_REFRESH_EVERY, run_due_jobs
 
 from .conftest import NOW_UTC, FakeLLM
+from .test_web import client  # noqa: F401  (a fixture)
 
 
 def _recording_client():
@@ -104,3 +105,66 @@ def test_telegram_group_text_is_ignored_but_commands_pass():
     assert parse_update(group).kind == "command"
     voice = {"update_id": 2, "message": {"message_id": 2, "chat": {"id": 7, "type": "private"}, "from": {"id": 7}, "voice": {"file_id": "x"}}}
     assert parse_update(voice).media_label == "голосовое сообщение"
+
+
+def _business_update(sender_id: int, text: str, message_id: int = 41, **extra) -> dict:
+    msg = {"message_id": message_id, "business_connection_id": "conn-1", "chat": {"id": 900, "type": "private"},
+           "from": {"id": sender_id, "first_name": "Айгерим"}, "text": text, **extra}
+    return {"update_id": 9, "business_message": msg}
+
+
+def test_telegram_business_customer_owner_and_own_bot_messages():
+    customer = parse_update(_business_update(900, "Сколько стоит маникюр?"))
+    assert (customer.kind, customer.chat_id, customer.user_name) == ("text", "bc:conn-1:900", "Айгерим")
+    assert parse_update(_business_update(900, "/start")).kind == "text"  # a personal chat has no bot commands
+    owner = parse_update(_business_update(555, "Да, приходите в 15:00"))
+    assert (owner.kind, owner.text) == ("echo", "Да, приходите в 15:00")  # typed by the owner: the AI pauses
+    assert parse_update(_business_update(555, "Ответ ИИ", sender_business_bot={"id": 1, "is_bot": True})) is None
+    no_connection = _business_update(900, "привет")
+    del no_connection["business_message"]["business_connection_id"]
+    assert parse_update(no_connection) is None
+
+
+def test_telegram_business_reply_goes_through_the_connection():
+    from joop.channels.telegram import TelegramClient, split_chat_id
+
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={"ok": True, "result": {"message_id": 1}})
+
+    client = TelegramClient(httpx.Client(transport=httpx.MockTransport(handler)), "https://api.telegram.org", "T")
+    assert client.send_text("bc:conn-1:900", "Ждём вас") and client.send_text("777", "Привет")
+    first, second = (json.loads(r.content) for r in seen)
+    assert first == {"chat_id": "900", "text": "Ждём вас", "business_connection_id": "conn-1"}
+    assert second == {"chat_id": "777", "text": "Привет"}
+    assert split_chat_id("bc:a:b:900") == ("a:b", "900") and split_chat_id("-100") == ("", "-100")
+    client.get_updates(None, timeout=0)
+    assert "business_message" in json.loads(seen[-1].content)["allowed_updates"]
+
+
+def test_telegram_business_owner_reply_pauses_the_ai(business):
+    llm = FakeLLM([AgentReply("Маникюр — 800 сом.")])
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        first = handle_incoming(s, b, parse_update(_business_update(900, "Сколько стоит маникюр?")), lambda: llm, NOW_UTC)
+        assert first.reply == "Маникюр — 800 сом."
+        staff = handle_incoming(s, b, parse_update(_business_update(555, "Я сам отвечу", 42)), lambda: llm, NOW_UTC)
+        assert staff.skipped == "staff_reply"
+        later = handle_incoming(s, b, parse_update(_business_update(900, "А педикюр?", 43)), lambda: llm, NOW_UTC + timedelta(minutes=1))
+        assert later.skipped == "paused" and not later.reply
+
+
+def test_channels_page_explains_telegram_business_once_a_bot_is_connected(client, business):  # noqa: F811
+    from .test_web import login
+
+    login(client)
+    assert "telegram-business" not in client.get("/panel/channels").text
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.telegram_bot_token, b.telegram_bot_username = "1:x", "aktish_bot"
+        s.add(b)
+        s.commit()
+    page = client.get("/panel/channels").text
+    assert 'id="telegram-business"' in page and "Business Mode" in page and "Telegram Premium" in page
