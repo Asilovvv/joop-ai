@@ -66,8 +66,15 @@ else
     ask "Домен (например joop.kg, без https://): " JOOP_DOMAIN
     JOOP_DOMAIN=$(printf '%s' "$JOOP_DOMAIN" | sed -E 's#^https?://##; s#/.*$##' | tr '[:upper:]' '[:lower:]')
     printf '%s' "$JOOP_DOMAIN" | grep -Eq '^[a-z0-9.-]+\.[a-z]{2,}$' || fail "это не похоже на домен: $JOOP_DOMAIN"
-    ask "Ключ Anthropic API (sk-ant-…): " JOOP_ANTHROPIC_KEY
-    case "$JOOP_ANTHROPIC_KEY" in sk-ant-*) ;; *) fail "ключ Anthropic начинается с sk-ant-";; esac
+    # The model: Anthropic, or Google Gemini through its OpenAI-compatible endpoint (docs/model-providers.md).
+    JOOP_MODEL_KEY=${JOOP_MODEL_KEY:-${JOOP_ANTHROPIC_KEY:-}}
+    ask "Ключ модели — Anthropic (sk-ant-…) или Google Gemini (AIza…): " JOOP_MODEL_KEY
+    case "$JOOP_MODEL_KEY" in
+        sk-ant-*) JOOP_PROVIDER=anthropic ;;
+        AIza*)    JOOP_PROVIDER=gemini
+                  ask "Модель Gemini (Enter — gemini-3.8-flash): " JOOP_GEMINI_MODEL gemini-3.8-flash ;;
+        *)        fail "ключ Anthropic начинается с sk-ant-, ключ Gemini — с AIza" ;;
+    esac
     ask "Цена подписки в сомах в месяц (Enter — решите позже): " JOOP_PRICE_SOM ""
     printf '%s' "${JOOP_PRICE_SOM:-0}" | grep -Eq '^[0-9]+$' || fail "цена — целое число сомов"
     ask "Токен Telegram-бота для ваших оповещений о сбоях (Enter — без оповещений): " JOOP_FOUNDER_BOT_TOKEN ""
@@ -75,7 +82,15 @@ else
     cp .env.example .env
     chmod 600 .env
     OWNER_PASSWORD_NEW=$(random_password)
-    set_env ANTHROPIC_API_KEY "$JOOP_ANTHROPIC_KEY"
+    if [ "$JOOP_PROVIDER" = gemini ]; then
+        set_env LLM_PROVIDER openai
+        set_env LLM_BASE_URL "https://generativelanguage.googleapis.com/v1beta/openai"
+        set_env LLM_API_KEY "$JOOP_MODEL_KEY"
+        set_env JOOP_MODEL "$JOOP_GEMINI_MODEL"
+        set_env ANTHROPIC_API_KEY ""
+    else
+        set_env ANTHROPIC_API_KEY "$JOOP_MODEL_KEY"
+    fi
     set_env SESSION_SECRET "$(random_hex)"
     set_env TOKEN_ENCRYPTION_KEY "$(fernet_key)"
     set_env DOMAIN "$JOOP_DOMAIN"
@@ -94,6 +109,10 @@ else
         [ -n "${JOOP_FOUNDER_CHAT_ID:-}" ] && set_env FOUNDER_CHAT_ID "$JOOP_FOUNDER_CHAT_ID"
     fi
     say "Настройки записаны в $DIR/.env (доступ только у root)."
+    if [ "$JOOP_PROVIDER" = gemini ]; then
+        echo "Gemini: для настоящих клиентов включите платный тариф в Google AI Studio — на бесплатном Google может"
+        echo "использовать переписку для своих продуктов (docs/model-providers.md)."
+    fi
 fi
 
 if [ "$DRY_RUN" = 1 ]; then
@@ -115,7 +134,7 @@ fi
 say "Собираю (первый раз 3–5 минут)"
 docker compose build
 docker compose run --rm app python -m joop migrate
-say "Проверяю настройки и ключ Anthropic (один короткий запрос к модели)"
+say "Проверяю настройки и ключ модели (один короткий запрос к модели)"
 if ! docker compose run --rm app python -m joop check --live; then
     fail "проверка не прошла: исправьте пункты «НУЖНО» в $DIR/.env (nano $DIR/.env) и запустите setup.sh снова"
 fi
