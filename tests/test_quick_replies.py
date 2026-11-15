@@ -29,6 +29,18 @@ def test_fill_puts_in_the_name_and_drops_empty_fields(business):
         assert quick_replies.fill("Звоните: {телефон}", b) == "Звоните:"
 
 
+def test_a_website_visitor_is_not_greeted_by_the_widget_label(business):
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.address = "Чуй 120"
+        web = Conversation(business_id=b.id, channel="web", chat_id="w1", display_name="Посетитель сайта")
+        assert quick_replies.fill("{имя}, мы по адресу: {адрес}.", b, web) == "Мы по адресу: Чуй 120."
+        web.customer_name = "Айгуль"  # the name the visitor gave in the chat still counts
+        assert quick_replies.fill("{имя}, мы по адресу: {адрес}.", b, web) == "Айгуль, мы по адресу: Чуй 120."
+        tg = Conversation(business_id=b.id, channel="telegram", chat_id="2", display_name="Бакыт")
+        assert quick_replies.fill("{имя}, спасибо!", b, tg) == "Бакыт, спасибо!"
+
+
 def test_page_starters_and_limits(business, settings, rt):
     with TestClient(create_app(settings, rt, init=False)) as c:
         login(c)

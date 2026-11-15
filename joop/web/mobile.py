@@ -22,7 +22,7 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
-from .. import altegio, cash, customers, deposits, order_status, schedule, staff_reply
+from .. import altegio, cash, customers, deposits, order_status, quick_replies, schedule, staff_reply
 from ..reschedule import blocked as move_blocked, reschedule
 from ..api import booking_json, customer_json, lead_json, order_json
 from ..db import new_session
@@ -776,11 +776,15 @@ def _dialogue(s: Session, conv: Conversation) -> dict:
     paused = conv.ai_paused_until if conv.ai_paused_until and conv.ai_paused_until > now else None
     rows = list(reversed(s.exec(select(Message).where(Message.conversation_id == conv.id)
                                 .order_by(Message.id.desc()).limit(DIALOGUE)).all()))
+    b = s.get(Business, conv.business_id)
     return {"id": conv.id, "channel": conv.channel, "customer": {"name": conv.customer_name, "phone": conv.customer_phone},
             "ai_paused": paused is not None,
             "ai_paused_until": paused.isoformat() + "Z" if paused else None,
             # how long a staff reply keeps the AI out of the chat, as the owner chose in the settings
-            "takeover_minutes": s.get(Business, conv.business_id).takeover_minutes,
+            "takeover_minutes": b.takeover_minutes,
+            # the panel's «Готовые ответы», filled for this customer: one tap puts the text into the reply box
+            "quick_replies": [{"id": r.id, "title": r.title, "text": quick_replies.fill(r.text, b, conv)}
+                              for r in quick_replies.listing(s, b)],
             "reply_blocked": staff_reply.blocked(conv, now),
             "messages": [{"id": m.id, "role": m.role, "text": m.text, "created_at": m.created_at.isoformat() + "Z",
                           "author": m.author} for m in rows if m.role in ("customer", "ai", "staff")]}

@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram (a bot, or the owner's personal account through Telegram Business), WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
 | Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 51 database migrations, 35 niche packs and a generic one |
-| Tests | 798 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 797 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -141,8 +141,7 @@ Prices checked on the providers' pages on 29 October 2026.
 curl -fsSL https://raw.githubusercontent.com/Asilovvv/joop-ai/main/deploy/setup.sh -o setup.sh && sudo bash setup.sh
 ```
 
-It asks for the domain and the model key — Anthropic (`sk-ant-…`) or Google Gemini (`AIza…`, through its
-OpenAI-compatible endpoint, `docs/model-providers.md`) — (optionally a Telegram bot for your outage alerts), installs
+It asks for the domain and the Anthropic API key (optionally a Telegram bot for your outage alerts), installs
 Docker, writes `.env` with fresh secrets and a founder console password, checks DNS, the key and the balance,
 starts, and waits for HTTPS. Run it again later to update. By hand instead:
 
@@ -469,7 +468,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 798 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 800 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

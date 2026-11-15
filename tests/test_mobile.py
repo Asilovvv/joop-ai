@@ -804,3 +804,19 @@ def test_a_master_lists_only_her_customers_and_another_business_none(client, bus
     assert [c["name"] for c in client.get("/api/mobile/customers", headers=auth(master)).json()["customers"]] == ["Айгуль"]
     stranger = sign_in(client, company="other", password="other-pass-1").json()["token"]
     assert client.get("/api/mobile/customers", headers=auth(stranger)).json() == {"customers": [], "total": 0, "tags": []}
+
+
+def test_the_dialogue_carries_the_ready_answers_filled_for_this_customer(client, business):
+    from joop import quick_replies
+
+    conv_id = _handed_off("telegram", "5553", last_customer_hours_ago=1)
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.address = "ул. Киевская, 10"
+        s.add(b)
+        quick_replies.add(s, b, "Адрес", "{имя}, мы находимся по адресу: {адрес}. Ждём вас в {компания}!")
+        s.commit()
+    token = sign_in(client).json()["token"]
+    ready = client.get(f"/api/mobile/conversations/{conv_id}", headers=auth(token)).json()["quick_replies"]
+    assert [x["title"] for x in ready] == ["Адрес"]
+    assert ready[0]["text"] == "Айгуль, мы находимся по адресу: ул. Киевская, 10. Ждём вас в Ак-Тиш Дент!"

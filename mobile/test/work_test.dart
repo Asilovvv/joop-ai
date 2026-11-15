@@ -220,6 +220,19 @@ void dialogueTests() {
     expect(find.textContaining('продлевает паузу на 15 минут'), findsOneWidget);
   });
 
+  testWidgets('a ready answer goes into the reply box, and only the button sends it', (tester) async {
+    final cafe = await openRequest(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Ответить'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ActionChip, 'Перезвоним'));
+    await tester.pump();
+    expect(find.text('Айбек, спасибо! Администратор перезвонит вам в ближайшие 15 минут.'), findsOneWidget);
+    expect(cafe.calls, isNot(contains('POST /api/mobile/conversations/70/reply')));
+    await tester.tap(find.byKey(const Key('reply-send')));
+    await tester.pumpAndSettle();
+    expect(cafe.calls, contains('POST /api/mobile/conversations/70/reply'));
+  });
+
   testWidgets('staff switch the AI off in a chat and back on', (tester) async {
     final cafe = await openRequest(tester);
     await tester.tap(find.widgetWithText(FilledButton, 'Ответить'));

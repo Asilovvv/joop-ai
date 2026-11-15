@@ -14,7 +14,8 @@ every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
 - **Заявки** — questions the AI handed to staff, bookings without a free slot, qualified leads; «Ответить» opens the
   customer's dialogue and sends the owner's answer through their channel (or says why WhatsApp/Instagram no longer allow it);
 - **Диалоги** (the button in the top bar, not for masters) — every real chat the AI is having, newest first, with search
-  by name or phone; a tap opens the chat with the reply box;
+  by name or phone; a tap opens the chat with the reply box and the panel's ready answers above it (a tap puts the
+  answer, already filled for this customer, into the box; only the send button sends it);
 - **Окна** (in the menu, not for masters) — the day's times by person: «Закрыть день» for an ill doctor (the
   AI stops booking it; the bookings left are listed to move or cancel), a tap closes or opens one time;
 - **Меню «⋮»** in the top bar: «Клиенты» (every customer, search by name or phone, filter by tag; a tap opens the card),
