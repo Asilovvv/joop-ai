@@ -107,3 +107,41 @@ def test_webhook_needs_the_secret_header_and_the_panel_switches_it(web, business
     assert web.post(url, data={"phone": "скрыт"}, headers={"X-Joop-Token": secret}).json()["phone"] is False
     web.post("/panel/channels/missed-calls", data={"csrf": csrf_of(web.get("/panel/channels").text), "action": "off"})
     assert web.post(url, data={"phone": "0700112233"}, headers={"X-Joop-Token": secret}).status_code == 403
+
+
+def test_a_restart_does_not_repeat_the_message_and_the_weekly_report_shows_what_calls_became(business, rt):
+    from joop.models import Booking, MissedCall
+    from joop.scheduler import weekly_report_text
+
+    _setup(business.id, template="missed_call")
+    assert missed_calls.process(rt, business.id, "+996700112233", NOW_UTC).sent == "template"
+    missed_calls.reset()  # the server restarted: the table still knows the call
+    assert missed_calls.process(rt, business.id, "+996700112233", NOW_UTC + timedelta(minutes=10)).skipped == "duplicate"
+    assert missed_calls.process(rt, business.id, "+996777000111", NOW_UTC).sent == "template"
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.wa_missed_call_template = ""
+        s.add(b)
+        s.commit()
+    assert missed_calls.process(rt, business.id, "+996555999888", NOW_UTC).sent == ""  # staff told to call back
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        rows = s.exec(select(MissedCall).where(MissedCall.business_id == b.id)).all()
+        assert sorted(r.sent for r in rows) == ["", "template", "template"]
+        conv = s.exec(select(Conversation).where(Conversation.chat_id == "996700112233")).one()
+        # the first caller wrote back and booked; the second never answered
+        s.add(Message(business_id=b.id, conversation_id=conv.id, role="customer", text="Здравствуйте, хотел записаться",
+                      created_at=NOW_UTC + timedelta(minutes=20)))
+        s.add(Booking(business_id=b.id, conversation_id=conv.id, customer_name="Бакыт", start=NOW_UTC + timedelta(days=1),
+                      channel="whatsapp", source="ai", created_at=NOW_UTC + timedelta(minutes=25)))
+        s.commit()
+        assert missed_calls.results(s, b.id, NOW_UTC - timedelta(days=1)) == (3, 2, 1, 1)
+        text = weekly_report_text(s, b, NOW_UTC + timedelta(days=1))
+    assert "Пропущенных звонков: 3; Joop написал звонившим в WhatsApp: 2, ответили: 1, записались или заказали: 1." in text
+
+
+def test_calls_only_passed_to_staff_are_reported_as_such(business, rt):
+    _setup(business.id, wa=False)
+    missed_calls.process(rt, business.id, "+996555999888", NOW_UTC)
+    with db.new_session() as s:
+        assert missed_calls.results(s, business.id, NOW_UTC - timedelta(days=1)) == (1, 0, 0, 0)

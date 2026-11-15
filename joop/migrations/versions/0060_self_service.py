@@ -1,15 +1,15 @@
 """Business.self_service: the AI cancels and moves a customer's own booking on request
 
-Revision ID: 0059
-Revises: 0058
+Revision ID: 0060
+Revises: 0059
 """
 
 from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0059"
-down_revision = "0058"
+revision = "0060"
+down_revision = "0059"
 branch_labels = None
 depends_on = None
 

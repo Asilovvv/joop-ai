@@ -692,3 +692,14 @@ class PanelUser(SQLModel, table=True):
     staff_id: Optional[int] = Field(default=None, foreign_key="staff.id")  # a master's own login: sees only her bookings, customers and cash
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     last_login_at: Optional[NaiveDatetime] = None
+
+
+class MissedCall(SQLModel, table=True):
+    """A missed call the owner's phone or PBX reported (joop/missed_calls.py): for the dedupe and the owner's results."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    phone: str = ""
+    conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.id")
+    sent: str = ""  # "text" | "template": Joop wrote to the caller in WhatsApp; "": staff were only told to call back
+    created_at: NaiveDatetime = Field(default_factory=utcnow, index=True)

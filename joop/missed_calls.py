@@ -11,6 +11,9 @@ secret token, and here:
 - staff always get a note in the alerts chat, so the call is not lost either way;
 - several rings from one number within DEDUPE count once; a blocked chat gets nothing; a switched-off AI or a
   lapsed subscription means a note to staff only, as for messages.
+
+Each handled call is kept (MissedCall) so the owner's weekly report can say what the calls turned into: written
+to, answered, booked or ordered (results()).
 """
 
 from __future__ import annotations
@@ -25,13 +28,14 @@ from sqlmodel import Session, select
 
 from .billing import access_ok
 from .followups import SERVICE_WINDOW, deliver_to_chat
-from .models import Business, Conversation, Message
+from .models import Booking, Business, Conversation, Message, MissedCall, Order
 from .phone import normalize_phone
 
 if TYPE_CHECKING:
     from .runtime import Runtime
 
 DEDUPE = timedelta(minutes=30)
+AFTER = timedelta(days=7)  # a reply, booking or order this soon after the call counts as its result
 PHONE_KEYS = ("phone", "caller", "caller_id", "call_number", "from", "number")
 _recent: dict[tuple[int, str], float] = {}  # (business id, phone) -> time of the last handled call, per process
 _lock = threading.Lock()
@@ -79,8 +83,20 @@ def handle(session: Session, rt: "Runtime", business: Business, phone: str, now_
                                                    Conversation.chat_id == chat_id)).first()
     if conv is not None and conv.blocked_at:
         return Handled(skipped="blocked")
-    if not _first_call(business.id, phone):
+    recent = session.exec(select(MissedCall.id).where(MissedCall.business_id == business.id, MissedCall.phone == phone,
+                                                      MissedCall.created_at > now_utc - DEDUPE)).first()
+    if recent is not None or not _first_call(business.id, phone):  # the table survives a restart, the lock a burst
         return Handled(skipped="duplicate")
+    result = _handle(session, rt, business, phone, chat_id, conv, now_utc)
+    conv = conv or session.exec(select(Conversation).where(Conversation.business_id == business.id, Conversation.channel == "whatsapp",
+                                                           Conversation.chat_id == chat_id)).first()
+    session.add(MissedCall(business_id=business.id, phone=phone, sent=result.sent, created_at=now_utc,
+                           conversation_id=conv.id if conv and result.sent else None))
+    return result
+
+
+def _handle(session: Session, rt: "Runtime", business: Business, phone: str, chat_id: str, conv: Conversation | None,
+            now_utc: datetime) -> Handled:
     who = f"{conv.customer_name or conv.display_name} ({phone})" if conv and (conv.customer_name or conv.display_name) else phone
     client = rt.whatsapp(business)
     if client is None or not business.bot_enabled or not access_ok(session, business.id, now_utc):
@@ -121,3 +137,27 @@ def process(rt: "Runtime", business_id: int, phone: str, now_utc: datetime | Non
     if result.notes:
         notify_admins(rt, business, result.notes)
     return result
+
+
+def results(session: Session, business_id: int, since: datetime) -> tuple[int, int, int, int]:
+    """(missed calls, of them written to, of those the caller wrote back, then booked or ordered) for calls since.
+
+    A reply, booking or order counts only from the call's chat and within AFTER of the call; each call counts once."""
+    calls = session.exec(select(MissedCall).where(MissedCall.business_id == business_id, MissedCall.created_at >= since)).all()
+    written = [c for c in calls if c.sent and c.conversation_id]
+    replied = booked = 0
+    for call in written:
+        until = call.created_at + AFTER
+        wrote = session.exec(select(Message.id).where(Message.conversation_id == call.conversation_id, Message.role == "customer",
+                                                      Message.created_at > call.created_at, Message.created_at <= until)).first()
+        if wrote is None:
+            continue
+        replied += 1
+        visit = session.exec(select(Booking.id).where(Booking.conversation_id == call.conversation_id, Booking.status != "cancelled",
+                                                      Booking.created_at > call.created_at, Booking.created_at <= until)).first()
+        order = None if visit is not None else session.exec(select(Order.id).where(
+            Order.conversation_id == call.conversation_id, Order.status != "cancelled",
+            Order.created_at > call.created_at, Order.created_at <= until)).first()
+        if visit is not None or order is not None:
+            booked += 1
+    return len(calls), len(written), replied, booked
