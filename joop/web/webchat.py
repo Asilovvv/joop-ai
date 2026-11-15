@@ -150,6 +150,13 @@ async def chat_message(request: Request, slug: str):
             notify_admins(rt, business, outcome.admin_notes)
         except Exception:
             log.exception("Staff notes for a web chat of %s were not sent", slug)
+    if outcome.freed_slot_ids:  # the visitor cancelled or moved their booking: the time goes to the waiting list
+        from ..dispatch import offer_freed
+
+        try:
+            offer_freed(rt, business, outcome.freed_slot_ids)
+        except Exception:
+            log.exception("A time freed in a web chat of %s was not offered to the waiting list", slug)
     reply = outcome.reply or (_t("paused", lang) if outcome.skipped in {"paused", "subscription"} else "")
     return JSONResponse({"reply": reply, "visitor": visitor})
 

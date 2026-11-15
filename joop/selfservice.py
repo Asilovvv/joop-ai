@@ -9,7 +9,9 @@ chosen it answers with `change`; code checks it and does it through joop/resched
 What is never done here, and goes to staff instead:
 - a booking not made from this chat: a phone number someone types opens nothing;
 - a visit less than NOTICE ahead: close to the time the clinic may want to talk to the customer;
-- a booking kept in Altegio (moved there), and cancelling a visit with a prepayment (the money is staff's to return);
+- anything for a business whose schedule is in Altegio: it is changed there, and Altegio's next sync would undo a
+  change made here; the model is not even told it may change bookings, so no customer picks a time for nothing;
+- cancelling a visit with a prepayment paid or a receipt sent (the money is staff's to check and return);
 - anything for a business that turned it off (Business.self_service): such requests go to staff as before.
 """
 
@@ -39,7 +41,7 @@ RULE = ("Записи клиента из этого чата перечисле
 
 
 def enabled(business: Business) -> bool:
-    return business.self_service and get_pack(business.niche).has("booking")
+    return business.self_service and get_pack(business.niche).has("booking") and not business.altegio_location_id
 
 
 def own_bookings(s: Session, business: Business, conv: Conversation, now_local: datetime) -> list[Booking]:
@@ -49,6 +51,7 @@ def own_bookings(s: Session, business: Business, conv: Conversation, now_local: 
     return list(s.exec(select(Booking).where(
         Booking.business_id == business.id, Booking.conversation_id == conv.id, Booking.status == "booked",
         Booking.start > now_local, Booking.slot_id != None,  # noqa: E711  (a request without a time is not a booking yet)
+        Booking.external_id == "",  # kept in Altegio: changed there (a business may have connected it after booking)
     ).order_by(Booking.start).limit(LISTED)).all())
 
 
@@ -103,6 +106,8 @@ def apply(s: Session, business: Business, conv: Conversation, change: dict, now_
         return to_staff("запись в Altegio — измените её там.")
     if action == "cancel" and booking.deposit_status == "paid":
         return to_staff("по записи получена предоплата — решите, как её вернуть.")
+    if action == "cancel" and booking.deposit_status == "check":  # after a cancel the receipt could not be marked paid
+        return to_staff("клиент прислал чек предоплаты — проверьте оплату и решите, как её вернуть.")
 
     if action == "cancel":
         done, freed = cancel(s, booking)

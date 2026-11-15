@@ -353,6 +353,10 @@ def try_send(request: Request, text: str = Form(""), csrf: str = Form("")):
         _flash(request, "ИИ выключен в настройках.", "error")
     for note in outcome.admin_notes:
         _flash(request, "Уведомление администратору: " + note.splitlines()[0])
+    if outcome.freed_slot_ids:  # a test booking cancelled or moved: its real time goes to the waiting list, as «Новый диалог» does
+        from ..dispatch import offer_freed
+
+        offer_freed(_rt(request), b, outcome.freed_slot_ids)
     if outcome.booking_id:
         _flash(request, "Это тестовая запись: она видна в «Записях» и занимает время. Напоминаний по ней не будет"
                + (", в Altegio она не отправлена" if b.altegio_location_id else "")
