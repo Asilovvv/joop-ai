@@ -6,7 +6,8 @@ every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
 - **Сегодня** — bookings today, tomorrow and in 7 days, the next visit, and «Касса сегодня» (takings, the month, visits
   that passed without a payment), and «ИИ за 14 дней» (what the AI did, as the panel's Сводка; not for masters);
 - **Записи** — the bookings of any day, with cancelling (the time becomes free, as in the panel); «Записать» books a
-  customer who phoned or walked in into a free time (marked «Вручную», not counted as the AI's work); «Оплата» records
+  customer who phoned or walked in into a free time (marked «Вручную», not counted as the AI's work); «⋮ → Перенести» moves a booking to another free time
+  (the customer is told in their chat); «Оплата» records
   what the customer paid (amount pre-filled from the price list; cash, card or transfer), as the panel's Касса;
 - **Заказы** — orders the AI collected (cafes, shops, delivery), moved through the panel's steps;
 - **Заявки** — questions the AI handed to staff, bookings without a free slot, qualified leads; «Ответить» opens the
