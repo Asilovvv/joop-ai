@@ -255,10 +255,41 @@ def test_an_order_reply_never_carries_a_sum_the_order_does_not_have(engine):
             "lines": [{"item_id": plov.id, "quantity": 2, "note": ""}, {"item_id": tea.id, "quantity": 1, "note": ""}],
             "mode": "pickup", "address": "", "time": "", "name": "Айбек", "phone": "0555 123 456", "comment": ""})]), ext)
 
-    wrong = order("Принято! С вас 1 200 сом.", "w1")
-    assert wrong.reply == "Оформила заказ.\nВаш заказ: 2 × Плов, 1 × Чай чёрный, чайник. Сумма заказа: 820 сом."
+    summary = "Ваш заказ: 2 × Плов, 1 × Чай чёрный, чайник. Сумма заказа: 820 сом."
+    wrong = order("Принято! Итого с вас 1 200 сом.", "w1")
+    assert wrong.reply == f"Принято!\n{summary}"  # the sentence with the made-up sum goes, «Принято!» stays
+    change = order("Принято! С какой купюры подготовить сдачу — 1000 или 5000 сом?", "w3")
+    assert change.reply == f"Принято! С какой купюры подготовить сдачу — 1000 или 5000 сом?\n{summary}"  # not a claim
+    assert order("Итого 1200с.", "w4").reply == f"Оформила заказ.\n{summary}"
     right = order("Принято: плов 350 сом × 2 и чай, всего 820 сом.", "w2")
     assert right.reply.startswith("Принято: плов 350 сом × 2 и чай, всего 820 сом.\nВаш заказ: 2 × Плов")
+
+
+def test_a_table_and_a_pre_order_in_one_reply_keep_the_orders_total(engine):
+    """Booking a table after an order used to start again from the model's words and drop the order's total."""
+    b = make("restaurant")
+    plov = item(b, "Плов")
+    with db.new_session() as s:
+        table = s.exec(select(Slot).join(Staff).where(Staff.business_id == b.id, Staff.name == "Стол 1").order_by(Slot.start)).first()
+    reply = AgentReply("Забронировала стол и приняла предзаказ. Итого с вас 1 500 сом.",
+                       booking={"slot_id": table.id, "name": "Айбек", "phone": "0555123456", "service": "ужин",
+                                "preferred_time": "", "party_size": 2},
+                       order={"lines": [{"item_id": plov.id, "quantity": 2, "note": ""}], "mode": "pickup", "address": "",
+                              "time": "", "name": "Айбек", "phone": "0555 123 456", "comment": ""})
+    out = say(b, "стол на двоих и 2 плова, Айбек 0555123456", FakeLLM([reply]), "to1")
+    assert out.booking_id and out.order_id
+    assert "1 500" not in out.reply and "Ваш заказ: 2 × Плов. Сумма заказа: 700 сом." in out.reply and "Ваша запись:" in out.reply
+
+
+def test_a_kyrgyz_chat_gets_the_code_lines_in_kyrgyz_though_the_last_message_is_only_a_name(engine):
+    b = make("restaurant")
+    plov = item(b, "Плов")
+    llm = FakeLLM([AgentReply("Буйрутмаңызды кабыл алдым, рахмат!", order={
+        "lines": [{"item_id": plov.id, "quantity": 2, "note": ""}], "mode": "pickup", "address": "", "time": "",
+        "name": "Айбек", "phone": "0555 123 456", "comment": ""})])
+    say(b, "Эки палоо алайын, канча турат?", FakeLLM([AgentReply("Бир палоо 350 сом. Атыңыз жана телефонуңуз?")]), "ky1")
+    out = say(b, "Айбек 0555123456", llm, "ky2")
+    assert out.order_id and out.reply.endswith("Буйрутмаңыз: 2 × Палоо. Жалпы суммасы: 700 сом.")
 
 
 def test_an_order_total_word_must_name_the_order_s_total(engine):
@@ -270,7 +301,8 @@ def test_an_order_total_word_must_name_the_order_s_total(engine):
     llm = FakeLLM([AgentReply("Оформила! Итого 700 сом, курьер позвонит.", order=base),
                    AgentReply("Оформила: 2 плова на 700 сом и доставка 150 сом, итого 850 сом.", order=base)])
     wrong = say(b, "2 плова на Киевскую 1", llm, "t1")
-    assert wrong.reply == "Оформила заказ.\nВаш заказ: 2 × Плов. Сумма заказа: 850 сом, включая доставку 150 сом."
+    # the sentence «Итого 700 сом, курьер позвонит.» goes; the model's «Оформила!» stays
+    assert wrong.reply == "Оформила!\nВаш заказ: 2 × Плов. Сумма заказа: 850 сом, включая доставку 150 сом."
     right = say(b, "2 плова на Киевскую 1", llm, "t2")
     assert right.reply.startswith("Оформила: 2 плова на 700 сом") and right.reply.endswith("включая доставку 150 сом.")
 

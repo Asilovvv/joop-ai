@@ -151,8 +151,15 @@ def test_the_booked_dates_in_the_reply_come_from_the_booking(engine):
     plain = say(b.id, "Семейный, Алмаз 0555667788", FakeLLM([AgentReply("Забронировала!", stay=dict(data))]), "d2", chat="d2")
     assert plain.reply == f"Забронировала!\nБронь: «Семейный номер», {dates}, гостей: 2."
     right_text = f"Ждём вас с {d:%d.%m} по {d + timedelta(days=3):%d.%m}."
-    right = say(b.id, "Семейный, Алмаз 0555667788", FakeLLM([AgentReply(right_text, stay=dict(data))]), "d3", chat="d3")
-    assert right.reply == right_text
+    right = say(b.id, "Семейный, Алмаз 0555667788", FakeLLM([AgentReply(right_text + " Мы в 2.5 км от центра.", stay=dict(data))]),
+                "d3", chat="d3")
+    assert right.reply == f"{right_text} Мы в 2.5 км от центра.\nБронь: «Семейный номер», {dates}, гостей: 2."
+    d = TODAY + timedelta(days=30)
+    one = dict(data, check_in=d.isoformat(), check_out=(d + timedelta(days=1)).isoformat())
+    night = say(b.id, "Семейный на ночь, Алмаз 0555667788",
+                FakeLLM([AgentReply(f"Забронировала с {d:%d.%m} по {d + timedelta(days=5):%d.%m}!", stay=one)]), "d4", chat="d4")
+    assert night.reply.startswith(f"Забронировала «Семейный номер» на {d:%d.%m.%Y}–{d + timedelta(days=1):%d.%m.%Y}")
+
 
 
 def test_a_kyrgyz_chat_reads_the_stay_line_in_kyrgyz_and_no_rewrite_touches_it(engine):
