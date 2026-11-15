@@ -1151,7 +1151,7 @@ def booking_move_page(request: Request, item_id: int, day: str = ""):
         mine = _staff_scope(s, request)  # a master picks among her own times
         for slot, member in free_on_day(s, b.id, chosen, now_local, staff_id=mine,
                                         exclude_staff=samples.example_staff_ids(s, b)):
-            if slot.id != booking.slot_id:  # a group class with places left: not "another" time
+            if slot.id != booking.slot_id and not schedule.from_altegio(b, member):  # same time / Altegio's own schedule: not offered
                 by_staff.setdefault(member.name, []).append(slot)
         by_staff = dict(sorted(by_staff.items()))  # the same order of people on every day
         return _render(request, "booking_move.html", "bookings", b, booking=booking, chosen=chosen, by_staff=by_staff,

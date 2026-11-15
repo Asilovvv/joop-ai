@@ -235,3 +235,20 @@ def test_a_party_does_not_move_to_a_smaller_table(business, rt):
         moved = reschedule(s, rt, s.get(Business, business.id), row, s.get(Slot, slots[3].id), now_local, NOW_UTC)
         assert moved.problem.startswith("Этот стол рассчитан на 2 гостей") and row.slot_id == slots[0].id
         assert s.get(Slot, slots[3].id).status == "free"
+
+
+def test_a_booking_does_not_move_into_a_master_whose_schedule_comes_from_altegio(business, rt):
+    """Altegio still shows that time free: its next sync would cancel the booking Joop had moved there."""
+    slots = tomorrow_slots(business.id)
+    booking_id = book(business.id, slots[0], name="Айгерим", channel="")
+    now_local = utc_to_local(NOW_UTC, "Asia/Bishkek")
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.altegio_location_id = "123"
+        member = s.get(Staff, slots[3].staff_id)
+        member.external_id = "7"
+        s.add_all([b, member])
+        s.flush()
+        moved = reschedule(s, rt, b, s.get(Booking, booking_id), s.get(Slot, slots[3].id), now_local, NOW_UTC)
+        assert "ведётся в Altegio" in moved.problem and s.get(Booking, booking_id).slot_id == slots[0].id
+        assert s.get(Slot, slots[3].id).status == "free"
