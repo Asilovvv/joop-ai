@@ -22,7 +22,7 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
-from .. import altegio, cash, customers, order_status, schedule, staff_reply
+from .. import altegio, cash, customers, deposits, order_status, schedule, staff_reply
 from ..reschedule import blocked as move_blocked, reschedule
 from ..api import booking_json, customer_json, lead_json, order_json
 from ..db import new_session
@@ -161,7 +161,9 @@ def _booking(s: Session, b: Booking) -> dict:
         conv = s.get(Conversation, b.conversation_id)
         key = customers.key_of(conv.customer_phone, conv.channel, conv.chat_id) if conv else ""
     now_local = local_now(s.get(Business, b.business_id).timezone).replace(tzinfo=None)
-    return {**booking_json(b), "customer_key": key,
+    deposit = {"due": b.deposit_due, "status": b.deposit_status,
+               "deadline": b.deposit_deadline.isoformat() + "Z" if b.deposit_deadline else None} if b.deposit_status else None
+    return {**booking_json(b), "customer_key": key, "deposit": deposit,
             "movable": not move_blocked(b, now_local),  # «Перенести» is offered only for a visit that has not happened
             "suggested_som": 0 if b.paid_som or b.status != "booked" else cash.suggested(s, b)}
 
@@ -202,10 +204,15 @@ def mobile_summary(request: Request):
         today = now.date()
         week = [b for b in _bookings(s, who, today, today + timedelta(days=6)) if b.status == "booked"]
         upcoming = [b for b in week if b.start >= now.replace(second=0, microsecond=0)]
+        own = [Booking.staff_id == who.master_staff_id] if who.master_staff_id else []
+        to_check = s.exec(select(Booking).where(  # the customer sent a receipt, or the deadline passed: someone must look
+            Booking.business_id == who.business.id, Booking.status == "booked", Booking.deposit_status.in_(["check", "overdue"]),
+            Booking.start >= datetime.combine(today, time.min), *own).order_by(Booking.start).limit(20)).all()
         return {"today": sum(1 for b in week if b.start.date() == today),
                 "tomorrow": sum(1 for b in week if b.start.date() == today + timedelta(days=1)),
                 "week": len(week),
-                "next": _booking(s, upcoming[0]) if upcoming else None}
+                "next": _booking(s, upcoming[0]) if upcoming else None,
+                "deposits": [_booking(s, b) for b in to_check]}
 
 
 RESULT_DAYS = 14
@@ -303,6 +310,26 @@ def mobile_customer_note(request: Request, key: str, body: NoteIn):
         row = customers.save_note(s, who.business, key, body.note, body.tags)
         s.commit()
         return {"note": row.note, "tags": [t.strip() for t in row.tags.split(",") if t.strip()]}
+
+
+@router.post("/api/mobile/bookings/{item_id}/deposit")
+def mobile_deposit_paid(request: Request, item_id: int):
+    """Staff saw the prepayment: the panel's «Предоплата получена» (deposits.mark_paid), the customer is told."""
+    with new_session() as s:
+        who = _signed_in(s, request)
+        if who is None:
+            return _fail(401, "Войдите заново.")
+        booking = s.get(Booking, item_id)
+        if booking is None or booking.business_id != who.business.id \
+                or (who.master_staff_id and booking.staff_id != who.master_staff_id):
+            return _fail(404, "Запись не найдена.")
+        told = deposits.mark_paid(s, _rt(request), who.business, booking, utcnow())
+        if told is None:
+            s.rollback()
+            return _fail(409, "Эта запись уже не ждёт предоплаты: её отметили раньше или сняли по сроку.")
+        s.commit()
+        s.refresh(booking)
+        return {"booking": _booking(s, booking), "told": told}
 
 
 class MoveIn(BaseModel):

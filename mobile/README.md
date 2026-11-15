@@ -3,7 +3,8 @@
 A Flutter app for the business's owner and staff. It signs in with the panel's login and password and shows, from
 every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
 
-- **Сегодня** — bookings today, tomorrow and in 7 days, the next visit, and «Касса сегодня» (takings, the month, visits
+- **Сегодня** — bookings today, tomorrow and in 7 days, «Проверьте предоплату» (a customer sent a receipt, or the
+  deadline passed: «⋮ → Предоплата получена» tells the customer), the next visit, and «Касса сегодня» (takings, the month, visits
   that passed without a payment), and «ИИ за 14 дней» (what the AI did, as the panel's Сводка; not for masters);
 - **Записи** — the bookings of any day, with cancelling (the time becomes free, as in the panel); «Записать» books a
   customer who phoned or walked in into a free time (marked «Вручную», not counted as the AI's work); «⋮ → Перенести» moves a booking to another free time

@@ -70,6 +70,9 @@ class Booking extends Equatable {
     this.suggestedSom = 0,
     this.customerKey = '',
     this.movable = true,
+    this.depositDue = 0,
+    this.depositStatus = '',
+    this.depositDeadline,
   });
 
   factory Booking.fromJson(Map<String, dynamic> json) {
@@ -90,6 +93,11 @@ class Booking extends Equatable {
       suggestedSom: (json['suggested_som'] as int?) ?? 0,
       customerKey: (json['customer_key'] as String?) ?? '',
       movable: (json['movable'] as bool?) ?? true,
+      depositDue: ((json['deposit'] as Map?)?['due'] as int?) ?? 0,
+      depositStatus: ((json['deposit'] as Map?)?['status'] as String?) ?? '',
+      depositDeadline: (json['deposit'] as Map?)?['deadline'] == null
+          ? null
+          : DateTime.parse((json['deposit'] as Map)['deadline'] as String).toLocal(),
     );
   }
 
@@ -122,6 +130,18 @@ class Booking extends Equatable {
   /// The visit has not happened (not paid, not hours ago, not kept in Altegio): it can move to another free time.
   final bool movable;
 
+  /// The prepayment the AI asked for, som; 0 when none.
+  final int depositDue;
+
+  /// "" | awaiting | check (the customer sent a receipt) | paid | overdue | expired
+  final String depositStatus;
+
+  /// Until when the prepayment is expected (local time).
+  final DateTime? depositDeadline;
+
+  /// Staff can mark the prepayment received (the panel's «Предоплата получена»).
+  bool get depositOpen => isActive && const {'awaiting', 'check', 'overdue'}.contains(depositStatus);
+
   bool get isActive => status == 'booked';
   bool get isPaid => paidSom > 0;
 
@@ -140,23 +160,29 @@ class Booking extends Equatable {
         suggestedSom: suggestedSom,
         customerKey: customerKey,
         movable: movable && (status ?? this.status) == 'booked',
+        depositDue: depositDue,
+        depositStatus: depositStatus,
+        depositDeadline: depositDeadline,
       );
 
   @override
   List<Object?> get props => [
         id, start, service, staff, customerName, customerPhone, channel, status, confirmed, paidSom, paidMethod, //
-        suggestedSom, customerKey, movable,
+        suggestedSom, customerKey, movable, depositDue, depositStatus, depositDeadline,
       ];
 }
 
 class Summary extends Equatable {
-  const Summary({required this.today, required this.tomorrow, required this.week, this.next});
+  const Summary({required this.today, required this.tomorrow, required this.week, this.next, this.deposits = const []});
 
   factory Summary.fromJson(Map<String, dynamic> json) => Summary(
         today: json['today'] as int,
         tomorrow: json['tomorrow'] as int,
         week: json['week'] as int,
         next: json['next'] == null ? null : Booking.fromJson(json['next'] as Map<String, dynamic>),
+        deposits: [
+          for (final b in (json['deposits'] as List? ?? const [])) Booking.fromJson(b as Map<String, dynamic>)
+        ],
       );
 
   final int today;
@@ -164,8 +190,11 @@ class Summary extends Equatable {
   final int week;
   final Booking? next;
 
+  /// Upcoming bookings whose prepayment needs a person's look: a receipt was sent, or the deadline passed.
+  final List<Booking> deposits;
+
   @override
-  List<Object?> get props => [today, tomorrow, week, next];
+  List<Object?> get props => [today, tomorrow, week, next, deposits];
 }
 
 class Service extends Equatable {
@@ -376,8 +405,22 @@ class Order extends Equatable {
   bool get isOpen => next.isNotEmpty;
 
   @override
-  List<Object?> get props =>
-      [id, createdAt, status, label, delivery, address, wantedTime, total, customerName, customerPhone, channel, comment, lines, next];
+  List<Object?> get props => [
+        id,
+        createdAt,
+        status,
+        label,
+        delivery,
+        address,
+        wantedTime,
+        total,
+        customerName,
+        customerPhone,
+        channel,
+        comment,
+        lines,
+        next
+      ];
 }
 
 /// A request: a question the AI handed to staff, a booking without a free slot, or a qualified lead.
@@ -437,7 +480,8 @@ class Lead extends Equatable {
 }
 
 class DialogueMessage extends Equatable {
-  const DialogueMessage({required this.id, required this.role, required this.text, required this.at, required this.author});
+  const DialogueMessage(
+      {required this.id, required this.role, required this.text, required this.at, required this.author});
 
   factory DialogueMessage.fromJson(Map<String, dynamic> json) => DialogueMessage(
         id: json['id'] as int,
@@ -485,7 +529,8 @@ class Dialogue extends Equatable {
       customerName: (customer['name'] as String?) ?? '',
       customerPhone: (customer['phone'] as String?) ?? '',
       aiPaused: (json['ai_paused'] as bool?) ?? false,
-      aiPausedUntil: json['ai_paused_until'] == null ? null : DateTime.parse(json['ai_paused_until'] as String).toLocal(),
+      aiPausedUntil:
+          json['ai_paused_until'] == null ? null : DateTime.parse(json['ai_paused_until'] as String).toLocal(),
       takeoverMinutes: (json['takeover_minutes'] as int?) ?? 720,
       replyBlocked: (json['reply_blocked'] as String?) ?? '',
       messages: [
@@ -519,7 +564,13 @@ class Dialogue extends Equatable {
 
 /// A free time staff can book a customer into (GET /api/mobile/slots).
 class FreeSlot extends Equatable {
-  const FreeSlot({required this.id, required this.start, required this.staffId, required this.staff, required this.seatsLeft, required this.seats});
+  const FreeSlot(
+      {required this.id,
+      required this.start,
+      required this.staffId,
+      required this.staff,
+      required this.seatsLeft,
+      required this.seats});
 
   factory FreeSlot.fromJson(Map<String, dynamic> json) => FreeSlot(
         id: json['id'] as int,
@@ -547,7 +598,12 @@ class FreeSlot extends Equatable {
 
 /// A day's takings (GET /api/mobile/cash): what was paid, by method, and visits that passed without a payment.
 class CashDay extends Equatable {
-  const CashDay({required this.total, required this.byMethod, required this.visits, required this.unpaid, required this.monthTotal});
+  const CashDay(
+      {required this.total,
+      required this.byMethod,
+      required this.visits,
+      required this.unpaid,
+      required this.monthTotal});
 
   factory CashDay.fromJson(Map<String, dynamic> json) => CashDay(
         total: json['total'] as int,
@@ -596,7 +652,9 @@ class CustomerCard extends Equatable {
         note: (json['note'] as String?) ?? '',
         tags: [for (final t in (json['tags'] as List? ?? const [])) t as String],
         upcoming: json['upcoming'] == null ? null : Booking.fromJson(json['upcoming'] as Map<String, dynamic>),
-        bookings: [for (final b in (json['bookings'] as List? ?? const [])) Booking.fromJson(b as Map<String, dynamic>)],
+        bookings: [
+          for (final b in (json['bookings'] as List? ?? const [])) Booking.fromJson(b as Map<String, dynamic>)
+        ],
         orders: [for (final o in (json['orders'] as List? ?? const [])) Order.fromJson(o as Map<String, dynamic>)],
       );
 
@@ -620,11 +678,22 @@ class CustomerCard extends Equatable {
   final List<Order> orders;
 
   CustomerCard withNote(String note, List<String> tags) => CustomerCard(
-      key: key, name: name, phone: phone, channels: channels, visits: visits, spendSom: spendSom, rating: rating,
-      note: note, tags: tags, upcoming: upcoming, bookings: bookings, orders: orders);
+      key: key,
+      name: name,
+      phone: phone,
+      channels: channels,
+      visits: visits,
+      spendSom: spendSom,
+      rating: rating,
+      note: note,
+      tags: tags,
+      upcoming: upcoming,
+      bookings: bookings,
+      orders: orders);
 
   @override
-  List<Object?> get props => [key, name, phone, channels, visits, spendSom, rating, note, tags, upcoming, bookings, orders];
+  List<Object?> get props =>
+      [key, name, phone, channels, visits, spendSom, rating, note, tags, upcoming, bookings, orders];
 }
 
 /// A chat in the list (GET /api/mobile/conversations): who, where, the last message.
@@ -753,7 +822,9 @@ class ScheduleChange {
   factory ScheduleChange.fromJson(Map<String, dynamic> json) => ScheduleChange(
         changed: (json['changed'] as int?) ?? 0,
         offered: (json['offered'] as int?) ?? 0,
-        bookings: [for (final b in (json['bookings'] as List? ?? const [])) Booking.fromJson(b as Map<String, dynamic>)],
+        bookings: [
+          for (final b in (json['bookings'] as List? ?? const [])) Booking.fromJson(b as Map<String, dynamic>)
+        ],
       );
 
   final int changed;

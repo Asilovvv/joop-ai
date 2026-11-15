@@ -11,6 +11,7 @@ import '../core/strings.dart';
 import '../data/models.dart';
 import 'booking_tile.dart';
 import 'customer_screen.dart';
+import 'deposit.dart';
 import 'theme.dart';
 
 /// Home: how many bookings today, tomorrow and this week, and who comes next.
@@ -51,7 +52,8 @@ class TodayScreen extends StatelessWidget {
                     const SizedBox(height: 18),
                     Text(summary == null ? '…' : bookingsWord(summary.today),
                         key: const Key('today-count'),
-                        style: theme.textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
+                        style:
+                            theme.textTheme.headlineMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w900)),
                     Text(S.current.today, style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70)),
                   ],
                 ),
@@ -65,6 +67,20 @@ class TodayScreen extends StatelessWidget {
                 ],
               ),
               if (account != null && account.cash) _CashCard(onOpen: () => onOpenBookings(0)),
+              if (summary != null && summary.deposits.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Text(S.current.depositsToCheck,
+                    key: const Key('deposits-to-check'),
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                for (final b in summary.deposits)
+                  BookingTile(
+                    booking: b,
+                    showDay: true,
+                    onDeposit: () => markDepositPaid(context, b),
+                    onOpen: b.customerKey.isEmpty ? null : () => openCustomer(context, b),
+                  ),
+              ],
               const SizedBox(height: 20),
               Text(S.current.nextVisit, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
@@ -211,7 +227,8 @@ class _Stat extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(value?.toString() ?? '…', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+              Text(value?.toString() ?? '…',
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
               Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline)),
             ],
           ),

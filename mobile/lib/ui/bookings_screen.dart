@@ -11,6 +11,7 @@ import '../core/strings.dart';
 import '../data/models.dart';
 import 'booking_tile.dart';
 import 'customer_screen.dart';
+import 'deposit.dart';
 import 'new_booking_screen.dart';
 import 'payment_sheet.dart';
 
@@ -139,6 +140,7 @@ class BookingsScreen extends StatelessWidget {
                           onPay: payments ? () => _pay(context, b) : null,
                           onOpen: b.customerKey.isEmpty ? null : () => openCustomer(context, b),
                           onMove: b.movable ? () => _move(context, b) : null,
+                          onDeposit: b.depositOpen ? () => markDepositPaid(context, b) : null,
                         );
                       },
                     ),

@@ -15,6 +15,7 @@ class BookingTile extends StatelessWidget {
       this.onPay,
       this.onOpen,
       this.onMove,
+      this.onDeposit,
       this.busy = false,
       this.showDay = false});
 
@@ -29,6 +30,9 @@ class BookingTile extends StatelessWidget {
 
   /// Moves the booking to another free time; null where it cannot be moved here.
   final VoidCallback? onMove;
+
+  /// Marks the prepayment received; null where it is not waited for or not marked here.
+  final VoidCallback? onDeposit;
   final bool busy;
   final bool showDay;
 
@@ -85,27 +89,31 @@ class BookingTile extends StatelessWidget {
                         if (!active) _Chip(S.current.cancelled, scheme.outline),
                         if (active && booking.confirmed) _Chip(S.current.confirmed, const Color(0xFF2E9E5B)),
                         if (active && booking.isPaid) _Chip(paidLabel(booking), const Color(0xFF2E9E5B)),
+                        if (active && booking.depositStatus.isNotEmpty && depositLabel(booking).isNotEmpty)
+                          _Chip(depositLabel(booking),
+                              booking.depositStatus == 'paid' ? const Color(0xFF2E9E5B) : const Color(0xFFB7791F)),
                         if (booking.customerPhone.isNotEmpty) _Chip(booking.customerPhone, scheme.outline),
                       ],
                     ),
                   ],
                 ),
               ),
-              if (active && (onCancel != null || onPay != null || onMove != null))
+              if (active && (onCancel != null || onPay != null || onMove != null || onDeposit != null))
                 busy
                     ? const Padding(
                         padding: EdgeInsets.all(12),
                         child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
                       )
                     : Column(mainAxisSize: MainAxisSize.min, children: [
-                        if (onCancel != null || onMove != null)
+                        if (onCancel != null || onMove != null || onDeposit != null)
                           PopupMenuButton<VoidCallback>(
                             key: Key('booking-menu-${booking.id}'),
                             tooltip: S.current.more,
                             onSelected: (action) => action(),
                             itemBuilder: (_) => [
-                              if (onMove != null)
-                                PopupMenuItem(value: onMove, child: Text(S.current.moveAction)),
+                              if (onDeposit != null)
+                                PopupMenuItem(value: onDeposit, child: Text(S.current.depositReceived)),
+                              if (onMove != null) PopupMenuItem(value: onMove, child: Text(S.current.moveAction)),
                               if (onCancel != null)
                                 PopupMenuItem(value: onCancel, child: Text(S.current.cancelBooking)),
                             ],
@@ -137,4 +145,23 @@ class _Chip extends StatelessWidget {
         decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
         child: Text(text, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
       );
+}
+
+/// The prepayment line under a booking, as the panel shows it; empty when there is nothing to say.
+String depositLabel(Booking b) {
+  final s = S.current;
+  final amount = formatSom(b.depositDue);
+  return switch (b.depositStatus) {
+    'awaiting' => s.depositAwaiting(
+        amount,
+        b.depositDeadline == null
+            ? ''
+            : (DateUtils.isSameDay(b.depositDeadline, DateTime.now())
+                ? formatTime(b.depositDeadline!)
+                : '${formatDay(b.depositDeadline!)}, ${formatTime(b.depositDeadline!)}')),
+    'check' => s.depositCheck(amount),
+    'paid' => s.depositPaid(amount),
+    'overdue' => s.depositOverdue,
+    _ => '',
+  };
 }
