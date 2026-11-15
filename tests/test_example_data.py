@@ -33,7 +33,7 @@ def test_example_is_flagged_until_the_owner_replaces_it(app_client):  # noqa: F8
         found = samples.left(s, s.exec(select(Business)).one())
     assert found.services == [] and len(found.staff) == 3
     setup = app_client.get("/panel/setup").text
-    assert "из них пример" not in setup
+    assert "из них пример: 9" not in setup and "Врачи: 3, из них пример: 3" in setup  # the doctors are still the example
 
     with db.new_session() as s:  # «Убрать» in «Врачи» switches a person off; answers are deleted
         for row in s.exec(select(Staff)).all():
@@ -186,3 +186,24 @@ def test_staff_and_faq_mark_the_example_and_remove_it_in_one_go(app_client):
         assert [f.question for f in s.exec(select(Faq).where(Faq.business_id == bid)).all()] == ["Своя парковка?"]
     assert "Удалить весь пример" not in app_client.get("/panel/faq").text
     assert "+ Добавить вопрос" in app_client.get("/panel/faq").text
+
+
+def test_the_launch_is_not_done_while_customers_could_not_book_anyone(app_client):  # noqa: F811
+    """The example's doctors and their times are hidden from real customers: the checklist must say so."""
+    signup(app_client)
+    setup = app_client.get("/panel/setup").text
+    assert "Врачи: 3, из них пример: 3" in setup and "к ним не записывает" in setup
+    assert "Свободные окна для записи" in setup and "ИИ записывает клиентов только в свободные окна" in setup
+    assert "Запуск: 0 из 9" in setup
+    with db.new_session() as s:  # the owner writes in her own doctor over the first example row; the others go
+        rows = s.exec(select(Staff).order_by(Staff.id)).all()
+        rows[0].name, rows[0].role = "Бакыт Осмонов", "Стоматолог-терапевт"
+        for row in rows[1:]:
+            row.active = False
+        s.add_all(rows)
+        s.commit()
+    setup = app_client.get("/panel/setup").text
+    assert "Врачи: 1" in setup and "из них пример: 3" not in setup
+    assert "Свободных окон впереди:" in setup  # her times, inherited from the example row, are now real
+    dashboard = app_client.get("/panel").text
+    assert "Замените пример «Врачи»" not in dashboard

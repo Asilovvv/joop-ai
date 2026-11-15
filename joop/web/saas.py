@@ -27,7 +27,7 @@ from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
 from ..models import (
-    Booking, Business, Conversation, Lead, Message, Order, Partner, PartnerPayout, Payment, Prospect, Service, Slot,
+    Booking, Business, Conversation, Lead, Message, Order, Partner, PartnerPayout, Payment, Prospect, Service, Slot, Staff,
     Subscription, WaitlistEntry,
 )
 from ..niches import all_packs, get_pack, picker_packs
@@ -179,6 +179,7 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     if samples.hours_are_example(b):  # copied from the example at sign-up: confirm or change
         missing.append(f"часы работы (сейчас из примера: {b.hours_text})")
     bot = f"https://t.me/{b.telegram_bot_username}" if b.telegram_bot_token and b.telegram_bot_username else ""
+    people = _people_steps(s, b, pack, now)
     return [
         {"done": not missing, "title": "Контакты и часы работы", "href": "/panel/settings", "key": "contacts",
          "hint": ("Осталось указать: " + ", ".join(missing) + ". " if missing else "")
@@ -187,6 +188,7 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
          "title": f"{label}: {services}" + (f", из них пример: {len(example)}" if example else ""), "href": "/panel/services", "key": "prices",
          "hint": "Мы добавили пример, чтобы тестовый чат отвечал сразу. Настоящим клиентам ИИ его не называет: замените"
                  " цены и названия на свои — кыргызские по желанию."},
+        *people,
         {"done": tested > 0, "title": "Проверьте ИИ в тестовом чате", "href": "/panel/try", "key": "try",
          "hint": f"Напишите как клиент: по-русски и по-кыргызски, спросите цену, {act}."},
         {"done": channel, "title": "Подключите Telegram-бота", "href": "#telegram", "key": "telegram",
@@ -204,6 +206,32 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     ]
 
 
+def _people_steps(s: Session, b: Business, pack, now) -> list[dict[str, Any]]:
+    """For a business that books people's time: its own people instead of the sign-up example, and free times of them.
+
+    Without these the launch looked finished while real customers could not book at all: the example's people are
+    hidden from customers (joop/samples.py), and their free times with them."""
+    if not (pack.has("booking") or pack.has("request")):
+        return []
+    example = samples.example_staff_ids(s, b)
+    active = s.exec(select(Staff.id).where(Staff.business_id == b.id, Staff.active == True)).all()  # noqa: E712
+    own = [x for x in active if x not in example]
+    label = pack.resource_label
+    steps = [{"done": bool(own) and not example, "key": "staff", "href": "/panel/staff",
+              "title": f"{label}: {len(active)}" + (f", из них пример: {len(example)}" if example else ""),
+              "hint": "Это пример из вашей сферы: настоящим клиентам ИИ этих людей не называет и к ним не записывает. "
+                      "Впишите своих — имя и чем занимается." if example else "Впишите тех, к кому записываются клиенты."}]
+    if pack.has("booking"):
+        now_local = utc_to_local(now, b.timezone)
+        free = s.exec(select(func.count()).select_from(Slot).where(
+            Slot.business_id == b.id, Slot.status == "free", Slot.start > now_local,
+            Slot.staff_id.in_(own or [0]))).one()
+        steps.append({"done": free > 0, "key": "slots", "href": "/panel/slots", "title": "Свободные окна для записи",
+                      "hint": "ИИ записывает клиентов только в свободные окна ваших людей: откройте их время на ближайшие дни "
+                              "в разделе «Окна для записи»." if not free else f"Свободных окон впереди: {free}."})
+    return steps
+
+
 @router.get("/panel/setup")
 def setup_page(request: Request):
     now = utcnow()
@@ -216,7 +244,8 @@ def setup_page(request: Request):
     return _render(request, "setup.html", "setup", b, items=items, done=done, total=len(items), sub_state=st, next=next_step(items))
 
 
-NEXT_ACTION = {"contacts": "Заполнить контакты", "prices": "Заменить пример на свои цены", "try": "Открыть тестовый чат",
+NEXT_ACTION = {"contacts": "Заполнить контакты", "prices": "Заменить пример на свои цены", "staff": "Вписать своих людей",
+               "slots": "Открыть окна для записи", "try": "Открыть тестовый чат",
                "telegram": "Подключить бота", "admin": "Подключить уведомления", "real": "Табличка с QR-кодом", "pay": "Выбрать тариф"}
 
 
