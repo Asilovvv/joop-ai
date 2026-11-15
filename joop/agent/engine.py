@@ -19,6 +19,7 @@ from .. import altegio, broadcasts, confirm, deposits, free_plan, health, owner_
 from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
+from ..channels.telegram import is_personal, split_chat_id
 from ..lang import claims_confirmation, drop_claim_sentences, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, Stay
 from ..niches import Pack, get_pack
@@ -115,6 +116,11 @@ def handle_incoming(
         if answer is not None:  # the owner's numbers: no conversation, no messages, no model
             return Outcome(reply=answer)
 
+    if incoming.channel == "telegram" and is_personal(incoming.chat_id):
+        connection, _ = split_chat_id(incoming.chat_id)
+        if not business.telegram_business_connection or connection != business.telegram_business_connection:
+            return Outcome(skipped="unknown_connection")  # someone else's account added our bot (joop/tgbusiness.py)
+
     if blocked(session, business.id, incoming.channel, incoming.chat_id):
         return Outcome(skipped="blocked")  # on the block list: not stored, no model, no note to staff
 
@@ -159,7 +165,9 @@ def handle_incoming(
     if conv.ai_paused_until and conv.ai_paused_until > now:
         # Staff answer this chat themselves. In WhatsApp and Instagram they see the message in their own app;
         # a Telegram or web chat customer is seen only by the bot, so staff get it as a note.
-        notes = [_paused_note(conv, stored, base_url)] if conv.channel in ("telegram", "web") and stored else []
+        # A chat in the owner's personal Telegram is already in front of them: no note.
+        seen_by_bot_only = conv.channel in ("telegram", "web") and not is_personal(conv.chat_id)
+        notes = [_paused_note(conv, stored, base_url)] if seen_by_bot_only and stored else []
         return Outcome(skipped="paused", admin_notes=notes)
 
     if opt is not None:

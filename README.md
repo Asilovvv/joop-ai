@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram (a bot, or the owner's personal account through Telegram Business), WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
 | Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 51 database migrations, 35 niche packs and a generic one |
-| Tests | 750 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 754 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -117,8 +117,10 @@ Customers who write to the owner's personal Telegram can be answered too (Telegr
 needs Telegram Premium): turn on Business Mode for the bot in @BotFather, then add the bot under
 Settings → Telegram Business → Chatbots. Replies go out as the owner; when the owner types in a
 chat, the AI pauses there as after any staff reply. Telegram lets the bot write only in chats
-active in the last 24 hours. Chats are stored as `bc:<connection>:<chat id>`
-(`joop/channels/telegram.py`).
+active in the last 24 hours, so business-started messages go there only within that window and
+broadcasts never do. Only the connection made by an account already linked with `/admin <code>` is
+answered (`joop/tgbusiness.py`): anyone with Premium can add a public bot to their own account.
+Chats are stored as `bc:<connection>:<chat id>` (`joop/channels/telegram.py`).
 
 ## Deploy to a server
 
@@ -444,7 +446,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 750 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 754 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

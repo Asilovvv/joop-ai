@@ -16,6 +16,7 @@ is asked to copy the text instead of us fetching an empty page.
 from __future__ import annotations
 
 import re
+import time
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
 
@@ -25,7 +26,8 @@ from .api import _public_ip
 
 MAX_BYTES = 2 * 1024 * 1024
 MAX_REDIRECTS = 3
-TIMEOUT = 15.0
+TIMEOUT = 15.0  # per network step
+DEADLINE = 20.0  # for the whole page, redirects included: a slow trickle cannot hold a worker
 MIN_TEXT = 80  # fewer visible characters: the page is built by scripts in the browser
 PORTS = {"http": 80, "https": 443}
 COPY_HOSTS = {
@@ -98,6 +100,24 @@ def page_text(html: str) -> str:
     return "\n".join(meta + [body]).strip()
 
 
+_META_CHARSET = re.compile(rb"""<meta[^>]+charset\s*=\s*["']?\s*([a-z0-9_-]+)""", re.I)
+
+
+def decode(raw: bytes, header_charset: str | None) -> str:
+    """Text of the page: the header's charset, else the page's <meta charset>, else UTF-8, else windows-1251."""
+    found = _META_CHARSET.search(raw[:4096])
+    for name in (header_charset, found.group(1).decode("ascii") if found else None):
+        if name:
+            try:
+                return raw.decode(name, errors="replace")
+            except LookupError:
+                pass
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("cp1251", errors="replace")  # older Russian-language sites
+
+
 def _check(url: str) -> tuple[httpx.URL | None, str, str]:
     """(url, address to connect to, error in Russian)."""
     parsed = urlparse(url)
@@ -123,7 +143,10 @@ def _check(url: str) -> tuple[httpx.URL | None, str, str]:
 
 def fetch(http: httpx.Client, url: str) -> tuple[str, str]:
     """(visible text of the page, "") or ("", why not, in Russian)."""
+    started = time.monotonic()
     for _ in range(MAX_REDIRECTS + 1):
+        if time.monotonic() - started > DEADLINE:
+            return "", "Сайт отвечает слишком долго. Скопируйте текст со страницы и вставьте его сюда."
         target, ip, error = _check(url)
         if error or target is None:
             return "", error
@@ -147,13 +170,12 @@ def fetch(http: httpx.Client, url: str) -> tuple[str, str]:
                     raw.extend(chunk)
                     if len(raw) > MAX_BYTES:
                         break
-                encoding = r.charset_encoding or "utf-8"
+                    if time.monotonic() - started > DEADLINE:
+                        return "", "Сайт отвечает слишком долго. Скопируйте текст со страницы и вставьте его сюда."
+                charset = r.charset_encoding
         except httpx.HTTPError:
             return "", "Сайт не открылся. Проверьте ссылку или вставьте текст со страницы."
-        try:
-            html = bytes(raw[:MAX_BYTES]).decode(encoding, errors="replace")
-        except LookupError:
-            html = bytes(raw[:MAX_BYTES]).decode("utf-8", errors="replace")
+        html = decode(bytes(raw[:MAX_BYTES]), charset)
         text = page_text(html) if kind != "text/plain" else html.strip()
         if len(text) < MIN_TEXT:
             return "", "На странице почти нет текста: сайт собирается в браузере. Скопируйте текст со страницы и вставьте его сюда."

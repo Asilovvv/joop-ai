@@ -148,12 +148,14 @@ def test_telegram_business_owner_reply_pauses_the_ai(business):
     llm = FakeLLM([AgentReply("Маникюр — 800 сом.")])
     with db.new_session() as s:
         b = s.get(Business, business.id)
+        b.telegram_business_connection = "conn-1"
         first = handle_incoming(s, b, parse_update(_business_update(900, "Сколько стоит маникюр?")), lambda: llm, NOW_UTC)
         assert first.reply == "Маникюр — 800 сом."
         staff = handle_incoming(s, b, parse_update(_business_update(555, "Я сам отвечу", 42)), lambda: llm, NOW_UTC)
         assert staff.skipped == "staff_reply"
         later = handle_incoming(s, b, parse_update(_business_update(900, "А педикюр?", 43)), lambda: llm, NOW_UTC + timedelta(minutes=1))
         assert later.skipped == "paused" and not later.reply
+        assert later.admin_notes == []  # the owner already sees this chat in their own Telegram
 
 
 def test_channels_page_explains_telegram_business_once_a_bot_is_connected(client, business):  # noqa: F811
@@ -168,3 +170,50 @@ def test_channels_page_explains_telegram_business_once_a_bot_is_connected(client
         s.commit()
     page = client.get("/panel/channels").text
     assert 'id="telegram-business"' in page and "Business Mode" in page and "Telegram Premium" in page
+
+
+def test_only_the_owners_own_telegram_business_connection_is_answered(business, rt):
+    from joop import tgbusiness
+
+    def conn(user_chat_id, enabled=True, can_reply=True):
+        return {"business_connection": {"id": "conn-1", "user": {"id": int(user_chat_id)}, "user_chat_id": int(user_chat_id),
+                                        "is_enabled": enabled, "rights": {"can_reply": can_reply}}}
+
+    llm = FakeLLM([AgentReply("Маникюр — 800 сом.")])
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.admin_chat_ids = "555"
+        s.add(b)
+        s.commit()
+        # a stranger with Premium added our public bot to their account: their chats are not answered
+        assert tgbusiness.apply(s, b, tgbusiness.parse_connection(conn(777))) == tgbusiness.NOT_LINKED
+        assert b.telegram_business_connection == ""
+        out = handle_incoming(s, b, parse_update(_business_update(900, "Сколько стоит?")), lambda: llm, NOW_UTC)
+        assert out.skipped == "unknown_connection" and llm.calls == []
+        # the owner, linked as the alerts chat, connects: answered from now on
+        assert tgbusiness.apply(s, b, tgbusiness.parse_connection(conn(555, can_reply=False))) == tgbusiness.NO_REPLY
+        assert tgbusiness.apply(s, b, tgbusiness.parse_connection(conn(555))) == tgbusiness.CONNECTED
+        assert b.telegram_business_connection == "conn-1"
+        assert handle_incoming(s, b, parse_update(_business_update(900, "Сколько стоит?", 50)), lambda: llm, NOW_UTC).reply
+        assert tgbusiness.apply(s, b, tgbusiness.parse_connection(conn(555, enabled=False))) == ""
+        assert b.telegram_business_connection == ""
+
+
+def test_personal_telegram_chats_get_no_broadcasts_and_business_messages_only_within_24_hours(business, rt):
+    from joop import broadcasts
+    from joop.followups import deliver_to_chat
+    from joop.models import Conversation
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.telegram_bot_token = "1:x"
+        personal = Conversation(business_id=b.id, channel="telegram", chat_id="bc:conn-1:900", last_customer_at=NOW_UTC - timedelta(hours=1),
+                                last_message_at=NOW_UTC - timedelta(hours=1), created_at=NOW_UTC - timedelta(days=3))
+        s.add_all([b, personal])
+        s.commit()
+        assert not broadcasts._reachable(personal, NOW_UTC)
+        assert broadcasts.preview(s, b, "all", "", NOW_UTC).reachable == 0
+        sent: list[str] = []
+        rt.telegram = lambda business: type("C", (), {"send_text": lambda self, chat, text: sent.append(chat) or True})()
+        assert deliver_to_chat(s, rt, b, personal, "Ждём вас завтра", NOW_UTC) and sent == ["bc:conn-1:900"]
+        assert not deliver_to_chat(s, rt, b, personal, "Ждём вас", NOW_UTC + timedelta(days=1))  # Telegram would refuse

@@ -139,6 +139,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/reschedule.py` | Moving a booking to another free time from the panel and the app: the slot is claimed as the AI claims it, the old one goes to the waiting list, the customer is told; only visits that have not happened |
 | `joop/nudges.py` | Reminders to staff about requests nobody answered |
 | `joop/autofill.py`, `joop/web/autofill.py` | Price list and FAQ drafted from pasted text, kept only where the text supports it |
+| `joop/tgbusiness.py` | Which Telegram Business connection is answered: only one made by an account linked as the alerts chat |
 | `joop/sitefetch.py` | The visible text of the owner's web page for that draft: public addresses only, pinned connection, checked redirects, size limit |
 | `joop/voice.py` | Voice messages: download from the channel, speech-to-text, then answered like text |
 | `joop/audit.py`, `joop/web/audit.py` | The free chat audit: WhatsApp export parser, the numbers a prospect loses, the lead form |
@@ -180,6 +181,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 750 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 754 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |

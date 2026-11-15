@@ -24,11 +24,26 @@ MEDIA_LABELS = {
 
 
 BUSINESS_PREFIX = "bc:"  # chat_id of a chat in the owner's personal account: bc:<business_connection_id>:<chat id>
-ALLOWED_UPDATES = ["message", "business_message"]
+ALLOWED_UPDATES = ["message", "business_message", "business_connection"]
 
 
 def business_chat_id(connection_id: str, chat_id: str) -> str:
     return f"{BUSINESS_PREFIX}{connection_id}:{chat_id}"
+
+
+def is_personal(chat_id: str) -> bool:
+    """A chat in the owner's personal account: messages go out under the owner's name, only within 24 hours."""
+    return (chat_id or "").startswith(BUSINESS_PREFIX)
+
+
+def parse_connection(update: dict[str, Any]) -> dict[str, Any] | None:
+    """A Telegram Business connection: {"id", "user_chat_id", "enabled", "can_reply"}, or None."""
+    conn = update.get("business_connection")
+    if not isinstance(conn, dict) or not conn.get("id") or conn.get("user_chat_id") is None:
+        return None
+    rights = conn.get("rights") if isinstance(conn.get("rights"), dict) else {}
+    return {"id": str(conn["id"]), "user_chat_id": str(conn["user_chat_id"]), "enabled": bool(conn.get("is_enabled")),
+            "can_reply": bool(rights.get("can_reply") or conn.get("can_reply"))}
 
 
 def split_chat_id(chat_id: str) -> tuple[str, str]:
