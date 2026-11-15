@@ -22,11 +22,11 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
-from .. import altegio, cash, customers, deposits, order_status, quick_replies, schedule, staff_reply
+from .. import altegio, cash, customers, deposits, order_status, quick_replies, schedule, staff_reply, stays
 from ..reschedule import blocked as move_blocked, reschedule
 from ..api import booking_json, customer_json, lead_json, order_json
 from ..db import new_session
-from ..models import Booking, Business, Conversation, Lead, Message, Order, PanelUser, Service, Slot, Staff
+from ..models import Booking, Business, Conversation, Lead, Message, Order, PanelUser, Service, Slot, Staff, Stay
 from ..niches import get_pack
 from ..phone import normalize_phone
 from ..samples import example_staff_ids
@@ -68,7 +68,14 @@ class Who:
                              "address": b.address, "phone": b.phone},
                 "who": self.user.name if self.user else "Владелец", "role": role,
                 "sections": {"bookings": pack.has("booking") or pack.has("request"), "cash": pack.has("booking"),
-                             "orders": pack.has("order") and not master, "leads": not master}}
+                             "orders": pack.has("order") and not master, "leads": not master,
+                             "stays": pack.has("stay") and not master},
+                "stay_kind": _stay_kind(pack) if pack.has("stay") else None}
+
+
+def _stay_kind(pack) -> str:
+    """What a stay books: a banquet hall for one date, a car, or a hotel room (the panel's «Брони залов/машин/номеров»)."""
+    return "hall" if pack.by_day else "car" if pack.rental else "room"
 
 
 def _serializer(request: Request) -> URLSafeTimedSerializer:
@@ -722,6 +729,60 @@ def mobile_order_move(request: Request, item_id: int, body: StatusIn):
         s.refresh(order)
         return {"order": _order(s, order),
                 "customer_told": sent, "why": why}
+
+
+def _stay(s: Session, st: Stay) -> dict:
+    """A room, car or hall booking as the panel's «Брони» page shows it, with the key of the customer's card."""
+    key = customers.key_of(st.customer_phone, st.channel, "")
+    if not key and st.conversation_id:
+        conv = s.get(Conversation, st.conversation_id)
+        key = customers.key_of(conv.customer_phone, conv.channel, conv.chat_id) if conv else ""
+    return {"id": st.id, "room": st.room_name, "check_in": st.check_in.isoformat(), "check_out": st.check_out.isoformat(),
+            "nights": (st.check_out - st.check_in).days, "guests": st.guests, "customer_name": st.customer_name,
+            "customer_phone": st.customer_phone, "customer_key": key, "channel": st.channel,
+            "conversation_id": st.conversation_id, "status": st.status}
+
+
+def _stays_business(s: Session, request: Request) -> tuple[Who | None, JSONResponse | None]:
+    who, denied = _staff_only(s, request)
+    if denied:
+        return None, denied
+    if not get_pack(who.business.niche).has("stay"):
+        return None, _fail(404, "В этой сфере нет броней номеров, машин или залов.")
+    return who, None
+
+
+@router.get("/api/mobile/stays")
+def mobile_stays(request: Request):
+    """Upcoming stays, as on the panel's page: a hall's event from today on (yesterday's wedding is over), a hotel guest
+    or a car until the day they leave; cancelled ones included, test chats left out."""
+    with new_session() as s:
+        who, denied = _stays_business(s, request)
+        if denied:
+            return denied
+        pack = get_pack(who.business.niche)
+        today = local_now(who.business.timezone).date()
+        ahead = Stay.check_in >= today if pack.by_day else Stay.check_out >= today
+        rows = s.exec(select(Stay).where(Stay.business_id == who.business.id, ahead, not_test(Stay, who.business.id))
+                      .order_by(Stay.check_in, Stay.id)).all()
+        return {"kind": _stay_kind(pack), "stays": [_stay(s, st) for st in rows]}
+
+
+@router.post("/api/mobile/stays/{item_id}/cancel")
+def mobile_stay_cancel(request: Request, item_id: int):
+    """As the panel's «Отменить»: the room, car or hall is free again for those dates; the customer is told by staff."""
+    with new_session() as s:
+        who, denied = _stays_business(s, request)
+        if denied:
+            return denied
+        stay = s.get(Stay, item_id)
+        if stay is None or stay.business_id != who.business.id:
+            return _fail(404, "Бронь не найдена.")
+        if stay.status == "booked":
+            stays.cancel(s, stay)
+            s.commit()
+            s.refresh(stay)
+        return {"stay": _stay(s, stay)}
 
 
 def _lead(x: Lead) -> dict:
