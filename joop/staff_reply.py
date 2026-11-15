@@ -49,10 +49,15 @@ RETRY_WINDOW = timedelta(minutes=3)  # longer than the app's 90-second timeout a
 
 
 def _just_sent(session: Session, conv: Conversation, text: str, author: str, now_utc: datetime) -> bool:
-    """The same person sent the same text to this chat moments ago."""
-    return session.exec(select(Message.id).where(
+    """The same person sent the same text to this chat moments ago, and the customer has not written since:
+    a second «Да» to a new question is an answer, not a retry."""
+    earlier = session.exec(select(Message).where(
         Message.conversation_id == conv.id, Message.role == "staff", Message.text == text, Message.author == author,
-        Message.created_at >= now_utc - RETRY_WINDOW)).first() is not None
+        Message.created_at >= now_utc - RETRY_WINDOW).order_by(Message.id.desc())).first()
+    if earlier is None:
+        return False
+    return session.exec(select(Message.id).where(Message.conversation_id == conv.id, Message.role == "customer",
+                                                 Message.id > earlier.id)).first() is None
 
 
 def send(session: Session, rt: "Runtime", business: Business, conv: Conversation, text: str,

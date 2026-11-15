@@ -27,7 +27,7 @@ def add_order(business_id, chat, when, item_id, qty, total, status="new"):
         order = Order(business_id=business_id, conversation_id=conv.id, mode="delivery", status=status, total=total, created_at=when)
         s.add(order)
         s.flush()
-        s.add(OrderLine(order_id=order.id, item_id=item_id, name="x", quantity=qty, price=total // qty))
+        s.add(OrderLine(order_id=order.id, item_id=item_id, name="x", quantity=qty, unit_price=total // qty))
         s.commit()
 
 
@@ -52,7 +52,7 @@ def test_restock_counts_orders_of_that_item_and_the_page_shows_both(settings, rt
     with_bot(b.id)
     ask(b.id, "Маски есть?", "a")
     restock_masks(b.id)
-    told = NOW_UTC + timedelta(days=2, hours=1)
+    told = NOW_UTC + timedelta(days=2, hours=16)
     notify(rt, b.id, told)
     with db.new_session() as s:
         para = s.exec(select(Service).where(Service.business_id == b.id, Service.name.startswith("Парацетамол"))).one().id

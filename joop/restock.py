@@ -14,38 +14,33 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
 
+from . import itemwords
 from .followups import _kyrgyz, deliver_to_chat
 from .models import Business, Conversation, Message, Order, OrderLine, Service, StockWatch
-from .stats import TEST_CHANNEL
+from .stats import TEST_CHANNEL, is_test
+from .timeutil import utc_to_local
 
 if TYPE_CHECKING:
     from .runtime import Runtime
 
 KEEP = timedelta(days=30)
 MAX_ITEMS = 3  # «маски» may match a few sold-out masks; more is a vague question, not a wish
-_WORD = re.compile(r"[а-яёөүңa-z]{4,}")
-
-
-def _stem(word: str) -> str:
-    return word[:4]  # «маска», «маски», «масок» share «мас»+: four letters cover Russian and Kyrgyz endings
+NOT_NEEDED = re.compile(r"уже\s+(купил|купила|взял|взяла|нашёл|нашла|нашел)|не\s+нужн|не\s+надо|керек\s+эмес|сатып\s+алдым", re.I)
 
 
 def asked_for(text: str, sold_out: list[Service]) -> list[Service]:
-    """Sold-out items whose first word (its first 4 letters) the customer used: «маски» → «Маски медицинские»."""
-    said = {_stem(w) for w in _WORD.findall((text or "").lower())}
-    found = []
-    for item in sold_out:
-        words = _WORD.findall(re.split(r"[,(]", item.name or "", maxsplit=1)[0].lower())
-        if words and _stem(words[0]) in said:
-            found.append(item)
-    return found[:MAX_ITEMS] if len(found) <= MAX_ITEMS else []
+    """Sold-out items the customer named by their key word (joop/itemwords.py); none when they say they no longer need it."""
+    if NOT_NEEDED.search(text or ""):
+        return []
+    found = [item for item in sold_out if itemwords.names(text, item)]
+    return found if len(found) <= MAX_ITEMS else []  # a vague word matching many items is not a wish for each
 
 
 def watch_line(session: Session, business: Business, conv: Conversation, text: str, now_utc: datetime, kyrgyz: bool) -> str:
     """Keep a watch for each sold-out item the message names and return the line added to the reply ("" if none)."""
     sold_out = list(session.exec(select(Service).where(Service.business_id == business.id, Service.sold_out)).all())
     items = asked_for(text, sold_out)
-    if not items or conv.id is None or conv.silenced:
+    if not items or conv.id is None or conv.silenced or is_test(conv):  # the owner's tests are not customers to tell
         return ""
     for item in items:
         open_watch = session.exec(select(StockWatch.id).where(StockWatch.conversation_id == conv.id,
@@ -59,6 +54,13 @@ def watch_line(session: Session, business: Business, conv: Conversation, text: s
     return f"\nКогда {names} снова появится, напишем вам сюда. Не нужно — напишите «стоп»."
 
 
+def _hour(hhmm: str, default: int) -> int:
+    try:
+        return int(str(hhmm).split(":")[0])
+    except (ValueError, IndexError):
+        return default
+
+
 def notice(item: Service, kyrgyz: bool) -> str:
     if kyrgyz:  # проверить носителю
         return f"«{item.name}» кайра сатыкта бар, баасы {item.price}. Калтырып коёлубу?"
@@ -68,6 +70,9 @@ def notice(item: Service, kyrgyz: bool) -> str:
 def notify_back(session: Session, rt: "Runtime", business: Business, now_utc: datetime) -> dict[str, int]:
     """Tell watching chats about items back in stock; drop watches older than KEEP. Each watch is used once."""
     sent = failed = expired = 0
+    local = utc_to_local(now_utc, business.timezone)
+    opens, closes = _hour(business.work_start, 9), _hour(business.work_end, 21)
+    awake = opens <= local.hour < max(closes, opens + 1)  # stock returned at night (a released hold) waits for the morning
     rows = session.exec(select(StockWatch).where(StockWatch.business_id == business.id, StockWatch.notified_at.is_(None))).all()
     for watch in rows:
         if watch.created_at < now_utc - KEEP:
@@ -77,8 +82,8 @@ def notify_back(session: Session, rt: "Runtime", business: Business, now_utc: da
         item, conv = session.get(Service, watch.service_id), session.get(Conversation, watch.conversation_id)
         if item is None or conv is None:
             continue
-        if not item.available or item.sold_out:
-            continue  # still out, or the owner stopped selling it
+        if not item.available or item.sold_out or not awake:
+            continue  # still out, the owner stopped selling it, or the night: tell in working hours
         watch.notified_at = now_utc
         session.add(watch)
         if conv.silenced:
@@ -99,14 +104,16 @@ AFTER = timedelta(days=7)  # an order this soon after the message counts as brou
 
 
 def results(session: Session, business_id: int, since: datetime) -> tuple[int, int, int]:
-    """(customers told, orders of that item from them within a week, their total in som) for messages sent since."""
+    """(customers told, of them bought that item within a week, the item's lines in som) for messages sent since.
+    Each watch counts once whatever the number of orders; the money is that item's lines, not whole orders."""
     told = session.exec(select(StockWatch).where(StockWatch.business_id == business_id, StockWatch.sent,
                                                  StockWatch.notified_at >= since)).all()
-    bought: dict[int, int] = {}
+    bought = money = 0
     for watch in told:
-        rows = session.exec(select(Order).join(OrderLine, OrderLine.order_id == Order.id).where(
+        lines = session.exec(select(OrderLine).join(Order, OrderLine.order_id == Order.id).where(
             Order.conversation_id == watch.conversation_id, OrderLine.item_id == watch.service_id, Order.status != "cancelled",
             Order.created_at >= watch.notified_at, Order.created_at <= watch.notified_at + AFTER)).all()
-        for order in rows:
-            bought[order.id] = order.total or 0
-    return len(told), len(bought), sum(bought.values())
+        if lines:
+            bought += 1
+            money += sum((line.unit_price or 0) * line.quantity for line in lines)
+    return len(told), bought, money

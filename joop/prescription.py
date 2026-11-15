@@ -38,17 +38,8 @@ def check(items: list[Service], mode: str) -> tuple[str, str]:
     return "", SHOW_PRESCRIPTION.format(names=names)
 
 
-_WORD = re.compile(r"[а-яёөүңa-z]{4,}")
-
-
 def named_in(text: str, catalog: list[Service]) -> list[Service]:
-    """Prescription items a free text names by the first word of the item («и амоксициллин ещё» → «Амоксициллин 500 мг»)."""
-    said = {w[:4] for w in _WORD.findall((text or "").lower())}
-    found = []
-    for item in catalog:
-        if not is_rx(item):
-            continue
-        words = _WORD.findall(re.split(r"[,(]", item.name or "", maxsplit=1)[0].lower())
-        if words and words[0][:4] in said:
-            found.append(item)
-    return found
+    """Prescription items a free text names by their key word («и амоксициллин ещё» → «Амоксициллин 500 мг»)."""
+    from .itemwords import names
+
+    return [item for item in catalog if is_rx(item) and names(text, item)]
