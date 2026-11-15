@@ -197,3 +197,41 @@ def test_a_booking_awaiting_prepayment_does_not_move_to_before_its_deadline(busi
         moved = reschedule(s, rt, b, row, later, now_local, NOW_UTC)
         assert moved.problem == "" and row.slot_id == later.id and row.deposit_status == "awaiting"
         s.commit()
+
+
+def test_two_quick_moves_of_one_booking_do_not_free_a_time_given_to_someone_else(business, rt):
+    """Two «перенести» presses read the booking at its old time; the second must not free that time again."""
+    slots = tomorrow_slots(business.id)
+    booking_id = book(business.id, slots[0], name="Айгерим", channel="")
+    now_local = utc_to_local(NOW_UTC, "Asia/Bishkek")
+    with db.new_session() as late:  # the second press: read before the first one finished
+        stale = late.get(Booking, booking_id)
+        assert stale.slot_id == slots[0].id
+        with db.new_session() as s:  # the first press moves it to slots[1]
+            assert reschedule(s, rt, s.get(Business, business.id), s.get(Booking, booking_id), s.get(Slot, slots[1].id),
+                              now_local, NOW_UTC).problem == ""
+            s.commit()
+        other = book(business.id, slots[0], name="Бакыт", channel="")  # the AI gives the freed time to someone else
+        moved = reschedule(late, rt, late.get(Business, business.id), stale, late.get(Slot, slots[2].id), now_local, NOW_UTC)
+        late.commit()
+        assert "только что изменили" in moved.problem
+    with db.new_session() as s:
+        assert s.get(Booking, booking_id).slot_id == slots[1].id and s.get(Booking, other).slot_id == slots[0].id
+        assert s.get(Slot, slots[0].id).status == "booked"  # still Бакыт's, not freed by the second press
+        assert s.get(Slot, slots[2].id).status == "free"  # the second press gave back the time it had claimed
+
+
+def test_a_party_does_not_move_to_a_smaller_table(business, rt):
+    slots = tomorrow_slots(business.id)
+    booking_id = book(business.id, slots[0], name="Айгерим", channel="")
+    now_local = utc_to_local(NOW_UTC, "Asia/Bishkek")
+    with db.new_session() as s:
+        small = s.get(Staff, slots[3].staff_id)
+        small.capacity = 2
+        row = s.get(Booking, booking_id)
+        row.party_size = 6
+        s.add_all([small, row])
+        s.flush()
+        moved = reschedule(s, rt, s.get(Business, business.id), row, s.get(Slot, slots[3].id), now_local, NOW_UTC)
+        assert moved.problem.startswith("Этот стол рассчитан на 2 гостей") and row.slot_id == slots[0].id
+        assert s.get(Slot, slots[3].id).status == "free"
