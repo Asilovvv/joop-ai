@@ -15,12 +15,13 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, confirm, deposits, free_plan, health, owner_commands, regulars, samples, selfservice, stock, trust, upsell, voice
+from .. import altegio, broadcasts, confirm, confirmations, deposits, free_plan, health, owner_commands, regulars, samples, selfservice, stock, trust, upsell, voice
 from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
 from ..channels.telegram import is_personal, split_chat_id
-from ..lang import claims_confirmation, drop_claim_sentences, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
+from ..lang import (chat_is_kyrgyz, claims_confirmation, drop_claim_sentences, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz,
+                    use_kyrgyz_names)
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, Stay
 from ..niches import Pack, get_pack
 from ..phone import normalize_phone
@@ -289,9 +290,11 @@ def _model_reply(
     if result.booking and result.booking.get("slot_id") is not None and not pack.has("booking"):
         result.booking["slot_id"] = None
     ordered: Order | None = None
+    stayed: Stay | None = None
+    rx_note = ""
     if result.order and pack.has("order"):
-        outcome.reply, order = _try_order(session, business, pack, conv, result.order, result.reply, now, off, channel,
-                                          hidden.services)
+        outcome.reply, order, rx_note = _try_order(session, business, pack, conv, result.order, result.reply, now, off,
+                                                   channel, hidden.services)
         if order is not None:
             ordered = order
             outcome.order_id = order.id
@@ -302,7 +305,6 @@ def _model_reply(
         if qualified is not None:
             outcome.qualified_lead_id = qualified.id
             outcome.admin_notes.append(_lead_note(business, conv, qualified, off))
-    stayed: Stay | None = None
     if result.stay and pack.has("stay"):
         name = (result.stay.get("name") or "").strip()[:120]
         phone = normalize_phone(result.stay.get("phone"))
@@ -334,7 +336,7 @@ def _model_reply(
     booked: Booking | None = None
     if result.booking:
         if result.booking.get("slot_id") is None:
-            outcome.reply, request = _booking_request(session, business, conv, result.booking, result.reply, now, off)
+            outcome.reply, request = _booking_request(session, business, conv, result.booking, outcome.reply, now, off)
             if request is not None:
                 outcome.request_id = request.id
                 if waitlist.add_entry(session, business, conv, request, result.booking, now, text) is not None:
@@ -346,7 +348,7 @@ def _model_reply(
                       else None)
             try:
                 outcome.reply, booking = _try_booking(
-                    session, business, conv, result.booking, result.reply, now, now_local, off, channel, pack, client,
+                    session, business, conv, result.booking, outcome.reply, now, now_local, off, channel, pack, client,
                     hidden.staff,
                 )
             except _ExternalDown as down:  # the salon's own booking system did not answer: staff confirm the time
@@ -396,13 +398,30 @@ def _model_reply(
         if is_kyrgyz_message(text) and looks_kyrgyz(outcome.reply):
             outcome.reply = use_kyrgyz_names(outcome.reply, {sv.name: sv.name_ky for sv in services if sv.name_ky})
 
+    # The saved action's facts, written by the code (joop/confirmations.py): after the guards, so a rewrite cannot
+    # change them, and before the introduction and the extra lines, so a removed sentence never takes those along.
+    recent = session.exec(select(Message.text).where(Message.conversation_id == conv.id, Message.role == "customer")
+                          .order_by(Message.id.desc()).limit(5)).all()
+    ky = looks_kyrgyz(outcome.reply) or chat_is_kyrgyz([text, *recent])  # «Айбек 0555…» alone says nothing
+    if booked is not None:
+        outcome.reply = confirmations.with_booking(outcome.reply, booked, ky)
+    if ordered is not None:
+        rows = list(session.exec(select(OrderLine).where(OrderLine.order_id == ordered.id).order_by(OrderLine.id)).all())
+        names_ky = {sv.id: sv.name_ky for sv in services if sv.name_ky} if ky else {}
+        facts = confirmations.order_facts(rows, ordered.total, ordered.delivery_fee,
+                                          (business.min_order, business.free_delivery_from, business.delivery_fee), names_ky)
+        outcome.reply = confirmations.with_order(outcome.reply, facts, ky) + (f"\n{rx_note}" if rx_note else "")
+    if stayed is not None:
+        hall = stays.by_day(business)
+        outcome.reply = confirmations.with_stay(outcome.reply, stayed, hall, hall or "{guests}" in stays.words(business).confirm,
+                                                ky, stays.confirmation(business, stayed))
+
     first_contact = bool(outcome.reply) and trust.first_contact(session, conv)
     if outcome.reply and channel in trust.INTRO_CHANNELS and first_contact:
         outcome.reply = trust.with_intro(business, outcome.reply, is_kyrgyz_message(text))
 
     if booked is not None and outcome.reply:  # added after the guards so they cannot reword them
-        kyrgyz = is_kyrgyz_message(text)
-        outcome.reply = with_booking_line(outcome.reply, booked, kyrgyz)
+        kyrgyz = ky
         loyalty = intake.loyalty_line(session, business, booked, kyrgyz)
         outcome.reply += loyalty + intake.after_booking(business, booked, kyrgyz) + deposits.reply_line(business, booked, now, kyrgyz)
         outcome.reply += upsell.offer(session, business, booked, kyrgyz)
@@ -410,10 +429,6 @@ def _model_reply(
             outcome.admin_notes.append(f"Бонус: у {booked.customer_name} {booked.loyalty_visit}-й визит "
                                        f"({fmt_slot(booked.start)}) — {business.loyalty_reward.strip()}")
         session.add(booked)
-    if ordered is not None and outcome.reply:  # the same for an order: what was ordered and the total
-        outcome.reply = with_order_line(session, business, outcome.reply, ordered, is_kyrgyz_message(text))
-    if stayed is not None and outcome.reply:  # and for a room, a car or a hall: what and which dates
-        outcome.reply = stays.with_stay_line(outcome.reply, stayed, stays.stay_line(business, stayed, is_kyrgyz_message(text)))
 
     if outcome.reply and pack.has("order") and not outcome.order_id:  # «напишем, когда появится» (joop/restock.py)
         outcome.reply += restock.watch_line(session, business, conv, text, now, is_kyrgyz_message(text))
@@ -734,28 +749,6 @@ class _ExternalDown(Exception):
         self.when = when
 
 
-_CLOCK = re.compile(r"(?<![\d:])([01]?\d|2[0-3]):([0-5]\d)(?![\d:])")
-BOOKED_RU, BOOKED_KY = "Ваша запись: {when}, {who}.", "Жазылдыңыз: {when}, {who}."  # KY: проверить носителю
-DONE_RU, DONE_KY = "Записала вас.", "Жазып койдум."  # KY: проверить носителю
-
-
-def with_booking_line(reply: str, booking: Booking, kyrgyz: bool) -> str:
-    """The booked day, time and person, written by the code: the customer must not rely on the model's wording.
-
-    The model chose the slot, and the code booked exactly that slot; the reply text is still the model's, and it can
-    name another time («записала на 13:00» for the 12:00 slot). A reply that names times but not the booked one is
-    replaced; one that names the booked time on a day-month date keeps as is; otherwise the line is added."""
-    when = confirm.fmt_slot_ky(booking.start) if kyrgyz else fmt_slot(booking.start)
-    line = (BOOKED_KY if kyrgyz else BOOKED_RU).format(when=when, who=booking.staff_name)
-    times = {f"{int(h):02d}:{m}" for h, m in _CLOCK.findall(reply)}
-    booked = f"{booking.start:%H:%M}"
-    if times and booked not in times:
-        return f"{DONE_KY if kyrgyz else DONE_RU} {line}"
-    if booked in times and f"{booking.start:%d.%m}" in reply:
-        return reply
-    return f"{reply.rstrip()}\n{line}"
-
-
 def _try_booking(
     session: Session,
     business: Business,
@@ -910,19 +903,19 @@ ASK_ORDER_CONTACTS = "Чтобы оформить заказ, напишите, 
 def _try_order(
     session: Session, business: Business, pack: Pack, conv: Conversation, data: dict, reply: str,
     now: datetime, off: bool, channel: str, hidden_items: frozenset[int] = frozenset(),
-) -> tuple[str, Order | None]:
+) -> tuple[str, Order | None, str]:
     """Check every line against the catalog and compute the total in code; the model never sets prices.
     `hidden_items` are sign-up example items (samples.Hidden): not in this customer's list, so not for sale."""
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
     if not name or not phone:
-        return ASK_ORDER_CONTACTS, None
+        return ASK_ORDER_CONTACTS, None, ""
     address = (data.get("address") or "").strip()[:300]
     mode = _order_mode(data.get("mode"), address, pack)
     if mode == "pickup":
         address = ""  # a pickup order with an address reads as a delivery to the staff
     if mode == "delivery" and not address:
-        return "Напишите, пожалуйста, адрес доставки.", None
+        return "Напишите, пожалуйста, адрес доставки.", None, ""
 
     lines: list[tuple[Service, int, str]] = []
     problems: list[str] = []
@@ -947,7 +940,7 @@ def _try_order(
             lines.append((item, qty, (line.get("note") or "").strip()[:200]))
     if problems or not lines:
         detail = "; ".join(dict.fromkeys(problems)) or "в заказе нет позиций"
-        return f"Не получилось оформить заказ: {detail}. Выберите, пожалуйста, из списка.", None
+        return f"Не получилось оформить заказ: {detail}. Выберите, пожалуйста, из списка.", None, ""
     rx_note = ""
     if "prescription" in pack.features:  # the pharmacy marks what needs a prescription; the code decides delivery
         # A medicine written only in the comment or a line's note is still a prescription medicine for staff to add.
@@ -955,14 +948,14 @@ def _try_order(
         mentioned = prescription.named_in(free_text, list(session.exec(select(Service).where(Service.business_id == business.id)).all()))
         refusal, rx_note = prescription.check([item for item, _, _ in lines] + mentioned, mode)
         if refusal:
-            return refusal, None
+            return refusal, None, ""
 
     items_total = None if any(item.price_value is None for item, _, _ in lines) else sum(item.price_value * q for item, q, _ in lines)
     if items_total is not None and business.min_order and items_total < business.min_order:
         return (
             f"Минимальная сумма заказа — {_som(business.min_order)}, сейчас в заказе на {_som(items_total)}. "
             "Хотите что-нибудь добавить?"
-        ), None
+        ), None, ""
     fee = 0
     if mode == "delivery" and business.delivery_fee:
         free = business.free_delivery_from and items_total is not None and items_total >= business.free_delivery_from
@@ -981,44 +974,7 @@ def _try_order(
     conv.customer_name, conv.customer_phone = name, phone
     session.add(conv)
     session.flush()
-    # The model never sets prices: a sum in its words the order does not have (total, the items' total, delivery, a
-    # unit price, a line subtotal), or a total word («итого», «жалпы») with any sum but the order's total, must not
-    # reach the customer. Checked on the model's own words, before the guards; the lines and total follow after them.
-    allowed = {x for x in (total, items_total, fee) if x is not None}
-    allowed |= {v for item, qty, _ in lines if item.price_value is not None for v in (item.price_value, item.price_value * qty)}
-    named = {int(re.sub(r"[ \u00a0,]", "", x)) for x in _SOM.findall(reply)}
-    totals = {int(re.sub(r"[ \u00a0,]", "", x)) for x in _TOTAL_SUM.findall(reply)}
-    head = "Оформила заказ." if named - allowed or (total is not None and totals - {total}) else reply
-    return head + (f"\n{rx_note}" if rx_note else ""), order
-
-
-_SOM = re.compile(r"(?<![\d])(\d{1,3}(?:[ \u00a0,]\d{3})+|\d+)\s*(?:сом|с\.|KGS)", re.I)
-# «итого 700 сом» names the whole order: it must be its total, not a line's (700 for the food of an 850 order with delivery)
-_TOTAL_SUM = re.compile(r"(?:итог|всего|сумм|к оплате|жалпы|баары|бардыгы)\w*\D{0,25}?" + _SOM.pattern[len(r"(?<![\d])"):], re.I)
-ORDER_RU, ORDER_KY = "Ваш заказ: {items}. {total}", "Буйрутмаңыз: {items}. {total}"  # KY: проверить носителю
-TOTAL_RU, TOTAL_KY = "Сумма заказа: {total}.", "Жалпы суммасы: {total}."  # KY: проверить носителю
-FEE_RU = "Сумма заказа: {total}, включая доставку {fee}."
-FEE_KY = "Жалпы суммасы: {total}, анын ичинде жеткирүү {fee}."  # KY: проверить носителю
-NO_TOTAL_RU, NO_TOTAL_KY = "Точную сумму подтвердит администратор.", "Так сумманы администратор тактайт."  # KY: проверить носителю
-
-
-def with_order_line(session: Session, business: Business, reply: str, order: Order, kyrgyz: bool) -> str:
-    """What was ordered and the total, written by the code after the guards: no Kyrgyz rewrite by the model touches
-    it, and a Kyrgyz chat reads it in Kyrgyz with the items' Kyrgyz names (_try_order already checked the model's sums)."""
-    rows = session.exec(select(OrderLine).where(OrderLine.order_id == order.id).order_by(OrderLine.id)).all()
-    names: dict[int, str] = {}
-    if kyrgyz:
-        ids = [r.item_id for r in rows if r.item_id]
-        names = {s.id: s.name_ky for s in session.exec(select(Service).where(Service.id.in_(ids))).all() if s.name_ky}
-    items = ", ".join(f"{r.quantity} × {names.get(r.item_id) or r.name}" for r in rows)
-    if order.total is None:
-        total = NO_TOTAL_KY if kyrgyz else NO_TOTAL_RU
-    elif order.delivery_fee:
-        total = (FEE_KY if kyrgyz else FEE_RU).format(total=_som(order.total), fee=_som(order.delivery_fee))
-    else:
-        total = (TOTAL_KY if kyrgyz else TOTAL_RU).format(total=_som(order.total))
-    line = (ORDER_KY if kyrgyz else ORDER_RU).format(items=items, total=total)
-    return f"{reply.rstrip()}\n{line}"
+    return reply, order, rx_note  # the composition and the total are added from the order (joop/confirmations.py)
 
 
 def _som(value: int) -> str:

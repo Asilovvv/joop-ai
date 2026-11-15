@@ -568,7 +568,8 @@ def dashboard(request: Request):
             "free_slots": s.exec(
                 select(func.count()).select_from(Slot).where(  # the sign-up example's people's times are nobody's
                     Slot.business_id == b.id, Slot.status == "free", Slot.start > now_local,
-                    Slot.staff_id.not_in(samples.example_staff_ids(s, b) or {0})
+                    Slot.staff_id.not_in(samples.example_staff_ids(s, b) or {0}),
+                    Slot.staff_id.in_(select(Staff.id).where(Staff.business_id == b.id, Staff.active == True)),  # noqa: E712
                 )
             ).one(),
         }
