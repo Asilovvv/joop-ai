@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
 
+from .channels.telegram import is_personal
 from .lang import chat_is_kyrgyz, is_kyrgyz_message
 from .models import Booking, Business, Conversation, Lead, Message, Service
 from .stats import not_test
@@ -55,6 +56,8 @@ def deliver_to_chat(session: Session, rt: "Runtime", business: Business, conv: C
     if conv is None or not conv.chat_id or conv.blocked_at:
         return False
     in_window = bool(conv.last_customer_at and now_utc - conv.last_customer_at < SERVICE_WINDOW)
+    if is_personal(conv.chat_id) and not in_window:
+        return False  # the owner's personal Telegram: Telegram lets the bot write there only within 24 hours
     if conv.channel != "telegram" and not (conv.channel in {"whatsapp", "instagram"} and in_window):
         return False
     client = rt.channel_client(business, conv.channel)

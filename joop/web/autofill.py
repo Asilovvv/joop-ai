@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 
 from fastapi import APIRouter, Request
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy import func
 from sqlmodel import select
 
@@ -37,16 +38,18 @@ async def autofill_preview(request: Request):
             _flash(request, f"ИИ разбирает текст до {PER_DAY} раз в сутки. Остальное добавьте вручную.", "error")
             return _back(back)
         _runs[b.id] = recent + [now]
-        link = sitefetch.as_url(source)
-        if link:  # only a link was pasted: read that page and draft from its text
-            source, error = sitefetch.fetch(_rt(request).http, link)
-            if error:
-                _flash(request, error, "error")
-                return _back(back)
+    link = sitefetch.as_url(source)
+    if link:  # only a link was pasted: read that page (off the event loop, no session open) and draft from its text
+        source, error = await run_in_threadpool(sitefetch.fetch, _rt(request).http, link)
+        if error:
+            _flash(request, error, "error")
+            return _back(back)
+    with new_session() as s:
+        b = _business(s, request)
         names = list(s.exec(select(Service.name).where(Service.business_id == b.id)).all())
         questions = list(s.exec(select(Faq.question).where(Faq.business_id == b.id)).all())
         try:
-            proposal = autofill.propose(_rt(request).get_llm(), source, names, questions)
+            proposal = await run_in_threadpool(autofill.propose, _rt(request).get_llm(), source, names, questions)
         except Exception:
             proposal = None
         if proposal is None:

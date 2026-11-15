@@ -103,3 +103,24 @@ def test_panel_drafts_from_a_link(web, rt, public):
     assert "Маникюр с покрытием" in writer.calls[0] and "<td>" not in writer.calls[0]  # the AI read the page's text
     msg = web.post("/panel/autofill", data={"csrf": token, "source": "instagram.com/salon"}).text
     assert "скопируйте текст с ценами" in msg and len(writer.calls) == 1  # no AI call for a page we could not read
+
+
+def test_decode_reads_the_pages_own_charset():
+    page = '<html><head><meta charset="windows-1251"></head><body>Маникюр — 1 200 сом</body></html>'.encode("cp1251")
+    assert "Маникюр" in sitefetch.decode(page, None)
+    assert "Маникюр" in sitefetch.decode("Маникюр".encode("cp1251"), None)  # no charset anywhere: windows-1251 fallback
+    assert sitefetch.decode("Маникюр".encode(), None) == "Маникюр"
+    assert sitefetch.decode("Маникюр".encode(), "utf-8") == "Маникюр"
+
+
+def test_fetch_gives_up_on_a_slow_trickle(public, monkeypatch):
+    clock = iter(range(0, 1000, 7))
+    monkeypatch.setattr(sitefetch.time, "monotonic", lambda: next(clock))
+    web = FakeWeb({"slow.kg/": (200, {"content-type": "text/html"}, PAGE)})
+    real = web.handler
+
+    def chunks(request):  # the page arrives in many small pieces
+        return httpx.Response(200, headers=real(request).headers, content=iter([b"<p>a</p>"] * 50))
+
+    web.handler = chunks
+    assert "слишком долго" in sitefetch.fetch(web.client(), "https://slow.kg/")[1]

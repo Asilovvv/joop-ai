@@ -25,6 +25,7 @@ from ..channels.telegram import parse_update
 from ..config import Settings, get_settings
 from ..db import init_db, new_session
 from ..dispatch import admin_chat_ids, admin_link, process_incoming
+from .. import tgbusiness
 from ..catalog import parse_price
 from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service,
                       SignatureClick, Slot, Staff, Stay, StockMove, WaitlistEntry, takeover_words)
@@ -1960,6 +1961,9 @@ async def telegram_webhook(slug: str, request: Request, background: BackgroundTa
         update = await request.json()
     except ValueError:
         raise HTTPException(status_code=400) from None
+    if isinstance(update, dict) and "business_connection" in update:  # the owner added the bot to their own Telegram
+        background.add_task(tgbusiness.handle_update, _rt(request), business.id, update)
+        return {"ok": True}
     incoming = parse_update(update) if isinstance(update, dict) else None
     if incoming is not None:
         background.add_task(process_incoming, _rt(request), business.id, incoming)

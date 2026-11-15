@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 from sqlmodel import Session, select
 
 from .followups import SERVICE_WINDOW, _kyrgyz, deliver_to_chat
+from .channels.telegram import is_personal
 from .lang import is_kyrgyz_message
 from .models import Booking, Broadcast, BroadcastDelivery, Business, Conversation, Order
 from .timeutil import utc_to_local
@@ -152,6 +153,8 @@ def _days(arg: str) -> int:
 
 
 def _reachable(conv: Conversation, now_utc: datetime) -> bool:
+    if is_personal(conv.chat_id):
+        return False  # the owner's personal Telegram: a broadcast would go out under their name, friends included
     if conv.channel == "telegram":
         return True
     return bool(conv.channel in WINDOW_CHANNELS and conv.last_customer_at and now_utc - conv.last_customer_at < SERVICE_WINDOW)
@@ -174,6 +177,8 @@ def preview(session: Session, business: Business, segment: str, arg: str, now_ut
     for c in _group(session, business, segment, arg, now_utc):
         if c.silenced:
             p.opted_out += 1
+        elif is_personal(c.chat_id):
+            continue  # never broadcast to (see _reachable), so not counted at all
         elif c.channel == "telegram":
             p.telegram += 1
         elif _reachable(c, now_utc):

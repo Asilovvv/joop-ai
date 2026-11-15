@@ -6,6 +6,7 @@ import logging
 import threading
 
 from ..db import new_session
+from .. import tgbusiness
 from ..dispatch import process_incoming
 from ..models import Business
 from ..runtime import Runtime
@@ -43,6 +44,8 @@ class TelegramPoller(threading.Thread):
                 continue
             for update in updates:
                 offset = int(update.get("update_id", 0)) + 1
+                if tgbusiness.handle_update(self.rt, self.business_id, update):
+                    continue
                 incoming = parse_update(update)
                 if incoming is not None:
                     process_incoming(self.rt, self.business_id, incoming)
