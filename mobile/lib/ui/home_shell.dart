@@ -41,7 +41,7 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-enum _Tab { today, bookings, orders, leads, prices }
+enum _Tab { today, bookings, stays, orders, leads, prices }
 
 class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
@@ -52,6 +52,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   late final BookingsBloc _bookings = BookingsBloc(_repository, today: widget.today);
   late final OrdersCubit _orders = OrdersCubit(_repository);
   late final LeadsCubit _leads = LeadsCubit(_repository);
+  late final StaysCubit _stays = StaysCubit(_repository, widget.account.stayKind);
   late final CashCubit _cash = CashCubit(_repository, widget.today);
   late final AiResultsCubit _aiResults = AiResultsCubit(_repository);
   late final ServicesCubit _services = ServicesCubit(_repository)..load();
@@ -67,6 +68,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     }
     if (_account.cash) _cash.load();
     if (_account.role != 'master') _aiResults.load();
+    if (_account.stays) _stays.load();
     if (_account.orders) _orders.load();
     if (_account.leads) _leads.load();
     WidgetsBinding.instance.addObserver(this);
@@ -85,6 +87,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       _bookings.add(const BookingsPolled());
     }
     if (_account.cash) _cash.load();
+    if (_account.stays) _stays.refresh();
     if (_account.orders) _orders.refresh();
     if (_account.leads) _leads.refresh();
   }
@@ -103,7 +106,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
-    for (final c in [_summary, _orders, _leads, _services, _cash, _aiResults]) {
+    for (final c in [_summary, _orders, _leads, _stays, _services, _cash, _aiResults]) {
       c.close();
     }
     _bookings.close();
@@ -112,6 +115,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   List<_Tab> get _tabs => [
         if (_account.bookings) ...[_Tab.today, _Tab.bookings],
+        if (_account.stays) _Tab.stays,
         if (_account.orders) _Tab.orders,
         if (_account.leads) _Tab.leads,
         _Tab.prices,
@@ -120,6 +124,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   Map<_Tab, String> get _titles => {
         _Tab.today: S.current.tabToday,
         _Tab.bookings: S.current.tabBookings,
+        _Tab.stays: S.current.stayTitle(_account.stayKind),
         _Tab.orders: S.current.tabOrders,
         _Tab.leads: S.current.tabLeads,
         _Tab.prices: S.current.tabPrices,
@@ -128,6 +133,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   static const _icons = {
     _Tab.today: (Icons.today_outlined, Icons.today),
     _Tab.bookings: (Icons.event_note_outlined, Icons.event_note),
+    _Tab.stays: (Icons.hotel_outlined, Icons.hotel),
     _Tab.orders: (Icons.shopping_bag_outlined, Icons.shopping_bag),
     _Tab.leads: (Icons.inbox_outlined, Icons.inbox),
     _Tab.prices: (Icons.sell_outlined, Icons.sell),
@@ -139,6 +145,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             setState(() => _index = _tabs.indexOf(_Tab.bookings));
           }),
         _Tab.bookings => const BookingsScreen(),
+        _Tab.stays => StaysScreen(kind: _account.stayKind),
         _Tab.orders => const OrdersScreen(),
         _Tab.leads => const LeadsScreen(),
         _Tab.prices => const ServicesScreen(),
@@ -146,6 +153,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   String _navLabel(_Tab tab) => switch (tab) {
         _Tab.bookings => S.current.navBookings,
+        _Tab.stays => S.current.navStays,
         _Tab.orders => S.current.navOrders,
         _Tab.leads => S.current.navLeads,
         _ => _titles[tab]!,
@@ -187,6 +195,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         BlocProvider.value(value: _bookings),
         BlocProvider.value(value: _orders),
         BlocProvider.value(value: _leads),
+        BlocProvider.value(value: _stays),
         BlocProvider.value(value: _services),
         BlocProvider.value(value: _cash),
         BlocProvider.value(value: _aiResults),

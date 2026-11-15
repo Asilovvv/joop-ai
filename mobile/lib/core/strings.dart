@@ -82,6 +82,18 @@ class S {
     required this.customerNotTold,
     required this.orderMoved,
     required this.leadClosed,
+    // stays: hotel rooms, cars, banquet halls
+    required this.stayTitle,
+    required this.navStays,
+    required this.noStays,
+    required this.newStays,
+    required this.staysCount,
+    required this.stayNights,
+    required this.stayGuests,
+    required this.cancelStay,
+    required this.cancelStayQuestion,
+    required this.stayCancelled,
+    required this.stayCancelledTag,
     required this.leadKinds,
     required this.orderStatuses,
     required this.orderActions,
@@ -279,6 +291,21 @@ class S {
   final String Function(String why, String phone) customerNotTold;
   final String Function(int id, String label, String told) orderMoved;
   final String leadClosed;
+
+  /// The tab's title by what is booked: room | car | hall (the panel's «Брони номеров/машин/залов»).
+  final String Function(String kind) stayTitle;
+  final String navStays;
+  final String Function(String kind) noStays;
+  final String Function(int n) newStays;
+  final String Function(int n) staysCount;
+  final String Function(int n) stayNights;
+  final String Function(int n) stayGuests;
+  final String cancelStay;
+  final String Function(String who) cancelStayQuestion;
+
+  /// After a cancel: what is free again, and that staff tell the customer (the panel says the same).
+  final String Function(String kind) stayCancelled;
+  final String stayCancelledTag;
   final Map<String, String> leadKinds;
 
   /// joop/order_status.py's STATUSES; 'sent_pickup' is sent_label() for pickup.
@@ -490,6 +517,17 @@ class S {
     customerNotTold: _ruNotTold,
     orderMoved: _ruOrderMoved,
     leadClosed: 'Заявка закрыта',
+    stayTitle: _ruStayTitle,
+    navStays: 'Брони',
+    noStays: _ruNoStays,
+    newStays: _ruNewStays,
+    staysCount: _ruStaysCount,
+    stayNights: _ruNights,
+    stayGuests: _ruGuests,
+    cancelStay: 'Отменить бронь',
+    cancelStayQuestion: _ruCancelStayQuestion,
+    stayCancelled: _ruStayCancelled,
+    stayCancelledTag: 'отменена',
     leadKinds: {
       'request': 'Запись без окна',
       'lead': 'Заявка',
@@ -698,6 +736,17 @@ class S {
     customerNotTold: _kyNotTold,
     orderMoved: _kyOrderMoved,
     leadClosed: 'Өтүнмө жабылды',
+    stayTitle: _kyStayTitle,
+    navStays: 'Брондор',
+    noStays: _kyNoStays,
+    newStays: _kyNewStays,
+    staysCount: _kyStaysCount,
+    stayNights: _kyNights,
+    stayGuests: _kyGuests,
+    cancelStay: 'Брондоону жокко чыгаруу',
+    cancelStayQuestion: _kyCancelStayQuestion,
+    stayCancelled: _kyStayCancelled,
+    stayCancelledTag: 'жокко чыгарылды',
     leadKinds: {
       'request': 'Бош убакытсыз жазылуу',
       'lead': 'Өтүнмө',
@@ -942,3 +991,39 @@ String _ruHttpsOnly(String server) =>
 String _kyHttpsOnly(String server) =>
     '$server дареги https эмес: сырсөз интернет аркылуу ачык кетмек. https:// менен дарек жазыңыз — http ушул эле '
     'Wi-Fi тармагындагы сервер үчүн гана жарайт.';
+
+String _ruStayTitle(String kind) => switch (kind) { 'hall' => 'Брони залов', 'car' => 'Брони машин', _ => 'Брони номеров' };
+String _kyStayTitle(String kind) =>
+    switch (kind) { 'hall' => 'Залдардын брондоосу', 'car' => 'Унаалардын брондоосу', _ => 'Бөлмөлөрдүн брондоосу' };
+String _ruNoStays(String kind) =>
+    'Броней пока нет. ИИ бронирует ${switch (kind) { 'hall' => 'залы', 'car' => 'машины', _ => 'номера' }} сам '
+    'и не отдаст занятые даты.';
+String _kyNoStays(String kind) =>
+    'Азырынча брон жок. ИИ ${switch (kind) { 'hall' => 'залдарды', 'car' => 'унааларды', _ => 'бөлмөлөрдү' }} өзү брондойт '
+    'жана бош эмес күндөрдү бербейт.';
+String _ruNewStays(int n) => n == 1 ? 'Новая бронь' : 'Новых броней: $n';
+String _kyNewStays(int n) => n == 1 ? 'Жаңы брон' : 'Жаңы брондор: $n';
+String _ruNights(int n) {
+  final last = n % 10, lastTwo = n % 100;
+  final word = last == 1 && lastTwo != 11
+      ? 'ночь'
+      : (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14) ? 'ночи' : 'ночей');
+  return '$n $word';
+}
+String _kyNights(int n) => '$n түн';
+String _ruGuests(int n) => 'гостей: $n';
+String _kyGuests(int n) => 'конок саны: $n';
+String _ruCancelStayQuestion(String who) => who.isEmpty ? 'Отменить бронь?' : 'Отменить бронь: $who?';
+String _kyCancelStayQuestion(String who) => who.isEmpty ? 'Брондоону жокко чыгарасызбы?' : '$who: брондоону жокко чыгарасызбы?';
+String _ruStayCancelled(String kind) => switch (kind) {
+      'hall' => 'Бронь отменена, зал на эту дату снова свободен. Клиенту сообщите сами.',
+      'car' => 'Бронь отменена, машина на эти даты снова свободна. Клиенту сообщите сами.',
+      _ => 'Бронь отменена, номер на эти даты снова свободен. Гостю сообщите сами.',
+    };
+String _kyStayCancelled(String kind) => switch (kind) {
+      'hall' => 'Брон жокко чыгарылды, зал бул күнгө кайра бош. Кардарга өзүңүз билдириңиз.',
+      'car' => 'Брон жокко чыгарылды, унаа бул күндөргө кайра бош. Кардарга өзүңүз билдириңиз.',
+      _ => 'Брон жокко чыгарылды, бөлмө бул күндөргө кайра бош. Конокко өзүңүз билдириңиз.',
+    };
+String _ruStaysCount(int n) => 'Действующих броней: $n';
+String _kyStaysCount(int n) => 'Күчүндөгү брондор: $n';

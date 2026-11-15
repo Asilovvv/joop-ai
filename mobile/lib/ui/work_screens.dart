@@ -39,6 +39,24 @@ class LeadsScreen extends StatelessWidget {
   }
 }
 
+/// The panel's «Брони номеров/машин/залов»: upcoming stays by date, a cancel that frees the dates, the chat.
+class StaysScreen extends StatelessWidget {
+  const StaysScreen({super.key, required this.kind});
+
+  /// room | car | hall
+  final String kind;
+
+  @override
+  Widget build(BuildContext context) {
+    return _WorkList<Stay, StaysCubit>(
+      empty: S.current.noStays(kind),
+      reload: (c) => c.load(),
+      header: (items) => S.current.staysCount(items.where((x) => !x.cancelled).length),
+      item: (context, x, busy) => _StayCard(stay: x, kind: kind, busy: busy),
+    );
+  }
+}
+
 class _WorkList<T, C extends Cubit<WorkState<T>>> extends StatelessWidget {
   const _WorkList({required this.empty, required this.reload, required this.header, required this.item});
 
@@ -47,7 +65,7 @@ class _WorkList<T, C extends Cubit<WorkState<T>>> extends StatelessWidget {
   final String Function(List<T> items) header;
   final Widget Function(BuildContext context, T item, bool busy) item;
 
-  int _id(T x) => x is Order ? x.id : (x as Lead).id;
+  int _id(T x) => switch (x) { Order o => o.id, Stay st => st.id, _ => (x as Lead).id };
 
   @override
   Widget build(BuildContext context) {
@@ -285,6 +303,87 @@ class _LeadCard extends StatelessWidget {
                     FilledButton.tonal(
                       onPressed: () => context.read<LeadsCubit>().markDone(lead),
                       child: Text(S.current.done),
+                    ),
+                ]),
+        ],
+      ],
+    );
+  }
+}
+
+class _StayCard extends StatelessWidget {
+  const _StayCard({required this.stay, required this.kind, required this.busy});
+
+  final Stay stay;
+  final String kind;
+  final bool busy;
+
+  Future<void> _cancel(BuildContext context) async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(S.current.cancelStayQuestion(stay.customerName)),
+        content: Text('${stay.room}, ${_dates()}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(S.current.no)),
+          FilledButton(key: const Key('confirm-cancel-stay'), onPressed: () => Navigator.pop(context, true), child: Text(S.current.cancelStay)),
+        ],
+      ),
+    );
+    if (yes == true && context.mounted) context.read<StaysCubit>().cancel(stay);
+  }
+
+  /// A hall: the one date. A room or a car: arrival – departure, as the panel shows them.
+  String _dates() => kind == 'hall' ? formatDay(stay.checkIn) : '${formatDay(stay.checkIn)} – ${formatDay(stay.checkOut)}';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final s = S.current;
+    return _Card(
+      muted: stay.cancelled,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(_dates(), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+            if (kind == 'room') Text(s.stayNights(stay.nights), style: theme.textTheme.bodySmall),
+            if (stay.cancelled) _Tag(s.stayCancelledTag, scheme.outline),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(stay.room + (kind == 'car' ? '' : ' · ${s.stayGuests(stay.guests)}'), style: theme.textTheme.bodyLarge),
+        const SizedBox(height: 8),
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          _Tag(channelName(stay.channel), channelColor(stay.channel)),
+          if (stay.customerName.isNotEmpty) _Tag(stay.customerName, scheme.outline),
+          if (stay.customerPhone.isNotEmpty) _Tag(stay.customerPhone, scheme.outline),
+        ]),
+        if (!stay.cancelled || stay.conversationId != null) ...[
+          const SizedBox(height: 12),
+          busy
+              ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+              : Wrap(spacing: 8, runSpacing: 8, children: [
+                  if (stay.conversationId != null)
+                    FilledButton.icon(
+                      key: Key('stay-chat-${stay.id}'),
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => DialogueScreen(
+                          conversationId: stay.conversationId!,
+                          title: stay.customerName.isEmpty ? channelName(stay.channel) : stay.customerName,
+                        ),
+                      )),
+                      icon: const Icon(Icons.forum_outlined, size: 18),
+                      label: Text(S.current.answer),
+                    ),
+                  if (!stay.cancelled)
+                    OutlinedButton(
+                      key: Key('cancel-stay-${stay.id}'),
+                      onPressed: () => _cancel(context),
+                      child: Text(s.cancelStay),
                     ),
                 ]),
         ],

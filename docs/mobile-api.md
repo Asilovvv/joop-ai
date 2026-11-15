@@ -14,6 +14,8 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | `POST /api/mobile/orders/{id}/status` | `{"status"}`: the next step, the same code as the panel (stock back on cancel, the customer told) |
 | `GET /api/mobile/leads` | new requests, then the last 30 done |
 | `POST /api/mobile/leads/{id}/done` | marks a request done, with the person's name |
+| `GET /api/mobile/stays` | hotels, car rentals, banquet halls: upcoming stays as on the panel's «Брони» page (`kind`: room, car or hall; each with `room`, `check_in`, `check_out`, `nights`, `guests`, the customer, `conversation_id`, `status`); masters get 403, other niches 404 |
+| `POST /api/mobile/stays/{id}/cancel` | cancels a stay: the room, car or hall is free again for those dates; staff tell the customer, as in the panel |
 | `GET /api/mobile/customers?q=&tag=` | the panel's Клиенты (`customers.listing`): up to 100 customers, newest contact first, `total`, and `tags` (every tag in use, to filter by); `q` is a name or phone (the local «0555 …» form too); a master gets those who came to her |
 | `GET /api/mobile/customers/{key}` | the customer card (`customers.cards`, the panel's Клиенты): visits, `spend_som`, `rating`, `note`, `tags`, `upcoming`, the last 20 bookings and 10 orders; a master sees only her visits (`customers.for_staff`), 404 when the customer never came to her |
 | `POST /api/mobile/customers/{key}` | `{note, tags}` → the card's note and tags (comma-separated, de-duplicated), the panel's code |
@@ -42,9 +44,9 @@ Every call after sign-in sends `Authorization: Bearer <token>`.
   the password hash, so a new password, or switching a staff login off, ends it at once.
 - **Rights** follow the panel: a master's login sees and cancels only her own bookings and has no orders or requests
   (403). Settings, channels and payment stay in the panel.
-- **Sections**: `login` and `me` return `sections` (`bookings`, `orders`, `leads`, `cash`) from the niche, so the app shows
-  the tabs the panel's menu would: a cafe gets orders, a shop has no bookings.
-- Test chats (the panel's and the owner's own test chats in real channels) are left out of bookings, orders and requests.
+- **Sections**: `login` and `me` return `sections` (`bookings`, `orders`, `leads`, `cash`, `stays`) and `stay_kind` from the
+  niche, so the app shows the tabs the panel's menu would: a cafe gets orders, a shop has no bookings, a hotel has «Брони».
+- Test chats (the panel's and the owner's own test chats in real channels) are left out of bookings, orders, requests and stays.
 
 ## Customers
 

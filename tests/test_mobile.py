@@ -207,7 +207,7 @@ def _cafe_with_order_and_request():
 def test_a_cafe_owner_moves_orders_and_closes_requests(client, business, rt):
     order_id = _cafe_with_order_and_request()
     r = sign_in(client, company="navat", password="cafe-pass-1").json()
-    assert r["sections"] == {"bookings": True, "orders": True, "leads": True, "cash": True}
+    assert r["sections"] == {"bookings": True, "orders": True, "leads": True, "cash": True, "stays": False}
     token = r["token"]
 
     orders = client.get("/api/mobile/orders", headers=auth(token)).json()["orders"]
@@ -239,7 +239,7 @@ def test_orders_and_requests_are_not_a_masters_or_another_business(client, busin
                         staff_id=member.id))
         s.commit()
     master = sign_in(client, user="aigerim", password="staff-pass-1").json()
-    assert master["sections"] == {"bookings": True, "orders": False, "leads": False, "cash": True}
+    assert master["sections"] == {"bookings": True, "orders": False, "leads": False, "cash": True, "stays": False}
     assert client.get("/api/mobile/leads", headers=auth(master["token"])).status_code == 403
     assert client.get("/api/mobile/orders", headers=auth(master["token"])).status_code == 403
 
@@ -820,3 +820,62 @@ def test_the_dialogue_carries_the_ready_answers_filled_for_this_customer(client,
     ready = client.get(f"/api/mobile/conversations/{conv_id}", headers=auth(token)).json()["quick_replies"]
     assert [x["title"] for x in ready] == ["Адрес"]
     assert ready[0]["text"] == "Айгуль, мы находимся по адресу: ул. Киевская, 10. Ждём вас в Ак-Тиш Дент!"
+
+
+# --- stays: hotel rooms, cars, banquet halls ----------------------------------------------------------------------
+
+
+def test_a_hotel_sees_its_room_bookings_and_cancels_one(client, engine):
+    """A hotel books no one's time: its app opens «Брони» instead of «Записи», as the panel's «Брони номеров»."""
+    from joop.agent.llm import AgentReply
+
+    from .conftest import FakeLLM
+    from .test_stays import TODAY, hotel, say, stay
+
+    b, rooms = hotel()
+    family = rooms["Семейный номер"].id
+    say(b.id, "Семейный номер, Алмаз 0555667788", FakeLLM([stay(family)]), "s1", chat="g1")
+    say(b.id, "Семейный, Бакыт 0700112233", FakeLLM([stay(family, days_from=3, nights=2, name="Бакыт", phone="0700112233")]),
+        "s2", chat="g2")
+    with db.new_session() as s:  # a stay that ended yesterday is not upcoming
+        from joop.models import Stay
+
+        s.add(Stay(business_id=b.id, staff_id=family, room_name="Семейный номер", check_in=TODAY - timedelta(days=3),
+                   check_out=TODAY - timedelta(days=1), customer_name="Старый гость", channel="telegram"))
+        s.commit()
+    token = sign_in(client, "hotel", "hotel-pass").json()["token"]
+    me = client.get("/api/mobile/me", headers=auth(token)).json()
+    assert me["sections"]["stays"] and not me["sections"]["bookings"] and me["stay_kind"] == "room"
+    data = client.get("/api/mobile/stays", headers=auth(token)).json()
+    assert data["kind"] == "room" and [x["customer_name"] for x in data["stays"]] == ["Бакыт", "Алмаз"]  # by check-in
+    first = data["stays"][0]
+    assert first["room"] == "Семейный номер" and first["nights"] == 2 and first["guests"] == 2
+    assert first["check_in"] == (TODAY + timedelta(days=3)).isoformat() and first["customer_key"] == "700112233"
+    assert first["conversation_id"] and first["status"] == "booked"
+    done = client.post(f"/api/mobile/stays/{first['id']}/cancel", headers=auth(token)).json()["stay"]
+    assert done["status"] == "cancelled"
+    with db.new_session() as s:  # the room is free again for those nights
+        from joop.models import RoomNight
+
+        assert not s.exec(select(RoomNight).where(RoomNight.stay_id == first["id"])).all()
+    assert client.post(f"/api/mobile/stays/{first['id']}/cancel", headers=auth(token)).json()["stay"]["status"] == "cancelled"
+    assert client.post("/api/mobile/stays/999/cancel", headers=auth(token)).status_code == 404
+
+
+def test_stays_belong_to_their_business_and_niche(client, business, engine):
+    from .test_stays import hotel
+
+    b, rooms = hotel()
+    with db.new_session() as s:
+        from joop.models import Stay
+
+        row = Stay(business_id=b.id, staff_id=next(iter(rooms.values())).id, room_name="Номер", check_in=TOMORROW.date(),
+                   check_out=TOMORROW.date() + timedelta(days=2), customer_name="Гость", channel="telegram")
+        s.add(row)
+        s.commit()
+        stay_id = row.id
+    dental = sign_in(client).json()["token"]  # a dental clinic has no stays at all
+    assert client.get("/api/mobile/me", headers=auth(dental)).json()["sections"]["stays"] is False
+    assert client.get("/api/mobile/stays", headers=auth(dental)).status_code == 404
+    assert client.post(f"/api/mobile/stays/{stay_id}/cancel", headers=auth(dental)).status_code == 404
+    assert client.get("/api/mobile/stays").status_code == 401

@@ -14,6 +14,8 @@ class Account extends Equatable {
     this.orders = false,
     this.leads = true,
     this.cash = false,
+    this.stays = false,
+    this.stayKind = 'room',
   });
 
   factory Account.fromJson(Map<String, dynamic> json) {
@@ -24,6 +26,8 @@ class Account extends Equatable {
       orders: (sections['orders'] as bool?) ?? false,
       leads: (sections['leads'] as bool?) ?? true,
       cash: (sections['cash'] as bool?) ?? false,
+      stays: (sections['stays'] as bool?) ?? false,
+      stayKind: (json['stay_kind'] as String?) ?? 'room',
       businessName: business['name'] as String,
       slug: business['slug'] as String,
       niche: (business['niche'] as String?) ?? '',
@@ -48,10 +52,16 @@ class Account extends Equatable {
   /// Payments after visits (the panel's Касса).
   final bool cash;
 
+  /// Hotel rooms, cars or banquet halls booked by dates (the panel's «Брони»), and which of the three.
+  final bool stays;
+
+  /// room | car | hall
+  final String stayKind;
+
   bool get isOwner => role == 'owner';
 
   @override
-  List<Object?> get props => [businessName, slug, niche, who, role, bookings, orders, leads, cash];
+  List<Object?> get props => [businessName, slug, niche, who, role, bookings, orders, leads, cash, stays, stayKind];
 }
 
 class Booking extends Equatable {
@@ -477,6 +487,53 @@ class Lead extends Equatable {
   @override
   List<Object?> get props =>
       [id, createdAt, kind, summary, details, customerName, customerPhone, channel, done, closedBy, conversationId];
+}
+
+/// A hotel room, a car or a banquet hall booked for dates: [checkIn, checkOut), one date for a hall.
+class Stay extends Equatable {
+  const Stay({
+    required this.id,
+    required this.room,
+    required this.checkIn,
+    required this.checkOut,
+    required this.nights,
+    required this.guests,
+    required this.customerName,
+    required this.customerPhone,
+    required this.channel,
+    required this.cancelled,
+    this.conversationId,
+  });
+
+  factory Stay.fromJson(Map<String, dynamic> json) => Stay(
+        id: json['id'] as int,
+        room: (json['room'] as String?) ?? '',
+        checkIn: DateTime.parse(json['check_in'] as String),
+        checkOut: DateTime.parse(json['check_out'] as String),
+        nights: (json['nights'] as int?) ?? 1,
+        guests: (json['guests'] as int?) ?? 1,
+        customerName: (json['customer_name'] as String?) ?? '',
+        customerPhone: (json['customer_phone'] as String?) ?? '',
+        channel: (json['channel'] as String?) ?? '',
+        cancelled: json['status'] == 'cancelled',
+        conversationId: json['conversation_id'] as int?,
+      );
+
+  final int id;
+  final String room;
+  final DateTime checkIn;
+  final DateTime checkOut;
+  final int nights;
+  final int guests;
+  final String customerName;
+  final String customerPhone;
+  final String channel;
+  final bool cancelled;
+  final int? conversationId;
+
+  @override
+  List<Object?> get props =>
+      [id, room, checkIn, checkOut, nights, guests, customerName, customerPhone, channel, cancelled, conversationId];
 }
 
 class DialogueMessage extends Equatable {
