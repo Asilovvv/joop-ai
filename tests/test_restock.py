@@ -53,7 +53,7 @@ def test_asking_for_a_sold_out_item_keeps_a_watch_and_says_so(engine, rt):
         assert len(s.exec(select(StockWatch)).all()) == 1
     assert run(rt, b.id, NOW_UTC + timedelta(days=1)) == {}  # still out
     restock_masks(b.id)
-    assert run(rt, b.id, NOW_UTC + timedelta(days=2, hours=1)) == {"sent": 1}
+    assert run(rt, b.id, NOW_UTC + timedelta(days=2, hours=16)) == {"sent": 1}
     chat, text = rt.tg.sent[-1]
     assert chat == "c1" and text == "«Маски медицинские, 50 шт.» снова в наличии, цена 250. Отложить для вас?"
     assert run(rt, b.id, NOW_UTC + timedelta(days=3)) == {}  # once
@@ -64,7 +64,10 @@ def test_items_in_stock_and_unrelated_words_keep_no_watch(engine, rt):
     assert "напишем вам сюда" not in ask(b.id, "Парацетамол есть?", "a").reply  # in stock
     assert "напишем вам сюда" not in ask(b.id, "Где вы находитесь?", "b", chat="c2").reply
     assert [i.id for i in restock.asked_for("маска нужна", [masks(b.id)])] == [masks(b.id).id]  # «маска» / «маски» / «масок»
-    assert restock.asked_for("Маскалар барбы?", [masks(b.id)])  # Kyrgyz plural
+    with db.new_session() as s:
+        cream = s.exec(select(Service).where(Service.business_id == b.id, Service.name.startswith("Детский крем"))).one()
+    assert restock.asked_for("Балдар креми барбы?", [cream]) == [cream]  # by its Kyrgyz name
+    assert restock.asked_for("Спасибо, маски уже купила в другой аптеке", [masks(b.id)]) == []
 
 
 def test_stopped_items_old_watches_and_silenced_chats_get_nothing(engine, rt):
@@ -81,7 +84,7 @@ def test_stopped_items_old_watches_and_silenced_chats_get_nothing(engine, rt):
         s.commit()
     sent_before = len(rt.tg.sent)
     restock_masks(b.id)
-    assert run(rt, b.id, NOW_UTC + timedelta(days=2, hours=1)) == {"sent": 1, "expired": 1}
+    assert run(rt, b.id, NOW_UTC + timedelta(days=2, hours=16)) == {"sent": 1, "expired": 1}
     assert [chat for chat, _ in rt.tg.sent[sent_before:]] == ["c1"]
 
 
@@ -94,6 +97,6 @@ def test_an_item_the_owner_stopped_selling_is_not_announced(engine, rt):
         item = s.get(Service, masks(b.id).id)
         item.available = False  # the owner took it off sale after the count
         s.commit()
-    assert run(rt, b.id, NOW_UTC + timedelta(days=2, hours=1)) == {}
+    assert run(rt, b.id, NOW_UTC + timedelta(days=2, hours=16)) == {}
     with db.new_session() as s:
         assert not s.exec(select(Message).where(Message.text.contains("снова в наличии"))).all()

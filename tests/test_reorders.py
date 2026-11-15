@@ -58,7 +58,7 @@ def test_the_customers_own_interval_wins_and_a_newer_order_resets_it(engine, rt)
                         customer_name="Айгуль", customer_phone="+996555909090", created_at=NOW_UTC + timedelta(days=days)))
         s.commit()
         last = s.exec(select(Order).where(Order.business_id == b.id).order_by(Order.id.desc())).first()
-        s.add(OrderLine(order_id=last.id, item_id=water.id, name=water.name, quantity=3, price=180))
+        s.add(OrderLine(order_id=last.id, item_id=water.id, name=water.name, quantity=3, unit_price=180))
         s.commit()
     assert run(rt, b.id, NOW_UTC + timedelta(days=20)) == {}
     assert run(rt, b.id, NOW_UTC + timedelta(days=21)) == {"sent": 1, "failed": 0}  # 14 + its usual 7 days

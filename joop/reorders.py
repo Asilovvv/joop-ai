@@ -95,9 +95,10 @@ def results(session: Session, business_id: int, since: datetime) -> tuple[int, i
                                                 Order.reminded_at >= since)).all()
     again: dict[int, int] = {}
     for old in reminded:
-        new = session.exec(select(Order).where(Order.conversation_id == old.conversation_id, Order.status != "cancelled",
-                                               Order.created_at >= old.reminded_at, Order.created_at <= old.reminded_at + AFTER)
-                           .order_by(Order.id)).first()
+        items = select(OrderLine.item_id).where(OrderLine.order_id == old.id)
+        new = session.exec(select(Order).join(OrderLine, OrderLine.order_id == Order.id).where(  # a repeat, not any purchase
+            Order.conversation_id == old.conversation_id, Order.status != "cancelled", OrderLine.item_id.in_(items),
+            Order.created_at >= old.reminded_at, Order.created_at <= old.reminded_at + AFTER).order_by(Order.id)).first()
         if new is not None:
             again[new.id] = new.total or 0
     return len(reminded), len(again), sum(again.values())
