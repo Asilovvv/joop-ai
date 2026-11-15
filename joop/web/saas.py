@@ -216,11 +216,16 @@ def _people_steps(s: Session, b: Business, pack, now) -> list[dict[str, Any]]:
     example = samples.example_staff_ids(s, b)
     active = s.exec(select(Staff.id).where(Staff.business_id == b.id, Staff.active == True)).all()  # noqa: E712
     own = [x for x in active if x not in example]
-    label = pack.resource_label
-    steps = [{"done": bool(own) and not example, "key": "staff", "href": "/panel/staff",
+    label, booking = pack.resource_label, pack.has("booking")
+    # Without bookings (a flower shop, a repair shop taking requests) customers come to no one's time: own people are
+    # optional there, only the example must go. With bookings there is nobody to book without them.
+    done = (bool(own) if booking else True) and not example
+    steps = [{"done": done, "key": "staff", "href": "/panel/staff",
               "title": f"{label}: {len(active)}" + (f", из них пример: {len(example)}" if example else ""),
               "hint": "Это пример из вашей сферы: настоящим клиентам ИИ этих людей не называет и к ним не записывает. "
-                      "Впишите своих — имя и чем занимается." if example else "Впишите тех, к кому записываются клиенты."}]
+                      "Впишите своих — имя и чем занимается" + ("." if booking else " — или просто уберите пример.")
+                      if example else "Впишите тех, к кому записываются клиенты." if booking
+                      else "Своих людей можно вписать, если клиенты спрашивают о них по имени."}]
     if pack.has("booking"):
         now_local = utc_to_local(now, b.timezone)
         free = s.exec(select(func.count()).select_from(Slot).where(
@@ -353,6 +358,10 @@ def try_send(request: Request, text: str = Form(""), csrf: str = Form("")):
         _flash(request, "ИИ выключен в настройках.", "error")
     for note in outcome.admin_notes:
         _flash(request, "Уведомление администратору: " + note.splitlines()[0])
+    if outcome.freed_slot_ids:  # a test booking cancelled or moved: its real time goes to the waiting list, as «Новый диалог» does
+        from ..dispatch import offer_freed
+
+        offer_freed(_rt(request), b, outcome.freed_slot_ids)
     if outcome.booking_id:
         _flash(request, "Это тестовая запись: она видна в «Записях» и занимает время. Напоминаний по ней не будет"
                + (", в Altegio она не отправлена" if b.altegio_location_id else "")

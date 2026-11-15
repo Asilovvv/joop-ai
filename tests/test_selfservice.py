@@ -2,16 +2,18 @@
 
 from datetime import timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import select
 
-from joop import db
+from joop import db, deposits
 from joop.agent.engine import handle_incoming
 from joop.agent.llm import AgentReply, coerce_reply, response_schema
 from joop.channels.base import IncomingMessage
 from joop.dispatch import process_incoming
 from joop.models import Booking, Business, Conversation, Lead, Slot, WaitlistEntry
 from joop.timeutil import utc_to_local
+from joop.web import webchat
 from joop.web.app import create_app
 
 from .conftest import NOW_UTC, FakeLLM
@@ -185,3 +187,109 @@ def _form_values(page: str) -> dict:
         chosen = re.search(r'<option value="([^"]*)" selected', body) or re.search(r'<option value="([^"]*)"', body)
         out[name] = chosen.group(1) if chosen else ""
     return out
+
+
+# --- the independent review of PRs #211-#216 -------------------------------------------------------------------
+
+
+@pytest.fixture
+def web(settings, rt, business):
+    webchat.reset_limits()
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        yield c
+    webchat.reset_limits()
+
+
+def test_a_web_chat_customer_cancels_and_the_waiting_list_is_told(web, business, rt):
+    """The site chat calls handle_incoming itself: the time a visitor gives back reaches the waiting list too."""
+    with db.new_session() as s:  # Айбек waits in Telegram for any time tomorrow
+        conv = Conversation(business_id=business.id, channel="telegram", chat_id="w1", customer_name="Айбек")
+        s.add(conv)
+        s.flush()
+        s.add(WaitlistEntry(business_id=business.id, conversation_id=conv.id, customer_name="Айбек", channel="telegram",
+                            chat_id="w1", day=TOMORROW, service="чистка"))
+        s.commit()
+    slot = tomorrow(business.id)[0]
+    rt._llm = FakeLLM([AgentReply("Записала!", booking={"slot_id": slot.id, "name": "Айгуль", "phone": "0555 111 222",
+                                                        "service": "чистка"})])
+    first = web.post("/c/aktish/chat", json={"text": "Запишите на завтра, Айгуль, 0555 111 222", "visitor": ""})
+    visitor = first.json()["visitor"]
+    with db.new_session() as s:
+        booking = s.exec(select(Booking).where(Booking.business_id == business.id, Booking.channel == "web")).one()
+    rt._llm = FakeLLM([AgentReply("Ок", change={"booking_id": booking.id, "action": "cancel", "slot_id": None})])
+    r = web.post("/c/aktish/chat", json={"text": "Отмените мою запись", "visitor": visitor})
+    assert r.json()["reply"].startswith("Отменила вашу запись")
+    with db.new_session() as s:
+        assert s.get(Slot, slot.id).status == "free"
+        entry = s.exec(select(WaitlistEntry).where(WaitlistEntry.chat_id == "w1")).one()
+    told = [text for chat, text, *_ in rt.tg.sent if chat == "w1"]
+    assert told and entry.status == "notified", "the freed time was never offered to the waiting list"
+
+
+def test_a_cancel_after_the_customer_sent_a_receipt_goes_to_staff(business, rt):
+    """deposit_status "check": the customer says they paid. Cancelled, the receipt could not be marked paid any more."""
+    booking_id, _ = booked(business.id)
+    with db.new_session() as s:
+        row = s.get(Booking, booking_id)
+        row.deposit_due, row.deposit_status = 500, "check"
+        s.add(row)
+        s.commit()
+    out = say(business.id, "Отмените, пожалуйста", FakeLLM([AgentReply("Ок", change={"booking_id": booking_id, "action": "cancel",
+                                                                                      "slot_id": None})]), "r1")
+    with db.new_session() as s:
+        status = s.get(Booking, booking_id).status
+        leads = [x.summary for x in s.exec(select(Lead).where(Lead.business_id == business.id)).all()]
+    assert status == "booked" and out.lead_id and any("чек предоплаты" in x for x in leads), (status, out.admin_notes)
+    with db.new_session() as s:  # staff can still record the money
+        b, row = s.get(Business, business.id), s.get(Booking, booking_id)
+        assert deposits.mark_paid(s, rt, b, row, NOW_UTC) is not None
+
+
+def test_an_altegio_booking_is_not_offered_to_the_ai_to_change(business):
+    """Kept in Altegio, it always goes to staff: the model must not walk the customer through picking a new time first."""
+    booking_id, _ = booked(business.id)
+    with db.new_session() as s:
+        row = s.get(Booking, booking_id)
+        row.external_id = "altegio-555"
+        s.add(row)
+        s.commit()
+    llm = FakeLLM([AgentReply("Передам администратору.")])
+    say(business.id, "Можно перенести мою запись?", llm, "a1")
+    assert f"- запись {booking_id}: " not in llm.calls[0]["system"] and "change" not in llm.calls[0]["schema"]["properties"]
+
+
+def test_a_business_on_altegio_changes_bookings_there(business):
+    """Altegio's sync would undo a change made here, and its people's times cannot be booked from Joop."""
+    booking_id, _ = booked(business.id)
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.altegio_location_id = "777"
+        s.add(b)
+        s.commit()
+    llm = FakeLLM([AgentReply("Передам администратору.")])
+    say(business.id, "Отмените мою запись", llm, "a2")
+    assert "Записи клиента из этого чата" not in llm.calls[0]["system"] and "change" not in llm.calls[0]["schema"]["properties"]
+
+
+def test_a_test_chat_cancel_offers_the_real_time_to_the_waiting_list(settings, rt, business):
+    """The panel's test chat books a real time; given back there, it goes to the waiting list as «Новый диалог» does."""
+    from joop.web.saas import TRY_CHAT_ID
+
+    booking_id, slot = booked(business.id, chat=TRY_CHAT_ID)  # made on the telegram channel id; move it to the test chat
+    with db.new_session() as s:
+        row = s.get(Booking, booking_id)
+        conv = s.get(Conversation, row.conversation_id)
+        conv.channel, row.channel = "console", "console"
+        waiter = Conversation(business_id=business.id, channel="telegram", chat_id="w9", customer_name="Айбек")
+        s.add_all([row, conv, waiter])
+        s.flush()
+        s.add(WaitlistEntry(business_id=business.id, conversation_id=waiter.id, customer_name="Айбек", channel="telegram",
+                            chat_id="w9", day=TOMORROW, service="чистка"))
+        s.commit()
+    rt._llm = FakeLLM([AgentReply("Ок", change={"booking_id": booking_id, "action": "cancel", "slot_id": None})])
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        login(c)
+        c.post("/panel/try", data={"text": "Отмените мою запись", "csrf": csrf_of(c.get("/panel/try").text)})
+    with db.new_session() as s:
+        assert s.get(Booking, booking_id).status == "cancelled" and s.get(Slot, slot.id).status == "free"
+        assert s.exec(select(WaitlistEntry).where(WaitlistEntry.chat_id == "w9")).one().status == "notified"

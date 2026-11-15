@@ -57,9 +57,13 @@ class ApiClient {
   static bool isLocal(String host) {
     final h = host.toLowerCase().replaceAll(RegExp(r'^\[|\]$'), '');
     if (h == 'localhost' || h == '::1' || h.endsWith('.local')) return true;
-    final parts = h.split('.').map(int.tryParse).toList();
-    if (parts.length != 4 || parts.any((x) => x == null || x < 0 || x > 255)) return false;
-    final a = parts[0]!, b = parts[1]!;
+    // Plain decimal octets only: the system reads «010.8.8.8» as octal (8.8.8.8) and «0x0a» as hex, so a number
+    // read differently here would let the password go in plain http to a public address.
+    final parts = h.split('.');
+    if (parts.length != 4 || !parts.every(RegExp(r'^(0|[1-9][0-9]{0,2})$').hasMatch)) return false;
+    final n = parts.map(int.parse).toList();
+    if (n.any((x) => x > 255)) return false;
+    final a = n[0], b = n[1];
     return a == 127 || a == 10 || (a == 192 && b == 168) || (a == 172 && b >= 16 && b <= 31);
   }
 
