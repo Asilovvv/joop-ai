@@ -84,6 +84,11 @@
     <label for="s-pause">Сотрудник ответил клиенту сам — ИИ молчит в этом диалоге
       <select id="s-pause" name="takeover_minutes">{% for m, words in takeover_choices.items() %}<option value="{{ m }}" {{ 'selected' if business.takeover_minutes == m }}>{{ words }}</option>{% endfor %}</select></label>
     <p class="muted small">Каждый новый ответ сотрудника продлевает паузу. Коротко (15 минут) — ИИ подхватит, если клиент напишет позже; долго — сотрудник ведёт диалог сам.</p>
+    {% if pack.has('booking') %}
+    <input type="hidden" name="self_service_shown" value="1">
+    <label class="check"><input type="checkbox" name="self_service" value="1" {{ 'checked' if business.self_service }}> Клиент может сам отменить или перенести свою запись через ИИ</label>
+    <p class="muted small">Только запись, сделанную из этого же чата, и не позже чем за 2 часа до визита. Освободившееся время ИИ предложит листу ожидания, а вам придёт уведомление. Записи из Altegio и отмену визита с предоплатой ИИ всегда передаёт вам.</p>
+    {% endif %}
     <label for="s-rules">Дополнительные правила для ИИ<textarea id="s-rules" name="extra_rules" placeholder="Например: детей до 3 лет не принимаем; рассрочка только на импланты.">{{ business.extra_rules }}</textarea></label>
   </section>
   <div><button class="btn" type="submit">Сохранить настройки</button></div>
