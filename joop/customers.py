@@ -152,7 +152,7 @@ def listing(session: Session, business: Business, query: str = "", tag: str = ""
     if staff_id:
         rows = [v for v in (for_staff(c, staff_id) for c in rows) if v is not None]  # a master's login: her own customers
     q = query.strip().casefold()
-    qd = _DIGITS.sub("", query)
+    qd = _DIGITS.sub("", query).lstrip("0")  # «0555 123» is the local way to write +996 555 123
     if q:
         rows = [c for c in rows if q in c.name.casefold() or (qd and qd in _DIGITS.sub("", c.phone))]
     if tag:

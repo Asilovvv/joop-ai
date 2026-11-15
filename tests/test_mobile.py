@@ -763,3 +763,44 @@ def test_a_paid_visit_is_not_movable_in_the_app(client, business):
     assert r.status_code == 409 and "оплата" in r.json()["error"]
     with db.new_session() as s:
         assert s.get(Booking, booking_id).slot_id == slots[0].id and s.get(Slot, slots[3].id).status == "free"
+
+
+# --- the customers list ----------------------------------------------------------------------------------
+
+
+def test_the_owner_finds_a_customer_by_name_phone_or_tag(client, business):
+    slots = tomorrow_slots(business.id)
+    book(business.id, slots[0], name="Айгуль")  # +996700000001
+    with db.new_session() as s:
+        member = s.exec(select(Staff).where(Staff.business_id == business.id)).first()
+        s.add(Booking(business_id=business.id, staff_id=member.id, staff_name=member.name, start=datetime(2026, 10, 1, 10),
+                      service="Консультация", customer_name="Бакыт", customer_phone="+996555123456", channel=""))
+        s.commit()
+    token = sign_in(client).json()["token"]
+    client.post("/api/mobile/customers/555123456", json={"note": "", "tags": "VIP"}, headers=auth(token))
+    everyone = client.get("/api/mobile/customers", headers=auth(token)).json()
+    assert {c["name"] for c in everyone["customers"]} >= {"Айгуль", "Бакыт"} and everyone["tags"] == ["VIP"]
+    found = client.get("/api/mobile/customers", params={"q": "0555 123"}, headers=auth(token)).json()
+    assert [c["key"] for c in found["customers"]] == ["555123456"] and found["total"] == 1
+    assert found["tags"] == ["VIP"]  # the tags of everyone, to filter by, not only of those found
+    assert [c["name"] for c in client.get("/api/mobile/customers", params={"q": "айгуль"}, headers=auth(token)).json()["customers"]] == ["Айгуль"]
+    assert [c["name"] for c in client.get("/api/mobile/customers", params={"tag": "VIP"}, headers=auth(token)).json()["customers"]] == ["Бакыт"]
+
+
+def test_a_master_lists_only_her_customers_and_another_business_none(client, business):
+    slots = tomorrow_slots(business.id)
+    mine = slots[0]
+    other = next(x for x in slots if x.staff_id != mine.staff_id)
+    book(business.id, mine, name="Айгуль")
+    with db.new_session() as s:
+        member = s.get(Staff, other.staff_id)
+        s.add(Booking(business_id=business.id, staff_id=member.id, staff_name=member.name, start=other.start,
+                      customer_name="Бакыт", customer_phone="+996555123456", channel=""))
+        s.add(PanelUser(business_id=business.id, name="Айгерим", login="aigerim", password_hash=hash_password("staff-pass-1"),
+                        staff_id=mine.staff_id))
+        s.add(Business(slug="other", name="Другая", admin_password_hash=hash_password("other-pass-1")))
+        s.commit()
+    master = sign_in(client, user="aigerim", password="staff-pass-1").json()["token"]
+    assert [c["name"] for c in client.get("/api/mobile/customers", headers=auth(master)).json()["customers"]] == ["Айгуль"]
+    stranger = sign_in(client, company="other", password="other-pass-1").json()["token"]
+    assert client.get("/api/mobile/customers", headers=auth(stranger)).json() == {"customers": [], "total": 0, "tags": []}

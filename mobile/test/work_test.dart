@@ -130,7 +130,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(ordersAsked(), before + 1); // back in the app: checked at once
 
-    await tester.tap(find.byTooltip('Выйти')); // stops the checks
+    await tester.tap(find.byKey(const Key('app-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Выйти')); // stops the checks
     await tester.pumpAndSettle();
   });
 

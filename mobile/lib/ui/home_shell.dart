@@ -16,6 +16,7 @@ import '../data/joop_repository.dart';
 import '../data/models.dart';
 import 'bookings_screen.dart';
 import 'chats_screen.dart';
+import 'customers_screen.dart';
 import 'language_button.dart';
 import 'new_booking_screen.dart';
 import 'schedule_screen.dart';
@@ -195,18 +196,6 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           appBar: AppBar(
             title: Text(_titles[tabs[_index]]!, style: const TextStyle(fontWeight: FontWeight.w800)),
             actions: [
-              if (_account.role != 'master' && tabs[_index] == _Tab.bookings)
-                IconButton(
-                  key: const Key('open-schedule'),
-                  tooltip: S.current.schedule,
-                  icon: const Icon(Icons.event_available_outlined),
-                  onPressed: () async {
-                    await Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => ScheduleScreen(day: _bookings.state.day, today: widget.today),
-                    ));
-                    _bookings.add(const BookingsPolled()); // the day may have changed meanwhile
-                  },
-                ),
               if (_account.role != 'master')
                 IconButton(
                   key: const Key('open-chats'),
@@ -215,10 +204,35 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChatsScreen())),
                 ),
               const LanguageButton(),
-              IconButton(
-                tooltip: S.current.signOut,
-                icon: const Icon(Icons.logout),
-                onPressed: () => context.read<AuthBloc>().add(const AuthLogoutRequested()),
+              PopupMenuButton<VoidCallback>(
+                key: const Key('app-menu'),
+                tooltip: S.current.menu,
+                onSelected: (action) => action(),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    key: const Key('menu-customers'),
+                    value: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CustomersScreen())),
+                    child: ListTile(leading: const Icon(Icons.people_outline), title: Text(S.current.customersTitle)),
+                  ),
+                  if (_account.role != 'master' && _account.bookings)
+                    PopupMenuItem(
+                      key: const Key('menu-schedule'),
+                      value: () async {
+                        final day = tabs[_index] == _Tab.bookings ? _bookings.state.day : widget.today;
+                        await Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => ScheduleScreen(day: day, today: widget.today),
+                        ));
+                        _bookings.add(const BookingsPolled()); // the day may have changed meanwhile
+                      },
+                      child: ListTile(
+                          leading: const Icon(Icons.event_available_outlined), title: Text(S.current.schedule)),
+                    ),
+                  PopupMenuItem(
+                    key: const Key('menu-sign-out'),
+                    value: () => context.read<AuthBloc>().add(const AuthLogoutRequested()),
+                    child: ListTile(leading: const Icon(Icons.logout), title: Text(S.current.signOut)),
+                  ),
+                ],
               ),
             ],
           ),

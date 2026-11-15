@@ -277,6 +277,23 @@ def _card(s: Session, who: Who, key: str):
     return card
 
 
+CUSTOMERS = 100
+
+
+@router.get("/api/mobile/customers")
+def mobile_customers(request: Request, q: str = "", tag: str = ""):
+    """The panel's Клиенты: everyone the AI met, newest contact first; `q` finds by name or phone, `tag` by a tag
+    staff gave. A master sees the customers who came to her, with her visits only (customers.listing)."""
+    with new_session() as s:
+        who = _signed_in(s, request)
+        if who is None:
+            return _fail(401, "Войдите заново.")
+        rows = customers.listing(s, who.business, q.strip()[:60], tag.strip()[:60], staff_id=who.master_staff_id)
+        everyone = rows if not (q.strip() or tag.strip()) else customers.listing(s, who.business, staff_id=who.master_staff_id)
+        return {"customers": [customer_json(c) for c in rows[:CUSTOMERS]], "total": len(rows),
+                "tags": sorted({t for c in everyone for t in c.tag_list})}
+
+
 @router.get("/api/mobile/customers/{key}")
 def mobile_customer(request: Request, key: str):
     with new_session() as s:

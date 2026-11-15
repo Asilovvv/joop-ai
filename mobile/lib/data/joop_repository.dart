@@ -93,6 +93,20 @@ class JoopRepository {
     return Service.fromJson(data['service'] as Map<String, dynamic>);
   }
 
+  /// Customers, newest contact first; [query] is a name or phone, [tag] a tag staff gave. Returns those found
+  /// (at most 100), how many there are, and every tag in use.
+  Future<(List<CustomerRow>, int, List<String>)> customers({String query = '', String tag = ''}) async {
+    final data = await _api.get('/api/mobile/customers', query: {
+      if (query.isNotEmpty) 'q': query,
+      if (tag.isNotEmpty) 'tag': tag,
+    }) as Map<String, dynamic>;
+    return (
+      [for (final c in data['customers'] as List) CustomerRow.fromJson(c as Map<String, dynamic>)],
+      (data['total'] as int?) ?? 0,
+      [for (final t in (data['tags'] as List? ?? const [])) t as String],
+    );
+  }
+
   Future<CustomerCard> customer(String key) async {
     final data = await _api.get('/api/mobile/customers/${Uri.encodeComponent(key)}') as Map<String, dynamic>;
     return CustomerCard.fromJson(data['customer'] as Map<String, dynamic>);

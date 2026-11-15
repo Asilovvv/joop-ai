@@ -831,3 +831,40 @@ class ScheduleChange {
   final int offered;
   final List<Booking> bookings;
 }
+
+/// A customer in the list (GET /api/mobile/customers).
+class CustomerRow extends Equatable {
+  const CustomerRow({
+    required this.key,
+    required this.name,
+    required this.phone,
+    required this.channels,
+    required this.visits,
+    required this.spendSom,
+    required this.lastVisit,
+    required this.tags,
+  });
+
+  factory CustomerRow.fromJson(Map<String, dynamic> json) => CustomerRow(
+        key: json['key'] as String,
+        name: (json['name'] as String?) ?? '',
+        phone: (json['phone'] as String?) ?? '',
+        channels: [for (final c in (json['channels'] as List? ?? const [])) c as String],
+        visits: (json['visits'] as int?) ?? 0,
+        spendSom: (json['spend_som'] as int?) ?? 0,
+        lastVisit: json['last_visit_local'] == null ? null : DateTime.parse(json['last_visit_local'] as String),
+        tags: [for (final t in (json['tags'] as List? ?? const [])) t as String],
+      );
+
+  final String key;
+  final String name;
+  final String phone;
+  final List<String> channels;
+  final int visits;
+  final int spendSom;
+  final DateTime? lastVisit;
+  final List<String> tags;
+
+  @override
+  List<Object?> get props => [key, name, phone, channels, visits, spendSom, lastVisit, tags];
+}
