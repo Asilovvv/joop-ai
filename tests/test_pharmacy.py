@@ -50,7 +50,7 @@ def test_a_pickup_reservation_reminds_about_the_prescription(engine):
     b = pharmacy()
     amox = item(b.id, "Амоксициллин 500 мг, 16 капсул")
     out, llm = order(b.id, [{"item_id": amox.id, "quantity": 1, "note": ""}], "pickup", "p1")
-    assert out.order_id and out.reply.endswith("При получении покажите рецепт на: Амоксициллин 500 мг, 16 капсул.")
+    assert out.order_id and "\nПри получении покажите рецепт на: Амоксициллин 500 мг, 16 капсул.\nВаш заказ: " in out.reply
     with db.new_session() as s:
         assert "покажите рецепт" in s.get(Order, out.order_id).comment  # the staff see it in the order
     system = llm.calls[0]["system"]
