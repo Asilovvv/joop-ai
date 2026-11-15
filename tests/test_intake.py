@@ -53,7 +53,7 @@ def test_questions_after_booking_and_answers_saved(business):
 def test_no_questions_configured(business):
     slot = first_free_slot(business.id)
     out = say(business.id, "Айбек, 0555 123 456", FakeLLM([book(slot.id)]), "i4")
-    assert out.reply == "Вы записаны."
+    assert out.reply == "Вы записаны.\nВаша запись: Чт 05.11 09:00, Айгерим Садыкова."
 
 
 def test_every_third_visit_gets_the_reward(business):
