@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
 from .. import altegio, cash, customers, order_status, staff_reply
+from ..reschedule import reschedule
 from ..api import booking_json, customer_json, lead_json, order_json
 from ..db import new_session
 from ..models import Booking, Business, Conversation, Lead, Message, Order, PanelUser, Service, Slot, Staff
@@ -299,6 +300,34 @@ def mobile_customer_note(request: Request, key: str, body: NoteIn):
         row = customers.save_note(s, who.business, key, body.note, body.tags)
         s.commit()
         return {"note": row.note, "tags": [t.strip() for t in row.tags.split(",") if t.strip()]}
+
+
+class MoveIn(BaseModel):
+    slot_id: int
+
+
+@router.post("/api/mobile/bookings/{item_id}/move")
+def mobile_move(request: Request, item_id: int, body: MoveIn):
+    """Move a booking to another free time (joop/reschedule.py): the customer is told in their chat."""
+    with new_session() as s:
+        who = _signed_in(s, request)
+        if who is None:
+            return _fail(401, "Войдите заново.")
+        b = who.business
+        booking, slot = s.get(Booking, item_id), s.get(Slot, body.slot_id)
+        own = lambda staff_id: not who.master_staff_id or staff_id == who.master_staff_id  # noqa: E731
+        if booking is None or booking.business_id != b.id or not own(booking.staff_id):
+            return _fail(404, "Запись не найдена.")
+        if slot is None or slot.business_id != b.id or not own(slot.staff_id):
+            return _fail(404, "Такого времени нет.")
+        moved = reschedule(s, _rt(request), b, booking, slot, local_now(b.timezone).replace(tzinfo=None), utcnow(),
+                           hidden_staff=example_staff_ids(s, b))
+        if moved.problem:
+            s.rollback()
+            return _fail(409, moved.problem)
+        s.commit()
+        s.refresh(booking)
+        return {"booking": _booking(s, booking), "told": moved.told}
 
 
 # --- payment after the visit (the panel's Касса) ---------------------------------------------------------

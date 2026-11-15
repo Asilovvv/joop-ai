@@ -81,7 +81,8 @@ class NewBookingCubit extends Cubit<NewBookingState> {
     }
     emit(state.copyWith(saving: true, error: () => null));
     try {
-      final booking = await _repository.book(slotId: slot.id, name: name.trim(), phone: phone.trim(), service: service.trim());
+      final booking =
+          await _repository.book(slotId: slot.id, name: name.trim(), phone: phone.trim(), service: service.trim());
       emit(state.copyWith(saving: false, booked: booking));
     } on ApiException catch (e) {
       if (e.statusCode != 409) {
@@ -93,4 +94,22 @@ class NewBookingCubit extends Cubit<NewBookingState> {
       emit(state.copyWith(error: () => e.message));
     }
   }
+
+  /// Moves [booking] to the chosen time; the server tells the customer in their chat.
+  Future<void> move(Booking booking) async {
+    final slot = state.selected;
+    if (slot == null || state.saving) return;
+    emit(state.copyWith(saving: true, error: () => null));
+    try {
+      final (moved, told) = await _repository.move(booking.id, slot.id);
+      this.told = told;
+      emit(state.copyWith(saving: false, booked: moved));
+    } on ApiException catch (e) {
+      if (e.statusCode == 409 && !e.message.contains('Altegio')) await showDay(state.day); // the time went meanwhile
+      emit(state.copyWith(saving: false, error: () => e.message));
+    }
+  }
+
+  /// Whether the customer got the new time in their chat (after [move]).
+  bool told = false;
 }

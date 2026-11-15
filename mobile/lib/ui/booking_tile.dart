@@ -14,6 +14,7 @@ class BookingTile extends StatelessWidget {
       this.onCancel,
       this.onPay,
       this.onOpen,
+      this.onMove,
       this.busy = false,
       this.showDay = false});
 
@@ -25,6 +26,9 @@ class BookingTile extends StatelessWidget {
 
   /// Opens the customer's card; null when the booking has no customer to show.
   final VoidCallback? onOpen;
+
+  /// Moves the booking to another free time; null where it cannot be moved here.
+  final VoidCallback? onMove;
   final bool busy;
   final bool showDay;
 
@@ -87,18 +91,24 @@ class BookingTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (active && (onCancel != null || onPay != null))
+              if (active && (onCancel != null || onPay != null || onMove != null))
                 busy
                     ? const Padding(
                         padding: EdgeInsets.all(12),
                         child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
                       )
                     : Column(mainAxisSize: MainAxisSize.min, children: [
-                        if (onCancel != null)
-                          IconButton(
-                            tooltip: S.current.cancelBooking,
-                            icon: const Icon(Icons.event_busy_outlined),
-                            onPressed: onCancel,
+                        if (onCancel != null || onMove != null)
+                          PopupMenuButton<VoidCallback>(
+                            key: Key('booking-menu-${booking.id}'),
+                            tooltip: S.current.more,
+                            onSelected: (action) => action(),
+                            itemBuilder: (_) => [
+                              if (onMove != null)
+                                PopupMenuItem(value: onMove, child: Text(S.current.moveAction)),
+                              if (onCancel != null)
+                                PopupMenuItem(value: onCancel, child: Text(S.current.cancelBooking)),
+                            ],
                           ),
                         if (onPay != null)
                           IconButton(

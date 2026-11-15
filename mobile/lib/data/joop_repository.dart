@@ -65,6 +65,12 @@ class JoopRepository {
     return Booking.fromJson(data['booking'] as Map<String, dynamic>);
   }
 
+  /// Moves a booking to another free time; returns it and whether the customer was told in their chat.
+  Future<(Booking, bool)> move(int bookingId, int slotId) async {
+    final data = await _api.post('/api/mobile/bookings/$bookingId/move', {'slot_id': slotId}) as Map<String, dynamic>;
+    return (Booking.fromJson(data['booking'] as Map<String, dynamic>), (data['told'] as bool?) ?? false);
+  }
+
   /// What the customer paid after the visit; amount 0 removes a payment recorded by mistake.
   Future<Booking> pay(int bookingId, int amount, String method) async {
     final data = await _api.post('/api/mobile/bookings/$bookingId/pay', {'amount': amount, 'method': method})

@@ -70,4 +70,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('На этот день свободного времени нет'), findsOneWidget);
   });
+
+  testWidgets('a booking moves to another free time and the customer is told', (tester) async {
+    final server = await signIn(tester);
+    await tester.tap(find.text('Записи').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('booking-menu-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Перенести'));
+    await tester.pumpAndSettle();
+    expect(find.text('Перенести запись'), findsOneWidget);
+    expect(find.byKey(const Key('new-booking-name')), findsNothing); // the customer is already known
+    expect(find.textContaining('Сейчас: Айгуль'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('slot-32')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('new-booking-save')));
+    await tester.pumpAndSettle();
+    expect(server.calls, contains('POST /api/mobile/bookings/1/move'));
+    expect(find.text('Перенесли на пт, 13 ноя, 17:00. Клиенту написали в чат.'), findsOneWidget);
+    expect(server.bookings.first['start_local'], '2026-11-13T17:00:00');
+  });
 }

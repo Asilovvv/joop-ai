@@ -11,6 +11,7 @@ import '../core/strings.dart';
 import '../data/models.dart';
 import 'booking_tile.dart';
 import 'customer_screen.dart';
+import 'new_booking_screen.dart';
 import 'payment_sheet.dart';
 
 /// Bookings of one day from every channel, with the day switcher and cancelling.
@@ -30,6 +31,17 @@ class BookingsScreen extends StatelessWidget {
       ),
     );
     if (yes == true && context.mounted) context.read<BookingsBloc>().add(BookingCancelRequested(id));
+  }
+
+  Future<void> _move(BuildContext context, Booking booking) async {
+    final bloc = context.read<BookingsBloc>();
+    final summary = context.read<SummaryCubit>();
+    final moved = await Navigator.of(context).push<Booking>(MaterialPageRoute(
+      builder: (_) => NewBookingScreen(day: booking.start, today: DateTime.now(), moving: booking),
+    ));
+    if (moved == null) return;
+    bloc.add(BookingsDayChanged(moved.start)); // show the day it moved to
+    summary.load();
   }
 
   Future<void> _pay(BuildContext context, Booking booking) async {
@@ -126,6 +138,7 @@ class BookingsScreen extends StatelessWidget {
                           onCancel: () => _confirmCancel(context, b.id, b.customerName),
                           onPay: payments ? () => _pay(context, b) : null,
                           onOpen: b.customerKey.isEmpty ? null : () => openCustomer(context, b),
+                          onMove: () => _move(context, b),
                         );
                       },
                     ),

@@ -148,6 +148,17 @@ class FakeJoop {
       return json({'today': on('2026-11-13'), 'tomorrow': on('2026-11-14'), 'week': active.length,
           'next': active.isEmpty ? null : active.first});
     }
+    final moveTo = RegExp(r'^/api/mobile/bookings/(\d+)/move$').firstMatch(path);
+    if (moveTo != null) {
+      final b = bookings.firstWhere((x) => x['id'] == int.parse(moveTo.group(1)!));
+      final slotId = (jsonDecode(request.body) as Map)['slot_id'];
+      final slot = freeSlots.where((x) => x['id'] == slotId).firstOrNull;
+      if (slot == null) return json({'error': 'Это время уже занято. Выберите другое.'}, 409);
+      freeSlots.remove(slot);
+      b['start_local'] = slot['start_local'];
+      b['staff'] = slot['staff'];
+      return json({'booking': b, 'told': (b['channel'] as String).isNotEmpty});
+    }
     final pay = RegExp(r'^/api/mobile/bookings/(\d+)/pay$').firstMatch(path);
     if (pay != null) {
       final b = bookings.firstWhere((x) => x['id'] == int.parse(pay.group(1)!));

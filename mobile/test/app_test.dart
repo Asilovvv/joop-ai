@@ -34,7 +34,9 @@ void main() {
     expect(find.text('Бакыт'), findsOneWidget);
     expect(find.text('WhatsApp'), findsWidgets);
 
-    await tester.tap(find.byTooltip('Отменить запись').last);
+    await tester.tap(find.byTooltip('Ещё').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Отменить запись').last);
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Отменить запись'));
     await tester.pumpAndSettle();

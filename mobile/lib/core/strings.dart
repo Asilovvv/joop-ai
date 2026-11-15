@@ -158,6 +158,12 @@ class S {
     required this.aiOnDone,
     required this.aiResultsTitle,
     required this.aiFigure,
+    required this.moveBooking,
+    required this.moveAction,
+    required this.movingFrom,
+    required this.movedTold,
+    required this.movedCallYourself,
+    required this.more,
     required this.answer,
     required this.answerHint,
     required this.answerSent,
@@ -333,6 +339,12 @@ class S {
 
   /// The label of a figure from /api/mobile/ai-results; empty for a key the app does not know yet.
   final String Function(String key) aiFigure;
+  final String moveBooking;
+  final String moveAction;
+  final String Function(String name, String when) movingFrom;
+  final String Function(String when) movedTold;
+  final String Function(String when) movedCallYourself;
+  final String more;
   final String answer;
   final String answerHint;
   final String answerSent;
@@ -509,6 +521,12 @@ class S {
     aiOnDone: 'ИИ снова отвечает в этом диалоге',
     aiResultsTitle: _ruAiTitle,
     aiFigure: _ruAiFigure,
+    moveBooking: 'Перенести запись',
+    moveAction: 'Перенести',
+    movingFrom: _ruMovingFrom,
+    movedTold: _ruMovedTold,
+    movedCallYourself: _ruMovedCall,
+    more: 'Ещё',
     answer: 'Ответить',
     answerHint: 'Ответ клиенту',
     answerSent: 'Ответ отправлен, заявка закрыта',
@@ -683,6 +701,12 @@ class S {
     aiOnDone: 'ИИ бул диалогдо кайра жооп берет',
     aiResultsTitle: _kyAiTitle,
     aiFigure: _kyAiFigure,
+    moveBooking: 'Жазууну жылдыруу',
+    moveAction: 'Жылдыруу',
+    movingFrom: _kyMovingFrom,
+    movedTold: _kyMovedTold,
+    movedCallYourself: _kyMovedCall,
+    more: 'Дагы',
     answer: 'Жооп берүү',
     answerHint: 'Кардарга жооп',
     answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
@@ -778,3 +802,9 @@ String _kyAiFigure(String key) => const {
       'handed_to_people': 'адамдарга берилген суроо',
     }[key] ??
     '';
+String _ruMovingFrom(String name, String when) => 'Сейчас: $name, $when';
+String _kyMovingFrom(String name, String when) => 'Азыр: $name, $when';
+String _ruMovedTold(String when) => 'Перенесли на $when. Клиенту написали в чат.';
+String _kyMovedTold(String when) => '$when убакытка жылдырылды. Кардарга чатка жазылды.';
+String _ruMovedCall(String when) => 'Перенесли на $when. Сообщите клиенту сами: написать ему из Joop нельзя.';
+String _kyMovedCall(String when) => '$when убакытка жылдырылды. Кардарга өзүңүз билдириңиз: Joopтон жазуу мүмкүн эмес.';

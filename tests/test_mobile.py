@@ -687,3 +687,65 @@ def test_the_owner_sees_what_the_ai_did_in_two_weeks(client, business):
         s.commit()
     master = sign_in(client, user="aigerim", password="staff-pass-1").json()["token"]
     assert client.get("/api/mobile/ai-results", headers=auth(master)).status_code == 403
+
+
+# --- moving a booking ------------------------------------------------------------------------------------
+
+
+def _chat_booking(business_id, slot: Slot) -> int:
+    """A booking the AI made in a Telegram chat, reminded and confirmed."""
+    from joop.models import Conversation
+
+    with db.new_session() as s:
+        conv = Conversation(business_id=business_id, channel="telegram", chat_id="9001", customer_name="Айгуль")
+        s.add(conv)
+        s.flush()
+        slot = s.get(Slot, slot.id)
+        member = s.get(Staff, slot.staff_id)
+        slot.taken, slot.status = 1, "booked"
+        row = Booking(business_id=business_id, slot_id=slot.id, staff_id=member.id, staff_name=member.name, start=slot.start,
+                      service="Консультация", customer_name="Айгуль", channel="telegram", chat_id="9001",
+                      conversation_id=conv.id, reminder_status="sent", confirmed_at=datetime(2026, 11, 4, 12))
+        s.add_all([slot, row])
+        s.commit()
+        return row.id
+
+
+def test_the_owner_moves_a_booking_and_the_customer_is_told(client, business, rt):
+    slots = tomorrow_slots(business.id)
+    old, new = slots[0], slots[3]
+    booking_id = _chat_booking(business.id, old)
+    token = sign_in(client).json()["token"]
+    r = client.post(f"/api/mobile/bookings/{booking_id}/move", json={"slot_id": new.id}, headers=auth(token))
+    assert r.status_code == 200, r.text
+    assert r.json()["told"] is True and r.json()["booking"]["start_local"] == new.start.isoformat(timespec="seconds")
+    assert rt.tg.sent[-1][0] == "9001" and "перенесена" in rt.tg.sent[-1][1]
+    with db.new_session() as s:
+        moved = s.get(Booking, booking_id)
+        assert (moved.slot_id, moved.status, moved.reminder_status, moved.confirmed_at) == (new.id, "booked", "", None)
+        assert s.get(Slot, old.id).status == "free" and s.get(Slot, new.id).status == "booked"
+    again = client.post(f"/api/mobile/bookings/{booking_id}/move", json={"slot_id": new.id}, headers=auth(token))
+    assert again.status_code == 409
+
+
+def test_a_move_is_refused_for_a_taken_time_altegio_a_cancelled_booking_or_a_stranger(client, business):
+    slots = tomorrow_slots(business.id)
+    booking_id, other = _chat_booking(business.id, slots[0]), book(business.id, slots[1], name="Бакыт")
+    token = sign_in(client).json()["token"]
+    move = lambda bid, sid, t=token: client.post(f"/api/mobile/bookings/{bid}/move", json={"slot_id": sid}, headers=auth(t))  # noqa: E731
+    assert "занято" in move(booking_id, slots[1].id).json()["error"]
+    with db.new_session() as s:
+        row = s.get(Booking, other)
+        row.external_id = "123"
+        s.add(row)
+        s.commit()
+    assert "Altegio" in move(other, slots[4].id).json()["error"]
+    client.post(f"/api/mobile/bookings/{booking_id}/cancel", headers=auth(token))
+    assert move(booking_id, slots[4].id).status_code == 409
+    with db.new_session() as s:
+        s.add(Business(slug="other", name="Другая", admin_password_hash=hash_password("other-pass-1")))
+        s.commit()
+    stranger = sign_in(client, company="other", password="other-pass-1").json()["token"]
+    assert move(other, slots[4].id, stranger).status_code == 404
+    with db.new_session() as s:
+        assert s.get(Slot, slots[4].id).status == "free"
