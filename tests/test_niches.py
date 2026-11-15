@@ -259,3 +259,30 @@ def test_an_order_reply_never_carries_a_sum_the_order_does_not_have(engine):
     assert wrong.reply == "Оформила заказ.\nВаш заказ: 2 × Плов, 1 × Чай чёрный, чайник. Сумма заказа: 820 сом."
     right = order("Принято: плов 350 сом × 2 и чай, всего 820 сом.", "w2")
     assert right.reply.startswith("Принято: плов 350 сом × 2 и чай, всего 820 сом.\nВаш заказ: 2 × Плов")
+
+
+def test_an_order_total_word_must_name_the_order_s_total(engine):
+    """«Итого 700 сом» for an 850 order with delivery: 700 is the food's sum, but «итого» names the whole order."""
+    b = make("restaurant")  # demo: min order 600, delivery 150, free from 2000
+    plov = item(b, "Плов")
+    base = {"address": "Киевская 1", "time": "", "name": "Айбек", "phone": "0555123456", "comment": "", "mode": "delivery",
+            "lines": [{"item_id": plov.id, "quantity": 2, "note": ""}]}
+    llm = FakeLLM([AgentReply("Оформила! Итого 700 сом, курьер позвонит.", order=base),
+                   AgentReply("Оформила: 2 плова на 700 сом и доставка 150 сом, итого 850 сом.", order=base)])
+    wrong = say(b, "2 плова на Киевскую 1", llm, "t1")
+    assert wrong.reply == "Оформила заказ.\nВаш заказ: 2 × Плов. Сумма заказа: 850 сом, включая доставку 150 сом."
+    right = say(b, "2 плова на Киевскую 1", llm, "t2")
+    assert right.reply.startswith("Оформила: 2 плова на 700 сом") and right.reply.endswith("включая доставку 150 сом.")
+
+
+def test_a_kyrgyz_chat_reads_the_order_line_in_kyrgyz_and_no_rewrite_touches_it(engine):
+    """The model's Russian reply in a Kyrgyz chat is rewritten by the model: the code's line is added only after that."""
+    b = make("restaurant")
+    plov = item(b, "Плов")
+    llm = FakeLLM([AgentReply("Заказ оформлен.", order={"address": "", "time": "", "name": "Айбек", "phone": "0555123456",
+                                                         "comment": "", "mode": "pickup",
+                                                         "lines": [{"item_id": plov.id, "quantity": 2, "note": ""}]})],
+                  rewrites=["Рахмат, буйрутмаңызды кабыл алдым, даяр болгондо жазам."])
+    out = say(b, "Саламатсызбы, эки палоо алып кетем, Айбек 0555123456", llm, "k1")
+    assert llm.rewrite_calls == ["Заказ оформлен."]  # the model rewrote its own words only
+    assert out.reply == "Рахмат, буйрутмаңызды кабыл алдым, даяр болгондо жазам.\nБуйрутмаңыз: 2 × Палоо. Жалпы суммасы: 700 сом."

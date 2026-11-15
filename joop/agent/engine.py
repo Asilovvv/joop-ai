@@ -288,10 +288,12 @@ def _model_reply(
         result.booking = None
     if result.booking and result.booking.get("slot_id") is not None and not pack.has("booking"):
         result.booking["slot_id"] = None
+    ordered: Order | None = None
     if result.order and pack.has("order"):
         outcome.reply, order = _try_order(session, business, pack, conv, result.order, result.reply, now, off, channel,
                                           hidden.services)
         if order is not None:
+            ordered = order
             outcome.order_id = order.id
             outcome.admin_notes.append(_order_note(session, conv, order, off))
             outcome.admin_notes.extend(stock.take_for_order(session, order.id, now))
@@ -406,6 +408,8 @@ def _model_reply(
             outcome.admin_notes.append(f"Бонус: у {booked.customer_name} {booked.loyalty_visit}-й визит "
                                        f"({fmt_slot(booked.start)}) — {business.loyalty_reward.strip()}")
         session.add(booked)
+    if ordered is not None and outcome.reply:  # the same for an order: what was ordered and the total
+        outcome.reply = with_order_line(session, business, outcome.reply, ordered, is_kyrgyz_message(text))
 
     if outcome.reply and pack.has("order") and not outcome.order_id:  # «напишем, когда появится» (joop/restock.py)
         outcome.reply += restock.watch_line(session, business, conv, text, now, is_kyrgyz_message(text))
@@ -973,22 +977,44 @@ def _try_order(
     conv.customer_name, conv.customer_phone = name, phone
     session.add(conv)
     session.flush()
-    if total is None:
-        summary = "Точную сумму подтвердит администратор."
-    elif fee:
-        summary = f"Сумма заказа: {_som(total)}, включая доставку {_som(fee)}."
-    else:
-        summary = f"Сумма заказа: {_som(total)}."
-    summary = "Ваш заказ: " + ", ".join(f"{qty} × {item.name}" for item, qty, _ in lines) + ". " + summary
-    # The model never sets prices; a sum in its words that the order does not have must not reach the customer.
+    # The model never sets prices: a sum in its words the order does not have (total, the items' total, delivery, a
+    # unit price, a line subtotal), or a total word («итого», «жалпы») with any sum but the order's total, must not
+    # reach the customer. Checked on the model's own words, before the guards; the lines and total follow after them.
     allowed = {x for x in (total, items_total, fee) if x is not None}
     allowed |= {v for item, qty, _ in lines if item.price_value is not None for v in (item.price_value, item.price_value * qty)}
     named = {int(re.sub(r"[ \u00a0,]", "", x)) for x in _SOM.findall(reply)}
-    head = "Оформила заказ." if named - allowed else reply
-    return f"{head}\n{summary}" + (f"\n{rx_note}" if rx_note else ""), order
+    totals = {int(re.sub(r"[ \u00a0,]", "", x)) for x in _TOTAL_SUM.findall(reply)}
+    head = "Оформила заказ." if named - allowed or (total is not None and totals - {total}) else reply
+    return head + (f"\n{rx_note}" if rx_note else ""), order
 
 
 _SOM = re.compile(r"(?<![\d])(\d{1,3}(?:[ \u00a0,]\d{3})+|\d+)\s*(?:сом|с\.|KGS)", re.I)
+# «итого 700 сом» names the whole order: it must be its total, not a line's (700 for the food of an 850 order with delivery)
+_TOTAL_SUM = re.compile(r"(?:итог|всего|сумм|к оплате|жалпы|баары|бардыгы)\w*\D{0,25}?" + _SOM.pattern[len(r"(?<![\d])"):], re.I)
+ORDER_RU, ORDER_KY = "Ваш заказ: {items}. {total}", "Буйрутмаңыз: {items}. {total}"  # KY: проверить носителю
+TOTAL_RU, TOTAL_KY = "Сумма заказа: {total}.", "Жалпы суммасы: {total}."  # KY: проверить носителю
+FEE_RU = "Сумма заказа: {total}, включая доставку {fee}."
+FEE_KY = "Жалпы суммасы: {total}, анын ичинде жеткирүү {fee}."  # KY: проверить носителю
+NO_TOTAL_RU, NO_TOTAL_KY = "Точную сумму подтвердит администратор.", "Так сумманы администратор тактайт."  # KY: проверить носителю
+
+
+def with_order_line(session: Session, business: Business, reply: str, order: Order, kyrgyz: bool) -> str:
+    """What was ordered and the total, written by the code after the guards: no Kyrgyz rewrite by the model touches
+    it, and a Kyrgyz chat reads it in Kyrgyz with the items' Kyrgyz names (_try_order already checked the model's sums)."""
+    rows = session.exec(select(OrderLine).where(OrderLine.order_id == order.id).order_by(OrderLine.id)).all()
+    names: dict[int, str] = {}
+    if kyrgyz:
+        ids = [r.item_id for r in rows if r.item_id]
+        names = {s.id: s.name_ky for s in session.exec(select(Service).where(Service.id.in_(ids))).all() if s.name_ky}
+    items = ", ".join(f"{r.quantity} × {names.get(r.item_id) or r.name}" for r in rows)
+    if order.total is None:
+        total = NO_TOTAL_KY if kyrgyz else NO_TOTAL_RU
+    elif order.delivery_fee:
+        total = (FEE_KY if kyrgyz else FEE_RU).format(total=_som(order.total), fee=_som(order.delivery_fee))
+    else:
+        total = (TOTAL_KY if kyrgyz else TOTAL_RU).format(total=_som(order.total))
+    line = (ORDER_KY if kyrgyz else ORDER_RU).format(items=items, total=total)
+    return f"{reply.rstrip()}\n{line}"
 
 
 def _som(value: int) -> str:
