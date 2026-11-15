@@ -509,10 +509,14 @@ def _conversation(s: Session, who: Who, item_id: int) -> Conversation | None:
 
 def _dialogue(s: Session, conv: Conversation) -> dict:
     now = utcnow()
+    paused = conv.ai_paused_until if conv.ai_paused_until and conv.ai_paused_until > now else None
     rows = list(reversed(s.exec(select(Message).where(Message.conversation_id == conv.id)
                                 .order_by(Message.id.desc()).limit(DIALOGUE)).all()))
     return {"id": conv.id, "channel": conv.channel, "customer": {"name": conv.customer_name, "phone": conv.customer_phone},
-            "ai_paused": bool(conv.ai_paused_until and conv.ai_paused_until > now),
+            "ai_paused": paused is not None,
+            "ai_paused_until": paused.isoformat() + "Z" if paused else None,
+            # how long a staff reply keeps the AI out of the chat, as the owner chose in the settings
+            "takeover_minutes": s.get(Business, conv.business_id).takeover_minutes,
             "reply_blocked": staff_reply.blocked(conv, now),
             "messages": [{"id": m.id, "role": m.role, "text": m.text, "created_at": m.created_at.isoformat() + "Z",
                           "author": m.author} for m in rows if m.role in ("customer", "ai", "staff")]}

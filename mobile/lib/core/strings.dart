@@ -139,6 +139,7 @@ class S {
     required this.answerHint,
     required this.answerSent,
     required this.aiPausedNote,
+    required this.pauseWords,
     required this.aiLabel,
     required this.customerLabel,
     required this.callInstead,
@@ -287,7 +288,8 @@ class S {
   final String answer;
   final String answerHint;
   final String answerSent;
-  final String aiPausedNote;
+  final String Function(String until, String pause) aiPausedNote;
+  final String Function(int minutes) pauseWords;
   final String aiLabel;
   final String customerLabel;
   final String Function(String phone) callInstead;
@@ -439,7 +441,8 @@ class S {
     answer: 'Ответить',
     answerHint: 'Ответ клиенту',
     answerSent: 'Ответ отправлен, заявка закрыта',
-    aiPausedNote: 'ИИ не вмешивается в этот диалог 12 часов после ответа сотрудника.',
+    aiPausedNote: _ruPaused,
+    pauseWords: _ruPause,
     aiLabel: 'ИИ',
     customerLabel: 'Клиент',
     callInstead: _ruCallInstead,
@@ -589,7 +592,8 @@ class S {
     answer: 'Жооп берүү',
     answerHint: 'Кардарга жооп',
     answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
-    aiPausedNote: 'Кызматкер жооп бергенден кийин ИИ бул диалогго 12 саат кийлигишпейт.',
+    aiPausedNote: _kyPaused,
+    pauseWords: _kyPause,
     aiLabel: 'ИИ',
     customerLabel: 'Кардар',
     callInstead: _kyCallInstead,
@@ -648,3 +652,9 @@ String _ruUnpaid(int n) => 'Прошли без оплаты: $n';
 String _kyUnpaid(int n) => 'Төлөмсүз өткөн визиттер: $n';
 String _ruMonth(String amount) => 'За месяц: $amount';
 String _kyMonth(String amount) => 'Ай ичинде: $amount';
+String _ruPaused(String until, String pause) =>
+    'ИИ не вмешивается в этот диалог до $until. Каждый ответ сотрудника продлевает паузу на $pause.';
+String _kyPaused(String until, String pause) =>
+    'ИИ бул диалогго $until чейин кийлигишпейт. Кызматкердин ар бир жообу тыныгууну $pause узартат.';
+String _ruPause(int m) => const {15: '15 минут', 60: '1 час', 180: '3 часа', 720: '12 часов', 1440: '24 часа'}[m] ?? '$m мин';
+String _kyPause(int m) => const {15: '15 мүнөткө', 60: '1 саатка', 180: '3 саатка', 720: '12 саатка', 1440: '24 саатка'}[m] ?? '$m мүнөткө';
