@@ -55,7 +55,7 @@ def test_visitor_talks_to_the_same_engine_and_can_book(web, business, rt):
     assert r.status_code == 200 and r.json()["reply"].startswith("Консультация") and re.fullmatch(r"[a-f0-9]{24}", visitor)
     assert "чате на сайте" in rt._llm.calls[0]["system"]
     r = say(web, "Запишите, Айбек, 0555 123 456", visitor)
-    assert r.json() == {"reply": "Записала!", "visitor": visitor}
+    assert r.json() == {"reply": "Записала!\nВаша запись: Чт 05.11 09:00, Айгерим Садыкова.", "visitor": visitor}
     with db.new_session() as s:
         convs = s.exec(select(Conversation).where(Conversation.business_id == business.id, Conversation.channel == "web")).all()
         assert len(convs) == 1 and convs[0].chat_id == f"web-{visitor}"  # the same visitor, the same conversation

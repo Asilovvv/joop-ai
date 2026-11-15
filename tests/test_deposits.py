@@ -54,7 +54,7 @@ def test_after_booking_the_customer_gets_amount_details_and_deadline(business, r
     assert (booking.deposit_status, booking.deposit_due) == ("awaiting", 500)
     deadline_local = utc_to_local(booking.deposit_deadline, business.timezone)
     assert booking.deposit_deadline == min(NOW_UTC + timedelta(hours=2), local_to_utc(slot.start, business.timezone) - timedelta(hours=1))
-    assert out.reply.startswith("Записала!\n\nЧтобы закрепить запись, нужна предоплата 500 сом. Как оплатить: " + DETAILS)
+    assert out.reply.startswith("Записала!\nВаша запись: Чт 05.11 09:00, Айгерим Садыкова.\n\nЧтобы закрепить запись, нужна предоплата 500 сом. Как оплатить: " + DETAILS)
     assert f"Оплатите до {deadline_local:%d.%m %H:%M}" in out.reply and "освободится" not in out.reply
     assert any(f"Ждём предоплату 500 сом до {deadline_local:%d.%m %H:%M}." in n for n in out.admin_notes)
     assert "Для записи нужна предоплата 500 сом" in rt._llm.calls[0]["system"]  # so "нужна ли предоплата?" is answered

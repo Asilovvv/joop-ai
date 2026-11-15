@@ -182,7 +182,7 @@ def test_dispatch_delivers_reply_and_admin_notes(business, rt):
     rt._llm = FakeLLM([AgentReply("Записала!", booking={"slot_id": slot.id, "name": "Айбек", "phone": "0555123456", "service": "осмотр"})])
     outcome = process_incoming(rt, business.id, tg("Айбек 0555123456, на 9:00"), NOW_UTC)
     assert outcome.booking_id
-    assert rt.tg.sent[0] == ("1001", "Записала!")
+    assert rt.tg.sent[0] == ("1001", "Записала!\nВаша запись: Чт 05.11 09:00, Айгерим Садыкова.")
     assert {chat for chat, _ in rt.tg.sent[1:]} == {"-5001", "777"}
 
 
@@ -218,3 +218,20 @@ def test_outage_sends_one_note_then_summaries(business):
     assert "без ответа остались 10 сообщений" in notes[9][0]
     with db.new_session() as s:
         assert len(s.exec(select(Lead).where(Lead.business_id == business.id, Lead.kind == "error")).all()) == 10
+
+
+def test_the_booked_time_in_the_reply_comes_from_the_code():
+    """The model chose the slot and the code booked it; the day, time and person the customer reads are the booking's."""
+    from datetime import datetime
+
+    from joop.agent.engine import with_booking_line
+    from joop.models import Booking
+
+    b = Booking(business_id=1, start=datetime(2026, 11, 5, 12, 0), staff_name="Бакыт Осмонов")
+    line = "Ваша запись: Чт 05.11 12:00, Бакыт Осмонов."
+    assert with_booking_line("Записала вас на 13:00!", b, False) == "Записала вас. " + line  # the model named another time
+    assert with_booking_line("Готово, ждём вас 05.11 в 12:00.", b, False) == "Готово, ждём вас 05.11 в 12:00."  # right day and time
+    assert with_booking_line("Записала на завтра в 12:00.", b, False) == "Записала на завтра в 12:00.\n" + line
+    assert with_booking_line("Записала!", b, False) == "Записала!\n" + line
+    assert with_booking_line("Сизди 9:30га жаздым", b, True) == "Жазып койдум. Жазылдыңыз: бейш 05.11 12:00, Бакыт Осмонов."
+    assert with_booking_line("Записала на 12:00, оплатите 05.11 до 10:00", b, False).endswith("05.11 до 10:00")  # booked time named
