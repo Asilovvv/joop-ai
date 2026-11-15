@@ -31,13 +31,13 @@ from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, Convers
                       SignatureClick, Slot, Staff, Stay, StockMove, WaitlistEntry, takeover_words)
 from ..niches import all_packs, get_pack, picker_packs
 from ..phone import normalize_phone
-from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, order_status, quick_replies, samples, staff_reply, stock, waitlist
+from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, order_status, quick_replies, samples, schedule, staff_reply, stock, waitlist
 from ..faq_gaps import open_gaps
 from ..reschedule import blocked as move_blocked, reschedule
 from ..runtime import Runtime
 from ..scheduler import Scheduler
 from ..security import hash_password, new_link_code, new_test_code, verify_password
-from ..slots import add_slots, free_on_day, generate_slots, parse_times, release_slot, resize_group, seats_left, seats_needed
+from ..slots import CLOSED, add_slots, free_on_day, generate_slots, parse_times, release_slot, resize_group, seats_left, seats_needed
 from ..stats import TEST_CHANNEL, activity, by_hour, hour_bars
 from ..timeutil import WEEKDAYS_SHORT, fmt_date_long, fmt_dt, fmt_slot, local_now, parse_days_off, parse_hhmm, utc_to_local, utcnow
 
@@ -724,7 +724,7 @@ def _retire_staff(s: Session, business_id: int, row: Staff) -> None:
     for user in s.exec(select(PanelUser).where(PanelUser.business_id == business_id, PanelUser.staff_id == row.id)).all():
         user.active = False  # her own login goes with her
         s.add(user)
-    for slot in s.exec(select(Slot).where(Slot.staff_id == row.id, Slot.status == "free", Slot.taken == 0)).all():
+    for slot in s.exec(select(Slot).where(Slot.staff_id == row.id, Slot.status.in_(["free", CLOSED]), Slot.taken == 0)).all():
         s.delete(slot)
 
 
@@ -940,6 +940,7 @@ def slots_page(request: Request):
             days=days,
             today=today.isoformat(),
             week=(today + timedelta(days=7)).isoformat(),
+            now=now_local.replace(tzinfo=None),
             work_start=b.work_start,
             work_end=b.work_end,
         )
@@ -994,6 +995,17 @@ def slot_toggle(request: Request, item_id: int, csrf: str = Form("")):
     with new_session() as s:
         b = _business(s, request)
         slot = _own(s, Slot, item_id, b.id)
+        member = s.get(Staff, slot.staff_id)
+        if slot.status == CLOSED or schedule.from_altegio(b, member):
+            changed = (schedule.reopen(s, _rt(request), b, member, [slot], _now_local(b), utcnow()) if slot.status == CLOSED
+                       else schedule.close(s, b, member, [slot], _now_local(b)))  # the Altegio refusal
+            if changed.problem:
+                _flash(request, changed.problem, "error")
+                return _back("/panel/slots")
+            s.commit()
+            if changed.offered:
+                _flash(request, f"Время предложено клиентам из листа ожидания: {changed.offered}.")
+            return _back("/panel/slots")
         active = s.exec(select(Booking).where(Booking.slot_id == slot.id, Booking.status == "booked")).first()
         if active:
             _flash(request, "На это время есть запись. Отмените её на странице «Записи».", "error")
@@ -1005,6 +1017,38 @@ def slot_toggle(request: Request, item_id: int, csrf: str = Form("")):
             s.commit()
             if told:
                 _flash(request, f"Время предложено клиентам из листа ожидания: {told}.")
+    return _back("/panel/slots")
+
+
+@router.post("/panel/slots/day")
+def slots_day(request: Request, staff_id: int = Form(...), day: str = Form(""), action: str = Form("close"),
+              csrf: str = Form("")):
+    """Close a person's whole day (ill, on leave) or open it again (joop/schedule.py)."""
+    _check_csrf(request, csrf)
+    with new_session() as s:
+        b = _business(s, request)
+        member = _own(s, Staff, staff_id, b.id)
+        chosen = _parse_date(day)
+        if chosen is None or abs((chosen - _now_local(b).date()).days) > 3 * 366:  # 9999-12-31 + 1 day overflows
+            raise HTTPException(status_code=400)
+        rows = list(s.exec(select(Slot).where(Slot.staff_id == member.id, Slot.start >= datetime.combine(chosen, time.min),
+                                              Slot.start < datetime.combine(chosen + timedelta(days=1), time.min))).all())
+        now_local = _now_local(b)
+        changed = (schedule.reopen(s, _rt(request), b, member, rows, now_local, utcnow()) if action == "open"
+                   else schedule.close(s, b, member, rows, now_local))
+        if changed.problem:
+            _flash(request, changed.problem, "error")
+            return _back("/panel/slots")
+        s.commit()
+        when = f"{member.name}, {chosen:%d.%m}"
+        if action == "open":
+            _flash(request, f"Открыто времени: {changed.count} ({when})."
+                   + (f" Предложено клиентам из листа ожидания: {changed.offered}." if changed.offered else ""))
+        else:
+            left = "; ".join(f"{x.start:%H:%M} {x.customer_name or 'клиент'}" for x in changed.bookings)
+            _flash(request, f"Закрыто времени: {changed.count} ({when}). ИИ не будет записывать на этот день."
+                   + (f" Остались записи: {left} — перенесите или отмените их на странице «Записи», клиенты ещё не знают."
+                      if left else ""), "error" if left else "ok")
     return _back("/panel/slots")
 
 

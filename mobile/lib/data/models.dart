@@ -688,3 +688,75 @@ class AiResults extends Equatable {
   @override
   List<Object?> get props => [days, figures];
 }
+
+/// One time in the day's schedule (GET /api/mobile/schedule).
+class ScheduleSlot extends Equatable {
+  const ScheduleSlot({
+    required this.id,
+    required this.start,
+    required this.state,
+    required this.seats,
+    required this.taken,
+    required this.customer,
+  });
+
+  factory ScheduleSlot.fromJson(Map<String, dynamic> json) => ScheduleSlot(
+        id: json['id'] as int,
+        start: DateTime.parse(json['start_local'] as String),
+        state: json['state'] as String,
+        seats: (json['seats'] as int?) ?? 1,
+        taken: (json['taken'] as int?) ?? 0,
+        customer: (json['customer'] as String?) ?? '',
+      );
+
+  final int id;
+  final DateTime start;
+
+  /// free | closed (staff closed it: the AI does not book it) | busy (marked so, without a booking) | booked
+  final String state;
+  final int seats;
+  final int taken;
+  final String customer;
+
+  bool get isGroup => seats > 1;
+
+  @override
+  List<Object?> get props => [id, start, state, seats, taken, customer];
+}
+
+/// A person's times on the chosen day.
+class SchedulePerson extends Equatable {
+  const SchedulePerson({required this.id, required this.name, required this.fromAltegio, required this.slots});
+
+  factory SchedulePerson.fromJson(Map<String, dynamic> json) => SchedulePerson(
+        id: json['id'] as int,
+        name: json['name'] as String,
+        fromAltegio: (json['from_altegio'] as bool?) ?? false,
+        slots: [for (final x in (json['slots'] as List? ?? const [])) ScheduleSlot.fromJson(x as Map<String, dynamic>)],
+      );
+
+  final int id;
+  final String name;
+
+  /// The schedule comes from Altegio and is changed there.
+  final bool fromAltegio;
+  final List<ScheduleSlot> slots;
+
+  @override
+  List<Object?> get props => [id, name, fromAltegio, slots];
+}
+
+/// What closing or opening changed; [bookings] are those left in closed times, to move or cancel.
+class ScheduleChange {
+  const ScheduleChange({required this.changed, required this.offered, required this.bookings});
+
+  factory ScheduleChange.fromJson(Map<String, dynamic> json) => ScheduleChange(
+        changed: (json['changed'] as int?) ?? 0,
+        offered: (json['offered'] as int?) ?? 0,
+        bookings: [for (final b in (json['bookings'] as List? ?? const [])) Booking.fromJson(b as Map<String, dynamic>)],
+      );
+
+  final int changed;
+  final int offered;
+  final List<Booking> bookings;
+}

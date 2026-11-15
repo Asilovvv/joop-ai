@@ -99,6 +99,19 @@ class JoopRepository {
     return (data['note'] as String, [for (final t in data['tags'] as List) t as String]);
   }
 
+  Future<List<SchedulePerson>> schedule(DateTime day) async {
+    final data = await _api.get('/api/mobile/schedule', query: {'day': isoDay(day)}) as Map<String, dynamic>;
+    return [for (final p in data['staff'] as List) SchedulePerson.fromJson(p as Map<String, dynamic>)];
+  }
+
+  /// Closes one time, or opens a closed or busy one.
+  Future<ScheduleChange> setSlotOpen(int slotId, bool open) async => ScheduleChange.fromJson(
+      await _api.post('/api/mobile/schedule/slots/$slotId', {'open': open}) as Map<String, dynamic>);
+
+  /// Closes a person's whole day (ill, on leave) or opens it again.
+  Future<ScheduleChange> setDayOpen(int staffId, DateTime day, bool open) async => ScheduleChange.fromJson(await _api
+      .post('/api/mobile/schedule/day', {'staff_id': staffId, 'day': isoDay(day), 'open': open}) as Map<String, dynamic>);
+
   Future<List<FreeSlot>> freeSlots(DateTime day) async {
     final data = await _api.get('/api/mobile/slots', query: {'day': isoDay(day)}) as Map<String, dynamic>;
     return [for (final row in data['slots'] as List) FreeSlot.fromJson(row as Map<String, dynamic>)];

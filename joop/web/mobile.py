@@ -22,7 +22,7 @@ from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
-from .. import altegio, cash, customers, order_status, staff_reply
+from .. import altegio, cash, customers, order_status, schedule, staff_reply
 from ..reschedule import blocked as move_blocked, reschedule
 from ..api import booking_json, customer_json, lead_json, order_json
 from ..db import new_session
@@ -31,7 +31,7 @@ from ..niches import get_pack
 from ..phone import normalize_phone
 from ..samples import example_staff_ids
 from ..security import verify_password
-from ..slots import claim_slot, free_on_day, release_slot, seats_left, seats_needed
+from ..slots import CLOSED, claim_slot, free_on_day, release_slot, seats_left, seats_needed
 from ..stats import activity, not_test, real_conversation
 from ..timeutil import local_now, utcnow
 from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
@@ -331,6 +331,116 @@ def mobile_move(request: Request, item_id: int, body: MoveIn):
         s.commit()
         s.refresh(booking)
         return {"booking": _booking(s, booking), "told": moved.told}
+
+
+# --- closing and opening times by hand (joop/schedule.py) ------------------------------------------------
+# A doctor is ill: the owner closes her day from the phone, and the AI stops booking into it. The bookings already
+# there are returned, to be moved or cancelled. The panel's «Окна», so not for a master.
+
+
+def _day_slots(s: Session, member: Staff, day: date) -> list[Slot]:
+    return list(s.exec(select(Slot).where(Slot.staff_id == member.id, Slot.start >= datetime.combine(day, time.min),
+                                          Slot.start < datetime.combine(day + timedelta(days=1), time.min))
+                       .order_by(Slot.start)).all())
+
+
+def _state(slot: Slot) -> str:
+    if slot.status == CLOSED:
+        return "closed"
+    if slot.status == "free":
+        return "free"
+    return "booked" if slot.taken else "busy"  # busy: marked so by staff, without a booking
+
+
+def _changed(s: Session, changed: schedule.Changed) -> dict:
+    return {"changed": changed.count, "offered": changed.offered, "bookings": [_booking(s, x) for x in changed.bookings]}
+
+
+@router.get("/api/mobile/schedule")
+def mobile_schedule(request: Request, day: str = ""):
+    """The day's times that have not started, by person: free, closed, busy or booked (with the customer)."""
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        b = who.business
+        now = local_now(b.timezone).replace(tzinfo=None)
+        chosen = _day(day, now.date())
+        if chosen is None or abs((chosen - now.date()).days) > MAX_SPAN_DAYS:
+            return _fail(400, "day: нужна дата в виде 2026-11-20, не дальше трёх лет от сегодня.")
+        hidden = example_staff_ids(s, b)
+        people = s.exec(select(Staff).where(Staff.business_id == b.id, Staff.active == True)  # noqa: E712
+                        .order_by(Staff.name)).all()
+        out = []
+        for member in people:
+            if member.id in hidden:
+                continue
+            slots = [x for x in _day_slots(s, member, chosen) if x.start > now]
+            booked = {x.slot_id: x for x in s.exec(select(Booking).where(
+                Booking.slot_id.in_([x.id for x in slots] or [0]), Booking.status == "booked").order_by(Booking.id)).all()}
+            out.append({"id": member.id, "name": member.name, "from_altegio": schedule.from_altegio(b, member),
+                        "slots": [{"id": x.id, "start_local": x.start.isoformat(timespec="seconds"), "state": _state(x),
+                                   "seats": x.seats, "taken": x.taken,
+                                   "customer": booked[x.id].customer_name if x.id in booked and x.seats == 1 else ""}
+                                  for x in slots]})
+        return {"day": chosen.isoformat(), "staff": out}
+
+
+class OpenIn(BaseModel):
+    open: bool
+
+
+@router.post("/api/mobile/schedule/slots/{item_id}")
+def mobile_schedule_slot(request: Request, item_id: int, body: OpenIn):
+    """Close one time, or open a closed or busy one."""
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        b = who.business
+        slot = s.get(Slot, item_id)
+        member = s.get(Staff, slot.staff_id) if slot else None
+        if slot is None or member is None or slot.business_id != b.id or member.id in example_staff_ids(s, b):
+            return _fail(404, "Такого времени нет.")
+        now = local_now(b.timezone).replace(tzinfo=None)
+        if slot.start <= now:
+            return _fail(409, "Это время уже началось.")
+        changed = (schedule.reopen(s, _rt(request), b, member, [slot], now, utcnow(), busy_too=True) if body.open
+                   else schedule.close(s, b, member, [slot], now))
+        if changed.problem:
+            return _fail(409, changed.problem)
+        s.commit()
+        return _changed(s, changed)
+
+
+class DayIn(BaseModel):
+    staff_id: int
+    day: str
+    open: bool
+
+
+@router.post("/api/mobile/schedule/day")
+def mobile_schedule_day(request: Request, body: DayIn):
+    """Close a person's whole day (ill, on leave) or open it again; times already started are left as they are."""
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        b = who.business
+        member = s.get(Staff, body.staff_id)
+        if member is None or member.business_id != b.id or member.id in example_staff_ids(s, b):
+            return _fail(404, "Такого сотрудника нет.")
+        now = local_now(b.timezone).replace(tzinfo=None)
+        chosen = _day(body.day, now.date())
+        if chosen is None or abs((chosen - now.date()).days) > MAX_SPAN_DAYS:
+            return _fail(400, "day: нужна дата в виде 2026-11-20, не дальше трёх лет от сегодня.")
+        slots = _day_slots(s, member, chosen)
+        changed = (schedule.reopen(s, _rt(request), b, member, slots, now, utcnow()) if body.open
+                   else schedule.close(s, b, member, slots, now))
+        if changed.problem:
+            return _fail(409, changed.problem)
+        s.commit()
+        return _changed(s, changed)
 
 
 # --- payment after the visit (the panel's Касса) ---------------------------------------------------------

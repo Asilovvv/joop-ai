@@ -164,6 +164,19 @@ class S {
     required this.movedTold,
     required this.movedCallYourself,
     required this.more,
+    required this.schedule,
+    required this.scheduleNote,
+    required this.closeDay,
+    required this.openDay,
+    required this.slotClosed,
+    required this.slotBusy,
+    required this.noTimes,
+    required this.scheduleFromAltegio,
+    required this.bookingsLeftTitle,
+    required this.bookingsLeftText,
+    required this.gotIt,
+    required this.closedTimes,
+    required this.openedTimes,
     required this.answer,
     required this.answerHint,
     required this.answerSent,
@@ -345,6 +358,19 @@ class S {
   final String Function(String when) movedTold;
   final String Function(String when) movedCallYourself;
   final String more;
+  final String schedule;
+  final String scheduleNote;
+  final String closeDay;
+  final String openDay;
+  final String slotClosed;
+  final String slotBusy;
+  final String noTimes;
+  final String scheduleFromAltegio;
+  final String bookingsLeftTitle;
+  final String bookingsLeftText;
+  final String gotIt;
+  final String Function(int n) closedTimes;
+  final String Function(int n, int offered) openedTimes;
   final String answer;
   final String answerHint;
   final String answerSent;
@@ -527,6 +553,19 @@ class S {
     movedTold: _ruMovedTold,
     movedCallYourself: _ruMovedCall,
     more: 'Ещё',
+    schedule: 'Окна',
+    scheduleNote: 'Нажмите на время, чтобы закрыть или открыть его. Закрытое время ИИ не предлагает.',
+    closeDay: 'Закрыть день',
+    openDay: 'Открыть день',
+    slotClosed: 'закрыто',
+    slotBusy: 'занято',
+    noTimes: 'На этот день времени нет',
+    scheduleFromAltegio: 'Расписание из Altegio — меняйте его там.',
+    bookingsLeftTitle: 'Остались записи',
+    bookingsLeftText: 'Перенесите или отмените их в «Записи»: клиенты ещё не знают.',
+    gotIt: 'Понятно',
+    closedTimes: _ruClosedTimes,
+    openedTimes: _ruOpenedTimes,
     answer: 'Ответить',
     answerHint: 'Ответ клиенту',
     answerSent: 'Ответ отправлен, заявка закрыта',
@@ -707,6 +746,19 @@ class S {
     movedTold: _kyMovedTold,
     movedCallYourself: _kyMovedCall,
     more: 'Дагы',
+    schedule: 'Убакыттар',
+    scheduleNote: 'Убакытты жабуу же ачуу үчүн басыңыз. Жабык убакытты ИИ сунуштабайт.',
+    closeDay: 'Күндү жабуу',
+    openDay: 'Күндү ачуу',
+    slotClosed: 'жабык',
+    slotBusy: 'бош эмес',
+    noTimes: 'Бул күнгө убакыт жок',
+    scheduleFromAltegio: "Расписание Altegio'дон алынат — ошол жерден өзгөртүңүз.",
+    bookingsLeftTitle: 'Жазуулар калды',
+    bookingsLeftText: 'Аларды «Жазылуулар» бөлүмүндө жылдырыңыз же жокко чыгарыңыз: кардарлар азырынча билбейт.',
+    gotIt: 'Түшүнүктүү',
+    closedTimes: _kyClosedTimes,
+    openedTimes: _kyOpenedTimes,
     answer: 'Жооп берүү',
     answerHint: 'Кардарга жооп',
     answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
@@ -808,3 +860,9 @@ String _ruMovedTold(String when) => 'Перенесли на $when. Клиент
 String _kyMovedTold(String when) => '$when убакытка жылдырылды. Кардарга чатка жазылды.';
 String _ruMovedCall(String when) => 'Перенесли на $when. Сообщите клиенту сами: написать ему из Joop нельзя.';
 String _kyMovedCall(String when) => '$when убакытка жылдырылды. Кардарга өзүңүз билдириңиз: Joopтон жазуу мүмкүн эмес.';
+String _ruClosedTimes(int n) => 'Закрыто времени: $n. ИИ не будет на него записывать.';
+String _kyClosedTimes(int n) => 'Жабылды: $n. ИИ ага жазбайт.';
+String _ruOpenedTimes(int n, int offered) =>
+    'Открыто времени: $n.${offered > 0 ? ' Предложено клиентам из листа ожидания: $offered.' : ''}';
+String _kyOpenedTimes(int n, int offered) =>
+    'Ачылды: $n.${offered > 0 ? ' Күтүү тизмесиндеги кардарларга сунушталды: $offered.' : ''}';

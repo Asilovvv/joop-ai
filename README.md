@@ -328,6 +328,10 @@ WhatsApp message fees for reminders.
   the customer on the waitlist with the day they named. When staff cancel a booking or reopen a slot, the
   first three customers waiting for that day are told in their chat; whoever answers first is booked by
   the AI as usual, so a slot is never promised twice. The list is on the "Записи" page.
+- **Closing a day** (`joop/schedule.py`; «Закрыть день» on the panel's «Окна» and in the app's «Окна»): a doctor is
+  ill. Her times that have not started become `closed`: nothing claims them, and `release_slot` keeps them closed, so
+  moving or cancelling her patients does not hand the day back to the AI. The bookings already there are listed to be
+  moved or cancelled. Opening offers the times to the waitlist. Altegio schedules are refused (the sync would undo it).
 - **Moving a booking** (`joop/reschedule.py`; «Перенести» on the "Записи" page and in the mobile app): the customer
   asked for an hour later. The booking keeps its row (its chat, prepayment and upsell) and takes another free time
   the way the AI takes one; the old time is freed and offered to the waitlist, the reminder and the customer's «да»

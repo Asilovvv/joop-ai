@@ -153,7 +153,7 @@ class Slot(SQLModel, table=True):
     staff_id: int = Field(foreign_key="staff.id", index=True)
     start: NaiveDatetime = Field(index=True)
     duration_min: int = 60
-    status: str = "free"  # free | booked (full or closed by staff)
+    status: str = "free"  # free | booked (full, or marked busy by staff) | closed (staff closed it: joop/schedule.py)
     seats: int = 1  # bookings this slot takes: 1, or the group size for group classes
     taken: int = 0  # seats already booked
 

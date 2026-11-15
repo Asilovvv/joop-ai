@@ -18,6 +18,7 @@ import 'bookings_screen.dart';
 import 'chats_screen.dart';
 import 'language_button.dart';
 import 'new_booking_screen.dart';
+import 'schedule_screen.dart';
 import 'services_screen.dart';
 import 'today_screen.dart';
 import 'work_screens.dart';
@@ -172,7 +173,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     _bookings.add(BookingsDayChanged(booking.start));
     setState(() => _index = _tabs.indexOf(_Tab.bookings));
     messenger.showSnackBar(SnackBar(
-        content: Text(S.current.bookedNotice(booking.customerName, '${formatDay(booking.start)}, ${formatTime(booking.start)}'))));
+        content: Text(S.current
+            .bookedNotice(booking.customerName, '${formatDay(booking.start)}, ${formatTime(booking.start)}'))));
   }
 
   @override
@@ -193,6 +195,18 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           appBar: AppBar(
             title: Text(_titles[tabs[_index]]!, style: const TextStyle(fontWeight: FontWeight.w800)),
             actions: [
+              if (_account.role != 'master' && tabs[_index] == _Tab.bookings)
+                IconButton(
+                  key: const Key('open-schedule'),
+                  tooltip: S.current.schedule,
+                  icon: const Icon(Icons.event_available_outlined),
+                  onPressed: () async {
+                    await Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => ScheduleScreen(day: _bookings.state.day, today: widget.today),
+                    ));
+                    _bookings.add(const BookingsPolled()); // the day may have changed meanwhile
+                  },
+                ),
               if (_account.role != 'master')
                 IconButton(
                   key: const Key('open-chats'),
