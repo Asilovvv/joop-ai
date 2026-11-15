@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlmodel import Session
+from sqlmodel import Session, update
 
 from . import waitlist
 from .confirm import fmt_slot_ky
@@ -68,14 +68,26 @@ def reschedule(s: Session, rt: "Runtime", business: Business, booking: Booking, 
         until = fmt_dt(utc_to_local(booking.deposit_deadline, business.timezone))
         return Moved(f"По этой записи ждём предоплату до {until}, а новое время раньше. "
                      "Отметьте предоплату полученной или выберите время позже.")
+    if member.capacity and booking.party_size > member.capacity:  # the same rule as the AI's booking
+        return Moved(f"Этот стол рассчитан на {member.capacity} гостей, а в записи {booking.party_size}. Выберите стол побольше.")
     if slot.start <= now_local or not claim_slot(s, slot.id, seats_needed(slot, booking.party_size)):
         return Moved("Это время уже занято. Выберите другое.")
-    old = s.get(Slot, booking.slot_id) if booking.slot_id else None
+    old_id = booking.slot_id
+    # Moved only if nobody moved or cancelled it since this page read it: two quick «перенести» presses must not
+    # both free the old time (the second would free a time the AI has meanwhile given to someone else).
+    moved = s.exec(update(Booking)
+                   .where(Booking.id == booking.id, Booking.status == "booked",
+                          Booking.slot_id == old_id if old_id is not None else Booking.slot_id.is_(None))
+                   .values(slot_id=slot.id, staff_id=member.id, staff_name=member.name, start=slot.start,
+                           reminder_status="", confirmed_at=None))  # reminder and «да» were about the old time
+    if moved.rowcount != 1:
+        release_slot(s, slot.id, seats_needed(slot, booking.party_size))
+        s.refresh(booking)
+        return Moved("Запись только что изменили. Обновите страницу и посмотрите её время.")
+    s.refresh(booking)
+    old = s.get(Slot, old_id) if old_id else None
     if old is not None:
         release_slot(s, old.id, seats_needed(old, booking.party_size))
-    booking.slot_id, booking.staff_id, booking.staff_name, booking.start = slot.id, member.id, member.name, slot.start
-    booking.reminder_status, booking.confirmed_at = "", None  # both were about the old time
-    s.add(booking)
     s.flush()
     if old is not None:
         s.refresh(old)
