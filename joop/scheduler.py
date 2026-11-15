@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, nudges, ops, recovery, reorders, restock, trust, unfinished
+from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, missed_calls, nudges, ops, recovery, reorders, restock, trust, unfinished
 from . import gaps as empty_slots
 from .db import new_session
 from .dispatch import notify_admins
@@ -233,6 +233,11 @@ def weekly_report_text(session: Session, business: Business, now_utc: datetime) 
     told, bought, money = restock.results(session, business.id, since)
     if told:
         lines.append(f"Сообщили о поступлении товара: {told}, купили: {bought}" + (f" на {_som(money)} сом." if money else "."))
+    calls, written, replied, booked = missed_calls.results(session, business.id, since)
+    if calls:
+        lines.append(f"Пропущенных звонков: {calls}" + (
+            f"; Joop написал звонившим в WhatsApp: {written}, ответили: {replied}, записались или заказали: {booked}."
+            if written else " — все переданы вам, чтобы перезвонить."))
     if results:
         lines.append(f"Итого {results} готовых обращений без участия администратора.")
     gaps = open_gaps(session, business, now_utc)
