@@ -34,7 +34,34 @@ class ApiClient {
   set baseUrl(String value) =>
       _baseUrl = _clean(value.trim().isEmpty ? AppConfig.defaultApiUrl : value);
 
-  static String _clean(String url) => url.trim().replaceAll(RegExp(r'/+$'), '');
+  static String _clean(String url) {
+    var clean = url.trim().replaceAll(RegExp(r'/+$'), '');
+    if (clean.isNotEmpty && !clean.contains('://')) {
+      // «192.168.1.5:8000» or «joop.kg» typed without a scheme: a local server speaks http, the rest https
+      final host = clean.split(RegExp('[:/]')).first;
+      clean = '${isLocal(host) ? 'http' : 'https'}://$clean';
+    }
+    return clean;
+  }
+
+  /// Plain http only to this device or the same Wi-Fi (a laptop running the server at a demo): over the open
+  /// internet the password and the customers' data would travel readable. Android allows http for the app
+  /// (usesCleartextTraffic) only because this check stands in front of every request.
+  static bool allowed(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+    return uri.scheme == 'https' || (uri.scheme == 'http' && isLocal(uri.host));
+  }
+
+  /// localhost, the Android emulator's host, and the private ranges 10/8, 172.16/12, 192.168/16, *.local.
+  static bool isLocal(String host) {
+    final h = host.toLowerCase().replaceAll(RegExp(r'^\[|\]$'), '');
+    if (h == 'localhost' || h == '::1' || h.endsWith('.local')) return true;
+    final parts = h.split('.').map(int.tryParse).toList();
+    if (parts.length != 4 || parts.any((x) => x == null || x < 0 || x > 255)) return false;
+    final a = parts[0]!, b = parts[1]!;
+    return a == 127 || a == 10 || (a == 192 && b == 168) || (a == 172 && b >= 16 && b <= 31);
+  }
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
@@ -59,6 +86,7 @@ class ApiClient {
       _send(() => _http.delete(_uri(path), headers: _headers));
 
   Future<dynamic> _send(Future<http.Response> Function() request) async {
+    if (!allowed(_baseUrl)) throw ApiException(0, S.current.httpsOnly(_baseUrl));
     final http.Response response;
     try {
       // Long enough for a free cloud server to wake up after it was idle.

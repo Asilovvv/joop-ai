@@ -1,7 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- The app talks to the Joop server. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- http is allowed so the app can reach a Joop server on the same Wi-Fi (a laptop at a demo); ApiClient.allowed
+         refuses http to any address outside the local network, so passwords never travel the internet unencrypted. -->
     <application
+        android:usesCleartextTraffic="true"
         android:label="Joop AI"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
