@@ -30,6 +30,15 @@ class FakeJoop {
     },
   ];
 
+  final chats = <Map<String, dynamic>>[
+    {'id': 70, 'channel': 'whatsapp', 'customer': {'name': 'Айбек', 'phone': '+996700111222'},
+     'last_message_at': '2026-11-13T06:00:05Z', 'last': {'role': 'ai', 'text': 'Передал вопрос администратору.'},
+     'ai_paused': false, 'blocked': false},
+    {'id': 71, 'channel': 'telegram', 'customer': {'name': 'Динара', 'phone': ''},
+     'last_message_at': '2026-11-12T09:00:00Z', 'last': {'role': 'customer', 'text': 'Спасибо!'},
+     'ai_paused': true, 'blocked': false},
+  ];
+
   /// Dialogues behind requests; a non-empty reply_blocked makes the reply fail as the server does.
   final dialogues = <int, Map<String, dynamic>>{
     70: {
@@ -48,6 +57,9 @@ class FakeJoop {
     _booking(3, '2026-11-14T09:00:00', 'Нурлан', 'instagram'),
   ];
   final calls = <String>[];
+
+  /// owner | staff | master: who the dental login signs in as.
+  String role = 'owner';
 
   final services = <Map<String, dynamic>>[
     {'id': 1, 'name': 'Консультация', 'price': '500', 'category': 'Терапия', 'available': true},
@@ -98,9 +110,9 @@ class FakeJoop {
           }
         : {
             'business': {'id': 1, 'slug': 'aktish', 'name': 'Ак-Тиш Дент', 'niche': 'dental'},
-            'who': 'Владелец',
-            'role': 'owner',
-            'sections': {'bookings': true, 'orders': false, 'leads': true, 'cash': true},
+            'who': role == 'master' ? 'Айгерим' : 'Владелец',
+            'role': role,
+            'sections': {'bookings': true, 'orders': false, 'leads': role != 'master', 'cash': true},
           };
     if (path == '/api/mobile/places/aktish') {
       return json({
@@ -249,6 +261,10 @@ class FakeJoop {
       x['status'] = 'done';
       x['closed_by'] = 'Владелец';
       return json({'lead': x});
+    }
+    if (path == '/api/mobile/conversations') {
+      final q = (request.url.queryParameters['q'] ?? '').toLowerCase();
+      return json({'conversations': chats.where((c) => q.isEmpty || (c['customer']['name'] as String).toLowerCase().contains(q)).toList()});
     }
     final talk = RegExp(r'^/api/mobile/conversations/(\d+)(/reply)?$').firstMatch(path);
     if (talk != null) {

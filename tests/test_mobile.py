@@ -580,3 +580,44 @@ def test_a_master_sees_only_her_visits_of_a_customer_and_another_business_nothin
     assert [b["id"] for b in card["bookings"]] == [hers] and card["orders"] == []
     stranger = sign_in(client, company="other", password="other-pass-1").json()["token"]
     assert client.get("/api/mobile/customers/700000001", headers=auth(stranger)).status_code == 404
+
+
+# --- the chats list --------------------------------------------------------------------------------------
+
+
+def test_the_owner_sees_the_latest_real_chats_and_finds_one(client, business):
+    from joop.models import Conversation
+
+    older = _handed_off("telegram", "6001", last_customer_hours_ago=5)
+    newer = _handed_off("whatsapp", "996555123456", last_customer_hours_ago=1)
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        a, z = s.get(Conversation, older), s.get(Conversation, newer)
+        a.last_message_at, z.last_message_at = datetime(2026, 11, 4, 10), datetime(2026, 11, 4, 15)
+        z.customer_name, z.customer_phone = "Бакыт", "+996555123456"
+        s.add(Conversation(business_id=b.id, channel="telegram", chat_id="7", customer_name="Сотрудник", staff_test=True))
+        s.add_all([a, z])
+        s.commit()
+    token = sign_in(client).json()["token"]
+    rows = client.get("/api/mobile/conversations", headers=auth(token)).json()["conversations"]
+    assert [r["id"] for r in rows] == [newer, older]  # newest first; the staff's own test chat left out
+    assert rows[0]["last"] == {"role": "ai", "text": "Передаю вопрос администратору."}
+    assert rows[0]["customer"] == {"name": "Бакыт", "phone": "+996555123456"} and rows[0]["ai_paused"] is False
+    found = client.get("/api/mobile/conversations", params={"q": "0555 123"}, headers=auth(token)).json()["conversations"]
+    assert [r["id"] for r in found] == [newer]
+    found = client.get("/api/mobile/conversations", params={"q": "айгуль"}, headers=auth(token)).json()["conversations"]
+    assert [r["id"] for r in found] == [older]
+
+
+def test_a_master_or_another_business_does_not_see_the_chats(client, business):
+    _handed_off("telegram", "6002", last_customer_hours_ago=1)
+    with db.new_session() as s:
+        member = s.exec(select(Staff).where(Staff.business_id == business.id)).first()
+        s.add(PanelUser(business_id=business.id, name="Айгерим", login="aigerim", password_hash=hash_password("staff-pass-1"),
+                        staff_id=member.id))
+        s.add(Business(slug="other", name="Другая", admin_password_hash=hash_password("other-pass-1")))
+        s.commit()
+    master = sign_in(client, user="aigerim", password="staff-pass-1").json()["token"]
+    assert client.get("/api/mobile/conversations", headers=auth(master)).status_code == 403
+    stranger = sign_in(client, company="other", password="other-pass-1").json()["token"]
+    assert client.get("/api/mobile/conversations", headers=auth(stranger)).json()["conversations"] == []

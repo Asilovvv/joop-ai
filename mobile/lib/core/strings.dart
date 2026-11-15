@@ -144,6 +144,14 @@ class S {
     required this.historyLabel,
     required this.customerOrders,
     required this.upcomingVisit,
+    required this.chats,
+    required this.chatsSearch,
+    required this.chatsEmpty,
+    required this.chatsNotFound,
+    required this.youPrefix,
+    required this.aiPrefix,
+    required this.aiPausedChip,
+    required this.blockedChip,
     required this.answer,
     required this.answerHint,
     required this.answerSent,
@@ -303,6 +311,14 @@ class S {
   final String historyLabel;
   final String customerOrders;
   final String upcomingVisit;
+  final String chats;
+  final String chatsSearch;
+  final String chatsEmpty;
+  final String chatsNotFound;
+  final String youPrefix;
+  final String aiPrefix;
+  final String aiPausedChip;
+  final String blockedChip;
   final String answer;
   final String answerHint;
   final String answerSent;
@@ -465,6 +481,14 @@ class S {
     historyLabel: 'История визитов',
     customerOrders: 'Заказы',
     upcomingVisit: 'Следующий визит',
+    chats: 'Диалоги',
+    chatsSearch: 'Имя или телефон',
+    chatsEmpty: 'Диалогов пока нет',
+    chatsNotFound: 'Никого не нашли',
+    youPrefix: 'Вы: ',
+    aiPrefix: 'ИИ: ',
+    aiPausedChip: 'ИИ на паузе',
+    blockedChip: 'Чёрный список',
     answer: 'Ответить',
     answerHint: 'Ответ клиенту',
     answerSent: 'Ответ отправлен, заявка закрыта',
@@ -625,6 +649,14 @@ class S {
     historyLabel: 'Визиттердин тарыхы',
     customerOrders: 'Буйрутмалар',
     upcomingVisit: 'Кийинки визит',
+    chats: 'Диалогдор',
+    chatsSearch: 'Аты же телефону',
+    chatsEmpty: 'Азырынча диалог жок',
+    chatsNotFound: 'Эч ким табылган жок',
+    youPrefix: 'Сиз: ',
+    aiPrefix: 'ИИ: ',
+    aiPausedChip: 'ИИ тыныгууда',
+    blockedChip: 'Кара тизме',
     answer: 'Жооп берүү',
     answerHint: 'Кардарга жооп',
     answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
