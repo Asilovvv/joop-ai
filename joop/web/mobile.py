@@ -648,6 +648,29 @@ def mobile_reply(request: Request, item_id: int, body: ReplyIn):
         return _dialogue(s, conv)
 
 
+class AiSwitchIn(BaseModel):
+    on: bool
+    hours: int = 24
+
+
+@router.post("/api/mobile/conversations/{item_id}/ai")
+def mobile_ai_switch(request: Request, item_id: int, body: AiSwitchIn):
+    """Staff take a chat over (the AI stays quiet for `hours`, 1 h to 30 days, 24 by default) or give it back to the
+    AI: the panel's «Выключить ИИ» / «Включить ИИ»."""
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        conv = _conversation(s, who, item_id)
+        if conv is None:
+            return _fail(404, "Диалог не найден.")
+        conv.ai_paused_until = None if body.on else utcnow() + timedelta(hours=max(1, min(body.hours, 24 * 30)))
+        s.add(conv)
+        s.commit()
+        s.refresh(conv)
+        return _dialogue(s, conv)
+
+
 # --- customers -------------------------------------------------------------------------------------
 # A customer opens one business by its code (the slug in its /c/<slug> link or QR code) and chats with its AI
 # through the web chat's own API (POST /c/<slug>/chat, GET /c/<slug>/updates). There is no list of all businesses:

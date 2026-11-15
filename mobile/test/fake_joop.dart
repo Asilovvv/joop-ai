@@ -266,6 +266,14 @@ class FakeJoop {
       final q = (request.url.queryParameters['q'] ?? '').toLowerCase();
       return json({'conversations': chats.where((c) => q.isEmpty || (c['customer']['name'] as String).toLowerCase().contains(q)).toList()});
     }
+    final ai = RegExp(r'^/api/mobile/conversations/(\d+)/ai$').firstMatch(path);
+    if (ai != null) {
+      final d = dialogues[int.parse(ai.group(1)!)]!;
+      final on = (jsonDecode(request.body) as Map)['on'] as bool;
+      d['ai_paused'] = !on;
+      d['ai_paused_until'] = on ? null : DateTime.now().toUtc().add(const Duration(hours: 24)).toIso8601String();
+      return json(d);
+    }
     final talk = RegExp(r'^/api/mobile/conversations/(\d+)(/reply)?$').firstMatch(path);
     if (talk != null) {
       final d = dialogues[int.parse(talk.group(1)!)];

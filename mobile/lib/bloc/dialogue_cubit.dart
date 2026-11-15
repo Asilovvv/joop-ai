@@ -36,6 +36,18 @@ class DialogueCubit extends Cubit<DialogueState> {
     }
   }
 
+  Future<void> switchAi(bool on) async {
+    if (state.dialogue == null || state.sending) return;
+    emit(DialogueState(status: state.status, dialogue: state.dialogue, sending: true));
+    try {
+      final dialogue = await _repository.switchAi(conversationId, on);
+      emit(DialogueState(
+          status: LoadStatus.success, dialogue: dialogue, notice: on ? S.current.aiOnDone : S.current.aiOffDone));
+    } on ApiException catch (e) {
+      emit(DialogueState(status: state.status, dialogue: state.dialogue, error: e.message));
+    }
+  }
+
   /// True when the reply went out; the text stays in the box otherwise.
   Future<bool> reply(String text) async {
     if (text.trim().isEmpty || state.sending) return false;

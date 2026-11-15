@@ -152,6 +152,10 @@ class S {
     required this.aiPrefix,
     required this.aiPausedChip,
     required this.blockedChip,
+    required this.aiOff,
+    required this.aiOn,
+    required this.aiOffDone,
+    required this.aiOnDone,
     required this.answer,
     required this.answerHint,
     required this.answerSent,
@@ -319,6 +323,10 @@ class S {
   final String aiPrefix;
   final String aiPausedChip;
   final String blockedChip;
+  final String aiOff;
+  final String aiOn;
+  final String aiOffDone;
+  final String aiOnDone;
   final String answer;
   final String answerHint;
   final String answerSent;
@@ -489,6 +497,10 @@ class S {
     aiPrefix: 'ИИ: ',
     aiPausedChip: 'ИИ на паузе',
     blockedChip: 'Чёрный список',
+    aiOff: 'Выключить ИИ на 24 часа',
+    aiOn: 'Включить ИИ',
+    aiOffDone: 'ИИ молчит в этом диалоге 24 часа. Отвечайте клиенту сами.',
+    aiOnDone: 'ИИ снова отвечает в этом диалоге',
     answer: 'Ответить',
     answerHint: 'Ответ клиенту',
     answerSent: 'Ответ отправлен, заявка закрыта',
@@ -657,6 +669,10 @@ class S {
     aiPrefix: 'ИИ: ',
     aiPausedChip: 'ИИ тыныгууда',
     blockedChip: 'Кара тизме',
+    aiOff: 'ИИни 24 саатка өчүрүү',
+    aiOn: 'ИИни күйгүзүү',
+    aiOffDone: 'ИИ бул диалогдо 24 саат жооп бербейт. Кардарга өзүңүз жооп бериңиз.',
+    aiOnDone: 'ИИ бул диалогдо кайра жооп берет',
     answer: 'Жооп берүү',
     answerHint: 'Кардарга жооп',
     answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
