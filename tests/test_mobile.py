@@ -534,3 +534,49 @@ def test_the_dialogue_names_the_pause_the_owner_chose(client, business):
         from joop.models import Conversation
 
         assert s.get(Conversation, conv_id).ai_paused_until == until
+
+
+# --- the customer card -----------------------------------------------------------------------------------
+
+
+def test_a_booking_opens_the_customers_card_with_history_and_a_note(client, business):
+    slots = tomorrow_slots(business.id)
+    first = book(business.id, slots[0])
+    with db.new_session() as s:  # an earlier visit of the same phone, paid
+        member = s.exec(select(Staff).where(Staff.business_id == business.id)).first()
+        s.add(Booking(business_id=business.id, staff_id=member.id, staff_name=member.name, start=datetime(2026, 10, 1, 10),
+                      service="Консультация", customer_name="Айгуль", customer_phone="0700 000 001", channel="",
+                      paid_som=900, paid_method="cash"))
+        s.commit()
+    token = sign_in(client).json()["token"]
+    row = client.get("/api/mobile/bookings", params={"day": "2026-11-05"}, headers=auth(token)).json()["bookings"][0]
+    assert row["id"] == first and row["customer_key"] == "700000001"
+    card = client.get("/api/mobile/customers/700000001", headers=auth(token)).json()["customer"]
+    assert card["name"] == "Айгуль" and card["visits"] == 1 and card["spend_som"] >= 900
+    assert card["upcoming"]["id"] == first and [b["id"] for b in card["bookings"]][0] == first
+    r = client.post("/api/mobile/customers/700000001", json={"note": "Боится уколов", "tags": "VIP, VIP, постоянный"},
+                    headers=auth(token))
+    assert r.json() == {"note": "Боится уколов", "tags": ["VIP", "постоянный"]}
+    again = client.get("/api/mobile/customers/700000001", headers=auth(token)).json()["customer"]
+    assert again["note"] == "Боится уколов" and again["tags"] == ["VIP", "постоянный"]
+    assert client.get("/api/mobile/customers/700999999", headers=auth(token)).status_code == 404
+
+
+def test_a_master_sees_only_her_visits_of_a_customer_and_another_business_nothing(client, business):
+    slots = tomorrow_slots(business.id)
+    mine = slots[0]
+    other = next(x for x in slots if x.staff_id != mine.staff_id)
+    book(business.id, other)  # the customer came to another doctor only
+    with db.new_session() as s:
+        s.add(PanelUser(business_id=business.id, name="Айгерим", login="aigerim", password_hash=hash_password("staff-pass-1"),
+                        staff_id=mine.staff_id))
+        s.add(Business(slug="other", name="Другая", admin_password_hash=hash_password("other-pass-1")))
+        s.commit()
+    master = sign_in(client, user="aigerim", password="staff-pass-1").json()["token"]
+    assert client.get("/api/mobile/customers/700000001", headers=auth(master)).status_code == 404
+    assert client.post("/api/mobile/customers/700000001", json={"note": "x"}, headers=auth(master)).status_code == 404
+    hers = book(business.id, mine)
+    card = client.get("/api/mobile/customers/700000001", headers=auth(master)).json()["customer"]
+    assert [b["id"] for b in card["bookings"]] == [hers] and card["orders"] == []
+    stranger = sign_in(client, company="other", password="other-pass-1").json()["token"]
+    assert client.get("/api/mobile/customers/700000001", headers=auth(stranger)).status_code == 404

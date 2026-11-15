@@ -11,6 +11,8 @@ every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
 - **Заказы** — orders the AI collected (cafes, shops, delivery), moved through the panel's steps;
 - **Заявки** — questions the AI handed to staff, bookings without a free slot, qualified leads; «Ответить» opens the
   customer's dialogue and sends the owner's answer through their channel (or says why WhatsApp/Instagram no longer allow it);
+- **Карточка клиента** — a tap on a booking: visits, what the customer spent, their rating, orders, and the note and
+  tags staff keep (the panel's Клиенты; a master sees her own visits);
 - **Прайс** — the price list the AI quotes, with the stop list: a switch takes an item off sale (the AI stops offering
   it) and back; sold-out items return through the panel's «Склад», Altegio price lists are switched in Altegio.
 

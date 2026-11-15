@@ -10,6 +10,7 @@ import '../core/format.dart';
 import '../core/strings.dart';
 import '../data/models.dart';
 import 'booking_tile.dart';
+import 'customer_screen.dart';
 import 'payment_sheet.dart';
 
 /// Bookings of one day from every channel, with the day switcher and cancelling.
@@ -124,6 +125,7 @@ class BookingsScreen extends StatelessWidget {
                           busy: state.cancelling == b.id,
                           onCancel: () => _confirmCancel(context, b.id, b.customerName),
                           onPay: payments ? () => _pay(context, b) : null,
+                          onOpen: b.customerKey.isEmpty ? null : () => openCustomer(context, b),
                         );
                       },
                     ),

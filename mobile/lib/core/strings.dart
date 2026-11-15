@@ -135,6 +135,15 @@ class S {
     required this.soldOutStock,
     required this.fromAltegioNote,
     required this.stopListNote,
+    required this.visitsLabel,
+    required this.spentLabel,
+    required this.ratingLabel,
+    required this.noteLabel,
+    required this.tagsLabel,
+    required this.noteSaved,
+    required this.historyLabel,
+    required this.customerOrders,
+    required this.upcomingVisit,
     required this.answer,
     required this.answerHint,
     required this.answerSent,
@@ -285,6 +294,15 @@ class S {
   final String soldOutStock;
   final String fromAltegioNote;
   final String stopListNote;
+  final String visitsLabel;
+  final String spentLabel;
+  final String ratingLabel;
+  final String noteLabel;
+  final String tagsLabel;
+  final String noteSaved;
+  final String historyLabel;
+  final String customerOrders;
+  final String upcomingVisit;
   final String answer;
   final String answerHint;
   final String answerSent;
@@ -438,6 +456,15 @@ class S {
     soldOutStock: 'Закончилось на складе',
     fromAltegioNote: 'Прайс берётся из Altegio — меняйте его там.',
     stopListNote: 'Выключите позицию — ИИ перестанет её предлагать. Цены меняются в панели Joop.',
+    visitsLabel: 'Визитов',
+    spentLabel: 'Всего потрачено',
+    ratingLabel: 'Оценка',
+    noteLabel: 'Заметка (видят сотрудники)',
+    tagsLabel: 'Теги через запятую',
+    noteSaved: 'Заметка сохранена',
+    historyLabel: 'История визитов',
+    customerOrders: 'Заказы',
+    upcomingVisit: 'Следующий визит',
     answer: 'Ответить',
     answerHint: 'Ответ клиенту',
     answerSent: 'Ответ отправлен, заявка закрыта',
@@ -589,6 +616,15 @@ class S {
     soldOutStock: 'Кампада түгөндү',
     fromAltegioNote: "Прайс Altegio'дон алынат — ошол жерден өзгөртүңүз.",
     stopListNote: 'Позицияны өчүрсөңүз, ИИ аны сунуштабай калат. Баалар Joop панелинде өзгөрөт.',
+    visitsLabel: 'Визиттер',
+    spentLabel: 'Жалпы сарпталды',
+    ratingLabel: 'Баа',
+    noteLabel: 'Эскертме (кызматкерлер көрөт)',
+    tagsLabel: 'Тегдер үтүр менен',
+    noteSaved: 'Эскертме сакталды',
+    historyLabel: 'Визиттердин тарыхы',
+    customerOrders: 'Буйрутмалар',
+    upcomingVisit: 'Кийинки визит',
     answer: 'Жооп берүү',
     answerHint: 'Кардарга жооп',
     answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
