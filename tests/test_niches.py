@@ -243,3 +243,19 @@ def test_kyrgyz_faq_wording_reaches_the_prompt(engine):
         handle_incoming(s, b, IncomingMessage("telegram", "1", "text", "Итим менен келсем болобу?", "", "x1"), lambda: llm, NOW_UTC)
     system = llm.calls[0]["system"]
     assert "Можно с животными? (по-кыргызски: Үй жаныбарлары менен келсе болобу?)" in system and "по смыслу" in system
+
+
+def test_an_order_reply_never_carries_a_sum_the_order_does_not_have(engine):
+    """The model never sets prices: the composition and the total the customer reads come from the order."""
+    b = make("restaurant")
+    plov, tea = item(b, "Плов"), item(b, "Чай чёрный, чайник")
+
+    def order(text, ext):
+        return say(b, "2 плова и чай, Айбек 0555123456", FakeLLM([AgentReply(text, order={
+            "lines": [{"item_id": plov.id, "quantity": 2, "note": ""}, {"item_id": tea.id, "quantity": 1, "note": ""}],
+            "mode": "pickup", "address": "", "time": "", "name": "Айбек", "phone": "0555 123 456", "comment": ""})]), ext)
+
+    wrong = order("Принято! С вас 1 200 сом.", "w1")
+    assert wrong.reply == "Оформила заказ.\nВаш заказ: 2 × Плов, 1 × Чай чёрный, чайник. Сумма заказа: 820 сом."
+    right = order("Принято: плов 350 сом × 2 и чай, всего 820 сом.", "w2")
+    assert right.reply.startswith("Принято: плов 350 сом × 2 и чай, всего 820 сом.\nВаш заказ: 2 × Плов")

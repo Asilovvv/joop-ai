@@ -141,6 +141,24 @@ def _fmt(d: date) -> str:
     return f"{d:%d.%m.%Y}"
 
 
+_DAY_MONTH = re.compile(r"(?<![\d.])(\d{1,2})\.(\d{1,2})(?:\.(?:\d{4}|\d{2}))?(?![\d])")
+
+
+def with_stay_line(reply: str, stay: Stay, line: str, fixed: str) -> str:
+    """The booked dates come from the booking, not from the model's wording (as engine.with_booking_line for times).
+
+    A reply naming dates but not the booked first day is replaced by the fixed confirmation; one naming the booked
+    first and last day keeps as is; otherwise the line is added."""
+    named = {(int(d), int(m)) for d, m in _DAY_MONTH.findall(reply) if 1 <= int(d) <= 31 and 1 <= int(m) <= 12}
+    first = (stay.check_in.day, stay.check_in.month)
+    last = stay.check_out - timedelta(days=1) if stay.check_out - stay.check_in == timedelta(days=1) else stay.check_out
+    if named and first not in named:
+        return fixed
+    if first in named and (last.day, last.month) in named:
+        return reply
+    return f"{reply.rstrip()}\n{line}"
+
+
 @dataclass
 class StayResult:
     reply: str
@@ -189,9 +207,12 @@ def book(session: Session, business: Business, conv: Conversation, data: dict, r
     except (IntegrityError, StopIteration):
         return StayResult(f"Извините, «{room.name}» на эти даты только что заняли. "
                           + _options(session, business, check_in, check_out, guests, hidden))
+    dates = f"{_fmt(check_in)}–{_fmt(check_out)}"
+    fixed = w.confirm.format(name=room.name, dates=dates, guests=guests)
     if check_in.year != asked_year and str(asked_year) in reply:  # the model's confirmation names the wrong year
-        reply = w.confirm.format(name=room.name, dates=f"{_fmt(check_in)}–{_fmt(check_out)}", guests=guests)
-    return StayResult(reply, stay)
+        reply = fixed
+    line = f"Бронь: «{room.name}», {dates}" + (f", гостей: {guests}." if "{guests}" in w.confirm else ".")
+    return StayResult(with_stay_line(reply, stay, line, fixed), stay)
 
 
 def _book_date(session: Session, business: Business, conv: Conversation, data: dict, reply: str, when: date, asked_year: int,
@@ -217,10 +238,12 @@ def _book_date(session: Session, business: Business, conv: Conversation, data: d
     except IntegrityError:
         return StayResult(f"Извините, «{room.name}» на {_fmt(when)} только что заняли. "
                           + _hall_options(session, business, when, guests, hidden))
+    fixed = (f"Предварительно забронировала «{room.name}» на {_fmt(when)}, гостей: {guests}. "
+             "Менеджер свяжется с вами насчёт предоплаты и меню.")
     if when.year != asked_year and str(asked_year) in reply:  # the model's confirmation names the wrong year
-        reply = (f"Предварительно забронировала «{room.name}» на {_fmt(when)}, гостей: {guests}. "
-                 "Менеджер свяжется с вами насчёт предоплаты и меню.")
-    return StayResult(reply, stay)
+        reply = fixed
+    line = f"Бронь: «{room.name}», {_fmt(when)}, гостей: {guests}."
+    return StayResult(with_stay_line(reply, stay, line, fixed), stay)
 
 
 def _hall_options(session: Session, business: Business, when: date, guests: int, hidden: frozenset[int] = frozenset()) -> str:
