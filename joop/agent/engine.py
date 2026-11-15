@@ -302,6 +302,7 @@ def _model_reply(
         if qualified is not None:
             outcome.qualified_lead_id = qualified.id
             outcome.admin_notes.append(_lead_note(business, conv, qualified, off))
+    stayed: Stay | None = None
     if result.stay and pack.has("stay"):
         name = (result.stay.get("name") or "").strip()[:120]
         phone = normalize_phone(result.stay.get("phone"))
@@ -312,6 +313,7 @@ def _model_reply(
                               channel, name, phone, hidden.staff)
             outcome.reply = done.reply
             if done.stay is not None:
+                stayed = done.stay
                 outcome.stay_id = done.stay.id
                 conv.customer_name, conv.customer_phone = name, phone
                 session.add(conv)
@@ -410,6 +412,8 @@ def _model_reply(
         session.add(booked)
     if ordered is not None and outcome.reply:  # the same for an order: what was ordered and the total
         outcome.reply = with_order_line(session, business, outcome.reply, ordered, is_kyrgyz_message(text))
+    if stayed is not None and outcome.reply:  # and for a room, a car or a hall: what and which dates
+        outcome.reply = stays.with_stay_line(outcome.reply, stayed, stays.stay_line(business, stayed, is_kyrgyz_message(text)))
 
     if outcome.reply and pack.has("order") and not outcome.order_id:  # «напишем, когда появится» (joop/restock.py)
         outcome.reply += restock.watch_line(session, business, conv, text, now, is_kyrgyz_message(text))

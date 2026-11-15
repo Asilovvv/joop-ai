@@ -153,3 +153,16 @@ def test_the_booked_dates_in_the_reply_come_from_the_booking(engine):
     right_text = f"Ждём вас с {d:%d.%m} по {d + timedelta(days=3):%d.%m}."
     right = say(b.id, "Семейный, Алмаз 0555667788", FakeLLM([AgentReply(right_text, stay=dict(data))]), "d3", chat="d3")
     assert right.reply == right_text
+
+
+def test_a_kyrgyz_chat_reads_the_stay_line_in_kyrgyz_and_no_rewrite_touches_it(engine):
+    """The model's Russian reply in a Kyrgyz chat is rewritten by the model: the code's dates are added only after that."""
+    b, rooms = hotel()
+    d = TODAY + timedelta(days=10)
+    data = {"room_id": rooms["Семейный номер"].id, "check_in": d.isoformat(), "check_out": (d + timedelta(days=3)).isoformat(),
+            "guests": 2, "name": "Алмаз", "phone": "0555667788"}
+    llm = FakeLLM([AgentReply("Забронировала!", stay=data)], rewrites=["Рахмат, бөлмөнү сиз үчүн брондоп койдум, күтөбүз."])
+    out = say(b.id, "Саламатсызбы, үй-бүлөлүк бөлмө керек, Алмаз 0555667788", llm, "k1", chat="k1")
+    assert llm.rewrite_calls == ["Забронировала!"]  # the model rewrote its own words only
+    dates = f"{d:%d.%m.%Y}–{d + timedelta(days=3):%d.%m.%Y}"
+    assert out.reply == f"Рахмат, бөлмөнү сиз үчүн брондоп койдум, күтөбүз.\nБрон: «Семейный номер», {dates}, конок саны: 2."
