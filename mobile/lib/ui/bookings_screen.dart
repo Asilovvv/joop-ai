@@ -115,7 +115,7 @@ class BookingsScreen extends StatelessWidget {
                     const _Centered(child: CircularProgressIndicator()),
                   _ when state.bookings.isEmpty => _Centered(child: Text(S.current.noBookingsThisDay)),
                   _ => ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 96), // room under the «Записать» button
                       itemCount: state.bookings.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 4),
                       itemBuilder: (context, i) {

@@ -156,6 +156,8 @@ class S {
     required this.aiOn,
     required this.aiOffDone,
     required this.aiOnDone,
+    required this.aiResultsTitle,
+    required this.aiFigure,
     required this.answer,
     required this.answerHint,
     required this.answerSent,
@@ -327,6 +329,10 @@ class S {
   final String aiOn;
   final String aiOffDone;
   final String aiOnDone;
+  final String Function(int days) aiResultsTitle;
+
+  /// The label of a figure from /api/mobile/ai-results; empty for a key the app does not know yet.
+  final String Function(String key) aiFigure;
   final String answer;
   final String answerHint;
   final String answerSent;
@@ -501,6 +507,8 @@ class S {
     aiOn: 'Включить ИИ',
     aiOffDone: 'ИИ молчит в этом диалоге 24 часа. Отвечайте клиенту сами.',
     aiOnDone: 'ИИ снова отвечает в этом диалоге',
+    aiResultsTitle: _ruAiTitle,
+    aiFigure: _ruAiFigure,
     answer: 'Ответить',
     answerHint: 'Ответ клиенту',
     answerSent: 'Ответ отправлен, заявка закрыта',
@@ -673,6 +681,8 @@ class S {
     aiOn: 'ИИни күйгүзүү',
     aiOffDone: 'ИИ бул диалогдо 24 саат жооп бербейт. Кардарга өзүңүз жооп бериңиз.',
     aiOnDone: 'ИИ бул диалогдо кайра жооп берет',
+    aiResultsTitle: _kyAiTitle,
+    aiFigure: _kyAiFigure,
     answer: 'Жооп берүү',
     answerHint: 'Кардарга жооп',
     answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
@@ -742,3 +752,29 @@ String _kyPaused(String until, String pause) =>
     'ИИ бул диалогго $until чейин кийлигишпейт. Кызматкердин ар бир жообу тыныгууну $pause узартат.';
 String _ruPause(int m) => const {15: '15 минут', 60: '1 час', 180: '3 часа', 720: '12 часов', 1440: '24 часа'}[m] ?? '$m мин';
 String _kyPause(int m) => const {15: '15 мүнөткө', 60: '1 саатка', 180: '3 саатка', 720: '12 саатка', 1440: '24 саатка'}[m] ?? '$m мүнөткө';
+String _ruAiTitle(int days) => 'ИИ за $days дней';
+String _kyAiTitle(int days) => 'ИИ $days күндө';
+String _ruAiFigure(String key) => const {
+      'conversations': 'диалогов с клиентами',
+      'off_hours_conversations': 'из них в нерабочее время',
+      'bookings': 'записей сделал ИИ',
+      'off_hours_bookings': 'записей в нерабочее время',
+      'orders': 'заказов принял ИИ',
+      'stays': 'броней сделал ИИ',
+      'requests': 'заявок на запись (перезвонить)',
+      'qualified': 'заявок собрал ИИ',
+      'handed_to_people': 'вопросов передано людям',
+    }[key] ??
+    '';
+String _kyAiFigure(String key) => const {
+      'conversations': 'кардарлар менен диалог',
+      'off_hours_conversations': 'анын ичинде жумуштан тышкары',
+      'bookings': 'ИИ жазган визит',
+      'off_hours_bookings': 'жумуштан тышкаркы жазуу',
+      'orders': 'ИИ кабыл алган буйрутма',
+      'stays': 'ИИ жасаган бронь',
+      'requests': 'жазылууга өтүнмө (кайра чалуу)',
+      'qualified': 'ИИ чогулткан өтүнмө',
+      'handed_to_people': 'адамдарга берилген суроо',
+    }[key] ??
+    '';

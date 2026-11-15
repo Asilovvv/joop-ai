@@ -127,6 +127,9 @@ class JoopRepository {
     return Lead.fromJson(data['lead'] as Map<String, dynamic>);
   }
 
+  Future<AiResults> aiResults() async =>
+      AiResults.fromJson(await _api.get('/api/mobile/ai-results') as Map<String, dynamic>);
+
   Future<List<ChatSummary>> chats({String query = ''}) async {
     final data = await _api.get('/api/mobile/conversations', query: query.isEmpty ? null : {'q': query}) as Map<String, dynamic>;
     return [for (final row in data['conversations'] as List) ChatSummary.fromJson(row as Map<String, dynamic>)];

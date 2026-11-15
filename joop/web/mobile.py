@@ -31,7 +31,7 @@ from ..phone import normalize_phone
 from ..samples import example_staff_ids
 from ..security import verify_password
 from ..slots import claim_slot, release_slot, seats_left, seats_needed
-from ..stats import not_test, real_conversation
+from ..stats import activity, not_test, real_conversation
 from ..timeutil import local_now, utcnow
 from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
 
@@ -202,6 +202,35 @@ def mobile_summary(request: Request):
                 "tomorrow": sum(1 for b in week if b.start.date() == today + timedelta(days=1)),
                 "week": len(week),
                 "next": _booking(s, upcoming[0]) if upcoming else None}
+
+
+RESULT_DAYS = 14
+
+
+@router.get("/api/mobile/ai-results")
+def mobile_ai_results(request: Request):
+    """What the AI did in the last 14 days, the figures the panel's Сводка shows (stats.activity): the chats it held,
+    how many came after hours, and what it brought — bookings, orders, room bookings, qualified leads — plus the
+    questions it handed to people. Only the figures the niche has are sent. The whole business's, so not for a master."""
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        pack = get_pack(who.business.niche)
+        a = activity(s, who.business.id, utcnow() - timedelta(days=RESULT_DAYS))
+        out = {"conversations": a["conversations"], "off_hours_conversations": a["off_hours_conversations"]}
+        if pack.has("booking"):
+            out |= {"bookings": a["bookings"], "off_hours_bookings": a["off_hours_bookings"]}
+        if pack.has("order"):
+            out["orders"] = a["orders"]
+        if pack.has("stay"):
+            out["stays"] = a["stays"]
+        if pack.has("booking") or pack.has("request"):
+            out["requests"] = a["requests"]
+        if pack.has("lead"):
+            out["qualified"] = a["qualified"]
+        out["handed_to_people"] = a["leads"] - a["qualified"]
+        return {"days": RESULT_DAYS, "figures": out}
 
 
 @router.post("/api/mobile/bookings/{item_id}/cancel")
