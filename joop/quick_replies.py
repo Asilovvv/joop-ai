@@ -29,7 +29,9 @@ def listing(session: Session, business: Business) -> list[QuickReply]:
 
 def fill(text: str, business: Business, conv: Conversation | None = None) -> str:
     """The template with the fields filled; a field with nothing to put in goes away cleanly («, » and all)."""
-    name = (conv.customer_name or conv.display_name).strip() if conv else ""
+    # a website chat's display name is the widget's «Посетитель сайта» label, never a person's name
+    shown = conv.display_name if conv and conv.channel != "web" else ""
+    name = (conv.customer_name or shown).strip() if conv else ""
     values = {"{имя}": name, "{компания}": business.name, "{адрес}": business.address, "{телефон}": business.phone}
     out = text
     for key, value in values.items():
