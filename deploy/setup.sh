@@ -132,6 +132,8 @@ say "Готово."
 if [ "$ok" = 1 ]; then echo "Сайт работает: https://$DOMAIN"; else echo "Сервер запущен, но https://$DOMAIN пока не отвечает — скорее всего, ещё не обновился DNS. Проверьте позже: curl https://$DOMAIN/health"; fi
 echo "Регистрация компаний:      https://$DOMAIN/signup"
 echo "Консоль основателя:        https://$DOMAIN/owner"
+echo "Мобильное приложение:      GitHub → Actions → mobile-release → Run workflow, api_url https://$DOMAIN"
+echo "                           (APK появится в Releases; подробно — docs/deploy.md, шаг 9)"
 [ -n "${OWNER_PASSWORD_NEW:-}" ] && echo "Пароль консоли основателя: $OWNER_PASSWORD_NEW  (запишите; он также в $DIR/.env)"
 echo
 echo "Сохраните копию $DIR/.env вне сервера: без TOKEN_ENCRYPTION_KEY из него сохранённые токены каналов не прочитать."

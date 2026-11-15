@@ -129,3 +129,18 @@ to 0047 in one run, repeated without changes, with no foreign-key errors and all
 git pull && docker compose up -d --build   # migrations run on start
 docker compose logs -f app                 # what the server is doing
 ```
+
+## 9. The mobile app
+
+The owner's and the customers' app (Flutter, `mobile/`) talks to this server's `/api/mobile/…`.
+Build it for your domain once the server answers `https://joop.kg/health`:
+
+1. On GitHub: **Actions → mobile-release → Run workflow**.
+2. `api_url`: `https://joop.kg` (the server's `PUBLIC_BASE_URL`), `version`: `mobile-v1.0.0`.
+3. The workflow checks that the server answers (`/health`, and `/api/mobile/login` with a wrong password gives
+   401), builds the Android APK and attaches it to a GitHub Release with that tag.
+
+Owners install the APK and sign in with the company login and panel password; customers open a business by its
+code (the slug in its `/c/<slug>` link). An APK built without `api_url` (the CI artifact) still works: on the
+sign-in screen «Другой сервер» takes the address by hand. iOS needs an Apple developer account and is not built here.
+
