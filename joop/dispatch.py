@@ -62,6 +62,17 @@ def deliver(rt: Runtime, business: Business, channel: str, chat_id: str, outcome
             log.warning("Reply to %s via %s was not delivered", business.slug, channel)
     if outcome.admin_notes:
         notify_admins(rt, business, outcome.admin_notes)
+    if outcome.freed_slot_ids:  # a customer cancelled or moved their booking in the chat (joop/selfservice.py)
+        from . import waitlist
+        from .models import Slot
+
+        with new_session() as session:
+            found = session.get(Business, business.id)
+            for slot_id in outcome.freed_slot_ids:
+                slot = session.get(Slot, slot_id)
+                if found is not None and slot is not None:
+                    waitlist.offer_freed_slot(session, rt, found, slot, utcnow())
+            session.commit()
 
 
 def admin_link(business: Business) -> str:

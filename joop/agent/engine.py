@@ -15,7 +15,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, confirm, deposits, free_plan, health, owner_commands, regulars, samples, stock, trust, upsell, voice
+from .. import altegio, broadcasts, confirm, deposits, free_plan, health, owner_commands, regulars, samples, selfservice, stock, trust, upsell, voice
 from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -83,6 +83,8 @@ class Outcome:
     order_id: int | None = None
     qualified_lead_id: int | None = None  # Lead of kind "lead"
     stay_id: int | None = None  # hotel nights (joop/stays.py)
+    changed_booking_id: int | None = None  # the customer's own booking cancelled or moved (joop/selfservice.py)
+    freed_slot_ids: list[int] = field(default_factory=list)  # times given back, offered to the waiting list on delivery
     skipped: str = ""  # why nothing was sent, for logs and tests
     language_fixed: bool = False
     confirmation_fixed: bool = False  # the reply claimed a booking that was not made and was rewritten
@@ -238,9 +240,11 @@ def _model_reply(
     faqs = [r for r in session.exec(select(Faq).where(Faq.business_id == business.id).order_by(Faq.id)).all() if r.id not in hidden.faq]
     slots = free_slots(session, business.id, now_local, exclude_staff=hidden.staff,  # before the limit, not after
                        lead_minutes=lead_for(business))
+    own = selfservice.own_bookings(session, business, conv, now_local)  # the panel's test chat too: the owner tries it
     system = build_system_prompt(
         business=business,
         hide_hours=hidden.hours,
+        own_bookings=own,
         services=services,
         staff=staff,
         faqs=faqs,
@@ -267,7 +271,7 @@ def _model_reply(
     try:
         llm = get_llm()
         pack = get_pack(business.niche)
-        result: AgentReply = llm.respond(system, history, schema=response_schema(pack.outcomes))
+        result: AgentReply = llm.respond(system, history, schema=response_schema(pack.outcomes, change=bool(own)))
         health.record_success(now)
     except Exception as exc:
         log.exception("Model call failed for business %s", business.slug)
@@ -310,6 +314,19 @@ def _model_reply(
                 conv.customer_name, conv.customer_phone = name, phone
                 session.add(conv)
                 outcome.admin_notes.append(_stay_note(done.stay, off, stays.by_day(business), stays.words(business)))
+    if result.change and own:  # the customer's own booking: cancelled or moved here, not by staff
+        done = selfservice.apply(session, business, conv, result.change, now_local, is_kyrgyz_message(text), hidden.staff)
+        outcome.reply = done.reply
+        result.booking, result.handoff = None, None  # one answer to one request
+        if done.changed is not None:
+            outcome.changed_booking_id = done.changed.id
+            outcome.admin_notes.append(done.note)
+        if done.freed is not None:
+            outcome.freed_slot_ids.append(done.freed.id)
+        if done.handoff:
+            lead = _add_lead(session, business, conv, "handoff", done.handoff, now, off)
+            outcome.lead_id = lead.id
+            outcome.admin_notes.append(_lead_note(business, conv, lead, off))
     booked: Booking | None = None
     if result.booking:
         if result.booking.get("slot_id") is None:
@@ -352,7 +369,7 @@ def _model_reply(
     # Confirmation guard: the model sometimes says "вы записаны" / "кабыл алдым" while it is still asking
     # for a phone number or a time. Nothing was captured, so rewrite the reply once without the claim.
     captured = any(x is not None for x in (outcome.booking_id, outcome.request_id, outcome.order_id, outcome.qualified_lead_id,
-                                           outcome.stay_id))
+                                           outcome.stay_id, outcome.changed_booking_id))
     if outcome.reply and not captured and claims_confirmation(outcome.reply) and not _has_capture(session, conv):
         fixed = llm.remove_false_confirmation(outcome.reply, outcome.usage)
         if not fixed or claims_confirmation(fixed):

@@ -53,10 +53,19 @@ ORDER_SCHEMA = _obj(
     }
 )
 LEAD_SCHEMA = _obj({"name": _STR, "phone": _STR, "details": _STR})
+# The customer's own booking cancelled or moved (joop/selfservice.py): only offered when the chat has one.
+CHANGE_SCHEMA = _obj(
+    {
+        "booking_id": {"type": "integer"},
+        "action": {"type": "string", "enum": ["cancel", "move"]},
+        "slot_id": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+    }
+)
 
 
-def response_schema(outcomes: frozenset[str] | set[str] | None = None) -> dict[str, Any]:
-    """JSON schema of the model's answer for the outcomes a niche enables."""
+def response_schema(outcomes: frozenset[str] | set[str] | None = None, change: bool = False) -> dict[str, Any]:
+    """JSON schema of the model's answer for the outcomes a niche enables; `change` when the customer has a booking
+    from this chat they may cancel or move."""
     outcomes = outcomes if outcomes is not None else {"booking", "request", "handoff"}
     props: dict[str, Any] = {"reply": _STR}
     if "booking" in outcomes or "request" in outcomes:
@@ -67,6 +76,8 @@ def response_schema(outcomes: frozenset[str] | set[str] | None = None) -> dict[s
         props["order"] = _nullable(ORDER_SCHEMA)
     if "lead" in outcomes:
         props["lead"] = _nullable(LEAD_SCHEMA)
+    if change:
+        props["change"] = _nullable(CHANGE_SCHEMA)
     props["handoff"] = {"anyOf": [{"type": "null"}, _STR]}
     return _obj(props)
 
@@ -98,6 +109,7 @@ class AgentReply:
     order: dict | None = None
     lead: dict | None = None
     stay: dict | None = None
+    change: dict | None = None  # {"booking_id", "action": "cancel" | "move", "slot_id"} (joop/selfservice.py)
 
 
 class LLMClient(Protocol):
@@ -183,12 +195,22 @@ def coerce_reply(data: Any) -> AgentReply:
     else:
         stay = None
 
+    change = data.get("change")
+    if isinstance(change, dict) and str(change.get("action") or "") in ("cancel", "move") and _int(change.get("booking_id")):
+        try:
+            new_slot: int | None = int(change.get("slot_id"))
+        except (TypeError, ValueError):
+            new_slot = None
+        change = {"booking_id": _int(change.get("booking_id")), "action": str(change["action"]), "slot_id": new_slot}
+    else:
+        change = None
+
     handoff = data.get("handoff")
     handoff = str(handoff).strip() if isinstance(handoff, (str, int, float)) and str(handoff).strip() else None
 
     if not reply:
         raise LLMError("model returned an empty reply")
-    return AgentReply(reply=reply, booking=booking, handoff=handoff, order=order, lead=lead, stay=stay)
+    return AgentReply(reply=reply, booking=booking, handoff=handoff, order=order, lead=lead, stay=stay, change=change)
 
 
 def _int(value: Any) -> int:

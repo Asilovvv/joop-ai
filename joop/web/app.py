@@ -33,7 +33,7 @@ from ..niches import all_packs, get_pack, picker_packs
 from ..phone import normalize_phone
 from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, order_status, quick_replies, samples, schedule, staff_reply, stock, waitlist
 from ..faq_gaps import open_gaps
-from ..reschedule import blocked as move_blocked, reschedule
+from ..reschedule import blocked as move_blocked, cancel as cancel_core, reschedule
 from ..runtime import Runtime
 from ..scheduler import Scheduler
 from ..security import hash_password, new_link_code, new_secret, new_test_code, verify_password
@@ -1125,16 +1125,11 @@ def cancel_booking(s: Session, rt: Runtime, b: Business, booking: Booking) -> in
     Returns how many waiting-list customers were offered the freed time, or None when the booking was not active.
     The caller commits.
     """
-    if booking.status != "booked":
+    done, slot = cancel_core(s, booking)
+    if not done:
         return None
-    booking.status = "cancelled"
-    s.add(booking)
-    slot = s.get(Slot, booking.slot_id) if booking.slot_id else None
-    release_slot(s, booking.slot_id, seats_needed(slot, booking.party_size) if slot else 1)
-    s.flush()
     if slot is None:
         return 0
-    s.refresh(slot)
     return waitlist.offer_freed_slot(s, rt, b, slot, utcnow())
 
 
@@ -1757,6 +1752,8 @@ async def settings_save(request: Request):
             b.takeover_minutes = minutes if minutes in TAKEOVER_CHOICES else b.takeover_minutes
         except ValueError:
             pass
+        if "self_service_shown" in form:  # the box is shown only to businesses that book times
+            b.self_service = bool(form.get("self_service"))
         b.reminder_hour = hour("reminder_hour", b.reminder_hour)
         b.digest_hour = hour("digest_hour", b.digest_hour)
         if "lead_nudge_minutes" in form:

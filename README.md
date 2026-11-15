@@ -338,6 +338,13 @@ WhatsApp message fees for reminders.
   ill. Her times that have not started become `closed`: nothing claims them, and `release_slot` keeps them closed, so
   moving or cancelling her patients does not hand the day back to the AI. The bookings already there are listed to be
   moved or cancelled. Opening offers the times to the waitlist. Altegio schedules are refused (the sync would undo it).
+- **The customer cancels or moves their own booking** (`joop/selfservice.py`; «Клиент может сам отменить или перенести
+  свою запись через ИИ» in Настройки, on by default): «не смогу завтра, перенесите на четверг». The model sees the
+  chat's upcoming bookings with numbers and answers with `change` {booking_id, cancel | move, slot_id}; code checks
+  that the booking came from this chat and is more than two hours ahead, does it with `joop/reschedule.py`, and
+  writes the reply itself (the model's own wording is not trusted for it). Staff get a note, the freed time goes to
+  the waitlist. A booking in Altegio, a prepaid cancellation, a visit within two hours or anything not found goes to
+  staff as a request, as before.
 - **Moving a booking** (`joop/reschedule.py`; «Перенести» on the "Записи" page and in the mobile app): the customer
   asked for an hour later. The booking keeps its row (its chat, prepayment and upsell) and takes another free time
   the way the AI takes one; the old time is freed and offered to the waitlist, the reminder and the customer's «да»
@@ -528,6 +535,8 @@ How the parts fit together: [docs/architecture.md](docs/architecture.md).
 - Channel tokens are encrypted in the database when `TOKEN_ENCRYPTION_KEY` is set
   (`python -m joop gen-key`, then `python -m joop encrypt-tokens` for tokens saved earlier).
   Keep a copy of the key apart from the database backups: a lost key means reconnecting every channel.
-- Customers cannot cancel or reschedule by themselves yet: the AI passes such requests to staff.
+- Customers cancel and move their own bookings in the chat (`joop/selfservice.py`), but only bookings made from that
+  chat and more than two hours ahead; Altegio bookings and cancelling a prepaid visit still go to staff. The rule's
+  wording has not been through a run of the evaluation with the real model yet.
 - The service stores patient names, phone numbers and what they wrote. Agree with each business in
   writing how this data is processed and stored, as personal data rules require.

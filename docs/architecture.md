@@ -137,6 +137,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/web/accounts.py` | Staff logins (`PanelUser`); owner-only sections are listed in `app.py` (`OWNER_ONLY`) |
 | `joop/staff_reply.py` | Staff reply from the panel through the customer's channel; web chat updates |
 | `joop/schedule.py` | Closing and opening times by hand (an ill doctor's day): `closed` slots stay closed through cancellations and moves; reopened ones go to the waiting list; Altegio schedules refused |
+| `joop/selfservice.py` | The customer cancels or moves their own booking in the chat: the chat's bookings in the prompt, `change` in the answer, checked and done by code; what it may not do goes to staff |
 | `joop/reschedule.py` | Moving a booking to another free time from the panel and the app: the slot is claimed as the AI claims it, the old one goes to the waiting list, the customer is told; only visits that have not happened |
 | `joop/nudges.py` | Reminders to staff about requests nobody answered |
 | `joop/autofill.py`, `joop/web/autofill.py` | Price list and FAQ drafted from pasted text, kept only where the text supports it |

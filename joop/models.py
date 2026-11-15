@@ -38,6 +38,7 @@ class Business(SQLModel, table=True):
     reminder_hour: int = 18
     digest_hour: int = 8
     takeover_minutes: int = 720  # after a staff reply the AI stays out of that chat this long (joop/agent/engine.py)
+    self_service: bool = True  # the AI cancels and moves a customer's own booking on request (joop/selfservice.py)
     # Orders (cafes, wholesale), in som. 0 = not set.
     min_order: int = 0
     delivery_fee: int = 0
