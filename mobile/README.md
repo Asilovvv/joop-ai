@@ -58,6 +58,23 @@ flutter run --dart-define=API_URL=https://your-joop-server
 Without `API_URL` the app uses `http://localhost:8000` (`http://10.0.2.2:8000` in the Android emulator). The sign-in
 screen has «Другой сервер» to change it on the device.
 
+Plain `http://` works only for this device and the same Wi-Fi (localhost, `10.x`, `172.16–31.x`, `192.168.x`,
+`*.local`); any other address must be `https://` — the app refuses it before sending anything, so a password never
+crosses the internet unencrypted. An address typed without a scheme gets `http://` on the local network and
+`https://` elsewhere.
+
+## Showing it on a phone without a public server
+
+A laptop and a phone on the same Wi-Fi (a phone hotspot works too):
+
+1. On the laptop: `python -m joop serve` (it listens on all addresses, port 8000) and find its address on the Wi-Fi
+   (`ipconfig getifaddr en0` on a Mac, `ipconfig` on Windows), say `192.168.1.5`.
+2. Install the APK from the latest successful **Actions → mobile** run (artifact `joop-mobile-apk`) on the phone.
+3. On the sign-in screen: «Другой сервер» → `192.168.1.5:8000`, then the company login and the panel password.
+
+If the phone says there is no connection, check that both are on the same network and that the laptop's firewall
+lets port 8000 in.
+
 ## Release
 
 When the Joop server is public (docs/deploy.md), run **Actions → mobile-release → Run workflow** with its address

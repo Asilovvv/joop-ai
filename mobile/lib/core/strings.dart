@@ -13,6 +13,7 @@ class S {
     required this.retry,
     required this.no,
     required this.noConnection,
+    required this.httpsOnly,
     required this.requestFailed,
     required this.som,
     // sign-in
@@ -210,6 +211,7 @@ class S {
   final String retry;
   final String no;
   final String Function(String server) noConnection;
+  final String Function(String server) httpsOnly;
   final String requestFailed;
   final String som;
   final String tagline;
@@ -424,6 +426,7 @@ class S {
     retry: 'Повторить',
     no: 'Нет',
     noConnection: _ruNoConnection,
+    httpsOnly: _ruHttpsOnly,
     requestFailed: 'Ошибка запроса',
     som: 'сом',
     tagline: 'Записи, заказы и заявки из всех каналов в одном приложении',
@@ -631,6 +634,7 @@ class S {
     retry: 'Кайталоо',
     no: 'Жок',
     noConnection: _kyNoConnection,
+    httpsOnly: _kyHttpsOnly,
     requestFailed: 'Сурамда ката кетти',
     som: 'сом',
     tagline: 'Бардык каналдардагы жазылуулар, буйрутмалар жана өтүнмөлөр бир тиркемеде',
@@ -932,3 +936,9 @@ String _ruCustomerLine(int visits, String spent) => 'визитов: $visits · 
 String _kyCustomerLine(int visits, String spent) => 'визит: $visits · $spent';
 String _ruShownOf(int shown, int total) => 'Показаны $shown из $total — уточните поиск';
 String _kyShownOf(int shown, int total) => '$total ичинен $shown көрсөтүлдү — издөөнү тактаңыз';
+String _ruHttpsOnly(String server) =>
+    'Адрес $server без https: пароль ушёл бы через интернет открытым текстом. Укажите адрес с https:// — http подходит '
+    'только для сервера в этой же Wi-Fi сети.';
+String _kyHttpsOnly(String server) =>
+    '$server дареги https эмес: сырсөз интернет аркылуу ачык кетмек. https:// менен дарек жазыңыз — http ушул эле '
+    'Wi-Fi тармагындагы сервер үчүн гана жарайт.';
