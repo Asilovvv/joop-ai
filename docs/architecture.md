@@ -138,6 +138,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/staff_reply.py` | Staff reply from the panel through the customer's channel; web chat updates |
 | `joop/nudges.py` | Reminders to staff about requests nobody answered |
 | `joop/autofill.py`, `joop/web/autofill.py` | Price list and FAQ drafted from pasted text, kept only where the text supports it |
+| `joop/sitefetch.py` | The visible text of the owner's web page for that draft: public addresses only, pinned connection, checked redirects, size limit |
 | `joop/voice.py` | Voice messages: download from the channel, speech-to-text, then answered like text |
 | `joop/audit.py`, `joop/web/audit.py` | The free chat audit: WhatsApp export parser, the numbers a prospect loses, the lead form |
 | `joop/case.py` | A business's case with real numbers for a period, for the founder to publish |
@@ -178,6 +179,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 742 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 750 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |

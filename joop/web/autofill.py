@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request
 from sqlalchemy import func
 from sqlmodel import select
 
-from .. import autofill
+from .. import autofill, sitefetch
 from ..catalog import parse_price
 from ..db import new_session
 from ..followups import _plural
@@ -37,6 +37,12 @@ async def autofill_preview(request: Request):
             _flash(request, f"ИИ разбирает текст до {PER_DAY} раз в сутки. Остальное добавьте вручную.", "error")
             return _back(back)
         _runs[b.id] = recent + [now]
+        link = sitefetch.as_url(source)
+        if link:  # only a link was pasted: read that page and draft from its text
+            source, error = sitefetch.fetch(_rt(request).http, link)
+            if error:
+                _flash(request, error, "error")
+                return _back(back)
         names = list(s.exec(select(Service.name).where(Service.business_id == b.id)).all())
         questions = list(s.exec(select(Faq.question).where(Faq.business_id == b.id)).all())
         try:

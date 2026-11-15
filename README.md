@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram (a bot, or the owner's personal account through Telegram Business), WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
 | Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 51 database migrations, 35 niche packs and a generic one |
-| Tests | 742 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 750 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -300,7 +300,10 @@ WhatsApp message fees for reminders.
   list from Instagram, a WhatsApp message or a page of the website; the AI proposes services and FAQ entries,
   and code keeps a price only if every number of it is in the pasted text, drops services with no word from
   the text and answers with numbers the text does not have, and marks duplicates. Nothing is saved until the
-  owner checks and edits the preview. Up to 10 runs a day per business.
+  owner checks and edits the preview. Up to 10 runs a day per business. A link to the business's own website
+  works too (`joop/sitefetch.py`): the page is fetched with every address checked public and the connection
+  pinned to it, at most 3 redirects and 2 MB, and only its visible text goes to the AI. Instagram and 2GIS
+  pages need a logged-in browser, so for them the owner is asked to copy the text.
 - **Prepayment** (settings "Предоплата за запись", off by default): right after the AI books, the customer
   gets the amount, how to pay (a transfer by phone number or the business's own payment link) and a deadline,
   never later than an hour before the visit. Joop does not touch the money. A receipt photo or "оплатила"
@@ -436,7 +439,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 742 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 750 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
