@@ -14,6 +14,7 @@ import '../core/strings.dart';
 import '../data/joop_repository.dart';
 import '../data/models.dart';
 import 'bookings_screen.dart';
+import 'chats_screen.dart';
 import 'language_button.dart';
 import 'new_booking_screen.dart';
 import 'services_screen.dart';
@@ -188,6 +189,13 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           appBar: AppBar(
             title: Text(_titles[tabs[_index]]!, style: const TextStyle(fontWeight: FontWeight.w800)),
             actions: [
+              if (_account.role != 'master')
+                IconButton(
+                  key: const Key('open-chats'),
+                  tooltip: S.current.chats,
+                  icon: const Icon(Icons.forum_outlined),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChatsScreen())),
+                ),
               const LanguageButton(),
               IconButton(
                 tooltip: S.current.signOut,

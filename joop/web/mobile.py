@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from .. import altegio, cash, customers, order_status, staff_reply
 from ..api import booking_json, customer_json, lead_json, order_json
@@ -31,7 +31,7 @@ from ..phone import normalize_phone
 from ..samples import example_staff_ids
 from ..security import verify_password
 from ..slots import claim_slot, release_slot, seats_left, seats_needed
-from ..stats import not_test
+from ..stats import not_test, real_conversation
 from ..timeutil import local_now, utcnow
 from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
 
@@ -576,6 +576,38 @@ def _dialogue(s: Session, conv: Conversation) -> dict:
             "reply_blocked": staff_reply.blocked(conv, now),
             "messages": [{"id": m.id, "role": m.role, "text": m.text, "created_at": m.created_at.isoformat() + "Z",
                           "author": m.author} for m in rows if m.role in ("customer", "ai", "staff")]}
+
+
+CHATS = 100
+SEARCHED = 1000  # the most recent chats a search looks through
+
+
+@router.get("/api/mobile/conversations")
+def mobile_conversations(request: Request, q: str = ""):
+    """The latest real chats (the panel's Диалоги, test chats left out), newest first, with the last message;
+    `q` finds a customer by name or phone. A chat opens with GET /api/mobile/conversations/{id}."""
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        query = select(Conversation).where(Conversation.business_id == who.business.id, real_conversation())
+        convs = s.exec(query.order_by(Conversation.last_message_at.desc()).limit(SEARCHED if q.strip() else CHATS)).all()
+        text = q.strip()[:60].casefold()
+        if text:  # in Python: SQLite's LIKE ignores case only for Latin letters, and names here are Cyrillic
+            digits = "".join(ch for ch in text if ch.isdigit()).lstrip("0")  # «0555 123» is local for +996 555 123
+            convs = [c for c in convs if text in (c.customer_name or "").casefold() or text in (c.display_name or "").casefold()
+                     or (len(digits) >= 3 and digits in "".join(ch for ch in c.customer_phone if ch.isdigit()))][:CHATS]
+        last_ids = s.exec(select(func.max(Message.id)).where(Message.conversation_id.in_([c.id for c in convs] or [0]))
+                          .group_by(Message.conversation_id)).all()
+        last = {m.conversation_id: m for m in s.exec(select(Message).where(Message.id.in_(list(last_ids) or [0]))).all()}
+        now = utcnow()
+        return {"conversations": [{
+            "id": c.id, "channel": c.channel, "customer": {"name": c.customer_name or c.display_name, "phone": c.customer_phone},
+            "last_message_at": c.last_message_at.isoformat() + "Z",
+            "last": {"role": last[c.id].role, "text": last[c.id].text[:200]} if c.id in last else None,
+            "ai_paused": bool(c.ai_paused_until and c.ai_paused_until > now),
+            "blocked": c.blocked_at is not None,
+        } for c in convs]}
 
 
 @router.get("/api/mobile/conversations/{item_id}")

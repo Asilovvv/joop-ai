@@ -618,3 +618,49 @@ class CustomerCard extends Equatable {
   @override
   List<Object?> get props => [key, name, phone, channels, visits, spendSom, rating, note, tags, upcoming, bookings, orders];
 }
+
+/// A chat in the list (GET /api/mobile/conversations): who, where, the last message.
+class ChatSummary extends Equatable {
+  const ChatSummary({
+    required this.id,
+    required this.channel,
+    required this.customerName,
+    required this.customerPhone,
+    required this.lastAt,
+    required this.lastRole,
+    required this.lastText,
+    required this.aiPaused,
+    required this.blocked,
+  });
+
+  factory ChatSummary.fromJson(Map<String, dynamic> json) {
+    final customer = (json['customer'] as Map?) ?? const {};
+    final last = json['last'] as Map?;
+    return ChatSummary(
+      id: json['id'] as int,
+      channel: (json['channel'] as String?) ?? '',
+      customerName: (customer['name'] as String?) ?? '',
+      customerPhone: (customer['phone'] as String?) ?? '',
+      lastAt: DateTime.parse(json['last_message_at'] as String).toLocal(),
+      lastRole: (last?['role'] as String?) ?? '',
+      lastText: (last?['text'] as String?) ?? '',
+      aiPaused: (json['ai_paused'] as bool?) ?? false,
+      blocked: (json['blocked'] as bool?) ?? false,
+    );
+  }
+
+  final int id;
+  final String channel;
+  final String customerName;
+  final String customerPhone;
+  final DateTime lastAt;
+
+  /// customer | ai | staff; empty for a chat without messages.
+  final String lastRole;
+  final String lastText;
+  final bool aiPaused;
+  final bool blocked;
+
+  @override
+  List<Object?> get props => [id, channel, customerName, customerPhone, lastAt, lastRole, lastText, aiPaused, blocked];
+}
