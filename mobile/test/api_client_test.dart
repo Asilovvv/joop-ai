@@ -16,7 +16,13 @@ void main() {
     ]) {
       expect(ApiClient.allowed(ok), isTrue, reason: ok);
     }
-    for (final no in ['http://joop.kg', 'http://8.8.8.8', 'http://172.32.0.1', 'http://192.169.1.1', 'ftp://joop.kg']) {
+    for (final no in [
+      'http://joop.kg', 'http://8.8.8.8', 'http://172.32.0.1', 'http://192.169.1.1', 'ftp://joop.kg',
+      'http://010.8.8.8', // the system reads it as octal: 8.8.8.8
+      'http://0127.0.0.1', // 87.0.0.1
+      'http://0x0a.0.0.1', // hex
+      'http://10.0.0.256',
+    ]) {
       expect(ApiClient.allowed(no), isFalse, reason: no);
     }
   });
