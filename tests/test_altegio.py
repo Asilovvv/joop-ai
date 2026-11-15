@@ -142,7 +142,7 @@ def test_booking_is_checked_by_code_then_by_altegio_then_recorded(business, fake
     synced(business, fake)
     slot = altegio_slot(business)
     out = book(business, fake, slot.id)
-    assert out.booking_id is not None and out.reply == "Записала!"
+    assert out.booking_id is not None and out.reply == "Записала!\nВаша запись: Чт 05.11 10:00, Айгерим."
     posts = [(p, b) for m, p, b, _ in fake.calls if m == "POST"]
     assert [p for p, _ in posts] == [f"book_check/{LOC}", f"book_record/{LOC}"]  # check first, then record
     appointment = posts[1][1]["appointments"][0]

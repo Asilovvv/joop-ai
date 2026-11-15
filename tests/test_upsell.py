@@ -46,7 +46,7 @@ def book(business_id, rt, service="консультация", first="Запиш�
 def test_offer_after_booking_and_yes_adds_it(business, rt):
     pair(business.id)
     out = book(business.id, rt)
-    assert out.reply == "Записала!\n\nХотите добавить «Профессиональная чистка» — 3 500 сом? Ответьте «да», и я добавлю к записи."
+    assert out.reply == "Записала!\nВаша запись: Чт 05.11 09:00, Айгерим Садыкова.\n\nХотите добавить «Профессиональная чистка» — 3 500 сом? Ответьте «да», и я добавлю к записи."
     yes = say(business.id, rt, "Да, давайте!", now=NOW_UTC + timedelta(minutes=5))
     assert yes.reply.startswith("Добавила «Профессиональная чистка» к вашей записи на ")
     assert yes.admin_notes[0].startswith("Допродажа: Айбек") and "+3 500 сом" in yes.admin_notes[0] and "хватает ли времени" in yes.admin_notes[0]

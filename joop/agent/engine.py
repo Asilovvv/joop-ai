@@ -398,6 +398,7 @@ def _model_reply(
 
     if booked is not None and outcome.reply:  # added after the guards so they cannot reword them
         kyrgyz = is_kyrgyz_message(text)
+        outcome.reply = with_booking_line(outcome.reply, booked, kyrgyz)
         loyalty = intake.loyalty_line(session, business, booked, kyrgyz)
         outcome.reply += loyalty + intake.after_booking(business, booked, kyrgyz) + deposits.reply_line(business, booked, now, kyrgyz)
         outcome.reply += upsell.offer(session, business, booked, kyrgyz)
@@ -723,6 +724,28 @@ class _ExternalDown(Exception):
     def __init__(self, when: str) -> None:
         super().__init__(when)
         self.when = when
+
+
+_CLOCK = re.compile(r"(?<![\d:])([01]?\d|2[0-3]):([0-5]\d)(?![\d:])")
+BOOKED_RU, BOOKED_KY = "Ваша запись: {when}, {who}.", "Жазылдыңыз: {when}, {who}."  # KY: проверить носителю
+DONE_RU, DONE_KY = "Записала вас.", "Жазып койдум."  # KY: проверить носителю
+
+
+def with_booking_line(reply: str, booking: Booking, kyrgyz: bool) -> str:
+    """The booked day, time and person, written by the code: the customer must not rely on the model's wording.
+
+    The model chose the slot, and the code booked exactly that slot; the reply text is still the model's, and it can
+    name another time («записала на 13:00» for the 12:00 slot). A reply that names times but not the booked one is
+    replaced; one that names the booked time on a day-month date keeps as is; otherwise the line is added."""
+    when = confirm.fmt_slot_ky(booking.start) if kyrgyz else fmt_slot(booking.start)
+    line = (BOOKED_KY if kyrgyz else BOOKED_RU).format(when=when, who=booking.staff_name)
+    times = {f"{int(h):02d}:{m}" for h, m in _CLOCK.findall(reply)}
+    booked = f"{booking.start:%H:%M}"
+    if times and booked not in times:
+        return f"{DONE_KY if kyrgyz else DONE_RU} {line}"
+    if booked in times and f"{booking.start:%d.%m}" in reply:
+        return reply
+    return f"{reply.rstrip()}\n{line}"
 
 
 def _try_booking(
