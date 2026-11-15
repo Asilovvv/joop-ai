@@ -21,7 +21,8 @@ from sqlmodel import Session, select
 
 from .agent.engine import takeover_pause
 from . import funnel
-from .followups import SERVICE_WINDOW
+from .channels.telegram import is_personal
+from .followups import can_write
 from .models import Business, Conversation, Lead, Message
 
 if TYPE_CHECKING:
@@ -34,11 +35,12 @@ CHANNEL_NAMES = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "I
 
 def blocked(conv: Conversation, now_utc: datetime) -> str:
     """Why a reply cannot go to this chat now, in Russian; "" when it can."""
-    if conv.channel == "web" or conv.channel == "telegram":
+    if conv.channel == "web" or can_write(conv.channel, conv.chat_id, conv.last_customer_at, now_utc):
         return ""
+    if is_personal(conv.chat_id):
+        return ("Это чат в вашем личном Telegram: Telegram разрешает боту писать туда только в течение суток после "
+                "последнего сообщения клиента. Напишите клиенту сами из своего Telegram.")
     if conv.channel in ("whatsapp", "instagram"):
-        if conv.last_customer_at and now_utc - conv.last_customer_at < SERVICE_WINDOW:
-            return ""
         name = CHANNEL_NAMES[conv.channel]
         return (f"{name} разрешает писать клиенту только в течение суток после его последнего сообщения. "
                 f"Позвоните клиенту или напишите ему из своего приложения {name}.")

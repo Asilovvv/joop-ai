@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .followups import SERVICE_WINDOW, _kyrgyz, _service_for, deliver_to_chat
+from .followups import _kyrgyz, _service_for, can_write, deliver_to_chat
 from .models import Booking, Business, Conversation, Service, Slot, Staff
 from . import samples
 from .slots import free_slots, lead_for
@@ -139,8 +139,7 @@ def candidates(session: Session, business: Business, now_local: datetime) -> lis
         if not pair:
             continue  # nothing to invite into
         slots = [(slot.start, st.name) for slot, st in pair]
-        in_window = bool(conv.last_customer_at and now_utc - conv.last_customer_at < SERVICE_WINDOW)
-        reachable = conv.channel == "telegram" or (conv.channel in ("whatsapp", "instagram") and in_window)
+        reachable = can_write(conv.channel, conv.chat_id, conv.last_customer_at, now_utc)
         name = conv.customer_name or last.customer_name or ""
         out.append(Candidate(conversation_id=conv.id, name=name, phone=last.customer_phone or conv.customer_phone, channel=conv.channel,
                              reason=reason, service=service_name, staff=last.staff_name if staff_id else "", last_visit=last.start,

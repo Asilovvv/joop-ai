@@ -13,7 +13,7 @@ from . import gaps as empty_slots
 from .db import new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
-from .followups import _kyrgyz, send_return_invites, send_review_requests
+from .followups import _kyrgyz, can_write, send_return_invites, send_review_requests
 from .models import Booking, Business, Conversation, Message, Order, Stay
 from .niches import get_pack
 from .runtime import Runtime
@@ -55,9 +55,8 @@ def _send_reminder(session: Session, rt: Runtime, business: Business, booking: B
     """"sent": the text with the question went out; "template": the approved WhatsApp template, which asks nothing; "": nothing."""
     conv = session.get(Conversation, booking.conversation_id) if booking.conversation_id else None
     text = reminder_text(business, booking, bool(conv) and _kyrgyz(session, conv.id))
-    in_window = bool(conv and conv.last_customer_at and now_utc - conv.last_customer_at < SERVICE_WINDOW)
     sent = ""
-    if booking.channel == "telegram" or (booking.channel in {"whatsapp", "instagram"} and in_window):
+    if can_write(booking.channel, booking.chat_id, conv.last_customer_at if conv else None, now_utc):
         client = rt.channel_client(business, booking.channel)
         sent = "sent" if client and client.send_text(booking.chat_id, text) else ""
     if not sent and booking.channel == "whatsapp" and business.wa_reminder_template:
