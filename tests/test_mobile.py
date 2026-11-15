@@ -278,6 +278,7 @@ def test_the_owner_answers_a_handed_off_customer(client, business, rt):
     after = r.json()
     assert after["messages"][-1] == {**after["messages"][-1], "role": "staff", "author": "Владелец"}
     assert after["ai_paused"] is True  # the AI stays out of this chat, as after a reply from the panel
+    assert after["takeover_minutes"] == 720 and after["ai_paused_until"].endswith("Z")
     assert rt.tg.sent[-1][:2] == ("5551", "Да, можно. Позвоним вам сегодня.")
     assert client.get("/api/mobile/leads", headers=auth(token)).json()["leads"][0]["status"] == "done"
     with db.new_session() as s:
@@ -516,3 +517,20 @@ def test_a_master_or_another_business_cannot_change_the_stop_list(client, busine
     assert client.post(f"/api/mobile/services/{item.id}/available", json=body, headers=auth(stranger)).status_code == 404
     with db.new_session() as s:
         assert s.get(Service, item.id).available is True
+
+
+def test_the_dialogue_names_the_pause_the_owner_chose(client, business):
+    conv_id = _handed_off("telegram", "5552", last_customer_hours_ago=1)
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.takeover_minutes = 15
+        s.add(b)
+        s.commit()
+    token = sign_in(client).json()["token"]
+    after = client.post(f"/api/mobile/conversations/{conv_id}/reply", json={"text": "Сейчас уточню."}, headers=auth(token)).json()
+    assert after["takeover_minutes"] == 15
+    until = datetime.fromisoformat(after["ai_paused_until"].rstrip("Z"))
+    with db.new_session() as s:
+        from joop.models import Conversation
+
+        assert s.get(Conversation, conv_id).ai_paused_until == until

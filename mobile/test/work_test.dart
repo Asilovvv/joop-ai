@@ -198,10 +198,24 @@ void dialogueTests() {
     expect(find.text('Да, банкетный зал на 50 мест свободен в субботу.'), findsOneWidget);
     expect(find.text('Ответ отправлен, заявка закрыта'), findsOneWidget);
     expect(cafe.calls, contains('POST /api/mobile/conversations/70/reply'));
+    expect(find.textContaining('продлевает паузу на 12 часов'), findsOneWidget);
 
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('Закрыл: Владелец'), findsOneWidget);
+  });
+
+  testWidgets('the pause the owner chose is named after a reply', (tester) async {
+    final cafe = FakeJoop(cafe: true);
+    cafe.dialogues[70]!['takeover_minutes'] = 15;
+    await openRequest(tester, cafe);
+    await tester.tap(find.widgetWithText(FilledButton, 'Ответить'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('ai-paused')), findsNothing); // the AI still answers
+    await tester.enterText(find.byKey(const Key('reply-input')), 'Сейчас уточню.');
+    await tester.tap(find.byKey(const Key('reply-send')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('продлевает паузу на 15 минут'), findsOneWidget);
   });
 
   testWidgets('when the channel no longer allows a reply, the app says why and gives the phone', (tester) async {

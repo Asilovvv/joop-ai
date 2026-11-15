@@ -230,6 +230,8 @@ class FakeJoop {
       (d['messages'] as List).add(
           {'id': 100, 'role': 'staff', 'text': text, 'created_at': '2026-11-13T07:00:00Z', 'author': 'Владелец'});
       d['ai_paused'] = true;
+      final minutes = (d['takeover_minutes'] as int?) ?? 720;
+      d['ai_paused_until'] = DateTime.now().toUtc().add(Duration(minutes: minutes)).toIso8601String();
       for (final x in leads.where((x) => x['conversation_id'] == d['id'])) {
         x['status'] = 'done';
         x['closed_by'] = 'Владелец';

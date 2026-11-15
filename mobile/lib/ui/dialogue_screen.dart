@@ -90,10 +90,15 @@ class _DialogueState extends State<_Dialogue> {
                   children: [for (final m in dialogue.messages) _Bubble(message: m)],
                 ),
               ),
-              if (dialogue.aiPaused)
+              if (dialogue.aiPaused && dialogue.aiPausedUntil != null)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Text(s.aiPausedNote, style: theme.textTheme.bodySmall, textAlign: TextAlign.center),
+                  child: Text(
+                    s.aiPausedNote(_until(dialogue.aiPausedUntil!), s.pauseWords(dialogue.takeoverMinutes)),
+                    key: const Key('ai-paused'),
+                    style: theme.textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               SafeArea(
                 top: false,
@@ -145,6 +150,13 @@ class _DialogueState extends State<_Dialogue> {
       ),
     );
   }
+}
+
+/// "14:30", or "пн, 16 ноя, 09:00" when the pause runs past today.
+String _until(DateTime until) {
+  final now = DateTime.now();
+  final today = until.year == now.year && until.month == now.month && until.day == now.day;
+  return today ? formatTime(until) : '${formatDay(until)}, ${formatTime(until)}';
 }
 
 class _Bubble extends StatelessWidget {
