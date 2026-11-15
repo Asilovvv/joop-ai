@@ -13,6 +13,12 @@
     <div class="stat"><b>{{ st.asked }}</b><span>клиентов попросили оценить</span></div>
     <div class="stat"><b>{{ st.invited }}</b><span>пригласили снова</span></div>
     <div class="stat"><b>{{ st.returned }}</b><span>из них записались опять</span></div>
+    {% if orders_back[0] %}
+    <div class="stat"><b>{{ orders_back[1] }} из {{ orders_back[0] }}</b><span>повторили заказ после напоминания{% if orders_back[2] %}, {{ '{:,}'.format(orders_back[2]).replace(',', ' ') }} сом{% endif %}</span></div>
+    {% endif %}
+    {% if stock_back[0] %}
+    <div class="stat"><b>{{ stock_back[1] }} из {{ stock_back[0] }}</b><span>купили после «снова в наличии»{% if stock_back[2] %}, {{ '{:,}'.format(stock_back[2]).replace(',', ' ') }} сом{% endif %}</span></div>
+    {% endif %}
   </div>
 </section>
 <form method="post" action="/panel/followups">

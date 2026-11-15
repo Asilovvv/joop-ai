@@ -84,3 +84,20 @@ def send_due(session: Session, rt: "Runtime", business: Business, now_utc: datet
         session.add(last)
         sent, failed = sent + ok, failed + (not ok)
     return {"sent": sent, "failed": failed} if sent or failed else {}
+
+
+AFTER = timedelta(days=7)  # a new order this soon after the reminder counts as brought by it
+
+
+def results(session: Session, business_id: int, since: datetime) -> tuple[int, int, int]:
+    """(reminders delivered since, chats that ordered again within a week, those orders' total in som)."""
+    reminded = session.exec(select(Order).where(Order.business_id == business_id, Order.reminder_ok,
+                                                Order.reminded_at >= since)).all()
+    again: dict[int, int] = {}
+    for old in reminded:
+        new = session.exec(select(Order).where(Order.conversation_id == old.conversation_id, Order.status != "cancelled",
+                                               Order.created_at >= old.reminded_at, Order.created_at <= old.reminded_at + AFTER)
+                           .order_by(Order.id)).first()
+        if new is not None:
+            again[new.id] = new.total or 0
+    return len(reminded), len(again), sum(again.values())

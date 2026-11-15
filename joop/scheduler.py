@@ -227,6 +227,13 @@ def weekly_report_text(session: Session, business: Business, now_utc: datetime) 
     if chased:
         lines.append(f"Напомнили о себе {_ru(chased, 'клиенту', 'клиентам', 'клиентам')}, "
                      f"{'который спросил и замолчал' if chased == 1 else 'которые спросили и замолчали'}; записались после этого: {came}.")
+    since = now_utc - timedelta(days=7)
+    told, again, money = reorders.results(session, business.id, since)
+    if told:
+        lines.append(f"Напомнили повторить заказ: {told}, заказали снова: {again}" + (f" на {_som(money)} сом." if money else "."))
+    told, bought, money = restock.results(session, business.id, since)
+    if told:
+        lines.append(f"Сообщили о поступлении товара: {told}, купили: {bought}" + (f" на {_som(money)} сом." if money else "."))
     if results:
         lines.append(f"Итого {results} готовых обращений без участия администратора.")
     gaps = open_gaps(session, business, now_utc)
