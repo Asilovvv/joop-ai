@@ -45,12 +45,24 @@ def blocked(conv: Conversation, now_utc: datetime) -> str:
     return "Из этого диалога ответить нельзя: это тестовый чат."
 
 
+RETRY_WINDOW = timedelta(minutes=3)  # longer than the app's 90-second timeout and a slow network
+
+
+def _just_sent(session: Session, conv: Conversation, text: str, author: str, now_utc: datetime) -> bool:
+    """The same person sent the same text to this chat moments ago."""
+    return session.exec(select(Message.id).where(
+        Message.conversation_id == conv.id, Message.role == "staff", Message.text == text, Message.author == author,
+        Message.created_at >= now_utc - RETRY_WINDOW)).first() is not None
+
+
 def send(session: Session, rt: "Runtime", business: Business, conv: Conversation, text: str,
          now_utc: datetime, author: str = "") -> tuple[bool, str]:
     """(sent, problem in Russian). Stores the reply, pauses the AI in this chat and closes its open requests."""
     text = (text or "").strip()[:MAX_TEXT]
     if not text:
         return False, "Напишите текст ответа."
+    if conv.id is not None and _just_sent(session, conv, text, author[:80], now_utc):
+        return True, ""  # a retry (the app timed out, a double tap, a resubmitted form): the customer got it once
     problem = blocked(conv, now_utc)
     if problem:
         return False, problem
