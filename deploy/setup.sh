@@ -10,8 +10,9 @@
 # makes one tiny model call to check the key and the balance, starts, and waits for HTTPS.
 # Running it again keeps the existing .env and only updates the code and restarts.
 #
-# Answers can be given in advance (for automation and tests): JOOP_DOMAIN, JOOP_ANTHROPIC_KEY,
-# JOOP_FOUNDER_BOT_TOKEN, JOOP_FOUNDER_CHAT_ID, JOOP_PRICE_SOM. JOOP_DIR (default /opt/joop-ai), JOOP_REPO.
+# Answers can be given in advance (for automation and tests): JOOP_DOMAIN, JOOP_MODEL_KEY (Anthropic sk-ant-… or
+# Gemini AIza…; JOOP_ANTHROPIC_KEY still works), JOOP_GEMINI_MODEL, JOOP_FOUNDER_BOT_TOKEN, JOOP_FOUNDER_CHAT_ID,
+# JOOP_PRICE_SOM. JOOP_DIR (default /opt/joop-ai), JOOP_REPO.
 # DRY_RUN=1 only writes .env in JOOP_DIR (no root, no Docker, no network): used by the tests.
 set -euo pipefail
 

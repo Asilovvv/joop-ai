@@ -85,3 +85,14 @@ def test_launch_check_warns_about_real_customers_on_a_second_provider(settings, 
     assert checks["Ключ модели"].ok and checks["Модель отвечает"].ok
     warn = checks["Модель для настоящих клиентов"]
     assert not warn.ok and not warn.required and "бесплатные тарифы могут использовать переписку" in warn.detail
+
+
+def test_a_rejected_gemini_key_is_not_reported_as_an_anthropic_key(settings, engine, tmp_path):
+    """deploy/setup.sh can start on Gemini: a key it rejects points to LLM_API_KEY, not ANTHROPIC_API_KEY."""
+    s = dataclasses.replace(settings, llm_provider="openai", anthropic_api_key="",
+                            llm_base_url="https://generativelanguage.googleapis.com/v1beta/openai", llm_api_key="AIza-test",
+                            database_url=f"sqlite:///{tmp_path / 'test.db'}")
+    problem = 'model API returned 401: {"error": {"code": 401}}'  # what OpenAICompatLLM raises on HTTP 401
+    checks = {c.name.split(" (")[0]: c for c in ops.launch_checks(s, {}, live=lambda: problem)}
+    detail = checks["Модель отвечает"].detail
+    assert "ANTHROPIC_API_KEY" not in detail and "LLM_API_KEY" in detail, detail

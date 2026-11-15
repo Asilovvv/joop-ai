@@ -62,7 +62,7 @@ def launch_checks(settings: Settings, env: Mapping[str, str] | None = None,
             "без него ИИ не отвечает клиентам")
     if live is not None and settings.model_key:
         problem = live()
-        add("Модель отвечает", problem is None, True, _model_problem(problem or ""))
+        add("Модель отвечает", problem is None, True, _model_problem(problem or "", settings))
     add("Секрет сессий (SESSION_SECRET)", len(env.get("SESSION_SECRET", "").strip()) >= MIN_SECRET, True,
         f"не короче {MIN_SECRET} символов, иначе входы в панель сбрасываются при перезапуске; "
         "создать: python -c \"import secrets; print(secrets.token_hex(32))\"")
@@ -106,12 +106,15 @@ def _encryption_ok(env: Mapping[str, str]) -> bool:
         return False
 
 
-def _model_problem(text: str) -> str:
+def _model_problem(text: str, settings: Settings) -> str:
+    """Advice for the provider in use: a rejected Gemini key is not an Anthropic one (deploy/setup.sh sets either)."""
     low = text.lower()
-    if "credit balance" in low:
+    anthropic = settings.llm_provider != "openai"
+    if anthropic and "credit balance" in low:
         return "на счёте Anthropic нет денег: пополните баланс в console.anthropic.com"
     if "authentication" in low or "invalid x-api-key" in low or "401" in low:
-        return "ключ Anthropic не принят: проверьте ANTHROPIC_API_KEY"
+        return ("ключ Anthropic не принят: проверьте ANTHROPIC_API_KEY" if anthropic
+                else f"ключ модели не принят: проверьте {settings.model_key_name}")
     return text[:300] or "модель не ответила"
 
 
