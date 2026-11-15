@@ -207,3 +207,22 @@ def test_the_launch_is_not_done_while_customers_could_not_book_anyone(app_client
     assert "Свободных окон впереди:" in setup  # her times, inherited from the example row, are now real
     dashboard = app_client.get("/panel").text
     assert "Замените пример «Врачи»" not in dashboard
+
+
+def test_a_shop_that_books_nobody_only_has_to_drop_the_example_people(app_client):  # noqa: F811
+    """A florist takes orders and requests, never a person's time: own florists are optional, the example must go."""
+    signup(app_client, name="Гүл Дүкөн", niche="florist")
+    setup = app_client.get("/panel/setup").text
+    assert "Флористы: 1, из них пример: 1" in setup and "или просто уберите пример" in setup
+    assert "Свободные окна для записи" not in setup
+    with db.new_session() as s:  # the shop removes the example florist and writes in nobody
+        for row in s.exec(select(Staff)).all():
+            row.active = False
+            s.add(row)
+        s.commit()
+        b = s.exec(select(Business)).one()
+        from joop.timeutil import utcnow
+        from joop.web.saas import checklist
+
+        staff = {i["key"]: i for i in checklist(s, b, utcnow())}["staff"]
+    assert staff["done"] and staff["title"] == "Флористы: 0", staff
