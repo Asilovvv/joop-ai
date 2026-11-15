@@ -656,7 +656,8 @@ class StockWatch(SQLModel, table=True):
     conversation_id: int = Field(foreign_key="conversation.id", index=True)
     service_id: int = Field(foreign_key="service.id", index=True)
     created_at: NaiveDatetime = Field(default_factory=utcnow)
-    notified_at: Optional[NaiveDatetime] = None
+    notified_at: Optional[NaiveDatetime] = None  # closed: told, or dropped (too old, «стоп», channel refused)
+    sent: bool = False  # the «снова в наличии» message reached the customer
 
 
 class FounderDigest(SQLModel, table=True):

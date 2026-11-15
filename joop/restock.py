@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from sqlmodel import Session, select
 
 from .followups import _kyrgyz, deliver_to_chat
-from .models import Business, Conversation, Message, Service, StockWatch
+from .models import Business, Conversation, Message, Order, OrderLine, Service, StockWatch
 from .stats import TEST_CHANNEL
 
 if TYPE_CHECKING:
@@ -90,5 +90,23 @@ def notify_back(session: Session, rt: "Runtime", business: Business, now_utc: da
             ok = True
         else:
             ok = deliver_to_chat(session, rt, business, conv, text, now_utc)
+        watch.sent = ok
         sent, failed = sent + ok, failed + (not ok)
     return {k: v for k, v in {"sent": sent, "failed": failed, "expired": expired}.items() if v}
+
+
+AFTER = timedelta(days=7)  # an order this soon after the message counts as brought by it
+
+
+def results(session: Session, business_id: int, since: datetime) -> tuple[int, int, int]:
+    """(customers told, orders of that item from them within a week, their total in som) for messages sent since."""
+    told = session.exec(select(StockWatch).where(StockWatch.business_id == business_id, StockWatch.sent,
+                                                 StockWatch.notified_at >= since)).all()
+    bought: dict[int, int] = {}
+    for watch in told:
+        rows = session.exec(select(Order).join(OrderLine, OrderLine.order_id == Order.id).where(
+            Order.conversation_id == watch.conversation_id, OrderLine.item_id == watch.service_id, Order.status != "cancelled",
+            Order.created_at >= watch.notified_at, Order.created_at <= watch.notified_at + AFTER)).all()
+        for order in rows:
+            bought[order.id] = order.total or 0
+    return len(told), len(bought), sum(bought.values())

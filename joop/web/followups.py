@@ -8,9 +8,10 @@ from urllib.parse import urlsplit
 from fastapi import APIRouter, Request
 from sqlmodel import select
 
-from .. import followups
+from .. import followups, reorders, restock
 from ..db import new_session
 from ..models import Booking, Service
+from ..niches import get_pack
 from ..timeutil import utcnow
 from .app import _back, _business, _check_csrf, _flash, _render
 
@@ -34,7 +35,11 @@ def followups_page(request: Request):
         st = followups.stats(s, b.id, utcnow() - timedelta(days=30))
         recent = s.exec(select(Booking).where(Booking.business_id == b.id, Booking.rating != None)  # noqa: E711
                         .order_by(Booking.start.desc()).limit(30)).all()
-        return _render(request, "followups.html", "followups", b, services=services, st=st, recent=recent)
+        month = utcnow() - timedelta(days=30)
+        orders_back = reorders.results(s, b.id, month) if get_pack(b.niche).offers("repeat_order") else (0, 0, 0)
+        stock_back = restock.results(s, b.id, month)
+        return _render(request, "followups.html", "followups", b, services=services, st=st, recent=recent,
+                       orders_back=orders_back, stock_back=stock_back)
 
 
 @router.post("/panel/followups")
