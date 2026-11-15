@@ -135,6 +135,10 @@ class JoopRepository {
   Future<Dialogue> dialogue(int conversationId) async =>
       Dialogue.fromJson(await _api.get('/api/mobile/conversations/$conversationId') as Map<String, dynamic>);
 
+  /// Staff take the chat over (the AI stays quiet for a day) or give it back to the AI.
+  Future<Dialogue> switchAi(int conversationId, bool on) async => Dialogue.fromJson(
+      await _api.post('/api/mobile/conversations/$conversationId/ai', {'on': on}) as Map<String, dynamic>);
+
   /// Answers the customer through their channel; the server says why when it cannot (422).
   Future<Dialogue> reply(int conversationId, String text) async => Dialogue.fromJson(
       await _api.post('/api/mobile/conversations/$conversationId/reply', {'text': text}) as Map<String, dynamic>);

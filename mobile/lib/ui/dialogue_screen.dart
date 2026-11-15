@@ -59,7 +59,24 @@ class _DialogueState extends State<_Dialogue> {
     final s = S.current;
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.w800))),
+      appBar: AppBar(
+        title: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.w800)),
+        actions: [
+          BlocBuilder<DialogueCubit, DialogueState>(
+            buildWhen: (a, b) => a.dialogue?.aiPaused != b.dialogue?.aiPaused || a.sending != b.sending,
+            builder: (context, state) {
+              final d = state.dialogue;
+              if (d == null) return const SizedBox.shrink();
+              return IconButton(
+                key: const Key('ai-switch'),
+                tooltip: d.aiPaused ? S.current.aiOn : S.current.aiOff,
+                icon: Icon(d.aiPaused ? Icons.smart_toy_outlined : Icons.pause_circle_outline),
+                onPressed: state.sending ? null : () => context.read<DialogueCubit>().switchAi(d.aiPaused),
+              );
+            },
+          ),
+        ],
+      ),
       body: BlocConsumer<DialogueCubit, DialogueState>(
         listenWhen: (a, b) => b.notice != null || (b.error != null && b.dialogue != null),
         listener: (context, state) {
@@ -133,7 +150,8 @@ class _DialogueState extends State<_Dialogue> {
                           state.sending
                               ? const Padding(
                                   padding: EdgeInsets.all(12),
-                                  child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
+                                  child:
+                                      SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2)),
                                 )
                               : IconButton.filled(
                                   key: const Key('reply-send'),
@@ -170,7 +188,8 @@ class _Bubble extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final customer = message.fromCustomer;
     final staff = message.role == 'staff';
-    final who = customer ? s.customerLabel : (staff ? (message.author.isEmpty ? s.staffReply : message.author) : s.aiLabel);
+    final who =
+        customer ? s.customerLabel : (staff ? (message.author.isEmpty ? s.staffReply : message.author) : s.aiLabel);
     return Align(
       // The business's side (the AI and staff) on the right, as in the owner's own messenger.
       alignment: customer ? Alignment.centerLeft : Alignment.centerRight,
@@ -184,7 +203,8 @@ class _Bubble extends StatelessWidget {
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('$who · ${formatTime(message.at)}',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: staff ? Colors.white70 : scheme.outline)),
+              style:
+                  TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: staff ? Colors.white70 : scheme.outline)),
           const SizedBox(height: 2),
           Text(message.text, style: TextStyle(color: staff ? Colors.white : scheme.onSurface)),
         ]),

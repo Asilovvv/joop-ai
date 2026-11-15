@@ -621,3 +621,29 @@ def test_a_master_or_another_business_does_not_see_the_chats(client, business):
     assert client.get("/api/mobile/conversations", headers=auth(master)).status_code == 403
     stranger = sign_in(client, company="other", password="other-pass-1").json()["token"]
     assert client.get("/api/mobile/conversations", headers=auth(stranger)).json()["conversations"] == []
+
+
+def test_staff_switch_the_ai_off_in_a_chat_and_back_on(client, business):
+    from joop.models import Conversation
+
+    from .conftest import NOW_UTC
+
+    conv_id = _handed_off("telegram", "6003", last_customer_hours_ago=1)
+    token = sign_in(client).json()["token"]
+    off = client.post(f"/api/mobile/conversations/{conv_id}/ai", json={"on": False}, headers=auth(token)).json()
+    assert off["ai_paused"] is True
+    with db.new_session() as s:
+        assert s.get(Conversation, conv_id).ai_paused_until == NOW_UTC.replace(tzinfo=None) + timedelta(hours=24)
+    week = client.post(f"/api/mobile/conversations/{conv_id}/ai", json={"on": False, "hours": 10_000}, headers=auth(token))
+    with db.new_session() as s:  # capped at 30 days, as the panel
+        assert s.get(Conversation, conv_id).ai_paused_until == NOW_UTC.replace(tzinfo=None) + timedelta(days=30)
+    assert week.status_code == 200
+    on = client.post(f"/api/mobile/conversations/{conv_id}/ai", json={"on": True}, headers=auth(token)).json()
+    assert on["ai_paused"] is False and on["ai_paused_until"] is None
+    with db.new_session() as s:
+        member = s.exec(select(Staff).where(Staff.business_id == business.id)).first()
+        s.add(PanelUser(business_id=business.id, name="Айгерим", login="aigerim", password_hash=hash_password("staff-pass-1"),
+                        staff_id=member.id))
+        s.commit()
+    master = sign_in(client, user="aigerim", password="staff-pass-1").json()["token"]
+    assert client.post(f"/api/mobile/conversations/{conv_id}/ai", json={"on": False}, headers=auth(master)).status_code == 403

@@ -218,6 +218,21 @@ void dialogueTests() {
     expect(find.textContaining('продлевает паузу на 15 минут'), findsOneWidget);
   });
 
+  testWidgets('staff switch the AI off in a chat and back on', (tester) async {
+    final cafe = await openRequest(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Ответить'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Выключить ИИ на 24 часа'));
+    await tester.pumpAndSettle();
+    expect(cafe.calls, contains('POST /api/mobile/conversations/70/ai'));
+    expect(find.text('ИИ молчит в этом диалоге 24 часа. Отвечайте клиенту сами.'), findsOneWidget);
+    expect(find.byKey(const Key('ai-paused')), findsOneWidget);
+    await tester.tap(find.byTooltip('Включить ИИ'));
+    await tester.pumpAndSettle();
+    expect(cafe.dialogues[70]!['ai_paused'], isFalse);
+    expect(find.byKey(const Key('ai-paused')), findsNothing);
+  });
+
   testWidgets('when the channel no longer allows a reply, the app says why and gives the phone', (tester) async {
     final cafe = FakeJoop(cafe: true);
     cafe.dialogues[70]!['reply_blocked'] = 'WhatsApp разрешает отвечать только 24 часа после сообщения клиента.';

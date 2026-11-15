@@ -23,6 +23,7 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | `POST /api/mobile/bookings` | `{slot_id, name, phone?, service?}` → a booking made by staff (`source: "staff"`, `channel: ""`): takes the slot with `claim_slot` as the AI does, goes to Altegio when the salon uses it (then a phone is required); 409 when the time is taken, 422 for no name or a phone that is not a number. The AI's figures do not count it |
 | `GET /api/mobile/conversations?q=` | the latest 100 real chats (the panel's Диалоги, test chats left out), newest first, with the last message, `ai_paused`, `blocked`; `q` finds by name (any case, Cyrillic too) or phone digits («0555 123» matches +996 555 123…) among the latest 1000; masters 403 |
 | `GET /api/mobile/conversations/{id}` | a request's dialogue (last 50 messages), `ai_paused`, `ai_paused_until` (UTC), `takeover_minutes` (the pause the owner chose), `reply_blocked`; masters get 403 |
+| `POST /api/mobile/conversations/{id}/ai` | `{on, hours?}` → staff take the chat over (the AI quiet for `hours`, 1 h – 30 days, 24 by default) or give it back; the panel's «Выключить ИИ» / «Включить ИИ»; returns the dialogue |
 | `POST /api/mobile/conversations/{id}/reply` | `{text}` → staff reply through the customer's channel, same code as the panel: pauses the AI, closes the open requests; 422 with the reason when the channel no longer allows it (WhatsApp/Instagram 24 h) |
 | `GET /api/mobile/services` | the price list |
 
