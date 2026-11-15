@@ -60,5 +60,26 @@ def test_setup_refuses_wrong_answers(tmp_path):
     r = run_setup(tmp_path, JOOP_DOMAIN="not a domain", JOOP_ANTHROPIC_KEY="sk-ant-x")
     assert r.returncode != 0 and "не похоже на домен" in r.stderr
     r = run_setup(tmp_path, JOOP_DOMAIN="joop.kg", JOOP_ANTHROPIC_KEY="wrong")
-    assert r.returncode != 0 and "sk-ant-" in r.stderr
+    assert r.returncode != 0 and "sk-ant-" in r.stderr and "AIza" in r.stderr
     assert not (tmp_path / ".env").exists()
+
+
+def test_setup_can_use_gemini_instead_of_anthropic(tmp_path, monkeypatch, engine):
+    """The owner may start on Google Gemini (OpenAI-compatible endpoint) instead of Anthropic."""
+    r = run_setup(tmp_path, JOOP_DOMAIN="joop.kg", JOOP_MODEL_KEY="AIzaSy-test-key", JOOP_GEMINI_MODEL="gemini-3.8-flash",
+                  JOOP_PRICE_SOM="0", JOOP_FOUNDER_BOT_TOKEN="123456:ABC", JOOP_FOUNDER_CHAT_ID="42")
+    assert r.returncode == 0, r.stderr
+    assert "платный тариф" in r.stdout  # free tiers may use the conversations: said at setup, not only in the docs
+    values = read_env(tmp_path / ".env")
+    assert values["LLM_PROVIDER"] == "openai" and values["LLM_API_KEY"] == "AIzaSy-test-key"
+    assert values["LLM_BASE_URL"] == "https://generativelanguage.googleapis.com/v1beta/openai"
+    assert values["JOOP_MODEL"] == "gemini-3.8-flash" and values["ANTHROPIC_API_KEY"] == ""
+    for key in list(os.environ):
+        if key in values:
+            monkeypatch.delenv(key)
+    for key, value in values.items():
+        monkeypatch.setenv(key, value)
+    settings = settings_from_env()
+    assert settings.llm_provider == "openai" and settings.model_key == "AIzaSy-test-key"
+    checks = launch_checks(settings, env=values)
+    assert next(c for c in checks if "LLM_API_KEY" in c.name).ok

@@ -12,7 +12,9 @@ curl -fsSL https://raw.githubusercontent.com/Asilovvv/joop-ai/main/deploy/setup.
 sudo bash setup.sh
 ```
 
-It asks three questions: the domain, the Anthropic API key, the subscription price (Enter to decide later),
+It asks three questions: the domain, the model key — Anthropic (`sk-ant-…`) or Google Gemini (`AIza…`; then
+also the model id, Enter for `gemini-3.8-flash`; on real customers use Gemini's paid tier, see
+`docs/model-providers.md`) — the subscription price (Enter to decide later),
 and, optionally, a Telegram bot token for your outage alerts (then it asks you to message the bot and finds
 your chat id itself). It does steps 3–5 for you: installs Docker and git, gets the code into `/opt/joop-ai`,
 writes `.env` (mode 600) with a fresh `SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY` and founder console password,
@@ -26,7 +28,8 @@ Then continue with step 6. The steps below are the same work by hand.
 
 - A Linux server with 2 GB RAM (see the price table in the README; MyHost.kg takes Kyrgyz payment methods).
 - A domain, e.g. `joop.kg`, and access to its DNS settings.
-- An Anthropic API key **with credit** (console.anthropic.com).
+- An Anthropic API key **with credit** (console.anthropic.com), or a Google Gemini API key on a paid tier
+  (aistudio.google.com).
 - Your Telegram account, to receive alerts.
 
 ## 2. Point the domain at the server

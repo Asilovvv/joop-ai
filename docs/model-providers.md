@@ -21,6 +21,12 @@ The client asks for JSON by schema; a service that does not accept that falls ba
 - **Real customers**: only a paid tier whose terms the owner has read. Free tiers may use what is sent to improve the provider's products (Google states this for the Gemini free tier on its [pricing page](https://ai.google.dev/gemini-api/docs/pricing)); customers' names and phone numbers must not go there. `python -m joop check` shows a warning while `LLM_PROVIDER=openai` is set.
 - **The thesis**: results are reported per model. A run on another provider is a separate row in the results table, not a replacement for the Anthropic numbers.
 
+## On the server
+
+`deploy/setup.sh` asks for one key: one starting with `sk-ant-` sets up Anthropic; one starting with `AIza`
+sets up Gemini (`LLM_PROVIDER=openai`, the endpoint above, `JOOP_MODEL` asked with `gemini-3.8-flash` as the
+default) and reminds the owner about the paid tier. `check --live` then makes one call through that client.
+
 ## Running the evaluation on a second provider
 
 Locally:
