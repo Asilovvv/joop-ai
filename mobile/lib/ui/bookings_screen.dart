@@ -138,7 +138,7 @@ class BookingsScreen extends StatelessWidget {
                           onCancel: () => _confirmCancel(context, b.id, b.customerName),
                           onPay: payments ? () => _pay(context, b) : null,
                           onOpen: b.customerKey.isEmpty ? null : () => openCustomer(context, b),
-                          onMove: () => _move(context, b),
+                          onMove: b.movable ? () => _move(context, b) : null,
                         );
                       },
                     ),

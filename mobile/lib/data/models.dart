@@ -69,6 +69,7 @@ class Booking extends Equatable {
     this.paidMethod = '',
     this.suggestedSom = 0,
     this.customerKey = '',
+    this.movable = true,
   });
 
   factory Booking.fromJson(Map<String, dynamic> json) {
@@ -88,6 +89,7 @@ class Booking extends Equatable {
       paidMethod: ((json['paid'] as Map?)?['method'] as String?) ?? '',
       suggestedSom: (json['suggested_som'] as int?) ?? 0,
       customerKey: (json['customer_key'] as String?) ?? '',
+      movable: (json['movable'] as bool?) ?? true,
     );
   }
 
@@ -117,6 +119,9 @@ class Booking extends Equatable {
   /// The customer's card (the phone's last nine digits, else the chat); empty when there is none.
   final String customerKey;
 
+  /// The visit has not happened (not paid, not hours ago, not kept in Altegio): it can move to another free time.
+  final bool movable;
+
   bool get isActive => status == 'booked';
   bool get isPaid => paidSom > 0;
 
@@ -134,11 +139,14 @@ class Booking extends Equatable {
         paidMethod: paidMethod,
         suggestedSom: suggestedSom,
         customerKey: customerKey,
+        movable: movable && (status ?? this.status) == 'booked',
       );
 
   @override
-  List<Object?> get props =>
-      [id, start, service, staff, customerName, customerPhone, channel, status, confirmed, paidSom, paidMethod, suggestedSom, customerKey];
+  List<Object?> get props => [
+        id, start, service, staff, customerName, customerPhone, channel, status, confirmed, paidSom, paidMethod, //
+        suggestedSom, customerKey, movable,
+      ];
 }
 
 class Summary extends Equatable {

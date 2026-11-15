@@ -166,6 +166,7 @@ class FakeJoop {
       final amount = body['amount'] as int;
       b['paid'] = amount == 0 ? null : {'som': amount, 'method': body['method']};
       b['suggested_som'] = amount == 0 ? 1500 : 0;
+      b['movable'] = amount == 0; // a paid visit has happened: it no longer moves
       return json({'booking': b});
     }
     final person = RegExp(r'^/api/mobile/customers/(.+)$').firstMatch(path);

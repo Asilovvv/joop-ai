@@ -179,7 +179,8 @@ class _Times extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final entry in byStaff.entries) ...[
+        for (final entry in byStaff.entries.toList()..sort((a, b) => a.key.compareTo(b.key))) ...[
+          // same order every day
           Padding(
             padding: const EdgeInsets.only(top: 8, bottom: 6),
             child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w700)),

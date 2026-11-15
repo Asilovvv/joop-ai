@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
 from .. import altegio, cash, customers, order_status, staff_reply
-from ..reschedule import reschedule
+from ..reschedule import blocked as move_blocked, reschedule
 from ..api import booking_json, customer_json, lead_json, order_json
 from ..db import new_session
 from ..models import Booking, Business, Conversation, Lead, Message, Order, PanelUser, Service, Slot, Staff
@@ -31,7 +31,7 @@ from ..niches import get_pack
 from ..phone import normalize_phone
 from ..samples import example_staff_ids
 from ..security import verify_password
-from ..slots import claim_slot, release_slot, seats_left, seats_needed
+from ..slots import claim_slot, free_on_day, release_slot, seats_left, seats_needed
 from ..stats import activity, not_test, real_conversation
 from ..timeutil import local_now, utcnow
 from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
@@ -153,13 +153,16 @@ MAX_SPAN_DAYS = 3 * 366  # a date further away is a typo, and 9999-12-31 + 1 day
 
 
 def _booking(s: Session, b: Booking) -> dict:
-    """booking_json plus the price-list amount to pre-fill the payment with (the panel's Касса does the same), and the
-    key of the customer's card (customers.cards keys it the same way: the phone, else the chat)."""
+    """booking_json plus the price-list amount to pre-fill the payment with (the panel's Касса does the same), the
+    key of the customer's card (customers.cards keys it the same way: the phone, else the chat), and whether the
+    booking can still be moved to another time (joop/reschedule.py)."""
     key = customers.key_of(b.customer_phone, b.channel, "")
     if not key and b.conversation_id:
         conv = s.get(Conversation, b.conversation_id)
         key = customers.key_of(conv.customer_phone, conv.channel, conv.chat_id) if conv else ""
+    now_local = local_now(s.get(Business, b.business_id).timezone).replace(tzinfo=None)
     return {**booking_json(b), "customer_key": key,
+            "movable": not move_blocked(b, now_local),  # «Перенести» is offered only for a visit that has not happened
             "suggested_som": 0 if b.paid_som or b.status != "booked" else cash.suggested(s, b)}
 
 
@@ -387,16 +390,8 @@ def mobile_cash(request: Request, day: str = ""):
 
 
 def _free(s: Session, who: Who, day: date, now_local: datetime) -> list[tuple[Slot, Staff]]:
-    hidden = example_staff_ids(s, who.business)  # the sign-up example's people are nobody to come to
-    own = [Slot.staff_id == who.master_staff_id] if who.master_staff_id else []
-    rows = s.exec(
-        select(Slot, Staff).join(Staff, Staff.id == Slot.staff_id)
-        .where(Slot.business_id == who.business.id, Slot.status == "free", Staff.active == True,  # noqa: E712
-               Slot.start >= datetime.combine(day, time.min), Slot.start < datetime.combine(day + timedelta(days=1), time.min),
-               Slot.start > now_local, *own)
-        .order_by(Slot.start, Staff.name)
-    ).all()
-    return [(slot, member) for slot, member in rows if member.id not in hidden]
+    return free_on_day(s, who.business.id, day, now_local, staff_id=who.master_staff_id,
+                       exclude_staff=example_staff_ids(s, who.business))
 
 
 @router.get("/api/mobile/slots")

@@ -326,6 +326,11 @@ WhatsApp message fees for reminders.
   the customer on the waitlist with the day they named. When staff cancel a booking or reopen a slot, the
   first three customers waiting for that day are told in their chat; whoever answers first is booked by
   the AI as usual, so a slot is never promised twice. The list is on the "Записи" page.
+- **Moving a booking** (`joop/reschedule.py`; «Перенести» on the "Записи" page and in the mobile app): the customer
+  asked for an hour later. The booking keeps its row (its chat, prepayment and upsell) and takes another free time
+  the way the AI takes one; the old time is freed and offered to the waitlist, the reminder and the customer's «да»
+  are reset, and the customer is told in their chat where the channel allows it. Only a visit that has not happened
+  moves: not a paid one (the cash counts it on its day), not one of hours ago, not one kept in Altegio.
 - **Passes and packages** (`features: [memberships]`: fitness, spa, beauty, training centres; panel
   "Абонементы"): staff record "10 занятий" with the customer's phone and mark each visit. The AI answers
   "осталось 3 из 10, действует до 30.11" only to a chat it can trust with that phone (the WhatsApp number
