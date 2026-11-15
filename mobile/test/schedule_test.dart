@@ -28,7 +28,9 @@ void main() {
 
   testWidgets('a doctor is ill: the owner closes her day, sees whom to move, and opens it later', (tester) async {
     final server = await signIn(tester);
-    await tester.tap(find.byKey(const Key('open-schedule')));
+    await tester.tap(find.byKey(const Key('app-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('menu-schedule')));
     await tester.pumpAndSettle();
     expect(find.text('12:00 · Айгуль'), findsOneWidget);
     expect(find.text('14:00 · занято'), findsOneWidget);
@@ -57,7 +59,9 @@ void main() {
 
   testWidgets('an Altegio schedule is changed in Altegio', (tester) async {
     await signIn(tester);
-    await tester.tap(find.byKey(const Key('open-schedule')));
+    await tester.tap(find.byKey(const Key('app-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('menu-schedule')));
     await tester.pumpAndSettle();
     expect(find.text('Расписание из Altegio — меняйте его там.'), findsOneWidget);
     expect(find.byKey(const Key('close-day-2')), findsNothing);
@@ -66,6 +70,9 @@ void main() {
 
   testWidgets('a master has no «Окна»', (tester) async {
     await signIn(tester, FakeJoop()..role = 'master');
-    expect(find.byKey(const Key('open-schedule')), findsNothing);
+    await tester.tap(find.byKey(const Key('app-menu')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('menu-schedule')), findsNothing);
+    expect(find.byKey(const Key('menu-customers')), findsOneWidget); // her own customers, as in the panel
   });
 }

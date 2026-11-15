@@ -76,6 +76,13 @@ class FakeJoop {
     },
   ];
 
+  final customerRows = <Map<String, dynamic>>[
+    {'key': '700000001', 'name': 'Айгуль', 'phone': '+996700000001', 'channels': ['whatsapp'], 'visits': 3,
+     'spend_som': 4500, 'last_visit_local': '2026-11-02T10:00:00', 'tags': ['VIP'], 'note': ''},
+    {'key': '555123456', 'name': 'Бакыт', 'phone': '+996555123456', 'channels': [], 'visits': 1,
+     'spend_som': 500, 'last_visit_local': null, 'tags': [], 'note': ''},
+  ];
+
   /// owner | staff | master: who the dental login signs in as.
   String role = 'owner';
 
@@ -197,6 +204,15 @@ class FakeJoop {
       b['suggested_som'] = amount == 0 ? 1500 : 0;
       b['movable'] = amount == 0; // a paid visit has happened: it no longer moves
       return json({'booking': b});
+    }
+    if (path == '/api/mobile/customers') {
+      final q = (request.url.queryParameters['q'] ?? '').toLowerCase();
+      final tag = request.url.queryParameters['tag'] ?? '';
+      final found = customerRows
+          .where((c) => (q.isEmpty || (c['name'] as String).toLowerCase().contains(q) || (c['phone'] as String).contains(q)) &&
+              (tag.isEmpty || (c['tags'] as List).contains(tag)))
+          .toList();
+      return json({'customers': found, 'total': found.length, 'tags': ['VIP']});
     }
     final person = RegExp(r'^/api/mobile/customers/(.+)$').firstMatch(path);
     if (person != null) {

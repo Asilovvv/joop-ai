@@ -53,7 +53,9 @@ void main() {
     expect(find.text('Консультация'), findsOneWidget);
     expect(find.text('от 8 000 сом · Стоп-лист: ИИ не предлагает'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Выйти'));
+    await tester.tap(find.byKey(const Key('app-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Выйти'));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('login')), findsOneWidget);
   });

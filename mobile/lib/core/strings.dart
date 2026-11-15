@@ -185,6 +185,12 @@ class S {
     required this.depositAwaiting,
     required this.depositCheck,
     required this.depositPaid,
+    required this.customersTitle,
+    required this.customersEmpty,
+    required this.menu,
+    required this.allTags,
+    required this.customerLine,
+    required this.shownOf,
     required this.answer,
     required this.answerHint,
     required this.answerSent,
@@ -387,6 +393,12 @@ class S {
   final String Function(String amount, String until) depositAwaiting;
   final String Function(String amount) depositCheck;
   final String Function(String amount) depositPaid;
+  final String customersTitle;
+  final String customersEmpty;
+  final String menu;
+  final String allTags;
+  final String Function(int visits, String spent) customerLine;
+  final String Function(int shown, int total) shownOf;
   final String answer;
   final String answerHint;
   final String answerSent;
@@ -590,6 +602,12 @@ class S {
     depositAwaiting: _ruDepAwait,
     depositCheck: _ruDepCheck,
     depositPaid: _ruDepPaid,
+    customersTitle: 'Клиенты',
+    customersEmpty: 'Клиентов пока нет',
+    menu: 'Меню',
+    allTags: 'Все',
+    customerLine: _ruCustomerLine,
+    shownOf: _ruShownOf,
     answer: 'Ответить',
     answerHint: 'Ответ клиенту',
     answerSent: 'Ответ отправлен, заявка закрыта',
@@ -791,6 +809,12 @@ class S {
     depositAwaiting: _kyDepAwait,
     depositCheck: _kyDepCheck,
     depositPaid: _kyDepPaid,
+    customersTitle: 'Кардарлар',
+    customersEmpty: 'Азырынча кардар жок',
+    menu: 'Меню',
+    allTags: 'Баары',
+    customerLine: _kyCustomerLine,
+    shownOf: _kyShownOf,
     answer: 'Жооп берүү',
     answerHint: 'Кардарга жооп',
     answerSent: 'Жооп жөнөтүлдү, өтүнмө жабылды',
@@ -904,3 +928,7 @@ String _ruDepCheck(String amount) => 'прислал чек — проверьт
 String _kyDepCheck(String amount) => 'чек жөнөттү — $amount текшериңиз';
 String _ruDepPaid(String amount) => 'предоплата $amount получена';
 String _kyDepPaid(String amount) => '$amount алдын ала төлөм алынды';
+String _ruCustomerLine(int visits, String spent) => 'визитов: $visits · $spent';
+String _kyCustomerLine(int visits, String spent) => 'визит: $visits · $spent';
+String _ruShownOf(int shown, int total) => 'Показаны $shown из $total — уточните поиск';
+String _kyShownOf(int shown, int total) => '$total ичинен $shown көрсөтүлдү — издөөнү тактаңыз';
