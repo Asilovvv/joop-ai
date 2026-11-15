@@ -114,6 +114,7 @@
       </label>
       <label for="c-wa-tpl">Шаблон напоминания<input id="c-wa-tpl" name="wa_reminder_template" value="{{ business.wa_reminder_template }}" placeholder="appointment_reminder"></label>
       <label for="c-wa-lang">Язык шаблона<input id="c-wa-lang" name="wa_template_lang" value="{{ business.wa_template_lang }}"></label>
+      <label for="c-wa-missed">Шаблон для пропущенного звонка<input id="c-wa-missed" name="wa_missed_call_template" value="{{ business.wa_missed_call_template }}" placeholder="missed_call"></label>
     </div>
     {% if business.wa_access_token %}<label class="check"><input type="checkbox" name="clear_wa_access_token" value="1"> Удалить токен WhatsApp</label>{% endif %}
     <h3>Instagram Direct</h3>
@@ -137,6 +138,32 @@
   <p class="small muted">WhatsApp и Instagram Direct подключает команда Joop: для них Meta сначала проверяет приложение.
     Напишите нам, если хотите их подключить. Пока поставьте ссылку на чат (выше) в описание Instagram и отправляйте её
     клиентам в WhatsApp — по ней ИИ отвечает сразу.</p>
+  {% endif %}
+</section>
+
+<section class="card stack" id="missed-calls">
+  <h2>Пропущенные звонки {% if business.missed_call_token %}<span class="chip ok">включено</span>{% endif %}</h2>
+  <p class="small muted">Клиент позвонил, а вы не ответили — Joop сразу пишет ему в WhatsApp: «Мы не успели ответить на ваш звонок — напишите здесь», и дальше отвечает ИИ. Вам в чат уведомлений приходит «Пропущенный звонок: номер». Несколько звонков подряд с одного номера считаются одним.</p>
+  {% if business.missed_call_token %}
+  <p class="small">Первым в WhatsApp можно написать только одобренным шаблоном. {% if business.wa_missed_call_template %}Шаблон: <b>{{ business.wa_missed_call_template }}</b>.{% else %}<span class="chip warn">шаблон не указан</span> — пока клиенту пишем, только если он сам писал вам за последние сутки, остальным звонкам — уведомление вам «перезвоните».{% endif %} Шаблон создаётся в WhatsApp Manager, в тексте {{ '{{1}}' }} — название компании; укажите его имя в блоке WhatsApp выше.</p>
+  <details{% if not business.wa_missed_call_template %} open{% endif %}>
+    <summary>Как подключить телефон (Android, приложение MacroDroid)</summary>
+    <ol class="small">
+      <li>Установите MacroDroid из Google Play на телефон, на который звонят клиенты.</li>
+      <li>Новый макрос → триггер «Звонок пропущен» (Call Missed) → «Любой номер».</li>
+      <li>Действие «HTTP-запрос» (HTTP Request): метод POST, адрес <code>{{ public_base or '' }}/webhooks/missed-call/{{ business.slug }}</code>.</li>
+      <li>Заголовок: имя <code>X-Joop-Token</code>, значение <code class="secret">{{ business.missed_call_token }}</code>.</li>
+      <li>Тело: тип <code>application/x-www-form-urlencoded</code>, текст <code>phone={call_number}</code> ({call_number} выберите из «волшебного текста»).</li>
+      <li>Сохраните и позвоните на телефон с другого номера, не отвечая: в чат уведомлений придёт «Пропущенный звонок».</li>
+    </ol>
+    <p class="small muted">Виртуальная АТС подойдёт так же, если умеет отправлять запрос с заголовком при пропущенном вызове: номер — в поле <code>phone</code>. Код не пересылайте: с ним любой сможет присылать вам «звонки». Новый код — кнопка «Сменить код».</p>
+  </details>
+  <div class="row-tail">
+    <form method="post" action="/panel/channels/missed-calls" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="on"><button class="btn small ghost" type="submit">Сменить код</button></form>
+    <form method="post" action="/panel/channels/missed-calls" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="off"><button class="btn small ghost" type="submit">Отключить</button></form>
+  </div>
+  {% else %}
+  <form method="post" action="/panel/channels/missed-calls"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="on"><button class="btn" type="submit">Включить</button></form>
   {% endif %}
 </section>
 {% endblock %}
