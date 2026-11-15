@@ -31,7 +31,7 @@ from ..timeutil import fmt_slot, is_off_hours, utc_to_local, utcnow
 from .llm import AgentReply, LLMClient, response_schema
 from .. import placement
 from ..followups import capture_rating
-from .. import area_price, intake, jobs, memberships, order_status, prescription, repeat_order, routes, stays, waitlist
+from .. import area_price, intake, jobs, memberships, order_status, prescription, repeat_order, restock, routes, stays, waitlist
 from .prompt import CHANNEL_LABELS, build_history, build_system_prompt
 
 log = logging.getLogger(__name__)
@@ -380,6 +380,9 @@ def _model_reply(
             outcome.admin_notes.append(f"Бонус: у {booked.customer_name} {booked.loyalty_visit}-й визит "
                                        f"({fmt_slot(booked.start)}) — {business.loyalty_reward.strip()}")
         session.add(booked)
+
+    if outcome.reply and pack.has("order") and not outcome.order_id:  # «напишем, когда появится» (joop/restock.py)
+        outcome.reply += restock.watch_line(session, business, conv, text, now, is_kyrgyz_message(text))
 
     # The free plan pays with one line: Joop's name on the first reply and on every booking (free_plan.py)
     if outcome.reply and channel in free_plan.CHANNELS and (booked is not None or first_contact) \

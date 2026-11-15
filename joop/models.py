@@ -649,6 +649,16 @@ class BroadcastDelivery(SQLModel, table=True):
     sent_at: Optional[NaiveDatetime] = None
 
 
+class StockWatch(SQLModel, table=True):
+    """«Напишем, когда появится» (joop/restock.py): a customer asked for an item that was sold out."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    business_id: int = Field(foreign_key="business.id", index=True)
+    conversation_id: int = Field(foreign_key="conversation.id", index=True)
+    service_id: int = Field(foreign_key="service.id", index=True)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+    notified_at: Optional[NaiveDatetime] = None
+
+
 class FounderDigest(SQLModel, table=True):
     """The founder's one line a week (joop/founder_digest.py): kept as the journal the strategy asks for."""
 
