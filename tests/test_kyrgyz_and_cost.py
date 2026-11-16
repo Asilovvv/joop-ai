@@ -105,6 +105,11 @@ def test_numbers_are_compared_as_the_customer_reads_them():
     assert not same_numbers("Минимальная сумма заказа — 600 сом.", "Минималдуу буйрутма 500 сом.")
     assert not same_numbers("Записала на 10:00.", "Саат 10:00гө жаздым, 2-кабинет.")  # a number added
     assert same_numbers("Ждём вас!", "Күтөбүз!")
+    assert not same_numbers("Записала на 05.11 в 10:00.", "11.05 саат 10:00гө жаздым.")  # day and month swapped
+    assert same_numbers("Записала на 05.11 в 12:00.", "05.11 саат 12де жаздым.")  # a whole hour, the Kyrgyz way
+    assert not same_numbers("Записала на 12:30.", "Саат 12де жаздым.")  # half past is not the hour
+    assert not same_numbers("Записала на 12:00, кабинет 3.", "Саат 12де, 3-кабинет, 3 кабат.")  # a floor added
+    assert same_numbers("25.11.2026", "25.11.26")
 
 
 def test_guard_runs_after_booking_without_booking_twice(business):
