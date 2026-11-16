@@ -12,7 +12,7 @@
   <p class="flash ok">Скопируйте ключ сейчас — больше он показан не будет. Мы храним только его отпечаток.</p>
   <input class="mono" value="{{ new_key }}" readonly aria-label="Новый ключ API" onfocus="this.select()">
   {% endif %}
-  <p class="small muted">Программа читает данные запросом с заголовком <span class="mono">Authorization: Bearer &lt;ключ&gt;</span>. Ключ только читает — изменить или удалить что-то через него нельзя.</p>
+  <p class="small muted">Программа читает данные запросом с заголовком <span class="mono">Authorization: Bearer &lt;ключ&gt;</span>. Ключ только читает — изменить или удалить что-то через него нельзя; записывать клиентов он может, только если вы включите «Запись через API» ниже.</p>
   <div class="list">
     {% for path, what in [('bookings', 'записи'), ('orders', 'заказы с товарами'), ('leads', 'заявки и обращения'), ('customers', 'карточки клиентов')] %}
     <div class="item"><div class="main"><span class="mono small">GET {{ base }}/api/v1/{{ path }}</span><div class="muted small">{{ what }}</div></div></div>
@@ -25,6 +25,21 @@
     {% if business.api_key_hash %}<button class="btn ghost" type="submit" name="action" value="revoke_key">Отозвать</button>{% endif %}
   </form>
   {% if business.api_key_hash %}<p class="small muted">Новый ключ сразу заменяет старый.</p>{% endif %}
+</section>
+
+<section class="card stack" id="api-booking">
+  <h2>Запись через API {% if business.api_booking %}<span class="chip ok">включена</span>{% endif %}</h2>
+  <p class="small muted">Форма на вашем сайте или ИИ-помощник партнёра сможет записывать клиентов сам: берёт свободное время и записывает по тем же правилам, что и ИИ Joop — только настоящее свободное время ваших людей, имя и телефон обязательны. Вам придёт уведомление «Новая запись через API», а вебхук сообщит о ней.{% if business.altegio_location_id %} Расписание у вас в Altegio — записывайте там, через API Joop запись не принимается.{% endif %}</p>
+  <div class="list">
+    <div class="item"><div class="main"><span class="mono small">GET {{ base }}/api/v1/slots?date=2026-11-20</span><div class="muted small">свободное время на день (без даты — на две недели вперёд)</div></div></div>
+    <div class="item"><div class="main"><span class="mono small">POST {{ base }}/api/v1/bookings</span><div class="muted small">{"slot_id": 123, "name": "Айбек", "phone": "0555 123 456", "service": "Чистка"}</div></div></div>
+  </div>
+  <form method="post" action="/panel/api" class="row-tail">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    {% if business.api_booking %}<button class="btn ghost" type="submit" name="action" value="booking_off">Выключить</button>
+    {% else %}<button class="btn" type="submit" name="action" value="booking_on"{% if not business.api_key_hash %} disabled{% endif %}>Разрешить запись через API</button>{% endif %}
+  </form>
+  {% if not business.api_key_hash and not business.api_booking %}<p class="small muted">Сначала создайте ключ выше.</p>{% endif %}
 </section>
 
 <section class="card stack">

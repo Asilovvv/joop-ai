@@ -78,6 +78,7 @@ class Business(SQLModel, table=True):
     # Joop's own API and webhooks (joop/api.py): off until the owner makes a key or saves an address
     api_key_hash: str = Field(default="", index=True)  # sha256 of the key; the key itself is shown once
     api_key_hint: str = ""  # its last four characters, to tell keys apart
+    api_booking: bool = False  # the key may also book free times (POST /api/v1/bookings): off until the owner turns it on
     webhook_url: str = ""
     webhook_secret: str = Field(default="", sa_type=EncryptedString)  # HMAC key the receiver checks signatures with
     webhook_since: Optional[NaiveDatetime] = None  # events from this moment on; nothing older is sent

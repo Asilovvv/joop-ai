@@ -86,7 +86,7 @@ def test_key_is_stored_as_a_hash_and_reads_only_this_business(business, settings
         assert c.get("/api/v1/bookings?since=2026-11-05T00:00:00Z", headers=auth).json()["data"] == []
         assert c.get("/api/v1/bookings?since=yesterday", headers=auth).status_code == 400
         assert c.get("/api/v1/settings", headers=auth).status_code == 404
-        assert c.post("/api/v1/bookings", headers=auth).status_code == 405  # read-only
+        assert c.post("/api/v1/bookings", headers=auth, json={"slot_id": 1, "name": "Х", "phone": "0555123456"}).status_code == 403  # off
 
 
 def test_customers_endpoint_lists_cards(business, settings, rt):
@@ -263,3 +263,41 @@ def test_panel_page_owner_only_key_shown_once(business, settings, rt):
         with db.new_session() as s:
             b = s.get(Business, business.id)
             assert b.webhook_url == "" and b.webhook_secret == ""
+
+
+def test_booking_through_the_api_follows_the_ais_rules(business, settings, rt):
+    """Off until the owner turns it on; then a real free time, a name and a phone; staff hear about it."""
+    from joop.models import Slot, Staff
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        key = api.new_key(b)
+        b.telegram_bot_token, b.admin_chat_ids = "1:x", "555"
+        s.add(b)
+        s.commit()
+        first = s.exec(select(Slot).where(Slot.business_id == b.id, Slot.status == "free", Slot.start > LOCAL)
+                       .order_by(Slot.start)).first()
+        slot_id, staff = first.id, s.get(Staff, first.staff_id).name
+    auth = {"Authorization": f"Bearer {key}"}
+    body = {"slot_id": slot_id, "name": "Айбек", "phone": "0555 123 456", "service": "Чистка"}
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        assert c.get("/api/v1/slots", headers=auth).status_code == 403
+        assert c.post("/api/v1/bookings", headers=auth, json=body).status_code == 403
+        token = login(c)
+        c.post("/panel/api", data={"csrf": token, "action": "booking_on"})
+        slots = c.get("/api/v1/slots", headers=auth).json()["data"]
+        assert slot_id in [x["id"] for x in slots] and slots[0]["start_local"] and "Z" not in slots[0]["start_local"]
+        assert c.get("/api/v1/slots?date=20-11", headers=auth).status_code == 400
+        assert c.post("/api/v1/bookings", headers=auth, json=dict(body, phone="12")).status_code == 422
+        assert c.post("/api/v1/bookings", headers=auth, json=dict(body, slot_id=999999)).status_code == 404
+        assert c.post("/api/v1/bookings", headers=auth, content=b"not json").status_code == 400
+        made = c.post("/api/v1/bookings", headers=auth, json=body)
+        assert made.status_code == 201 and made.json()["data"]["source"] == "api" and made.json()["data"]["staff"] == staff
+        assert c.post("/api/v1/bookings", headers=auth, json=body).status_code == 409  # taken now
+        assert slot_id not in [x["id"] for x in c.get("/api/v1/slots", headers=auth).json()["data"]]
+    assert rt.tg.sent[-1][0] == "555" and rt.tg.sent[-1][1].startswith("Новая запись через API: Айбек, +996555123456, Чистка")
+    with db.new_session() as s:
+        assert s.get(Slot, slot_id).status == "booked"
+        b = s.get(Business, business.id)
+        b.altegio_location_id = "1"
+        assert api.book(s, b, body, LOCAL, NOW_UTC).status == 409  # the schedule lives in Altegio

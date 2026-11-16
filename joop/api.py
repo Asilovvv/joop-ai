@@ -10,7 +10,12 @@ the same two doors, both off until the owner opens them in «API и вебхук
   retried for up to a day. The address must be https and resolve to a public host: an API that posts to a
   business's own server must not become a way to reach Joop's internal network.
 
-Nothing here writes into Joop: the API reads, webhooks announce. The test chat stays out.
+The API reads; webhooks announce. One write, off until the owner turns it on («Разрешить запись через API»):
+another program — a site's form, a partner's AI assistant — reads free times (GET /api/v1/slots) and books one
+(POST /api/v1/bookings) under exactly the rules the AI books by: a real free time of a real person (no sign-up
+example, no hidden or inactive staff), in the future, claimed atomically; a name and a valid phone. A business whose
+schedule lives in Altegio is refused: that booking belongs in Altegio. Staff get the same note as for the AI's
+bookings, and the webhook announces it. The test chat stays out.
 """
 
 from __future__ import annotations
@@ -22,13 +27,17 @@ import json
 import secrets
 import socket
 import time
-from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta, timezone
 from urllib.parse import urlparse
 
 import httpx
 from sqlmodel import Session, select
 
-from .models import Booking, Business, Lead, Order, OrderLine, WebhookDelivery
+from .models import Booking, Business, Lead, Order, OrderLine, Slot, Staff, WebhookDelivery
+from .phone import normalize_phone
+from .samples import example_staff_ids
+from .slots import claim_slot, free_on_day, seats_needed
 from .stats import not_test
 
 KEY_PREFIX = "joop_"
@@ -146,6 +155,63 @@ def rows(session: Session, business: Business, what: str, since: str = "", after
     if what == "orders":
         return [order_json(session, o) for o in found]
     return [lead_json(x) for x in found]
+
+
+# --- booking through the API ------------------------------------------------------------------------------
+
+SLOT_DAYS = 14  # how far ahead GET /api/v1/slots looks when no date is given
+
+
+def _example_staff(session: Session, business: Business) -> set[int]:
+    return set(example_staff_ids(session, business))
+
+
+def free_slots(session: Session, business: Business, day: date | None, now_local: datetime) -> list[dict]:
+    """Free times a customer can be booked into: one day, or the next SLOT_DAYS days."""
+    days = [day] if day else [now_local.date() + timedelta(days=i) for i in range(SLOT_DAYS)]
+    example = _example_staff(session, business)
+    out = []
+    for d in days:
+        for slot, member in free_on_day(session, business.id, d, now_local, exclude_staff=example):
+            out.append({"id": slot.id, "start_local": _iso(slot.start, utc=False), "staff": member.name, "staff_id": member.id,
+                        "role": member.role})
+    return out
+
+
+@dataclass
+class Booked:
+    booking: Booking | None = None
+    status: int = 201
+    error: str = ""
+
+
+def book(session: Session, business: Business, data: dict, now_local: datetime, now_utc: datetime) -> Booked:
+    """POST /api/v1/bookings: {"slot_id", "name", "phone", "service"?}. The caller commits."""
+    if not business.api_booking:
+        return Booked(status=403, error="booking through the API is off: turn it on in «API и вебхуки»")
+    if business.altegio_location_id:
+        return Booked(status=409, error="this business's schedule is kept in Altegio: book there")
+    name = str(data.get("name") or "").strip()[:120]
+    phone = normalize_phone(str(data.get("phone") or ""))
+    service = str(data.get("service") or "").strip()[:200]
+    try:
+        slot_id = int(data.get("slot_id"))
+    except (TypeError, ValueError):
+        return Booked(status=422, error="slot_id must be a number from GET /api/v1/slots")
+    if not name or not phone:
+        return Booked(status=422, error="name and a valid phone are required")
+    slot = session.get(Slot, slot_id)
+    member = session.get(Staff, slot.staff_id) if slot else None
+    if slot is None or member is None or slot.business_id != business.id or not member.active \
+            or member.id in _example_staff(session, business) or member.external_id:
+        return Booked(status=404, error="no such free time")
+    if slot.start <= now_local or not claim_slot(session, slot.id, seats_needed(slot, 1)):
+        return Booked(status=409, error="this time is taken: ask GET /api/v1/slots again")
+    booking = Booking(business_id=business.id, slot_id=slot.id, staff_id=member.id, staff_name=member.name, start=slot.start,
+                      service=service, customer_name=name, customer_phone=phone, channel="", source="api", created_at=now_utc)
+    session.add(booking)
+    session.flush()
+    return Booked(booking)
 
 
 # --- webhooks ---------------------------------------------------------------------------------------------
