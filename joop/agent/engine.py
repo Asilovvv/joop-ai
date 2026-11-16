@@ -405,9 +405,11 @@ def _model_reply(
     # change them, and before the introduction and the extra lines, so a removed sentence never takes those along.
     recent = session.exec(select(Message.text).where(Message.conversation_id == conv.id, Message.role == "customer")
                           .order_by(Message.id.desc()).limit(5)).all()
-    ky = looks_kyrgyz(outcome.reply) or chat_is_kyrgyz([text, *recent])  # «Айбек 0555…» alone says nothing
+    # The reply's own language (a rewrite that failed leaves it Russian: no Kyrgyz line under a Russian body);
+    # with no reply, the chat's — «Айбек 0555…» alone says nothing.
+    ky = looks_kyrgyz(outcome.reply) if outcome.reply.strip() else chat_is_kyrgyz([text, *recent])
     if booked is not None:
-        outcome.reply = confirmations.with_booking(outcome.reply, booked, ky)
+        outcome.reply = confirmations.with_booking(outcome.reply, booked, ky, now_local.date())
     if ordered is not None:
         rows = list(session.exec(select(OrderLine).where(OrderLine.order_id == ordered.id).order_by(OrderLine.id)).all())
         names_ky = {sv.id: sv.name_ky for sv in services if sv.name_ky} if ky else {}

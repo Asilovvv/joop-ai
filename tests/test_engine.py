@@ -238,3 +238,28 @@ def test_the_booked_time_in_the_reply_comes_from_the_code():
         f"Записала вас. Предоплата до 05.11.\n{line}")  # the wrong day goes, though 05.11 appears elsewhere
     assert with_booking("Записала!", b, False) == f"Записала!\n{line}"
     assert with_booking("Сизди 9:30га жаздым.", b, True) == "Жазып койдум.\nЖазылдыңыз: бейш 05.11 12:00, Бакыт Осмонов."
+
+
+def test_confirmation_checks_dates_in_words_keeps_line_breaks_and_remarks():
+    from datetime import date, datetime
+
+    from joop.confirmations import order_facts, sums, with_booking, with_order
+    from joop.models import Booking, OrderLine
+
+    b = Booking(business_id=1, start=datetime(2026, 11, 5, 12, 0), staff_name="Бакыт")
+    line = "Ваша запись: Чт 05.11 12:00, Бакыт."
+    today = date(2026, 11, 4)
+    for wrong in ("Записала вас на 6 ноября в 12:00.", "Записала вас на пятницу в 12:00.",
+                  "Записала вас на 5 нояб. 2026 г. в 13:00.", "Сизди 6-ноябрда саат 12:00гө жаздым."):
+        assert with_booking(wrong, b, False, today) == f"Записала вас.\n{line}", wrong
+    assert with_booking("Записала вас на 13:00 по адресу ул. Ленина, 12. Возьмите паспорт.", b, False, today) == (
+        f"Записала вас. Возьмите паспорт.\n{line}")  # «ул.» does not end a sentence
+    assert with_booking("Готово! Мы работаем с 9:00 до 19:00, ждём вас.", b, False, today) == (
+        f"Готово! Мы работаем с 9:00 до 19:00, ждём вас.\n{line}")  # working hours are not a claim
+    assert with_booking("Записала!\nАдрес:\n- ул. Ленина 5\n- 2 этаж", b, False, today) == (
+        f"Записала!\nАдрес:\n- ул. Ленина 5\n- 2 этаж\n{line}")  # line breaks stay
+    assert with_booking("Записала вас на завтра в 12:00. Ждём!", b, False, today).startswith("Записала вас на завтра в 12:00. Ждём!")
+    assert sums("Доставим к 18:00 с курьером") == set() and sums("Плов x2 с собой") == set() and sums("Итого 1200с") == {1200}
+    facts = order_facts([OrderLine(order_id=1, name="Плов", quantity=2, unit_price=350)], 700, 0, ())
+    assert with_order("Оформила заказ: 3 плова. Доставим к 18:00 с курьером.", facts, False) == (
+        "Оформила заказ. Доставим к 18:00 с курьером.\nВаш заказ: 2 × Плов. Сумма заказа: 700 сом.")
