@@ -10,7 +10,7 @@ from joop import db
 from joop.agent.engine import ASK_CONTACTS_REPLY, handle_incoming
 from joop.agent.llm import AgentReply
 from joop.channels.base import IncomingMessage
-from joop.lang import fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, use_kyrgyz_names
+from joop.lang import fix_mixed_script, is_kyrgyz_message, looks_kyrgyz, numbers, same_numbers, use_kyrgyz_names
 from joop.models import Business, Lead, Message, Service, Slot
 from joop.profile import load_profile
 from joop.pricing import add_usage, cost_usd, empty_usage
@@ -85,6 +85,26 @@ def test_guard_keeps_draft_when_rewrite_fails_or_is_not_kyrgyz(business):
     assert say(business, "Тиш жулуу канча турат?", llm, "k4").reply == RU_DRAFT
     out = say(business, "Тиш жулуу канча турат?", llm, "k5")
     assert out.reply == RU_DRAFT and not out.language_fixed
+
+
+def test_guard_keeps_the_draft_when_the_rewrite_changes_a_number(business):
+    """The rewrite is the model's: a sum, a time or a phone it changes would reach the customer as a fact."""
+    llm = FakeLLM([AgentReply(RU_DRAFT), AgentReply("Свободно в четверг 09:00 и 15:30. Звоните: 0555 123 456.")],
+                  rewrites=["Тиш жулуу 2 500 сом турат. Сизди жазып коёлубу?",  # 2 000 became 2 500
+                            "Бейшемби күнү саат 9:00 жана 15:30 бош. Чалыңыз: 0555123456."])  # the same, written otherwise
+    out = say(business, "Тиш жулуу канча турат?", llm, "k7")
+    assert out.reply == RU_DRAFT and not out.language_fixed
+    out = say(business, "Бейшемби күнү бош убакыт барбы?", llm, "k8")
+    assert out.reply.startswith("Бейшемби күнү саат 9:00") and out.language_fixed
+
+
+def test_numbers_are_compared_as_the_customer_reads_them():
+    assert numbers("в 09:00, 1 500 сом, +996 555 123 456") == numbers("саат 9:00дө, 1500 сом, +996555123456")
+    assert same_numbers("25.11.2026–28.11.2026, гостей: 2", "25.11.2026–28.11.2026, конок саны: 2")
+    assert not same_numbers("25.11–28.11", "25-ноябрдан 28-ноябрга чейин")  # the month is gone
+    assert not same_numbers("Минимальная сумма заказа — 600 сом.", "Минималдуу буйрутма 500 сом.")
+    assert not same_numbers("Записала на 10:00.", "Саат 10:00гө жаздым, 2-кабинет.")  # a number added
+    assert same_numbers("Ждём вас!", "Күтөбүз!")
 
 
 def test_guard_runs_after_booking_without_booking_twice(business):
@@ -225,6 +245,23 @@ def test_failed_rewrite_drops_the_claim_sentence(business):
     llm.unconfirm = ["Бермет, жазууну кабыл алдым, номериңизди жазыңыз."]  # still claims
     out = say(business, "Мени маникюрга жазып коюңузчу, атым Бермет", llm, "u4")
     assert out.reply == "Телефон номериңизди жазып коюңузчу." and out.confirmation_fixed
+
+
+def test_a_claim_removal_that_changes_a_time_is_cut_by_code(business):
+    """The model's edit may only remove the claim: «16:00» instead of «15:00» would be a new, false fact."""
+    bad = "Записала вас на 15:00. Напишите, пожалуйста, телефон."
+    llm = FakeLLM([AgentReply(bad)])
+    llm.unconfirm = ["Время 16:00 свободно. Напишите, пожалуйста, телефон."]
+    out = say(business, "Запишите на 15:00, я Айбек", llm, "u6")
+    assert out.reply == "Напишите, пожалуйста, телефон." and out.confirmation_fixed
+
+
+def test_an_edit_may_drop_numbers_but_not_add_them():
+    from joop.lang import adds_no_numbers
+
+    assert adds_no_numbers("Записала на 15:00, чистка 3 000 сом. Телефон?", "Чистка 3 000 сом. Телефон?")
+    assert not adds_no_numbers("Записала на 15:00. Телефон?", "Свободно 16:00. Телефон?")
+    assert not adds_no_numbers("Записала. Телефон?", "Телефон? Кабинет 2.")
 
 
 def test_named_free_time_is_pointed_out_to_the_model(business):

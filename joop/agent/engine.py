@@ -21,7 +21,7 @@ from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
 from ..channels.telegram import is_personal, split_chat_id
 from ..lang import (chat_is_kyrgyz, claims_confirmation, drop_claim_sentences, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz,
-                    use_kyrgyz_names)
+                    adds_no_numbers, same_numbers, use_kyrgyz_names)
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, Stay
 from ..niches import Pack, get_pack
 from ..phone import normalize_phone
@@ -378,6 +378,8 @@ def _model_reply(
                                            outcome.stay_id, outcome.changed_booking_id))
     if outcome.reply and not captured and claims_confirmation(outcome.reply) and not _has_capture(session, conv):
         fixed = llm.remove_false_confirmation(outcome.reply, outcome.usage)
+        if fixed and not adds_no_numbers(outcome.reply, fixed):  # the model's edit changed a time or a sum: cut by code
+            fixed = ""
         if not fixed or claims_confirmation(fixed):
             fixed = drop_claim_sentences(fixed or "") or drop_claim_sentences(outcome.reply)
         if fixed and not claims_confirmation(fixed):
@@ -385,10 +387,11 @@ def _model_reply(
             outcome.confirmation_fixed = True
 
     # Language guard: a Kyrgyz message sometimes gets a Russian answer because the business data
-    # is in Russian. Rewrite such a reply once; keep the draft if the rewrite is not Kyrgyz either.
+    # is in Russian. Rewrite such a reply once; keep the draft if the rewrite is not Kyrgyz either, or if it changed
+    # a number: a wrong time or sum in Kyrgyz is worse than the right one in Russian.
     if outcome.reply and is_kyrgyz_message(text) and not looks_kyrgyz(outcome.reply):
         rewritten = llm.rewrite_in_kyrgyz(outcome.reply, outcome.usage)
-        if rewritten and looks_kyrgyz(rewritten):
+        if rewritten and looks_kyrgyz(rewritten) and same_numbers(outcome.reply, rewritten):
             outcome.reply = rewritten
             outcome.language_fixed = True
     # Cheap fixes without a model call: Latin look-alike letters inside Cyrillic words, and Russian
