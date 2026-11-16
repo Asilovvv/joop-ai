@@ -6,6 +6,7 @@ The API answers only to `Authorization: Bearer <key>`; a wrong or missing key ge
 
 from __future__ import annotations
 
+import logging
 import secrets
 
 from datetime import datetime
@@ -19,6 +20,7 @@ from ..dispatch import notify_admins
 from ..timeutil import local_now, utcnow
 from .app import _back, _base_url, _business, _check_csrf, _flash, _render, _rt
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -141,7 +143,13 @@ async def mcp_endpoint(request: Request, background: BackgroundTasks):
         if refused:
             return refused
         notes: list[str] = []
-        reply = mcp.handle(s, b, message, local_now(b.timezone).replace(tzinfo=None), utcnow(), notes)
+        try:
+            reply = mcp.handle(s, b, message, local_now(b.timezone).replace(tzinfo=None), utcnow(), notes)
+        except Exception:  # noqa: BLE001 — a JSON-RPC error, never a bare 500, and nothing half-saved
+            s.rollback()
+            log.exception("MCP call failed for business %s", b.id)
+            msg_id = message.get("id") if isinstance(message, dict) else None
+            return JSONResponse({"jsonrpc": "2.0", "id": msg_id, "error": {"code": -32603, "message": "internal error"}})
         s.commit()
         if notes:
             background.add_task(notify_admins, _rt(request), b, notes)
