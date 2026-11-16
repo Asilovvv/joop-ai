@@ -214,6 +214,9 @@ class Message(SQLModel, table=True):
     output_tokens: int = 0
     cost_usd: float = 0.0
     language_fixed: bool = False
+    # An AI reply to a Kyrgyz message: ky (in Kyrgyz, as written or rewritten), untranslated (the rewrite failed),
+    # numbers (the rewrite changed a time, date or sum: the Russian draft was sent). Empty for other messages.
+    kyrgyz: str = ""
 
 
 class Booking(SQLModel, table=True):

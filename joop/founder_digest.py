@@ -72,7 +72,23 @@ def text(session: Session, now_utc: datetime, price_som: int, annual_months: int
     return (f"Joop AI, неделя {start:%d.%m}–{end:%d.%m}. Платящих {paying} ({_som(mrr)} сом/мес), бесплатных {free}, в пробном {trial}. "
             f"Записей через ИИ {bookings}, диалогов {conversations}, передано людям {leads('handoff')}, сбоев {leads('error')}. "
             f"Новых регистраций {signups}, отмен {cancels}. Удержание через 90 дней: {kept_line}."
+            + kyrgyz_line(session, real, since, until)
             + annual.digest_line(session, now_utc, price_som, annual_months))
+
+
+def kyrgyz_line(session: Session, business_ids: list[int], since: datetime, until: datetime) -> str:
+    """How the AI answered Kyrgyz messages this week, and how many still read Russian: the rewrite failed, or it
+    changed a number and the Russian draft went (lang.same_numbers). Shows where ready Kyrgyz wording is missing."""
+    rows = dict(session.exec(select(Message.kyrgyz, func.count()).where(
+        Message.business_id.in_(business_ids), Message.role == "ai", Message.kyrgyz != "", real_messages(),
+        Message.created_at >= since, Message.created_at < until).group_by(Message.kyrgyz)).all())
+    total = sum(rows.values())
+    if not total:
+        return ""
+    russian = rows.get("untranslated", 0) + rows.get("numbers", 0)
+    why = f" (не перевелось {rows.get('untranslated', 0)}, перевод менял цифры {rows.get('numbers', 0)})" if russian else ""
+    return f" На кыргызском: ответов {total}, из них по-русски {russian}{why}."
+
 
 
 def due(session: Session, now_utc: datetime) -> bool:

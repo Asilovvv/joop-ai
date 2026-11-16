@@ -98,6 +98,24 @@ def test_guard_keeps_the_draft_when_the_rewrite_changes_a_number(business):
     assert out.reply.startswith("Бейшемби күнү саат 9:00") and out.language_fixed
 
 
+def test_each_reply_to_a_kyrgyz_message_records_how_it_went_out(business):
+    """Message.kyrgyz: in Kyrgyz, untranslated, or the Russian draft kept because the rewrite changed a number."""
+    from sqlmodel import select
+
+    from joop import db
+    from joop.models import Message
+
+    llm = FakeLLM([AgentReply(KY_TRANSLATION), AgentReply(RU_DRAFT), AgentReply(RU_DRAFT), AgentReply("Здравствуйте!")],
+                  rewrites=["Тиш жулуу 2 500 сом турат. Сизди жазып коёлубу?", "Still not Kyrgyz"])
+    say(business, "Тиш жулуу канча турат?", llm, "o1")  # answered in Kyrgyz
+    say(business, "Тиш жулуу канча турат?", llm, "o2")  # the rewrite changed 2 000 → 2 500
+    say(business, "Тиш жулуу канча турат?", llm, "o3")  # the rewrite is not Kyrgyz
+    say(business, "Здравствуйте", llm, "o4")  # not a Kyrgyz message
+    with db.new_session() as s:
+        got = [m.kyrgyz for m in s.exec(select(Message).where(Message.role == "ai").order_by(Message.id)).all()]
+    assert got == ["ky", "numbers", "untranslated", ""]
+
+
 def test_numbers_are_compared_as_the_customer_reads_them():
     assert numbers("в 09:00, 1 500 сом, +996 555 123 456") == numbers("саат 9:00дө, 1500 сом, +996555123456")
     assert same_numbers("25.11.2026–28.11.2026, гостей: 2", "25.11.2026–28.11.2026, конок саны: 2")
