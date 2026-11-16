@@ -32,7 +32,7 @@ from ..phone import normalize_phone
 from ..samples import example_staff_ids
 from ..security import verify_password
 from ..slots import CLOSED, claim_slot, free_on_day, release_slot, seats_left, seats_needed
-from ..stats import activity, not_test, real_conversation
+from ..stats import TEST_CHANNEL, activity, not_test, real_conversation, test_conversations
 from ..timeutil import local_now, utcnow
 from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
 
@@ -731,7 +731,7 @@ def mobile_order_move(request: Request, item_id: int, body: StatusIn):
                 "customer_told": sent, "why": why}
 
 
-def _stay(s: Session, st: Stay) -> dict:
+def _stay(s: Session, st: Stay, tests: set[int] | None = None) -> dict:
     """A room, car or hall booking as the panel's «Брони» page shows it, with the key of the customer's card."""
     key = customers.key_of(st.customer_phone, st.channel, "")
     if not key and st.conversation_id:
@@ -740,7 +740,9 @@ def _stay(s: Session, st: Stay) -> dict:
     return {"id": st.id, "room": st.room_name, "check_in": st.check_in.isoformat(), "check_out": st.check_out.isoformat(),
             "nights": (st.check_out - st.check_in).days, "guests": st.guests, "customer_name": st.customer_name,
             "customer_phone": st.customer_phone, "customer_key": key, "channel": st.channel,
-            "conversation_id": st.conversation_id, "status": st.status, "manual": st.source == "staff"}
+            "conversation_id": st.conversation_id, "status": st.status, "manual": st.source == "staff",
+            # made in a test chat: it still holds real nights, so it is listed (to cancel), marked as a test
+            "test": st.channel == TEST_CHANNEL or (tests is not None and st.conversation_id in tests)}
 
 
 def _stays_business(s: Session, request: Request) -> tuple[Who | None, JSONResponse | None]:
@@ -755,7 +757,7 @@ def _stays_business(s: Session, request: Request) -> tuple[Who | None, JSONRespo
 @router.get("/api/mobile/stays")
 def mobile_stays(request: Request):
     """Upcoming stays, as on the panel's page: a hall's event from today on (yesterday's wedding is over), a hotel guest
-    or a car until the day they leave; cancelled ones included, test chats left out."""
+    or a car until the day they leave; cancelled ones included. A test chat's stay holds real nights: listed, marked."""
     with new_session() as s:
         who, denied = _stays_business(s, request)
         if denied:
@@ -763,9 +765,9 @@ def mobile_stays(request: Request):
         pack = get_pack(who.business.niche)
         today = local_now(who.business.timezone).date()
         ahead = Stay.check_in >= today if pack.by_day else Stay.check_out >= today
-        rows = s.exec(select(Stay).where(Stay.business_id == who.business.id, ahead, not_test(Stay, who.business.id))
-                      .order_by(Stay.check_in, Stay.id)).all()
-        return {"kind": _stay_kind(pack), "stays": [_stay(s, st) for st in rows]}
+        rows = s.exec(select(Stay).where(Stay.business_id == who.business.id, ahead).order_by(Stay.check_in, Stay.id)).all()
+        tests = set(s.exec(test_conversations(who.business.id)).all())
+        return {"kind": _stay_kind(pack), "stays": [_stay(s, st, tests) for st in rows]}
 
 
 @router.get("/api/mobile/stays/rooms")
@@ -776,7 +778,10 @@ def mobile_stay_rooms(request: Request, check_in: str = "", check_out: str = "")
         if denied:
             return denied
         b = who.business
-        first = _day(check_in, local_now(b.timezone).date())
+        today = local_now(b.timezone).date()
+        first = _day(check_in, today)
+        if first is not None and not today <= first <= today + timedelta(days=stays.MAX_AHEAD_DAYS):
+            return _fail(400, "Даты — с сегодняшнего дня и не дальше чем на год вперёд.")
         if first is not None and stays.by_day(b):
             last = first + timedelta(days=1)  # a hall: one date
         else:
