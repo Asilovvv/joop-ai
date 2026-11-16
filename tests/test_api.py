@@ -334,3 +334,44 @@ def test_api_booking_keeps_the_ais_rules_lead_time_tables_subscription_and_types
         s.add(Subscription(business_id=b.id, plan="pro", status="suspended"))
         s.flush()
         assert api.book(s, b, dict(body, slot_id=later.id, party_size=2), LOCAL, NOW_UTC).status == 402
+
+
+def test_mcp_lets_another_assistant_read_prices_and_book(business, settings, rt):
+    """Joop as an MCP server: initialize, tools/list, business_info, free_slots, book — with the API's rules."""
+    from joop.models import Service, Slot
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        key = api.new_key(b)
+        b.telegram_bot_token, b.admin_chat_ids = "1:x", "555"
+        s.add(b)
+        s.add(Service(business_id=b.id, name="Стоп-лист", price="100", available=False))
+        s.commit()
+        slot = s.exec(select(Slot).where(Slot.business_id == b.id, Slot.status == "free", Slot.start > LOCAL + timedelta(hours=3))
+                      .order_by(Slot.start)).first()
+    auth = {"Authorization": f"Bearer {key}"}
+
+    def rpc(c, method, params=None, id_=1):
+        return c.post("/mcp", headers=auth, json={"jsonrpc": "2.0", "id": id_, "method": method, "params": params or {}})
+
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        assert c.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "ping"}).status_code == 401
+        init = rpc(c, "initialize", {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t"}}).json()
+        assert init["result"]["protocolVersion"] == "2025-06-18" and "tools" in init["result"]["capabilities"]
+        assert c.post("/mcp", headers=auth, json={"jsonrpc": "2.0", "method": "notifications/initialized"}).status_code == 202
+        assert {t["name"] for t in rpc(c, "tools/list").json()["result"]["tools"]} == {"business_info", "free_slots", "book"}
+        info = rpc(c, "tools/call", {"name": "business_info", "arguments": {}}).json()["result"]
+        assert not info["isError"] and "Стоп-лист" not in info["content"][0]["text"] and b.name in info["content"][0]["text"]
+        off = rpc(c, "tools/call", {"name": "free_slots", "arguments": {}}).json()["result"]
+        assert off["isError"] and "turned off" in off["content"][0]["text"]
+        login_token = login(c)
+        c.post("/panel/api", data={"csrf": login_token, "action": "booking_on"})
+        listed = rpc(c, "tools/call", {"name": "free_slots", "arguments": {}}).json()["result"]["content"][0]["text"]
+        assert f'"id": {slot.id}' in listed
+        made = rpc(c, "tools/call", {"name": "book", "arguments": {"slot_id": slot.id, "name": "Айбек", "phone": "0555 123 456"}}).json()
+        assert not made["result"]["isError"] and '"source": "api"' in made["result"]["content"][0]["text"]
+        again = rpc(c, "tools/call", {"name": "book", "arguments": {"slot_id": slot.id, "name": "Айбек", "phone": "0555 123 456"}}).json()
+        assert again["result"]["isError"]
+        assert rpc(c, "nope").json()["error"]["code"] == -32601
+        assert c.get("/mcp").status_code == 405
+    assert rt.tg.sent[-1][1].startswith("Новая запись через API: Айбек")

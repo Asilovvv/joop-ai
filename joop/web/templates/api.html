@@ -32,6 +32,7 @@
   <p class="small muted">Форма на вашем сайте или ИИ-помощник партнёра сможет записывать клиентов сам: берёт свободное время и записывает по тем же правилам, что и ИИ Joop — только настоящее свободное время ваших людей, имя и телефон обязательны. Вам придёт уведомление «Новая запись через API», а вебхук сообщит о ней. Предоплату Joop по таким записям не запрашивает: у него нет переписки с этим клиентом — её берёт ваша форма или партнёр.{% if business.altegio_location_id %} Расписание у вас в Altegio — записывайте там, через API Joop запись не принимается.{% endif %}</p>
   <div class="list">
     <div class="item"><div class="main"><span class="mono small">GET {{ base }}/api/v1/slots?date=2026-11-20</span><div class="muted small">свободное время на день (без даты — на две недели вперёд)</div></div></div>
+    <div class="item"><div class="main"><span class="mono small">{{ base }}/mcp</span><div class="muted small">для ИИ-помощников (Claude, ChatGPT и других) по стандарту MCP: цены, свободное время, запись; ключ — в заголовке «Authorization: Bearer …»</div></div></div>
     <div class="item"><div class="main"><span class="mono small">POST {{ base }}/api/v1/bookings</span><div class="muted small">{"slot_id": 123, "name": "Айбек", "phone": "0555 123 456", "service": "Чистка", "party_size": 2}</div></div></div>
   </div>
   <form method="post" action="/panel/api" class="row-tail">

@@ -11,12 +11,12 @@ import secrets
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Form, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
-from .. import api
+from .. import api, mcp
 from ..db import new_session
 from ..dispatch import notify_admins
-from ..timeutil import fmt_slot, local_now, utcnow
+from ..timeutil import local_now, utcnow
 from .app import _back, _base_url, _business, _check_csrf, _flash, _render, _rt
 
 router = APIRouter()
@@ -125,10 +125,34 @@ async def api_book(request: Request, background: BackgroundTasks):
         s.commit()
         s.refresh(done.booking)
         x = done.booking
-        note = (f"Новая запись через API: {x.customer_name}, {x.customer_phone}"
-                + (f", {x.service}" if x.service else "") + f" — {fmt_slot(x.start)}, {x.staff_name}.")
-        background.add_task(notify_admins, _rt(request), b, [note])
+        background.add_task(notify_admins, _rt(request), b, [api.booking_note(x)])
         return JSONResponse({"data": api.booking_json(x)}, status_code=201, headers={"Cache-Control": "no-store"})
+
+
+@router.post("/mcp")
+async def mcp_endpoint(request: Request, background: BackgroundTasks):
+    """MCP (Streamable HTTP, JSON replies) for other AI assistants: joop/mcp.py."""
+    try:
+        message = await request.json()
+    except ValueError:
+        return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}}, status_code=400)
+    with new_session() as s:
+        b, refused = _key_business(s, request)
+        if refused:
+            return refused
+        notes: list[str] = []
+        reply = mcp.handle(s, b, message, local_now(b.timezone).replace(tzinfo=None), utcnow(), notes)
+        s.commit()
+        if notes:
+            background.add_task(notify_admins, _rt(request), b, notes)
+    if reply is None:
+        return Response(status_code=202)
+    return JSONResponse(reply, headers={"Cache-Control": "no-store"})
+
+
+@router.get("/mcp")
+def mcp_stream():
+    return Response(status_code=405, headers={"Allow": "POST"})  # no server-initiated stream
 
 
 @router.get("/api/v1/{what}")
