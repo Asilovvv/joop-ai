@@ -503,6 +503,7 @@ class Stay extends Equatable {
     required this.channel,
     required this.cancelled,
     this.conversationId,
+    this.manual = false,
   });
 
   factory Stay.fromJson(Map<String, dynamic> json) => Stay(
@@ -517,6 +518,7 @@ class Stay extends Equatable {
         channel: (json['channel'] as String?) ?? '',
         cancelled: json['status'] == 'cancelled',
         conversationId: json['conversation_id'] as int?,
+        manual: (json['manual'] as bool?) ?? false,
       );
 
   final int id;
@@ -531,9 +533,34 @@ class Stay extends Equatable {
   final bool cancelled;
   final int? conversationId;
 
+  /// Booked by staff from the app («Вручную»), not by the AI.
+  final bool manual;
+
   @override
   List<Object?> get props =>
-      [id, room, checkIn, checkOut, nights, guests, customerName, customerPhone, channel, cancelled, conversationId];
+      [id, room, checkIn, checkOut, nights, guests, customerName, customerPhone, channel, cancelled, conversationId, manual];
+}
+
+/// A room type (car, hall) and how many are free for all the chosen nights.
+class FreeRoom extends Equatable {
+  const FreeRoom({required this.id, required this.name, required this.capacity, required this.free});
+
+  factory FreeRoom.fromJson(Map<String, dynamic> json) => FreeRoom(
+        id: json['id'] as int,
+        name: (json['name'] as String?) ?? '',
+        capacity: (json['capacity'] as int?) ?? 0,
+        free: (json['free'] as int?) ?? 0,
+      );
+
+  final int id;
+  final String name;
+
+  /// Guests per room; 0 = not limited.
+  final int capacity;
+  final int free;
+
+  @override
+  List<Object?> get props => [id, name, capacity, free];
 }
 
 class DialogueMessage extends Equatable {

@@ -94,6 +94,16 @@ class S {
     required this.cancelStayQuestion,
     required this.stayCancelled,
     required this.stayCancelledTag,
+    required this.newStay,
+    required this.stayCheckIn,
+    required this.stayDate,
+    required this.stayDays,
+    required this.chooseRoom,
+    required this.roomFree,
+    required this.noRoomsFree,
+    required this.stayBooked,
+    required this.manualTag,
+    required this.guestsLabel,
     required this.leadKinds,
     required this.orderStatuses,
     required this.orderActions,
@@ -306,6 +316,18 @@ class S {
   /// After a cancel: what is free again, and that staff tell the customer (the panel says the same).
   final String Function(String kind) stayCancelled;
   final String stayCancelledTag;
+
+  /// «Забронировать»: a guest who phoned or walked in.
+  final String newStay;
+  final String stayCheckIn;
+  final String stayDate;
+  final String Function(int n) stayDays;
+  final String Function(String kind) chooseRoom;
+  final String Function(int n) roomFree;
+  final String noRoomsFree;
+  final String Function(String who, String dates) stayBooked;
+  final String manualTag;
+  final String guestsLabel;
   final Map<String, String> leadKinds;
 
   /// joop/order_status.py's STATUSES; 'sent_pickup' is sent_label() for pickup.
@@ -528,6 +550,16 @@ class S {
     cancelStayQuestion: _ruCancelStayQuestion,
     stayCancelled: _ruStayCancelled,
     stayCancelledTag: 'отменена',
+    newStay: 'Забронировать',
+    stayCheckIn: 'Заезд',
+    stayDate: 'Дата',
+    stayDays: _ruDays,
+    chooseRoom: _ruChooseRoom,
+    roomFree: _ruRoomFree,
+    noRoomsFree: 'На эти даты свободных нет.',
+    stayBooked: _ruStayBooked,
+    manualTag: 'вручную',
+    guestsLabel: 'Гостей',
     leadKinds: {
       'request': 'Запись без окна',
       'lead': 'Заявка',
@@ -747,6 +779,16 @@ class S {
     cancelStayQuestion: _kyCancelStayQuestion,
     stayCancelled: _kyStayCancelled,
     stayCancelledTag: 'жокко чыгарылды',
+    newStay: 'Брондоо',
+    stayCheckIn: 'Келүү',
+    stayDate: 'Күнү',
+    stayDays: _kyDays,
+    chooseRoom: _kyChooseRoom,
+    roomFree: _kyRoomFree,
+    noRoomsFree: 'Бул күндөргө бош жок.',
+    stayBooked: _kyStayBooked,
+    manualTag: 'кол менен',
+    guestsLabel: 'Конок саны',
     leadKinds: {
       'request': 'Бош убакытсыз жазылуу',
       'lead': 'Өтүнмө',
@@ -1027,3 +1069,11 @@ String _kyStayCancelled(String kind) => switch (kind) {
     };
 String _ruStaysCount(int n) => 'Действующих броней: $n';
 String _kyStaysCount(int n) => 'Күчүндөгү брондор: $n';
+String _ruDays(int n) => 'дней: $n';
+String _kyDays(int n) => '$n күн';
+String _ruChooseRoom(String kind) => switch (kind) { 'hall' => 'Зал', 'car' => 'Машина', _ => 'Номер' };
+String _kyChooseRoom(String kind) => switch (kind) { 'hall' => 'Зал', 'car' => 'Унаа', _ => 'Бөлмө' };
+String _ruRoomFree(int n) => n == 0 ? 'занято' : 'свободно: $n';
+String _kyRoomFree(int n) => n == 0 ? 'бош эмес' : 'бош: $n';
+String _ruStayBooked(String who, String dates) => 'Забронировано: $who, $dates';
+String _kyStayBooked(String who, String dates) => 'Брондолду: $who, $dates';

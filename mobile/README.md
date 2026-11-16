@@ -13,7 +13,8 @@ every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
 - **Заказы** — orders the AI collected (cafes, shops, delivery), moved through the panel's steps;
 - **Брони** (hotels, car rentals, banquet halls instead of «Сегодня» and «Записи») — upcoming room, car or hall bookings by
   date with the guests and the customer; «Отменить бронь» frees the dates, as the panel's «Брони» page; the chat opens from
-  the booking;
+  the booking; «Забронировать» books a guest who phoned or walked in: dates, then a room (car, hall) with the number still
+  free for all the nights, guests, name and phone (marked «вручную», not counted as the AI's work);
 - **Заявки** — questions the AI handed to staff, bookings without a free slot, qualified leads; «Ответить» opens the
   customer's dialogue and sends the owner's answer through their channel (or says why WhatsApp/Instagram no longer allow it);
 - **Диалоги** (the button in the top bar, not for masters) — every real chat the AI is having, newest first, with search

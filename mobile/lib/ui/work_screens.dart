@@ -99,7 +99,7 @@ class _WorkList<T, C extends Cubit<WorkState<T>>> extends StatelessWidget {
           ]);
         } else {
           body = ListView(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 96), // room under «Забронировать» on the stays tab
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
@@ -352,13 +352,14 @@ class _StayCard extends StatelessWidget {
             Text(_dates(), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
             if (kind == 'room') Text(s.stayNights(stay.nights), style: theme.textTheme.bodySmall),
             if (stay.cancelled) _Tag(s.stayCancelledTag, scheme.outline),
+            if (stay.manual) _Tag(s.manualTag, scheme.outline),
           ],
         ),
         const SizedBox(height: 6),
         Text(stay.room + (kind == 'car' ? '' : ' · ${s.stayGuests(stay.guests)}'), style: theme.textTheme.bodyLarge),
         const SizedBox(height: 8),
         Wrap(spacing: 6, runSpacing: 6, children: [
-          _Tag(channelName(stay.channel), channelColor(stay.channel)),
+          if (stay.channel.isNotEmpty) _Tag(channelName(stay.channel), channelColor(stay.channel)),
           if (stay.customerName.isNotEmpty) _Tag(stay.customerName, scheme.outline),
           if (stay.customerPhone.isNotEmpty) _Tag(stay.customerPhone, scheme.outline),
         ]),
