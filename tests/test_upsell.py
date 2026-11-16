@@ -36,9 +36,9 @@ def say(business_id, rt, text, now=NOW_UTC, chat="c1"):
         return out
 
 
-def book(business_id, rt, service="консультация", first="Запишите, Айбек, 0555 123 456"):
+def book(business_id, rt, service="консультация", first="Запишите, Айбек, 0555 123 456", reply="Записала!"):
     slot = first_free_slot(business_id)
-    rt._llm = FakeLLM([AgentReply("Записала!", booking={"slot_id": slot.id, "name": "Айбек", "phone": "0555 123 456",
+    rt._llm = FakeLLM([AgentReply(reply, booking={"slot_id": slot.id, "name": "Айбек", "phone": "0555 123 456",
                                                          "service": service})])
     return say(business_id, rt, first)
 
@@ -71,7 +71,7 @@ def test_no_closes_it_and_other_messages_go_to_the_ai(business, rt):
 
 def test_no_and_kyrgyz(business, rt):
     pair(business.id, addon_ky="Тиш тазалоо")
-    out = book(business.id, rt, first="Жазып коюңузчу, Айбек, 0555 123 456")
+    out = book(business.id, rt, first="Жазып коюңузчу, Айбек, 0555 123 456", reply="Сизди жазып койдум, рахмат!")
     assert out.reply.endswith("\n\nЖазылууга «Тиш тазалоо» кошуп коёлубу — 3 500 сом? «Ооба» деп жооп бериңиз.")
     no = say(business.id, rt, "Жок, рахмат")
     assert no.reply == "Макул, жазылуу ошол бойдон калат." and no.admin_notes == []

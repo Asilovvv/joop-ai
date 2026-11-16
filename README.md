@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram (a bot, or the owner's personal account through Telegram Business), WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
 | Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 51 database migrations, 35 niche packs and a generic one |
-| Tests | 826 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 830 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -305,8 +305,10 @@ WhatsApp message fees for reminders.
 - **Booking through the API** ("API и вебхуки", off by default, `joop/api.py`): with the business's API key, a
   site's form or a partner's AI assistant reads free times (`GET /api/v1/slots?date=`) and books one
   (`POST /api/v1/bookings` with `slot_id`, `name`, `phone`, `service`) by the AI's rules: a real free time of
-  a real person (no sign-up example, no inactive staff), claimed atomically, a valid phone. Businesses on
-  Altegio are refused. Staff get «Новая запись через API», and the webhook announces it.
+  a real person (no sign-up example, no inactive or Altegio staff) after the niche's lead time, a table big
+  enough for `party_size`, claimed atomically, a valid phone, an active subscription. Businesses on Altegio
+  are refused. No prepayment is asked (Joop has no chat with that customer). Staff get «Новая запись через
+  API», and the webhook announces it.
 - **Missed calls** ("Каналы" → "Пропущенные звонки", `joop/missed_calls.py`): the owner's Android phone
   (MacroDroid: trigger "Call Missed", action "HTTP Request") or a virtual PBX posts each missed call to
   `/webhooks/missed-call/<slug>` with the secret in the `X-Joop-Token` header. Joop writes to the caller in
@@ -477,7 +479,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 828 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 830 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

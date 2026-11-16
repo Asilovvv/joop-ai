@@ -301,3 +301,36 @@ def test_booking_through_the_api_follows_the_ais_rules(business, settings, rt):
         b = s.get(Business, business.id)
         b.altegio_location_id = "1"
         assert api.book(s, b, body, LOCAL, NOW_UTC).status == 409  # the schedule lives in Altegio
+
+
+def test_api_booking_keeps_the_ais_rules_lead_time_tables_subscription_and_types(business, settings, rt):
+    from joop.models import Slot, Staff, Subscription
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.api_booking = True
+        s.add(b)
+        soon = s.exec(select(Slot).where(Slot.business_id == b.id, Slot.status == "free", Slot.start > LOCAL)
+                      .order_by(Slot.start)).first()
+        soon.start = LOCAL + timedelta(minutes=5)  # inside the niche's lead time
+        later = s.exec(select(Slot).where(Slot.business_id == b.id, Slot.status == "free", Slot.start > LOCAL + timedelta(hours=3))
+                       .order_by(Slot.start)).first()
+        member = s.get(Staff, later.staff_id)
+        member.capacity = 2
+        s.add_all([soon, member])
+        s.commit()
+        listed = [x["id"] for x in api.free_slots(s, b, None, LOCAL)]
+        assert soon.id not in listed and later.id in listed
+        body = {"slot_id": soon.id, "name": "Айбек", "phone": "0555123456"}
+        assert api.book(s, b, body, LOCAL, NOW_UTC).status == 409
+        assert api.book(s, b, dict(body, slot_id=later.id, party_size=5), LOCAL, NOW_UTC).status == 409  # table for two
+        for bad in (True, 12.7, "12", 10**30, None):
+            assert api.book(s, b, dict(body, slot_id=bad), LOCAL, NOW_UTC).status == 422, bad
+        member.external_id = "77"
+        s.add(member)
+        s.flush()
+        assert later.id not in [x["id"] for x in api.free_slots(s, b, None, LOCAL)]  # Altegio's: not listed either
+        member.external_id = ""
+        s.add(Subscription(business_id=b.id, plan="pro", status="suspended"))
+        s.flush()
+        assert api.book(s, b, dict(body, slot_id=later.id, party_size=2), LOCAL, NOW_UTC).status == 402

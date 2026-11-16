@@ -37,7 +37,9 @@ from sqlmodel import Session, select
 from .models import Booking, Business, Lead, Order, OrderLine, Slot, Staff, WebhookDelivery
 from .phone import normalize_phone
 from .samples import example_staff_ids
-from .slots import claim_slot, free_on_day, seats_needed
+from . import slots
+from .billing import access_ok
+from .slots import claim_slot, seats_needed
 from .stats import not_test
 
 KEY_PREFIX = "joop_"
@@ -162,20 +164,22 @@ def rows(session: Session, business: Business, what: str, since: str = "", after
 SLOT_DAYS = 14  # how far ahead GET /api/v1/slots looks when no date is given
 
 
-def _example_staff(session: Session, business: Business) -> set[int]:
-    return set(example_staff_ids(session, business))
+def _unbookable_staff(session: Session, business: Business) -> set[int]:
+    """The sign-up example's people and anyone whose times live in Altegio: nobody to book through Joop's API."""
+    altegio = session.exec(select(Staff.id).where(Staff.business_id == business.id, Staff.external_id != "")).all()
+    return set(example_staff_ids(session, business)) | set(altegio)
 
 
 def free_slots(session: Session, business: Business, day: date | None, now_local: datetime) -> list[dict]:
-    """Free times a customer can be booked into: one day, or the next SLOT_DAYS days."""
-    days = [day] if day else [now_local.date() + timedelta(days=i) for i in range(SLOT_DAYS)]
-    example = _example_staff(session, business)
-    out = []
-    for d in days:
-        for slot, member in free_on_day(session, business.id, d, now_local, exclude_staff=example):
-            out.append({"id": slot.id, "start_local": _iso(slot.start, utc=False), "staff": member.name, "staff_id": member.id,
-                        "role": member.role})
-    return out
+    """Free times a customer can be booked into: one day, or the next SLOT_DAYS days, after the niche's lead time
+    (the AI's own rule: a dental time starting in two minutes is not offered)."""
+    if business.altegio_location_id:
+        return []
+    rows = slots.free_slots(session, business.id, now_local, days=SLOT_DAYS, limit=1000,
+                            exclude_staff=frozenset(_unbookable_staff(session, business)), lead_minutes=slots.lead_for(business))
+    return [{"id": slot.id, "start_local": _iso(slot.start, utc=False), "staff": member.name, "staff_id": member.id,
+             "role": member.role, "capacity": member.capacity or None}
+            for slot, member in rows if day is None or slot.start.date() == day]
 
 
 @dataclass
@@ -185,32 +189,49 @@ class Booked:
     error: str = ""
 
 
+def _positive_int(value) -> int | None:
+    return value if type(value) is int and 0 < value < 2**62 else None
+
+
 def book(session: Session, business: Business, data: dict, now_local: datetime, now_utc: datetime) -> Booked:
-    """POST /api/v1/bookings: {"slot_id", "name", "phone", "service"?}. The caller commits."""
+    """POST /api/v1/bookings: {"slot_id", "name", "phone", "service"?, "party_size"?}. The caller commits.
+
+    The AI's booking rules: a real person's free time after the lead time, a table big enough for the party, a
+    working subscription. Not the prepayment rule: see below."""
     if not business.api_booking:
         return Booked(status=403, error="booking through the API is off: turn it on in «API и вебхуки»")
     if business.altegio_location_id:
         return Booked(status=409, error="this business's schedule is kept in Altegio: book there")
+    if not access_ok(session, business.id, now_utc):
+        return Booked(status=402, error="the business's Joop subscription is not active")
     name = str(data.get("name") or "").strip()[:120]
     phone = normalize_phone(str(data.get("phone") or ""))
     service = str(data.get("service") or "").strip()[:200]
-    try:
-        slot_id = int(data.get("slot_id"))
-    except (TypeError, ValueError):
-        return Booked(status=422, error="slot_id must be a number from GET /api/v1/slots")
+    slot_id = _positive_int(data.get("slot_id"))
+    if slot_id is None:
+        return Booked(status=422, error="slot_id must be a whole number from GET /api/v1/slots")
+    party = data.get("party_size", 1)
+    if _positive_int(party) is None or party > 500:
+        return Booked(status=422, error="party_size must be a whole number from 1")
     if not name or not phone:
         return Booked(status=422, error="name and a valid phone are required")
     slot = session.get(Slot, slot_id)
     member = session.get(Staff, slot.staff_id) if slot else None
     if slot is None or member is None or slot.business_id != business.id or not member.active \
-            or member.id in _example_staff(session, business) or member.external_id:
+            or member.id in _unbookable_staff(session, business):
         return Booked(status=404, error="no such free time")
-    if slot.start <= now_local or not claim_slot(session, slot.id, seats_needed(slot, 1)):
+    if member.capacity and party > member.capacity:
+        return Booked(status=409, error=f"this place takes up to {member.capacity} guests")
+    if slot.start <= now_local + timedelta(minutes=slots.lead_for(business)) \
+            or not claim_slot(session, slot.id, seats_needed(slot, party)):
         return Booked(status=409, error="this time is taken: ask GET /api/v1/slots again")
     booking = Booking(business_id=business.id, slot_id=slot.id, staff_id=member.id, staff_name=member.name, start=slot.start,
-                      service=service, customer_name=name, customer_phone=phone, channel="", source="api", created_at=now_utc)
+                      service=service, customer_name=name, customer_phone=phone, channel="", source="api", created_at=now_utc,
+                      party_size=party if member.capacity else 0)
     session.add(booking)
     session.flush()
+    # No prepayment is required: Joop has no chat with this customer to send the payment details to, and the
+    # auto-cancel would then drop a booking the customer was never told to pay for. The calling program takes it.
     return Booked(booking)
 
 
