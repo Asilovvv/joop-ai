@@ -740,7 +740,7 @@ def _stay(s: Session, st: Stay) -> dict:
     return {"id": st.id, "room": st.room_name, "check_in": st.check_in.isoformat(), "check_out": st.check_out.isoformat(),
             "nights": (st.check_out - st.check_in).days, "guests": st.guests, "customer_name": st.customer_name,
             "customer_phone": st.customer_phone, "customer_key": key, "channel": st.channel,
-            "conversation_id": st.conversation_id, "status": st.status}
+            "conversation_id": st.conversation_id, "status": st.status, "manual": st.source == "staff"}
 
 
 def _stays_business(s: Session, request: Request) -> tuple[Who | None, JSONResponse | None]:
@@ -766,6 +766,62 @@ def mobile_stays(request: Request):
         rows = s.exec(select(Stay).where(Stay.business_id == who.business.id, ahead, not_test(Stay, who.business.id))
                       .order_by(Stay.check_in, Stay.id)).all()
         return {"kind": _stay_kind(pack), "stays": [_stay(s, st) for st in rows]}
+
+
+@router.get("/api/mobile/stays/rooms")
+def mobile_stay_rooms(request: Request, check_in: str = "", check_out: str = ""):
+    """For «Забронировать»: every room type (car, hall) with how many are free for all of these nights."""
+    with new_session() as s:
+        who, denied = _stays_business(s, request)
+        if denied:
+            return denied
+        b = who.business
+        first = _day(check_in, local_now(b.timezone).date())
+        if first is not None and stays.by_day(b):
+            last = first + timedelta(days=1)  # a hall: one date
+        else:
+            last = _day(check_out, date.min) if check_out else None
+        if first is None or last is None or last <= first or (last - first).days > stays.MAX_NIGHTS:
+            return _fail(400, "Нужны даты заезда и выезда в виде 2026-11-20.")
+        units = stays.HALL_UNITS if stays.by_day(b) else None
+        return {"rooms": [{"id": r.id, "name": r.name, "capacity": r.capacity,
+                           "free": stays.free_rooms(s, r, first, last, units)}
+                          for r in stays.room_types(s, b.id, frozenset(example_staff_ids(s, b)))]}
+
+
+class NewStayIn(BaseModel):
+    room_id: int
+    check_in: str
+    check_out: str = ""
+    guests: int = 1
+    name: str
+    phone: str = ""
+
+
+@router.post("/api/mobile/stays")
+def mobile_new_stay(request: Request, body: NewStayIn):
+    """A guest who phoned or walked in: booked by staff (not counted as the AI's work), with the AI's rules."""
+    with new_session() as s:
+        who, denied = _stays_business(s, request)
+        if denied:
+            return denied
+        b = who.business
+        name = body.name.strip()[:120]
+        phone = normalize_phone(body.phone) if body.phone.strip() else ""
+        if not name:
+            return _fail(422, "Укажите имя клиента.")
+        if phone is None:
+            return _fail(422, "Телефон не похож на номер. Пример: 0555 123 456.")
+        first, last = _day(body.check_in, date.min), _day(body.check_out, date.min) if body.check_out else None
+        if first is None or first == date.min or (body.check_out and last is None):
+            return _fail(400, "Нужны даты в виде 2026-11-20.")
+        stay, problem = stays.book_by_staff(s, b, body.room_id, first, last, body.guests, name, phone,
+                                            local_now(b.timezone).date(), utcnow(), frozenset(example_staff_ids(s, b)))
+        if stay is None:
+            return _fail(409, problem)
+        s.commit()
+        s.refresh(stay)
+        return {"stay": _stay(s, stay)}
 
 
 @router.post("/api/mobile/stays/{item_id}/cancel")

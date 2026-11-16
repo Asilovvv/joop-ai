@@ -187,16 +187,7 @@ def book(session: Session, business: Business, conv: Conversation, data: dict, r
     stay = Stay(business_id=business.id, staff_id=room.id, room_name=room.name, check_in=check_in, check_out=check_out,
                 guests=guests, customer_name=name, customer_phone=phone, conversation_id=conv.id, channel=channel,
                 chat_id=conv.chat_id, created_off_hours=off, created_at=now_utc)
-    try:
-        with session.begin_nested():
-            session.add(stay)
-            session.flush()
-            for n in nights(check_in, check_out):
-                taken = taken_units(session, room.id, n)
-                unit = next(u for u in range(rooms_of(room)) if u not in taken)
-                session.add(RoomNight(business_id=business.id, staff_id=room.id, stay_id=stay.id, night=n, unit=unit))
-            session.flush()
-    except (IntegrityError, StopIteration):
+    if not _claim(session, room, stay, rooms_of(room)):
         return StayResult(f"Извините, «{room.name}» на эти даты только что заняли. "
                           + _options(session, business, check_in, check_out, guests, hidden))
     dates = f"{_fmt(check_in)}–{_fmt(check_out)}"
@@ -220,13 +211,7 @@ def _book_date(session: Session, business: Business, conv: Conversation, data: d
     stay = Stay(business_id=business.id, staff_id=room.id, room_name=room.name, check_in=when, check_out=when + timedelta(days=1),
                 guests=guests, customer_name=name, customer_phone=phone, conversation_id=conv.id, channel=channel,
                 chat_id=conv.chat_id, created_off_hours=off, created_at=now_utc)
-    try:
-        with session.begin_nested():
-            session.add(stay)
-            session.flush()
-            session.add(RoomNight(business_id=business.id, staff_id=room.id, stay_id=stay.id, night=when, unit=0))
-            session.flush()
-    except IntegrityError:
+    if not _claim(session, room, stay, HALL_UNITS):
         return StayResult(f"Извините, «{room.name}» на {_fmt(when)} только что заняли. "
                           + _hall_options(session, business, when, guests, hidden))
     fixed = (f"Предварительно забронировала «{room.name}» на {_fmt(when)}, гостей: {guests}. "
@@ -234,6 +219,50 @@ def _book_date(session: Session, business: Business, conv: Conversation, data: d
     if when.year != asked_year and str(asked_year) in reply:  # the model's confirmation names the wrong year
         reply = fixed
     return StayResult(reply, stay)  # the date and guests are added from the booking (joop/confirmations.py)
+
+
+def _claim(session: Session, room: Staff, stay: Stay, units: int) -> bool:
+    """Saves the stay with one room of the type for each night, atomically: False when a night has no room left
+    (taken meanwhile by the AI, staff or another chat), and nothing is saved then."""
+    try:
+        with session.begin_nested():
+            session.add(stay)
+            session.flush()
+            for n in nights(stay.check_in, stay.check_out):
+                taken = taken_units(session, room.id, n)
+                unit = next(u for u in range(units) if u not in taken)
+                session.add(RoomNight(business_id=stay.business_id, staff_id=room.id, stay_id=stay.id, night=n, unit=unit))
+            session.flush()
+    except (IntegrityError, StopIteration):
+        return False
+    return True
+
+
+def book_by_staff(session: Session, business: Business, room_id: int, check_in: date, check_out: date | None, guests: int,
+                  name: str, phone: str, today: date, now_utc: datetime,
+                  hidden: frozenset[int] = frozenset()) -> tuple[Stay | None, str]:
+    """A guest who phoned or walked in, booked by staff from the app (source «staff»: not the AI's work).
+    The same rules as the AI's booking: dates within a year, the room's capacity, a free room for every night."""
+    hall = by_day(business)
+    if hall:
+        check_out = check_in + timedelta(days=1)
+    if check_out is None or check_out <= check_in:
+        return None, "Дата выезда должна быть позже даты заезда."
+    if check_in < today or check_in > today + timedelta(days=MAX_AHEAD_DAYS):
+        return None, f"Бронируем с {_fmt(today)} и не дальше чем на год вперёд."
+    if (check_out - check_in).days > MAX_NIGHTS:
+        return None, words(business).too_long
+    room = session.get(Staff, room_id)
+    if room is None or room.business_id != business.id or not room.active or room.id in hidden:
+        return None, "Такого номера, машины или зала нет."
+    guests = max(1, guests)
+    if room.capacity and guests > room.capacity:
+        return None, f"«{room.name}» вмещает до {room.capacity} гостей."
+    stay = Stay(business_id=business.id, staff_id=room.id, room_name=room.name, check_in=check_in, check_out=check_out,
+                guests=guests, customer_name=name, customer_phone=phone, source="staff", created_at=now_utc)
+    if not _claim(session, room, stay, HALL_UNITS if hall else rooms_of(room)):
+        return None, f"«{room.name}» на эти даты уже занят." if hall or rooms_of(room) == 1 else f"«{room.name}»: на эти даты свободных нет."
+    return stay, ""
 
 
 def _hall_options(session: Session, business: Business, when: date, guests: int, hidden: frozenset[int] = frozenset()) -> str:

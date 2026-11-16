@@ -879,3 +879,38 @@ def test_stays_belong_to_their_business_and_niche(client, business, engine):
     assert client.get("/api/mobile/stays", headers=auth(dental)).status_code == 404
     assert client.post(f"/api/mobile/stays/{stay_id}/cancel", headers=auth(dental)).status_code == 404
     assert client.get("/api/mobile/stays").status_code == 401
+
+
+def test_a_guest_who_phoned_is_booked_from_the_app_with_the_ai_s_rules(client, engine):
+    """«Забронировать»: free rooms for the dates, then the stay, marked as staff's work; a full room type is refused."""
+    from .test_stays import TODAY, hotel
+
+    b, rooms = hotel()
+    token = sign_in(client, "hotel", "hotel-pass").json()["token"]
+    d1, d2 = (TODAY + timedelta(days=5)).isoformat(), (TODAY + timedelta(days=7)).isoformat()
+    free = {r["name"]: r for r in client.get(f"/api/mobile/stays/rooms?check_in={d1}&check_out={d2}", headers=auth(token)).json()["rooms"]}
+    family = free["Семейный номер"]
+    assert family["free"] >= 1 and family["capacity"]
+    body = {"room_id": family["id"], "check_in": d1, "check_out": d2, "guests": 2, "name": "Нурлан", "phone": "0555 101 202"}
+    for _ in range(family["free"]):  # book every family room for these nights
+        r = client.post("/api/mobile/stays", headers=auth(token), json=body)
+        assert r.status_code == 200, r.json()
+    made = r.json()["stay"]
+    assert made["manual"] and made["nights"] == 2 and made["customer_phone"] == "+996555101202" and made["conversation_id"] is None
+    full = client.post("/api/mobile/stays", headers=auth(token), json=body)
+    assert full.status_code == 409 and ("свободных нет" in full.json()["error"] or "занят" in full.json()["error"])
+    after = {r["name"]: r for r in client.get(f"/api/mobile/stays/rooms?check_in={d1}&check_out={d2}", headers=auth(token)).json()["rooms"]}
+    assert after["Семейный номер"]["free"] == 0
+    with db.new_session() as s:  # staff's booking is not the AI's work in the figures
+        from joop.models import Stay
+
+        assert {x.source for x in s.exec(select(Stay).where(Stay.business_id == b.id)).all()} == {"staff"}
+    too_many = dict(body, room_id=family["id"], guests=family["capacity"] + 1, check_in=(TODAY + timedelta(days=20)).isoformat(),
+                    check_out=(TODAY + timedelta(days=21)).isoformat())
+    assert client.post("/api/mobile/stays", headers=auth(token), json=too_many).status_code == 409
+    past = dict(body, check_in=(TODAY - timedelta(days=1)).isoformat())
+    assert client.post("/api/mobile/stays", headers=auth(token), json=past).status_code == 409
+    backwards = dict(body, check_in=d2, check_out=d1)
+    assert client.post("/api/mobile/stays", headers=auth(token), json=backwards).status_code == 409
+    assert client.post("/api/mobile/stays", headers=auth(token), json=dict(body, name=" ")).status_code == 422
+    assert client.get("/api/mobile/stays/rooms?check_in=x", headers=auth(token)).status_code == 400
