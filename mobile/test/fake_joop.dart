@@ -339,6 +339,28 @@ class FakeJoop {
       return json({'order': o, 'customer_told': to == 'accepted' || to == 'sent' ? true : null, 'why': ''});
     }
     if (path == '/api/mobile/leads') return json({'leads': leads});
+    if (path == '/api/mobile/stays/rooms') {
+      // the family room is taken on the 18th: free only for dates that leave it out
+      final checkIn = request.url.queryParameters['check_in']!, checkOut = request.url.queryParameters['check_out']!;
+      final familyFree = checkOut.compareTo('2026-11-18') <= 0 || checkIn.compareTo('2026-11-18') > 0 ? 1 : 0;
+      return json({
+        'rooms': [
+          {'id': 1, 'name': 'Стандарт', 'capacity': 2, 'free': 2},
+          {'id': 2, 'name': 'Семейный номер', 'capacity': 4, 'free': familyFree},
+        ]
+      });
+    }
+    if (path == '/api/mobile/stays' && request.method == 'POST') {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final x = {
+        'id': 9, 'room': body['room_id'] == 2 ? 'Семейный номер' : 'Стандарт', 'check_in': body['check_in'],
+        'check_out': body['check_out'], 'nights': 2, 'guests': body['guests'], 'customer_name': body['name'],
+        'customer_phone': body['phone'], 'customer_key': '', 'channel': '', 'conversation_id': null, 'status': 'booked',
+        'manual': true,
+      };
+      stays.add(x);
+      return json({'stay': x});
+    }
     if (path == '/api/mobile/stays') return json({'kind': 'room', 'stays': stays});
     final cancelStay = RegExp(r'^/api/mobile/stays/(\d+)/cancel$').firstMatch(path);
     if (cancelStay != null) {

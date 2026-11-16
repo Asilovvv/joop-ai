@@ -15,6 +15,8 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | `GET /api/mobile/leads` | new requests, then the last 30 done |
 | `POST /api/mobile/leads/{id}/done` | marks a request done, with the person's name |
 | `GET /api/mobile/stays` | hotels, car rentals, banquet halls: upcoming stays as on the panel's «Брони» page (`kind`: room, car or hall; each with `room`, `check_in`, `check_out`, `nights`, `guests`, the customer, `conversation_id`, `status`); masters get 403, other niches 404 |
+| `GET /api/mobile/stays/rooms?check_in=&check_out=` | for «Забронировать»: each room type (car, hall) with `free` — how many are free for all those nights (a hall: the one date) |
+| `POST /api/mobile/stays` | a guest who phoned or walked in: `room_id`, `check_in`, `check_out` (not for halls), `guests`, `name`, `phone`; the AI's rules (within a year, up to 30 nights, capacity, a free room each night, atomically); `source` staff, so not counted as the AI's work; 409 with the reason |
 | `POST /api/mobile/stays/{id}/cancel` | cancels a stay: the room, car or hall is free again for those dates; staff tell the customer, as in the panel |
 | `GET /api/mobile/customers?q=&tag=` | the panel's Клиенты (`customers.listing`): up to 100 customers, newest contact first, `total`, and `tags` (every tag in use, to filter by); `q` is a name or phone (the local «0555 …» form too); a master gets those who came to her |
 | `GET /api/mobile/customers/{key}` | the customer card (`customers.cards`, the panel's Клиенты): visits, `spend_som`, `rating`, `note`, `tags`, `upcoming`, the last 20 bookings and 10 orders; a master sees only her visits (`customers.for_staff`), 404 when the customer never came to her |

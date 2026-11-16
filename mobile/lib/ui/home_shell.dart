@@ -19,6 +19,7 @@ import 'chats_screen.dart';
 import 'customers_screen.dart';
 import 'language_button.dart';
 import 'new_booking_screen.dart';
+import 'new_stay_screen.dart';
 import 'schedule_screen.dart';
 import 'services_screen.dart';
 import 'today_screen.dart';
@@ -186,6 +187,19 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
             .bookedNotice(booking.customerName, '${formatDay(booking.start)}, ${formatTime(booking.start)}'))));
   }
 
+  Future<void> _newStay(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final stay = await Navigator.of(context).push<Stay>(MaterialPageRoute(
+      builder: (_) => NewStayScreen(kind: _account.stayKind, today: widget.today),
+    ));
+    if (stay == null || !mounted) return;
+    _stays.load();
+    final dates = _account.stayKind == 'hall'
+        ? formatDay(stay.checkIn)
+        : '${formatDay(stay.checkIn)} – ${formatDay(stay.checkOut)}';
+    messenger.showSnackBar(SnackBar(content: Text(S.current.stayBooked(stay.customerName, '${stay.room}, $dates'))));
+  }
+
   @override
   Widget build(BuildContext context) {
     final tabs = _tabs;
@@ -253,7 +267,14 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                   icon: const Icon(Icons.add),
                   label: Text(S.current.bookAction),
                 )
-              : null,
+              : tabs[_index] == _Tab.stays
+                  ? FloatingActionButton.extended(
+                      key: const Key('new-stay'),
+                      onPressed: () => _newStay(context),
+                      icon: const Icon(Icons.add),
+                      label: Text(S.current.newStay),
+                    )
+                  : null,
           bottomNavigationBar: NavigationBar(
             selectedIndex: _index,
             onDestinationSelected: (i) => setState(() => _index = i),

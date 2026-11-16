@@ -291,6 +291,52 @@ void dialogueTests() {
     expect(find.text('Действующих броней: 1'), findsOneWidget);
     expect(find.byKey(const Key('cancel-stay-7')), findsNothing);
   });
+
+  testWidgets('a guest who phoned is booked from the app: dates first, then a free room', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final hotel = FakeJoop(hotel: true);
+    await tester.pumpWidget(JoopApp(repository: hotel.repository(), customers: hotel.customers(), today: DateTime(2026, 11, 15)));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('company')), 'uyut');
+    await tester.enterText(find.byKey(const Key('password')), 'secret-pass');
+    await tester.tap(find.byKey(const Key('login')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('new-stay')));
+    await tester.pumpAndSettle();
+    expect(find.text('Семейный номер · свободно: 1'), findsOneWidget); // 15–16 Nov
+    await tester.tap(find.byKey(const Key('stay-day-more'))); // 16 Nov
+    await tester.tap(find.byKey(const Key('stay-day-more'))); // 17 Nov
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('stay-nights-more'))); // 17–19 Nov: the 18th is taken
+    await tester.pumpAndSettle();
+    expect(find.text('2 ночи'), findsOneWidget);
+    expect(find.text('Семейный номер · занято'), findsOneWidget);
+    expect(hotel.calls, contains('GET /api/mobile/stays/rooms'));
+    expect(tester.widget<FilledButton>(find.byKey(const Key('stay-save'))).onPressed, isNull); // no room chosen
+
+    await tester.tap(find.byKey(const Key('stay-room-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('stay-guests-more')));
+    await tester.tap(find.byKey(const Key('stay-guests-more'))); // a standard room holds 2
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('stay-guests')), findsOneWidget);
+    expect(tester.widget<Text>(find.byKey(const Key('stay-guests'))).data, '2');
+    await tester.enterText(find.byKey(const Key('stay-name')), 'Нурлан');
+    await tester.enterText(find.byKey(const Key('stay-phone')), '0555 101 202');
+    await tester.tap(find.byKey(const Key('stay-save')));
+    await tester.pumpAndSettle();
+
+    expect(hotel.calls, contains('POST /api/mobile/stays'));
+    final made = hotel.stays.last;
+    expect([made['check_in'], made['check_out'], made['guests']], ['2026-11-17', '2026-11-19', 2]);
+    expect(find.text('Забронировано: Нурлан, Стандарт, вт, 17 ноя – чт, 19 ноя'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('вручную'), 300); // the new booking is the list's third
+    expect(find.text('вручную'), findsOneWidget);
+  });
 }
 
 Map<String, dynamic> _newOrder(int id) => {

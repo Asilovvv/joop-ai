@@ -171,6 +171,32 @@ class JoopRepository {
     return [for (final row in data['stays'] as List) Stay.fromJson(row as Map<String, dynamic>)];
   }
 
+  Future<List<FreeRoom>> freeRooms(DateTime checkIn, DateTime checkOut) async {
+    final data = await _api.get('/api/mobile/stays/rooms',
+        query: {'check_in': isoDay(checkIn), 'check_out': isoDay(checkOut)}) as Map<String, dynamic>;
+    return [for (final row in data['rooms'] as List) FreeRoom.fromJson(row as Map<String, dynamic>)];
+  }
+
+  /// A guest who phoned or walked in, booked by staff with the AI's rules (dates, capacity, a free room each night).
+  Future<Stay> newStay({
+    required int roomId,
+    required DateTime checkIn,
+    required DateTime checkOut,
+    required int guests,
+    required String name,
+    required String phone,
+  }) async {
+    final data = await _api.post('/api/mobile/stays', {
+      'room_id': roomId,
+      'check_in': isoDay(checkIn),
+      'check_out': isoDay(checkOut),
+      'guests': guests,
+      'name': name.trim(),
+      'phone': phone.trim(),
+    }) as Map<String, dynamic>;
+    return Stay.fromJson(data['stay'] as Map<String, dynamic>);
+  }
+
   /// The room, car or hall is free again for those dates; the customer is told by staff, as in the panel.
   Future<Stay> cancelStay(int stayId) async {
     final data = await _api.post('/api/mobile/stays/$stayId/cancel') as Map<String, dynamic>;
