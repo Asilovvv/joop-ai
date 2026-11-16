@@ -88,6 +88,7 @@ class Outcome:
     freed_slot_ids: list[int] = field(default_factory=list)  # times given back, offered to the waiting list on delivery
     skipped: str = ""  # why nothing was sent, for logs and tests
     language_fixed: bool = False
+    kyrgyz: str = ""  # Message.kyrgyz: how a Kyrgyz message was answered
     confirmation_fixed: bool = False  # the reply claimed a booking that was not made and was rewritten
     usage: dict = field(default_factory=empty_usage)
     cost_usd: float | None = None
@@ -389,11 +390,15 @@ def _model_reply(
     # Language guard: a Kyrgyz message sometimes gets a Russian answer because the business data
     # is in Russian. Rewrite such a reply once; keep the draft if the rewrite is not Kyrgyz either, or if it changed
     # a number: a wrong time or sum in Kyrgyz is worse than the right one in Russian.
-    if outcome.reply and is_kyrgyz_message(text) and not looks_kyrgyz(outcome.reply):
-        rewritten = llm.rewrite_in_kyrgyz(outcome.reply, outcome.usage)
-        if rewritten and looks_kyrgyz(rewritten) and same_numbers(outcome.reply, rewritten):
-            outcome.reply = rewritten
-            outcome.language_fixed = True
+    if outcome.reply and is_kyrgyz_message(text):
+        outcome.kyrgyz = "ky"
+        if not looks_kyrgyz(outcome.reply):
+            rewritten = llm.rewrite_in_kyrgyz(outcome.reply, outcome.usage)
+            if rewritten and looks_kyrgyz(rewritten) and same_numbers(outcome.reply, rewritten):
+                outcome.reply = rewritten
+                outcome.language_fixed = True
+            else:  # counted for the founder: where Kyrgyz customers still read Russian, and why
+                outcome.kyrgyz = "numbers" if rewritten and looks_kyrgyz(rewritten) else "untranslated"
     # Cheap fixes without a model call: Latin look-alike letters inside Cyrillic words, and Russian
     # service names left in a Kyrgyz reply.
     if outcome.reply:
@@ -452,6 +457,7 @@ def _model_reply(
         msg.output_tokens = outcome.usage.get("output_tokens", 0)
         msg.cost_usd = outcome.cost_usd or 0.0
         msg.language_fixed = outcome.language_fixed
+        msg.kyrgyz = outcome.kyrgyz
     return outcome
 
 

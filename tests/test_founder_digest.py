@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from sqlmodel import select
 
 from joop import billing, db, founder_digest, health
-from joop.models import Booking, FounderDigest, Lead, Payment, Subscription
+from joop.models import Booking, Business, FounderDigest, Lead, Payment, Subscription
 from joop.presets import create_business
 from joop.scheduler import Scheduler
 
@@ -93,3 +93,28 @@ def test_pilot_page_lists_the_weekly_lines(engine, app_client, rt):
     owner_login(app_client)
     page = app_client.get("/owner/pilot").text
     assert "Одна цифра в неделю" in page and "неделя 02.11–08.11" in page
+
+
+def test_the_digest_counts_kyrgyz_customers_who_still_read_russian(engine, saas_settings):
+    """Real chats this week only: the panel's test chat and the demo business are left out."""
+    from joop.models import Conversation, Message
+
+    seed()
+    week = MONDAY_9 - timedelta(days=3)
+    with db.new_session() as s:
+        salon = s.exec(select(Business).where(Business.slug == "salon1")).one()
+        demo = s.exec(select(Business).where(Business.slug == "site-demo-salon")).one()
+        real = Conversation(business_id=salon.id, channel="telegram", chat_id="ky1")
+        test = Conversation(business_id=salon.id, channel="console", chat_id="panel")
+        shop = Conversation(business_id=demo.id, channel="telegram", chat_id="ky2")
+        s.add_all([real, test, shop])
+        s.flush()
+        for conv, kind in ((real, "ky"), (real, "ky"), (real, "ky"), (real, "numbers"), (real, "untranslated"),
+                           (real, ""), (test, "untranslated"), (shop, "numbers")):
+            s.add(Message(business_id=conv.business_id, conversation_id=conv.id, role="ai", text="…", kyrgyz=kind,
+                          created_at=week))
+        s.add(Message(business_id=salon.id, conversation_id=real.id, role="ai", text="…", kyrgyz="numbers",
+                      created_at=MONDAY_9 - timedelta(days=20)))  # another week
+        s.commit()
+        text = founder_digest.text(s, MONDAY_9, saas_settings.price_som)
+    assert "На кыргызском: ответов 5, из них по-русски 2 (не перевелось 1, перевод менял цифры 1)." in text
