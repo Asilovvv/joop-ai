@@ -72,7 +72,8 @@ weekends often go unanswered until the next working day.
 - A web panel: price list, specialists, FAQ, time slots, bookings, conversations and pilot numbers.
 - Staff can take over any conversation, and the AI steps aside.
 - Kyrgyz and Russian: the reply follows the customer's language; a language guard rewrites a
-  Russian reply to a Kyrgyz message, and services can carry Kyrgyz names.
+  Russian reply to a Kyrgyz message (kept only if every time, date, sum and phone stays the same), and services can
+  carry Kyrgyz names.
 - Businesses without a schedule in the panel still get bookings: the AI takes a request (name,
   phone, service, preferred time) and staff call back to confirm.
 - Cost tracking: tokens and USD per AI reply, shown in the panel.
@@ -471,7 +472,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 821 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 825 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

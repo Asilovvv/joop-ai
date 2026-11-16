@@ -102,6 +102,32 @@ _LATIN_TO_CYRILLIC = str.maketrans({
     "A": "А", "B": "В", "C": "С", "E": "Е", "K": "К", "M": "М", "O": "О", "P": "Р",
     "T": "Т", "X": "Х", "Y": "У",
 })
+_DIGIT_GAP = re.compile(r"(?<=\d)[ \u00a0\u202f](?=\d)")  # «1 500», «0555 123 456»: one number
+_NUMBER = re.compile(r"\d+")
+
+
+def numbers(text: str) -> list[str]:
+    """Every number a reply names, as the customer would act on it: «09:00» and «9:00» are the same time,
+    «1 500» and «1500» the same sum; a date is its day, month and year."""
+    return sorted(n.lstrip("0") or "0" for n in _NUMBER.findall(_DIGIT_GAP.sub("", text)))
+
+
+def adds_no_numbers(draft: str, edited: str) -> bool:
+    """An edit that only removes sentences may drop numbers with them, never add or change one."""
+    left = numbers(draft)
+    for n in numbers(edited):
+        if n not in left:
+            return False
+        left.remove(n)
+    return True
+
+
+def same_numbers(draft: str, rewritten: str) -> bool:
+    """A rewrite in another language must keep every time, date, sum and phone of the draft and add none: many of them
+    were written by the code (free times, the minimum order, a prescription, a deadline), not by the model."""
+    return numbers(draft) == numbers(rewritten)
+
+
 _MIXED_WORD = re.compile(r"\b(?=\w*[А-Яа-яЁёҢңӨөҮү])(?=\w*[A-Za-z])\w+\b")
 
 
