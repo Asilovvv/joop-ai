@@ -173,3 +173,27 @@ def test_a_kyrgyz_chat_reads_the_stay_line_in_kyrgyz_and_no_rewrite_touches_it(e
     assert llm.rewrite_calls == ["Забронировала!"]  # the model rewrote its own words only
     dates = f"{d:%d.%m.%Y}–{d + timedelta(days=3):%d.%m.%Y}"
     assert out.reply == f"Рахмат, бөлмөнү сиз үчүн брондоп койдум, күтөбүз.\nБрон: «Семейный номер», {dates}, конок саны: 2."
+
+
+def test_the_panel_books_a_guest_who_phoned(engine, settings, rt):
+    """«Забронировать гостя» on the panel's page: the app's rules, marked «вручную»; a full room is refused."""
+    b, rooms = hotel()
+    cottage = rooms["Коттедж"]  # one cottage
+    d1, d2 = TODAY + timedelta(days=4), TODAY + timedelta(days=6)
+    form = {"room_id": cottage.id, "check_in": d1.isoformat(), "check_out": d2.isoformat(), "guests": 2,
+            "name": "Нурлан", "phone": "0555 101 202"}
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        token = csrf_of(c.get("/login").text)
+        c.post("/login", data={"slug": "hotel", "password": "hotel-pass", "csrf": token})
+        page = c.get("/panel/stays").text
+        assert "Забронировать гостя" in page and f'value="{cottage.id}"' in page
+        r = c.post("/panel/stays/new", data=dict(form, csrf=csrf_of(page)))
+        assert f"Забронировано: Нурлан, «Коттедж», {d1:%d.%m}–{d2:%d.%m}." in r.text and "вручную" in r.text
+        again = c.post("/panel/stays/new", data=dict(form, name="Бакыт", csrf=csrf_of(r.text)))
+        assert "«Коттедж» на эти даты уже занят." in again.text
+        nameless = c.post("/panel/stays/new", data=dict(form, name=" ", csrf=csrf_of(again.text)))
+        assert "Укажите имя клиента." in nameless.text
+        assert c.post("/panel/stays/new", data=dict(form, csrf="wrong")).status_code in (400, 403)
+    with db.new_session() as s:
+        made = s.exec(select(Stay).where(Stay.business_id == b.id)).all()
+        assert [(x.customer_name, x.source, x.customer_phone) for x in made] == [("Нурлан", "staff", "+996555101202")]

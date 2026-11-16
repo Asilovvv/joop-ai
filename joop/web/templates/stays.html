@@ -22,13 +22,37 @@
     {% endfor %}
   </table></div>
 </section>
+{% if rooms %}
+<section class="card">
+  <h2>Забронировать гостя</h2>
+  <p class="muted small">Для того, кто позвонил или пришёл сам. Правила те же, что у ИИ: свободный {{ 'зал на эту дату' if pack.by_day else 'на все сутки' if pack.rental else 'номер на все ночи' }}, не больше гостей, чем вмещает, не дальше года вперёд. Такая бронь помечается «вручную» и не считается работой ИИ.</p>
+  <form method="post" action="/panel/stays/new" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="n-room">{{ 'Зал' if pack.by_day else 'Машина' if pack.rental else 'Номер' }}
+      <select id="n-room" name="room_id">{% for r in rooms %}<option value="{{ r.id }}">{{ r.name }}{% if r.capacity and not pack.rental %} (до {{ r.capacity }} гостей){% endif %}</option>{% endfor %}</select>
+    </label>
+    <div class="grid2">
+      {% if pack.by_day %}
+      <label for="n-in">Дата<input id="n-in" type="date" name="check_in" value="{{ today }}" required></label>
+      {% else %}
+      <label for="n-in">{{ 'Получение' if pack.rental else 'Заезд' }}<input id="n-in" type="date" name="check_in" value="{{ today }}" required></label>
+      <label for="n-out">{{ 'Возврат' if pack.rental else 'Выезд' }}<input id="n-out" type="date" name="check_out" value="{{ tomorrow }}" required></label>
+      {% endif %}
+      {% if not pack.rental %}<label for="n-guests">Гостей<input id="n-guests" type="number" name="guests" value="1" min="1" max="1000"></label>{% endif %}
+      <label for="n-name">Имя клиента<input id="n-name" name="name" required maxlength="120"></label>
+      <label for="n-phone">Телефон<input id="n-phone" name="phone" type="tel" placeholder="0555 123 456"></label>
+    </div>
+    <button class="btn" type="submit">Забронировать</button>
+  </form>
+</section>
+{% endif %}
 <section class="card">
   <h2>Предстоящие брони</h2>
   {% if upcoming %}
   <div class="list">{% for st in upcoming %}
     <div class="item">
       <div class="main">
-        <div><b>{% if pack.by_day %}{{ st.check_in.strftime('%d.%m.%Y') }}{% else %}{{ st.check_in.strftime('%d.%m') }} – {{ st.check_out.strftime('%d.%m') }}{% endif %}</b> · {{ st.room_name }}{% if not pack.rental %} · гостей: {{ st.guests }}{% endif %}{% if st.status == 'cancelled' %} <span class="chip">отменена</span>{% endif %}</div>
+        <div><b>{% if pack.by_day %}{{ st.check_in.strftime('%d.%m.%Y') }}{% else %}{{ st.check_in.strftime('%d.%m') }} – {{ st.check_out.strftime('%d.%m') }}{% endif %}</b> · {{ st.room_name }}{% if not pack.rental %} · гостей: {{ st.guests }}{% endif %}{% if st.status == 'cancelled' %} <span class="chip">отменена</span>{% endif %}{% if st.source == 'staff' %} <span class="chip">вручную</span>{% endif %}</div>
         <div class="muted small">{{ st.customer_name }} {{ st.customer_phone }}{% if st.conversation_id %} · <a href="/panel/conversations/{{ st.conversation_id }}">диалог</a>{% endif %}</div>
       </div>
       {% if st.status == 'booked' %}<form method="post" action="/panel/stays/{{ st.id }}/cancel" class="actions"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small danger" type="submit">Отменить</button></form>{% endif %}
