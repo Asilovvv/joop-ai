@@ -33,7 +33,8 @@ class _NewStayScreenState extends State<NewStayScreen> {
   int _asked = 0; // only the latest dates' answer is shown
 
   bool get _hall => widget.kind == 'hall';
-  DateTime get _checkOut => _checkIn.add(Duration(days: _hall ? 1 : _nights));
+  // calendar days, not 24-hour steps: a phone in a daylight-saving zone would lose a night at the clock change
+  DateTime get _checkOut => DateTime(_checkIn.year, _checkIn.month, _checkIn.day + (_hall ? 1 : _nights));
 
   @override
   void initState() {
@@ -66,7 +67,7 @@ class _NewStayScreenState extends State<NewStayScreen> {
 
   void _dates({int days = 0, int nights = 0}) {
     final today = DateTime(widget.today.year, widget.today.month, widget.today.day);
-    final next = _checkIn.add(Duration(days: days));
+    final next = DateTime(_checkIn.year, _checkIn.month, _checkIn.day + days);
     if (next.isBefore(today) || _nights + nights < 1 || _nights + nights > 30) return;
     setState(() => (_checkIn = next, _nights = _nights + nights));
     _load();

@@ -25,7 +25,7 @@ class FakeJoop {
     {
       'id': 8, 'room': 'Стандарт', 'check_in': '2026-11-20', 'check_out': '2026-11-21', 'nights': 1, 'guests': 1,
       'customer_name': 'Бакыт', 'customer_phone': '+996700112233', 'customer_key': '700112233', 'channel': 'whatsapp',
-      'conversation_id': null, 'status': 'booked',
+      'conversation_id': null, 'status': 'booked', 'test': true,
     },
   ];
 
