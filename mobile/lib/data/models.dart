@@ -504,6 +504,7 @@ class Stay extends Equatable {
     required this.cancelled,
     this.conversationId,
     this.manual = false,
+    this.test = false,
   });
 
   factory Stay.fromJson(Map<String, dynamic> json) => Stay(
@@ -519,6 +520,7 @@ class Stay extends Equatable {
         cancelled: json['status'] == 'cancelled',
         conversationId: json['conversation_id'] as int?,
         manual: (json['manual'] as bool?) ?? false,
+        test: (json['test'] as bool?) ?? false,
       );
 
   final int id;
@@ -536,9 +538,14 @@ class Stay extends Equatable {
   /// Booked by staff from the app («Вручную»), not by the AI.
   final bool manual;
 
+  /// Made in a test chat: it still holds real nights until cancelled.
+  final bool test;
+
   @override
-  List<Object?> get props =>
-      [id, room, checkIn, checkOut, nights, guests, customerName, customerPhone, channel, cancelled, conversationId, manual];
+  List<Object?> get props => [
+        id, room, checkIn, checkOut, nights, guests, customerName, customerPhone, channel, cancelled, conversationId,
+        manual, test,
+      ];
 }
 
 /// A room type (car, hall) and how many are free for all the chosen nights.

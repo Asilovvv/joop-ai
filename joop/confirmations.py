@@ -26,10 +26,13 @@ from .timeutil import fmt_slot
 
 CLAIM = re.compile(r"запис(ал|ан)|заброниров|бронь|оформ(ил|лен)|приня(л|т)|"
                    r"жаз(ып|ылд|дым|дык)|брондо|кабыл ал", re.I)  # the action itself, not «ждём вас» or «работаем»
-TOTAL_WORD = re.compile(r"итог|всего|к оплате|с вас|жалпы|баары|бардыгы", re.I)  # «итого 700» names the whole order
+TOTAL_WORD = re.compile(r"итог|всего|к оплате|с вас|сумм|стоимост|жалпы|баары|бардыгы|суммасы", re.I)  # «итого 700» names the whole order
 _ABBR = re.compile(r"(?:^|[\s(])(?:г|гг|ул|пр|просп|пер|д|кв|мкр|корп|стр|им|т\.е|т\.к|т\.д|т\.п|янв|фев|февр|мар|апр|"
                    r"авг|сен|сент|окт|нояб|дек|ч|мин|тел|напр|ок)\.$", re.I)
 _CLOCK = re.compile(r"(?<![\d:.])([01]?\d|2[0-3])([:.])([0-5]\d)(?![\d:]|\.\d)")
+_KY_HOUR = re.compile(r"\bсаат\s*(\d{1,2})(?![\d:.,])", re.I)
+_YEAR = re.compile(r"(?<![\d])(20\d{2})(?![\d])")
+_GUESTS = re.compile(r"(?<![\d.,:])(\d{1,3})\s*(?:гост|человек|чел\b|персон|киши)|(?:гост\w*|конок\s*саны)\s*:?\s*(\d{1,3})(?![\d])", re.I)
 _DAY_MONTH = re.compile(r"(?<![\d.,])(\d{1,2})\.(\d{2})(?:\.(?:\d{4}|\d{2}))?(?![\d])")
 _DAY_RANGE = re.compile(r"(?<![\d.,])(\d{1,2})\s*(?:по|до|-|–|—)\s*\d{1,2}\.(\d{2})(?![\d])")
 _MONTHS = ("янв", "фев", "мар", "апр", "ма", "июн", "июл", "авг", "сен", "окт", "ноя", "дек")
@@ -38,7 +41,7 @@ _RELATIVE = {r"\bсегодня\b|\bбүгүн": 0, r"\bзавтра\b|\bэрт�
 _WEEKDAYS = (r"понедельник|дүйшөмбү", r"вторник|шейшемби", r"сред[ау]\b|шаршемби", r"четверг|бейшемби",
              r"пятниц", r"суббот|ишемби", r"воскресень|жекшемби")
 _GAP = "[ \u00a0\u202f\u2009]"
-_SUM = re.compile(rf"(?<![\d.,:])(\d{{1,3}}(?:{_GAP}\d{{3}})+|\d+)(?:[.,]\d{{1,2}})?{_GAP}*(?:сом\w*|som|kgs)(?![a-zа-яё])", re.I)
+_SUM = re.compile(rf"(?<![\d.,:])(\d{{1,3}}(?:(?:{_GAP}|[.,])\d{{3}})+|\d+)(?:[.,]\d{{1,2}})?{_GAP}*(?:сом\w*|som|kgs)(?![a-zа-яё])", re.I)
 _SUM_C = re.compile(r"(?<![\d.,:])(\d{2,})[сc](?![a-zа-яё\d])", re.I)  # «1200с», never «18:00 с курьером»
 _QTY = re.compile(r"(?<![\d.,:])(\d{1,3})\s*(?:×|x|х|шт\.?)?\s*([а-яёa-z]{3,})|([а-яёa-z]{3,})\s*(?:×|x|х)\s*(\d{1,3})(?![\d])", re.I)
 
@@ -77,8 +80,10 @@ def sentences(text: str) -> list[str]:
 
 
 def clock_times(text: str) -> set[str]:
-    """"12:00", "9.30" → {"12:00", "09:30"}; "12.11" is a date (a minute value up to 12 after a dot reads as a month)."""
-    return {f"{int(h):02d}:{m}" for h, sep, m in _CLOCK.findall(text) if sep == ":" or m == "00" or int(m) > 12}
+    """"12:00", "9.30" → {"12:00", "09:30"}; "12.11" is a date (a minute value up to 12 after a dot reads as a month).
+    A whole hour said the Kyrgyz way, «саат 10до», is "10:00" (the language guard lets it stand for the draft's 10:00)."""
+    found = {f"{int(h):02d}:{m}" for h, sep, m in _CLOCK.findall(text) if sep == ":" or m == "00" or int(m) > 12}
+    return found | {f"{int(h):02d}:00" for h in _KY_HOUR.findall(text) if int(h) <= 23}
 
 
 def day_months(text: str) -> set[tuple[int, int]]:
@@ -106,7 +111,7 @@ def weekdays(text: str) -> set[int]:
 
 
 def sums(text: str) -> set[int]:
-    return {int(re.sub(_GAP, "", x)) for x in _SUM.findall(text)} | {int(x) for x in _SUM_C.findall(text)}
+    return {int(re.sub(f"{_GAP}|[.,]", "", x)) for x in _SUM.findall(text)} | {int(x) for x in _SUM_C.findall(text)}
 
 
 def _keep(reply: str, wrong, done: str, claim=CLAIM) -> tuple[str, list[str]]:
@@ -242,8 +247,17 @@ def with_stay(reply: str, stay: Stay, hall: bool, with_guests: bool, kyrgyz: boo
         allowed.add((stay.check_out.day, stay.check_out.month))
         allowed |= {(d.day, d.month) for d in _days(stay.check_in, stay.check_out)}
 
+    years = {stay.check_in.year, stay.check_out.year}
+
+    def wrong(sentence: str) -> bool:
+        """Another day, another year, a sum (a stay has no total the code computed: the model's would be its own
+        arithmetic) or another number of guests."""
+        guests = {int(a or b) for a, b in _GUESTS.findall(sentence)}
+        return bool(day_months(sentence) - allowed) or bool({int(y) for y in _YEAR.findall(sentence)} - years) \
+            or bool(sums(sentence)) or bool(with_guests and guests and guests != {stay.guests})
+
     done = DONE_STAY_KY if kyrgyz else DONE_STAY_RU
-    head, _ = _keep(reply, lambda sentence: bool(day_months(sentence) - allowed), done)
+    head, _ = _keep(reply, wrong, done)
     if head == done and fixed and not kyrgyz:
         return fixed  # nothing of the reply is left: the niche's own full confirmation, which already has the dates
     return _join(head, stay_line(stay, hall, with_guests, kyrgyz))

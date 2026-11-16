@@ -1,160 +1,144 @@
-"""Fixes from the independent review of PRs #152-#156."""
-
-from datetime import timedelta
-
-from fastapi.testclient import TestClient
-from sqlmodel import select
-
-from joop import db, jobs, order_status
-from joop.agent.engine import handle_incoming
+"""Independent review of PRs #222-#231: each test failed before its fix."""
+from .test_niches import item, make, say
+from .conftest import FakeLLM
 from joop.agent.llm import AgentReply
-from joop.channels.base import IncomingMessage
-from joop.models import Business, Conversation, Job, Message, Order, Service, Slot, Staff
-from joop.presets import create_business
-from joop.timeutil import utc_to_local
-from joop.unfinished import _text as follow_up_text
-from joop.web.app import create_app
-
-from .conftest import NOW_UTC, FakeLLM
-from .test_web import csrf_of
-
-NOW_LOCAL = utc_to_local(NOW_UTC, "Asia/Bishkek").replace(second=0, microsecond=0)
 
 
-def make(niche, slug, real=True, token=True):
+def _order(b):
+    plov = item(b, "Плов")
+    return {"address": "Киевская 1", "time": "", "name": "Айбек", "phone": "0555123456", "comment": "",
+            "mode": "delivery", "lines": [{"item_id": plov.id, "quantity": 2, "note": ""}]}
+
+
+def test_order_sentence_without_claim_word_keeps_a_wrong_sum(engine):
+    """2 × Плов + delivery = 850. «Стоимость заказа 1 500 сом» names a sum the order does not have."""
+    b = make("restaurant")
+    llm = FakeLLM([AgentReply("Готовим! Стоимость заказа 1 500 сом, курьер позвонит.", order=_order(b))])
+    out = say(b, "2 плова на Киевскую 1", llm, "r1")
+    assert "1 500" not in out.reply, out.reply
+
+
+def test_order_summa_names_the_items_total_not_the_order_total(engine):
+    """«Сумма 700 сом» for an 850 order: the customer reads two different totals."""
+    b = make("restaurant")
+    llm = FakeLLM([AgentReply("Оформила заказ. Сумма 700 сом.", order=_order(b))])
+    out = say(b, "2 плова на Киевскую 1", llm, "r2")
+    assert "700" not in out.reply.split("\n")[0], out.reply
+
+
+def test_order_total_with_comma_thousands_is_not_checked(engine):
+    """«итого 1,200 сом» for an 850 order."""
+    b = make("restaurant")
+    llm = FakeLLM([AgentReply("Оформила, итого 1,200 сом.", order=_order(b))])
+    out = say(b, "2 плова на Киевскую 1", llm, "r3")
+    assert "1,200" not in out.reply, out.reply
+
+
+from datetime import timedelta as _td
+from .test_stays import TODAY, hotel, say as stay_say  # noqa: E402
+
+
+def _family(rooms, d, guests=2):
+    return {"room_id": rooms["Семейный номер"].id, "check_in": d.isoformat(), "check_out": (d + _td(days=3)).isoformat(),
+            "guests": guests, "name": "Алмаз", "phone": "0555667788"}
+
+
+def test_stay_claim_with_a_wrong_total_reaches_the_customer(engine):
+    """Семейный номер: 6 000 за ночь × 3 = 18 000. The model's «итого 15 000 сом» is never checked for a stay."""
+    b, rooms = hotel()
+    d = TODAY + _td(days=10)
+    reply = f"Забронировала «Семейный номер» с {d:%d.%m} по {d + _td(days=3):%d.%m}, итого 15 000 сом."
+    out = stay_say(b.id, "Семейный, Алмаз 0555667788", FakeLLM([AgentReply(reply, stay=_family(rooms, d))]), "x1", chat="x1")
+    assert "15 000" not in out.reply, out.reply
+
+
+def test_stay_claim_with_the_wrong_year_reaches_the_customer(engine):
+    """Booked for a date ~200 days ahead; the model's sentence names the same day.month a year later."""
+    b, rooms = hotel()
+    booked = TODAY + _td(days=200)
+    wrong = booked.replace(year=booked.year + 1)
+    reply = f"Забронировала «Семейный номер» на {wrong:%d.%m.%Y}–{wrong + _td(days=3):%d.%m.%Y}."
+    out = stay_say(b.id, f"Семейный на {booked:%d.%m.%Y}, Алмаз 0555667788",
+                   FakeLLM([AgentReply(reply, stay=_family(rooms, booked))]), "x2", chat="x2")
+    assert out.stay_id
+    assert f"{wrong:%d.%m.%Y}" not in out.reply, out.reply
+
+
+def test_stay_claim_with_other_guests_than_booked(engine):
+    b, rooms = hotel()
+    d = TODAY + _td(days=10)
+    reply = f"Забронировала «Семейный номер» с {d:%d.%m} по {d + _td(days=3):%d.%m}, гостей: 4."
+    out = stay_say(b.id, "Семейный, Алмаз 0555667788", FakeLLM([AgentReply(reply, stay=_family(rooms, d, guests=2))]), "x3", chat="x3")
+    assert "гостей: 4" not in out.reply, out.reply
+
+
+def test_a_test_chat_stay_holds_the_room_but_the_app_hides_it(engine, settings, rt):
+    """The owner tries the AI in the panel's test chat and books the only cottage: the nights are really taken (as the
+    digest says, «a test booking holds a real date»), but «Брони» in the app does not list it, so staff on the phone
+    see the cottage as full with no booking to cancel."""
+    from fastapi.testclient import TestClient
+    from joop.agent.engine import handle_incoming
+    from joop.channels.base import IncomingMessage
+    from joop.models import Business
+    from joop.web.app import create_app
+    from joop import db
+    from .conftest import NOW_UTC
+    from .test_stays import stay
+
+    b, rooms = hotel()
+    cottage = rooms["Коттедж"].id
     with db.new_session() as s:
-        b = create_business(s, slug=slug, name=slug.title(), password="pass-12345", niche=niche, demo=True, now_utc=NOW_UTC)
-        b.example_ok = real
-        if token:
-            b.telegram_bot_token = "123:TEST"
+        out = handle_incoming(s, s.get(Business, b.id), IncomingMessage("console", "panel", "text", "Коттедж, Алмаз 0555667788",
+                              "", "t1"), lambda: FakeLLM([stay(cottage, days_from=5, nights=2, guests=2)]), NOW_UTC)
         s.commit()
-        return b
-
-
-def order_from(business_id, chat, channel="telegram", texts=("Платье M, Асель 0555 112 233",), mode="pickup"):
-    with db.new_session() as s:
-        dress = s.exec(select(Service).where(Service.business_id == business_id, Service.name == "Платье миди бежевое, размер M")).one()
-    reply = AgentReply("Оформила.", order={"lines": [{"item_id": dress.id, "quantity": 1, "note": ""}], "mode": mode,
-                                           "address": "Бишкек, Джал 23" if mode == "delivery" else "", "time": "",
-                                           "name": "Асель", "phone": "0555112233", "comment": ""})
-    llm = FakeLLM([AgentReply("Уточните контакты.")] * (len(texts) - 1) + [reply])
-    out = None
-    for i, text in enumerate(texts):
-        with db.new_session() as s:
-            out = handle_incoming(s, s.get(Business, business_id), IncomingMessage(channel, chat, "text", text, "", f"{chat}-{i}"),
-                                  lambda: llm, NOW_UTC)
-            s.commit()
-    assert out.order_id
-    return out.order_id
-
-
-def panel(c, slug):
-    token = csrf_of(c.get("/login").text)
-    c.post("/login", data={"slug": slug, "password": "pass-12345", "csrf": token})
-
-
-def move(c, order_id, status):
-    token = csrf_of(c.get("/panel/orders").text)
-    return c.post(f"/panel/orders/{order_id}/status", data={"status": status, "csrf": token})
-
-
-def test_notices_leave_out_hours_copied_from_the_example(engine):
-    """«Готов к выдаче» told customers the sign-up example's opening hours, which the AI itself no longer names."""
-    shop = make("shop", "shop", real=False)
-    with db.new_session() as s:
-        b = s.get(Business, shop.id)
-        b.address = "Бишкек, Киевская 10"
-        order = Order(business_id=b.id, mode="pickup", status="sent")
-        order.id = 7
-        assert order_status.notice_text(b, order, False) == "Ваш заказ №7 готов, можно забирать — Бишкек, Киевская 10."
-        b.hours_text = "11:00–20:00"  # the owner's own hours are facts again
-        assert order_status.notice_text(b, order, False).endswith("Бишкек, Киевская 10, 11:00–20:00.")
-    repair = make("repair", "repair", real=False)
-    with db.new_session() as s:
-        b = s.get(Business, repair.id)
-        assert "Пн" not in jobs.ready_text(b, Job(number="1", item="Пальто"), False)
-
-
-def test_a_stale_tab_cannot_move_an_order_back_or_revive_it(settings, rt, engine):
-    shop = make("shop", "shop2")
-    order_id = order_from(shop.id, "t1")
+    assert out.stay_id
+    d1, d2 = (TODAY + _td(days=5)).isoformat(), (TODAY + _td(days=7)).isoformat()
     with TestClient(create_app(settings, rt, init=False)) as c:
-        panel(c, "shop2")
-        move(c, order_id, "accepted")
-        move(c, order_id, "sent")
-        sent = len(rt.tg.sent)
-        r = move(c, order_id, "accepted")  # an old tab still showing «Принять»
-        assert "уже «Готов к выдаче»" in r.text and len(rt.tg.sent) == sent
-        move(c, order_id, "cancelled")
-        with db.new_session() as s:
-            stock_after_cancel = s.exec(select(Service).where(Service.business_id == shop.id, Service.name == "Платье миди бежевое, размер M")).one().stock
-        r = move(c, order_id, "sent")  # an old tab showing «Готов к выдаче» on a cancelled order
-        assert "уже «Отменён»" in r.text and len(rt.tg.sent) == sent
+        token = c.post("/api/mobile/login", json={"company": "hotel", "password": "hotel-pass", "user": ""}).json()["token"]
+        h = {"Authorization": f"Bearer {token}"}
+        free = {r["id"]: r["free"] for r in c.get(f"/api/mobile/stays/rooms?check_in={d1}&check_out={d2}", headers=h).json()["rooms"]}
+        listed = [x["id"] for x in c.get("/api/mobile/stays", headers=h).json()["stays"]]
+    assert free[cottage] == 0  # the test booking holds the cottage...
+    assert out.stay_id in listed  # ...so the app must show it (to cancel it)
+
+
+def test_a_wrong_hour_survives_the_kyrgyz_rewrite_and_the_booking_check(business):
+    """The booked slot is H:00; the model's draft says (H+1):00. In Russian the claim sentence is removed
+    (confirmations.with_booking); in a Kyrgyz chat same_numbers lets «саат {H+1}до» stand for «{H+1}:00» (#231), and
+    with_booking reads only «HH:MM» clock times, so the wrong hour reaches the customer next to the code's line."""
+    from sqlmodel import select
+    from joop import db
+    from joop.models import Slot
+    from .test_kyrgyz_and_cost import say as ky_say
+
     with db.new_session() as s:
-        assert s.get(Order, order_id).status == "cancelled"
-        assert s.exec(select(Service).where(Service.business_id == shop.id, Service.name == "Платье миди бежевое, размер M")).one().stock == stock_after_cancel
+        slot = s.exec(select(Slot).where(Slot.status == "free").order_by(Slot.start)).first()
+    wrong = slot.start.hour + 1
+    booking = {"slot_id": slot.id, "name": "Гүлнара", "phone": "0555321654", "service": "чистка", "preferred_time": ""}
+    llm = FakeLLM([AgentReply(f"Записала вас на {wrong}:00.", booking=booking)],
+                  rewrites=[f"Сизди саат {wrong}де жазып койдум. Рахмат!"])
+    out = ky_say(business, "Атым Гүлнара, 0555 321 654, эртең тиш тазалоо", llm, "kx1")
+    assert out.booking_id
+    assert f"саат {wrong}де" not in out.reply, out.reply
 
 
-def test_site_chat_customer_gets_the_notice_and_a_kyrgyz_chat_stays_kyrgyz(settings, rt, engine):
-    from joop.lang import chat_is_kyrgyz
+def test_a_hall_date_at_the_end_of_the_calendar_is_a_500(engine, settings, rt):
+    from fastapi.testclient import TestClient
+    from sqlmodel import select
+    from joop import db
+    from joop.models import Staff
+    from joop.presets import create_business
+    from joop.web.app import create_app
+    from .conftest import NOW_UTC
 
-    shop = make("shop", "shop3")
-    web_order = order_from(shop.id, "visitor-1", channel="web")
-    ky_order = order_from(shop.id, "t9", texts=("Саламатсызбы, беж көйнөктүн M өлчөмүн алайын", "Асель, 0555 112 233"))
-    with TestClient(create_app(settings, rt, init=False)) as c:
-        panel(c, "shop3")
-        r = move(c, web_order, "accepted")
-        assert "Клиенту отправлено сообщение." in r.text
-        move(c, ky_order, "accepted")
     with db.new_session() as s:
-        conv = s.get(Conversation, s.get(Order, web_order).conversation_id)
-        staff_msgs = s.exec(select(Message.text).where(Message.conversation_id == conv.id, Message.role == "staff")).all()
-    assert staff_msgs == [f"Ваш заказ №{web_order} подтверждён. Сумма: 3 400 сом."]  # the site chat polls «staff» messages
-    assert rt.tg.sent[-1] == ("t9", f"Сиздин №{ky_order} буйрутмаңыз ырасталды. Суммасы: 3 400 сом.")
-    assert chat_is_kyrgyz(["Асель, 0555 112 233", "беж көйнөктүн M өлчөмүн алайын"])
-    assert not chat_is_kyrgyz(["Асель, 0555 112 233", "Хочу платье M"])
-
-
-def test_restaurant_page_keeps_orders_and_table_codes(settings, rt, engine):
-    make("restaurant", "cafe", token=False)
-    with TestClient(create_app(settings, rt, init=False)) as c:
-        panel(c, "cafe")
-        page = c.get("/panel/menu").text
-    assert "Ваша публичная страница записи" in page and "кнопка заказа в мессенджер" in page
-    assert "Распечатайте QR-коды на столы, витрину или визитки." in page
-
-
-def test_follow_ups_use_the_niche_lead_time_and_skip_example_people(engine):
-    wash = make("carwash", "wash", real=False, token=False)
-    with db.new_session() as s:
-        b = s.get(Business, wash.id)
-        real = Staff(business_id=b.id, name="Бокс А", role="мойка")
-        s.add(real)
-        s.flush()
-        s.add(Slot(business_id=b.id, staff_id=real.id, start=NOW_LOCAL + timedelta(minutes=30), duration_min=60))
-        example_first = s.exec(select(Slot).join(Staff).where(Staff.business_id == b.id, Staff.name == "Бокс 1").order_by(Slot.start)).first()
-        conv = Conversation(business_id=b.id, channel="telegram", chat_id="w1", created_at=NOW_UTC)
-        s.add(conv)
+        b = create_business(s, slug="hall", name="Зал", password="hall-pass", niche="banquet", demo=True, now_utc=NOW_UTC)
+        b.example_ok = True
         s.commit()
-        text = follow_up_text(s, b, conv, NOW_LOCAL)
-    assert (NOW_LOCAL + timedelta(minutes=30)).strftime("%H:%M") in text
-    assert example_first.start.strftime("%d.%m %H:%M") not in text
-
-
-def test_leftover_words_follow_the_niche(settings, rt, engine):
-    make("furniture", "mebel")
-    make("renovation", "remont")
-    with db.new_session() as s:
-        job = s.exec(select(Job).join(Business).where(Business.slug == "mebel", Job.number == "20533")).one()
-        job.status = "issued"  # delivered: listed among the closed ones
-        s.add(job)
-        for row in s.exec(select(Staff).join(Business).where(Business.slug == "remont")).all():
-            row.active = False  # nobody left to book with
-            s.add(row)
-        s.commit()
-    with TestClient(create_app(settings, rt, init=False)) as c:
-        panel(c, "mebel")
-        assert "Доставленные и отменённые" in c.get("/panel/jobs").text
-        c.get("/logout")
-        panel(c, "remont")
-        assert "Сначала заполните раздел <a href=\"/panel/staff\">«Замерщики»</a>" in c.get("/panel/slots").text
+        hall = s.exec(select(Staff).where(Staff.business_id == b.id)).first().id
+    with TestClient(create_app(settings, rt, init=False), raise_server_exceptions=False) as c:
+        token = c.post("/api/mobile/login", json={"company": "hall", "password": "hall-pass", "user": ""}).json()["token"]
+        h = {"Authorization": f"Bearer {token}"}
+        rooms = c.get("/api/mobile/stays/rooms?check_in=9999-12-31", headers=h)
+        new = c.post("/api/mobile/stays", headers=h, json={"room_id": hall, "check_in": "9999-12-31", "name": "А", "phone": ""})
+    assert (rooms.status_code, new.status_code) == (400, 409)

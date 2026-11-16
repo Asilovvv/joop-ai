@@ -279,6 +279,7 @@ void dialogueTests() {
     expect(find.text('Семейный номер · гостей: 2'), findsOneWidget);
     expect(find.byKey(const Key('stay-chat-7')), findsOneWidget); // the AI booked it in a chat
     expect(find.byKey(const Key('stay-chat-8')), findsNothing);
+    expect(find.text('тест'), findsOneWidget); // a test chat's stay still holds the room: shown, marked
 
     await tester.tap(find.byKey(const Key('cancel-stay-7')));
     await tester.pumpAndSettle();

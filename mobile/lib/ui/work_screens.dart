@@ -353,6 +353,7 @@ class _StayCard extends StatelessWidget {
             if (kind == 'room') Text(s.stayNights(stay.nights), style: theme.textTheme.bodySmall),
             if (stay.cancelled) _Tag(s.stayCancelledTag, scheme.outline),
             if (stay.manual) _Tag(s.manualTag, scheme.outline),
+            if (stay.test) _Tag(s.testTag, scheme.tertiary),
           ],
         ),
         const SizedBox(height: 6),

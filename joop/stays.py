@@ -244,12 +244,12 @@ def book_by_staff(session: Session, business: Business, room_id: int, check_in: 
     """A guest who phoned or walked in, booked by staff from the app (source «staff»: not the AI's work).
     The same rules as the AI's booking: dates within a year, the room's capacity, a free room for every night."""
     hall = by_day(business)
+    if check_in < today or check_in > today + timedelta(days=MAX_AHEAD_DAYS):  # before any date arithmetic
+        return None, f"Бронируем с {_fmt(today)} и не дальше чем на год вперёд."
     if hall:
         check_out = check_in + timedelta(days=1)
     if check_out is None or check_out <= check_in:
         return None, "Дата выезда должна быть позже даты заезда."
-    if check_in < today or check_in > today + timedelta(days=MAX_AHEAD_DAYS):
-        return None, f"Бронируем с {_fmt(today)} и не дальше чем на год вперёд."
     if (check_out - check_in).days > MAX_NIGHTS:
         return None, words(business).too_long
     room = session.get(Staff, room_id)

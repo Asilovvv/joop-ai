@@ -104,6 +104,7 @@ class S {
     required this.stayBooked,
     required this.manualTag,
     required this.guestsLabel,
+    required this.testTag,
     required this.leadKinds,
     required this.orderStatuses,
     required this.orderActions,
@@ -328,6 +329,7 @@ class S {
   final String Function(String who, String dates) stayBooked;
   final String manualTag;
   final String guestsLabel;
+  final String testTag;
   final Map<String, String> leadKinds;
 
   /// joop/order_status.py's STATUSES; 'sent_pickup' is sent_label() for pickup.
@@ -560,6 +562,7 @@ class S {
     stayBooked: _ruStayBooked,
     manualTag: 'вручную',
     guestsLabel: 'Гостей',
+    testTag: 'тест',
     leadKinds: {
       'request': 'Запись без окна',
       'lead': 'Заявка',
@@ -789,6 +792,7 @@ class S {
     stayBooked: _kyStayBooked,
     manualTag: 'кол менен',
     guestsLabel: 'Конок саны',
+    testTag: 'тест',
     leadKinds: {
       'request': 'Бош убакытсыз жазылуу',
       'lead': 'Өтүнмө',
