@@ -375,3 +375,30 @@ def test_mcp_lets_another_assistant_read_prices_and_book(business, settings, rt)
         assert rpc(c, "nope").json()["error"]["code"] == -32601
         assert c.get("/mcp").status_code == 405
     assert rt.tg.sent[-1][1].startswith("Новая запись через API: Айбек")
+
+
+def test_mcp_edge_cases_from_the_review(business, settings, rt):
+    from joop import mcp
+    from joop.models import Slot
+
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        key = api.new_key(b)
+        b.api_booking = True
+        s.add(b)
+        s.commit()
+        # one far day is answered directly, not cut off by the fortnight's row limit
+        far = s.exec(select(Slot).where(Slot.business_id == b.id, Slot.status == "free").order_by(Slot.start.desc())).first()
+        assert far.id in [x["id"] for x in api.free_slots(s, b, far.start.date(), LOCAL)]
+        notes: list[str] = []
+        for bad in ("20261120", "2026-W47-1", "2030-01-01"):
+            res = mcp.call(s, b, "free_slots", {"date": bad}, LOCAL, NOW_UTC, notes)
+            assert res["isError"], bad
+        assert mcp.handle(s, b, {"jsonrpc": "2.0", "id": 3, "result": {}}, LOCAL, NOW_UTC, notes) is None  # a client's response
+        init = mcp.handle(s, b, {"jsonrpc": "2.0", "id": 0, "method": "initialize", "params": {"protocolVersion": "2024-11-05"}},
+                          LOCAL, NOW_UTC, notes)
+        assert init["id"] == 0 and init["result"]["protocolVersion"] == "2025-11-25"  # no batches: not the old versions
+    auth = {"Authorization": f"Bearer {key}"}
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        bad = c.post("/mcp", headers=auth, json={"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": ["x"]}})
+        assert bad.status_code == 200 and bad.json()["error"]["code"] == -32602

@@ -163,6 +163,7 @@ def rows(session: Session, business: Business, what: str, since: str = "", after
 # --- booking through the API ------------------------------------------------------------------------------
 
 SLOT_DAYS = 14  # how far ahead GET /api/v1/slots looks when no date is given
+DAY_AHEAD = 60  # the furthest single day it answers for
 
 
 def _unbookable_staff(session: Session, business: Business) -> set[int]:
@@ -176,11 +177,16 @@ def free_slots(session: Session, business: Business, day: date | None, now_local
     (the AI's own rule: a dental time starting in two minutes is not offered)."""
     if business.altegio_location_id:
         return []
-    rows = slots.free_slots(session, business.id, now_local, days=SLOT_DAYS, limit=1000,
-                            exclude_staff=frozenset(_unbookable_staff(session, business)), lead_minutes=slots.lead_for(business))
+    days = SLOT_DAYS
+    if day is not None:  # that day only: asked directly, so a busy fortnight cannot push it past the row limit
+        days = (day - now_local.date()).days + 1
+        if days < 1:
+            return []
+    rows = slots.free_slots(session, business.id, now_local, days=days, limit=2000,
+                            exclude_staff=frozenset(_unbookable_staff(session, business)), lead_minutes=slots.lead_for(business),
+                            on_day=day)
     return [{"id": slot.id, "start_local": _iso(slot.start, utc=False), "staff": member.name, "staff_id": member.id,
-             "role": member.role, "capacity": member.capacity or None}
-            for slot, member in rows if day is None or slot.start.date() == day]
+             "role": member.role, "capacity": member.capacity or None} for slot, member in rows]
 
 
 def booking_note(x: Booking) -> str:
