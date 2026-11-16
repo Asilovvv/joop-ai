@@ -13,7 +13,7 @@ requests and CI runs document its progress.
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
 | Channels | Telegram (a bot, or the owner's personal account through Telegram Business), WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
 | Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 51 database migrations, 35 niche packs and a generic one |
-| Tests | 830 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
+| Tests | 831 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
 | Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
 | History | 67 merged pull requests; changes go through pull requests checked by CI |
 
@@ -309,6 +309,9 @@ WhatsApp message fees for reminders.
   enough for `party_size`, claimed atomically, a valid phone, an active subscription. Businesses on Altegio
   are refused. No prepayment is asked (Joop has no chat with that customer). Staff get «Новая запись через
   API», and the webhook announces it.
+- **MCP for other AI assistants** (`joop/mcp.py`): `POST /mcp` with the same API key speaks MCP (Streamable
+  HTTP, JSON replies). Tools: `business_info` (name, address, hours, price list without the example or the
+  stop list), `free_slots` and `book` (only when booking through the API is on, by the same rules).
 - **Missed calls** ("Каналы" → "Пропущенные звонки", `joop/missed_calls.py`): the owner's Android phone
   (MacroDroid: trigger "Call Missed", action "HTTP Request") or a virtual PBX posts each missed call to
   `/webhooks/missed-call/<slug>` with the secret in the `X-Joop-Token` header. Joop writes to the caller in
@@ -479,7 +482,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 830 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 831 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

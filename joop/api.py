@@ -36,6 +36,7 @@ from sqlmodel import Session, select
 
 from .models import Booking, Business, Lead, Order, OrderLine, Slot, Staff, WebhookDelivery
 from .phone import normalize_phone
+from .timeutil import fmt_slot
 from .samples import example_staff_ids
 from . import slots
 from .billing import access_ok
@@ -180,6 +181,12 @@ def free_slots(session: Session, business: Business, day: date | None, now_local
     return [{"id": slot.id, "start_local": _iso(slot.start, utc=False), "staff": member.name, "staff_id": member.id,
              "role": member.role, "capacity": member.capacity or None}
             for slot, member in rows if day is None or slot.start.date() == day]
+
+
+def booking_note(x: Booking) -> str:
+    """For the staff's alerts chat."""
+    return (f"Новая запись через API: {x.customer_name}, {x.customer_phone}" + (f", {x.service}" if x.service else "")
+            + f" — {fmt_slot(x.start)}, {x.staff_name}.")
 
 
 @dataclass
