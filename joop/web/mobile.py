@@ -1027,6 +1027,8 @@ def mobile_place(slug: str):
                                       .order_by(Service.sort, Service.id)).all()
                     if x.id not in hidden.services and not x.sold_out]
         pack = get_pack(b.niche)
-        return {"slug": b.slug, "name": b.name, "niche": b.niche, "description": b.description, "address": b.address,
-                "phone": b.phone, "hours": "" if hidden.hours else b.hours_text, "booking": pack.has("booking"),
+        shown = {f: "" if f in hidden.contacts else getattr(b, f) for f in samples.CONTACTS}
+        return {"slug": b.slug, "name": b.name, "niche": b.niche, "description": shown["description"],
+                "address": shown["address"], "phone": shown["phone"], "hours": "" if hidden.hours else b.hours_text,
+                "booking": pack.has("booking"),
                 "services": [{"id": x.id, "name": x.name, "price": x.price, "category": x.category} for x in services]}

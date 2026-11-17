@@ -94,7 +94,7 @@ def where_to_collect(business: Business) -> str:
     from . import samples
 
     hours = "" if samples.hours_are_example(business) else business.hours_text
-    return ", ".join(x for x in (business.address, hours) if x)
+    return ", ".join(x for x in (samples.customer_contact(business, "address"), hours) if x)
 
 
 def notice_text(business: Business, order: Order, kyrgyz: bool) -> str | None:

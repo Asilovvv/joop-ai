@@ -60,6 +60,7 @@ def build_system_prompt(
     catalog_hint: str = "",
     extra_facts: str = "",
     hide_hours: bool = False,  # the hours are still the sign-up example's: not for real customers (samples.Hidden)
+    hide_contacts: frozenset[str] = frozenset(),  # description / address / phone still the example's (samples.Hidden)
     own_bookings: Sequence[Booking] = (),  # this chat's upcoming bookings the AI may cancel or move (joop/selfservice.py)
 ) -> str:
     pack = get_pack(business.niche)
@@ -75,11 +76,13 @@ def build_system_prompt(
         "",
         "Данные компании (отвечай только по ним):",
     ]
-    if business.description.strip():
+    if business.description.strip() and "description" not in hide_contacts:
         out.append(f"- О компании: {business.description.strip()}")
+    address = "" if "address" in hide_contacts else business.address
+    phone = "" if "phone" in hide_contacts else business.phone
     out += [
-        f"- Адрес: {business.address or 'уточняет администратор'}",
-        f"- Телефон: {business.phone or 'уточняет администратор'}",
+        f"- Адрес: {address or 'уточняет администратор'}",
+        f"- Телефон: {phone or 'уточняет администратор'}",
         f"- Часы работы: {'уточняет администратор' if hide_hours else business.hours_text or f'{business.work_start}–{business.work_end}'}",
         "",
         f"{pack.catalog_label} (цены в сомах):",

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from sqlmodel import Session, select
 
+from . import samples
 from .models import Business, Conversation, QuickReply
 
 MAX_REPLIES = 50
@@ -32,7 +33,8 @@ def fill(text: str, business: Business, conv: Conversation | None = None) -> str
     # a website chat's display name is the widget's «Посетитель сайта» label, never a person's name
     shown = conv.display_name if conv and conv.channel != "web" else ""
     name = (conv.customer_name or shown).strip() if conv else ""
-    values = {"{имя}": name, "{компания}": business.name, "{адрес}": business.address, "{телефон}": business.phone}
+    values = {"{имя}": name, "{компания}": business.name, "{адрес}": samples.customer_contact(business, "address"),
+              "{телефон}": samples.customer_contact(business, "phone")}  # never the sign-up example's
     out = text
     for key, value in values.items():
         if value:

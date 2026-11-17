@@ -128,6 +128,26 @@ def hours_are_example(business: Business) -> bool:
     return bool(hours) and _t(business.hours_text) == hours
 
 
+CONTACTS = ("description", "address", "phone")
+
+
+def example_contacts(business: Business) -> frozenset[str]:
+    """Which of the description, address and phone are still the sign-up example's («проспект Чуй 150 (демо-адрес)»,
+    «+996 555 000 002»): a real customer must never be sent to a fictional address or number."""
+    if business.example_ok:
+        return frozenset()
+    try:
+        demo = load_profile(get_pack(_niche(business)).demo_file)
+    except (ProfileError, OSError, KeyError):
+        return frozenset()
+    return frozenset(f for f in CONTACTS if _t(getattr(business, f)) and _t(getattr(business, f)) == _t(demo.get(f)))
+
+
+def customer_contact(business: Business, field: str) -> str:
+    """The business's description, address or phone as a customer may read it: "" while it is the example's."""
+    return "" if field in example_contacts(business) else getattr(business, field)
+
+
 def _rows(session: Session, business: Business) -> tuple[list[Service], list[Staff], list[Faq]]:
     """The business's rows that are still exactly the example (none once the owner confirmed them)."""
     if business.example_ok:
@@ -167,9 +187,10 @@ class Hidden:
     tests: frozenset[int] = frozenset()
     jobs: frozenset[int] = frozenset()
     hours: bool = False  # the opening hours are still the example's (hours_are_example)
+    contacts: frozenset[str] = frozenset()  # description / address / phone still the example's (example_contacts)
 
     def __bool__(self) -> bool:
-        return bool(self.services or self.staff or self.faq or self.tests or self.jobs or self.hours)
+        return bool(self.services or self.staff or self.faq or self.tests or self.jobs or self.hours or self.contacts)
 
 
 def hidden_from_customers(session: Session, business: Business, channel: str) -> Hidden:
@@ -179,7 +200,7 @@ def hidden_from_customers(session: Session, business: Business, channel: str) ->
     services, staff, faq = _rows(session, business)
     return Hidden(frozenset(r.id for r in services), frozenset(r.id for r in staff), frozenset(r.id for r in faq),
                   frozenset(x.id for x in _tests(session, business)), frozenset(j.id for j in _jobs(session, business)),
-                  hours_are_example(business))
+                  hours_are_example(business), example_contacts(business))
 
 
 def warning(found: Left) -> str:

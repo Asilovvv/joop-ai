@@ -66,7 +66,8 @@ def business_info(session: Session, business: Business) -> dict:
     hidden = hidden_from_customers(session, business, "mcp")
     services = session.exec(select(Service).where(Service.business_id == business.id, Service.available == True)  # noqa: E712
                             .order_by(Service.sort, Service.id)).all()
-    return {"name": business.name, "address": business.address, "phone": business.phone,
+    shown = {f: "" if f in hidden.contacts else getattr(business, f) for f in ("address", "phone")}
+    return {"name": business.name, "address": shown["address"], "phone": shown["phone"],
             "hours": "" if hidden.hours else (business.hours_text or f"{business.work_start}–{business.work_end}"),
             "timezone": business.timezone,
             "services": [{"name": s.name, "price": s.price, "note": s.note} for s in services if s.id not in hidden.services]}
