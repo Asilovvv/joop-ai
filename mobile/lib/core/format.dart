@@ -25,15 +25,20 @@ String channelName(String channel) => switch (channel) {
 /// "1 запись", "2 записи", "5 записей"; "5 жазылуу".
 String bookingsWord(int n) => S.current.bookingsCount(n);
 
-/// A price as the business wrote it, with the currency where a person would say it: right after the (last) number.
-/// "500" -> "500 сом", "от 3 500" -> "от 3 500 сом", "3 500 за ночь" -> "3 500 сом за ночь", "0" -> "бесплатно"; a price that already names
-/// the currency, or has no number («по договорённости»), stays as written.
+/// A price as the business wrote it, with the currency where a person would say it: right after the price itself — the
+/// first number, or a range of them. "500" -> "500 сом", "от 3 500" -> "от 3 500 сом", "3 500 за ночь" ->
+/// "3 500 сом за ночь", "800 за 60 минут" -> "800 сом за 60 минут", "200–300" -> "200–300 сом", "0" -> "бесплатно".
+/// A price that already names the currency (сом, KGS, с.), or has no number («по договорённости»), stays as written.
 String priceWithSom(String price) {
   final som = S.current.som;
-  if (RegExp(r'^0+$').hasMatch(price.trim())) return S.current.free; // «0 сом» reads like a mistake
-  if (price.isEmpty || !RegExp(r'\d').hasMatch(price) || price.contains('сом') || price.contains(som)) return price;
-  final last = RegExp(r'\d(?:[\d\u00a0 .,]*\d)?').allMatches(price).last;
-  return '${price.substring(0, last.end)} $som${price.substring(last.end)}';
+  if (RegExp(r'^0+\s*(сом|kgs|с\.?)?$', caseSensitive: false).hasMatch(price.trim())) {
+    return S.current.free; // «0 сом» reads like a mistake
+  }
+  final named = RegExp(r'сом|kgs|\d\s*с\.|' + RegExp.escape(som), caseSensitive: false).hasMatch(price);
+  if (price.isEmpty || !RegExp(r'\d').hasMatch(price) || named) return price;
+  const number = r'\d(?:[\d\u00a0 ]*\d)?(?:[.,]\d+)?';
+  final first = RegExp('$number(?:\\s*[–—-]\\s*$number)?').firstMatch(price)!;
+  return '${price.substring(0, first.end)} $som${price.substring(first.end)}';
 }
 
 /// 1200 -> "1 200 сом".
