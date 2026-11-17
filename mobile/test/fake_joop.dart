@@ -107,7 +107,7 @@ class FakeJoop {
 
   final services = <Map<String, dynamic>>[
     {'id': 1, 'name': 'Консультация', 'price': '500', 'category': 'Терапия', 'available': true},
-    {'id': 2, 'name': 'Отбеливание', 'price': 'от 8 000', 'category': '', 'available': false},
+    {'id': 2, 'name': 'Отбеливание', 'price': 'от 8 000', 'category': '', 'available': false, 'example': true},
     {'id': 3, 'name': 'Зубная щётка', 'price': '300', 'category': '', 'available': false, 'sold_out': true},
   ];
 

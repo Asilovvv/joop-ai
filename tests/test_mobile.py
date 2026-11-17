@@ -914,3 +914,27 @@ def test_a_guest_who_phoned_is_booked_from_the_app_with_the_ai_s_rules(client, e
     assert client.post("/api/mobile/stays", headers=auth(token), json=backwards).status_code == 409
     assert client.post("/api/mobile/stays", headers=auth(token), json=dict(body, name=" ")).status_code == 422
     assert client.get("/api/mobile/stays/rooms?check_in=x", headers=auth(token)).status_code == 400
+
+
+def test_the_price_list_marks_rows_still_from_the_sign_up_example(client, engine):
+    """A fresh business sees which prices the AI does not name to real customers yet (joop/samples.py)."""
+    from joop.presets import create_business
+
+    from .conftest import NOW_UTC
+
+    with db.new_session() as s:
+        create_business(s, slug="fresh", name="Свежая", password="fresh-pass", niche="repair", demo=True, now_utc=NOW_UTC)
+        s.commit()
+    token = sign_in(client, "fresh", "fresh-pass").json()["token"]
+    rows = client.get("/api/mobile/services", headers=auth(token)).json()["services"]
+    assert rows and all(r["example"] for r in rows)
+    first = rows[0]
+    with db.new_session() as s:
+        row = s.get(Service, first["id"])
+        row.price = "750"  # the owner's own price
+        s.add(row)
+        s.commit()
+    again = {r["id"]: r for r in client.get("/api/mobile/services", headers=auth(token)).json()["services"]}
+    assert not again[first["id"]]["example"]
+    switched = client.post(f"/api/mobile/services/{rows[1]['id']}/available", headers=auth(token), json={"available": False})
+    assert switched.json()["service"]["example"] is True

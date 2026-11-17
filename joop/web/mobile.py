@@ -633,15 +633,23 @@ def mobile_services(request: Request):
         if who is None:
             return _fail(401, "Войдите заново.")
         rows = s.exec(select(Service).where(Service.business_id == who.business.id).order_by(Service.sort, Service.id)).all()
-        return {"services": [_service(who.business, x) for x in rows]}
+        example = _example_services(s, who.business)
+        return {"services": [_service(who.business, x, example) for x in rows]}
 
 
-def _service(b: Business, x: Service) -> dict:
+def _example_services(s: Session, b: Business) -> frozenset[int]:
+    """Price rows still the sign-up example: the AI does not name them to real customers (joop/samples.py)."""
+    from .. import samples
+
+    return samples.hidden_from_customers(s, b, "web").services
+
+
+def _service(b: Business, x: Service, example: frozenset[int] = frozenset()) -> dict:
     """`available`: the AI offers it. `sold_out`: the stock reached zero (joop/stock.py). `from_altegio`: the salon's
-    Altegio price list sets it on every sync, so a stop here would not last."""
+    Altegio price list sets it on every sync, so a stop here would not last. `example`: still the sign-up example's."""
     return {"id": x.id, "name": x.name, "name_ky": x.name_ky, "price": x.price, "price_value": x.price_value,
             "category": x.category, "available": x.available and not x.sold_out, "sold_out": x.sold_out,
-            "from_altegio": bool(b.altegio_location_id)}
+            "from_altegio": bool(b.altegio_location_id), "example": x.id in example}
 
 
 class AvailableIn(BaseModel):
@@ -667,7 +675,7 @@ def mobile_stop_list(request: Request, item_id: int, body: AvailableIn):
         s.add(row)
         s.commit()
         s.refresh(row)
-        return {"service": _service(who.business, row)}
+        return {"service": _service(who.business, row, _example_services(s, who.business))}
 
 
 # --- orders and requests ---------------------------------------------------------------------------

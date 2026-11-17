@@ -27,6 +27,7 @@ void main() {
     expect(server.services.first['available'], isFalse);
     expect(find.text('500 сом · Стоп-лист: ИИ не предлагает'), findsOneWidget);
 
+    expect(find.textContaining('от 8 000 сом · из примера — клиентам не называется'), findsOneWidget);
     await tester.tap(find.byKey(const Key('available-2')));
     await tester.pumpAndSettle();
     expect(server.services[1]['available'], isTrue);

@@ -216,6 +216,7 @@ class Service extends Equatable {
     required this.available,
     this.soldOut = false,
     this.fromAltegio = false,
+    this.example = false,
   });
 
   factory Service.fromJson(Map<String, dynamic> json) => Service(
@@ -226,6 +227,7 @@ class Service extends Equatable {
         available: (json['available'] as bool?) ?? true,
         soldOut: (json['sold_out'] as bool?) ?? false,
         fromAltegio: (json['from_altegio'] as bool?) ?? false,
+        example: (json['example'] as bool?) ?? false,
       );
 
   final int id;
@@ -242,11 +244,14 @@ class Service extends Equatable {
   /// The salon's Altegio price list sets it, so it is switched there.
   final bool fromAltegio;
 
+  /// Still the sign-up example: the AI does not name it to real customers until the owner changes it in the panel.
+  final bool example;
+
   /// The owner can put it on the stop list or back from the app.
   bool get switchable => !fromAltegio && !soldOut;
 
   @override
-  List<Object?> get props => [id, name, price, category, available, soldOut, fromAltegio];
+  List<Object?> get props => [id, name, price, category, available, soldOut, fromAltegio, example];
 }
 
 /// A business's public card, for customers.
