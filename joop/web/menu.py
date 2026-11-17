@@ -46,15 +46,21 @@ def qr_svg(url: str, scale: int = 5, sized: bool = False) -> str:
     return buf.getvalue().decode()
 
 
+_NUMBER = r"\d(?:[\d\u00a0\u202f ]*\d)?"
+PRICE_NUMBER = re.compile(rf"{_NUMBER}(?:\s*[–—-]\s*{_NUMBER})?")
+
+
 def price_label(price: str, lang: str) -> str:
     price = (price or "").strip()
     if not price:
         return ""
     if price == "0":
         return TEXT[lang]["free"]
-    if re.search(r"\d", price) and "сом" not in price.lower():
-        return f"{price} {TEXT[lang]['som']}"
-    return price
+    if "сом" in price.lower():
+        return price
+    # «сом» right after the price itself (a range counts as one), not after the unit: «3 500 сом за ночь»,
+    # «800 сом за 60 минут», «1 500–2 000 сом»
+    return PRICE_NUMBER.sub(lambda m: f"{m.group(0)} {TEXT[lang]['som']}", price, count=1)
 
 
 def order_link(business: Business, lang: str, table: int | None) -> tuple[str, str]:
@@ -147,6 +153,7 @@ def public_menu(request: Request, slug: str, t: int = 0, lang: str = "ru"):
         "resources": pack.resource_label if lang == "ru" else TEXT[lang]["masters"], **extras,
         # the sign-up example's address and phone are fictional: not shown to customers (joop/samples.py)
         "address": samples.customer_contact(b, "address"), "phone": samples.customer_contact(b, "phone"),
+        "hours": samples.customer_hours(b),
     })
 
 

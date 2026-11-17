@@ -64,7 +64,7 @@ h2 { font-size: 20px; margin: 26px 0 10px; }
   {% endif %}
   <div class="info muted">
     {% if address %}<p>{{ tx.address }}: {{ address }}</p>{% endif %}
-    {% if b.hours_text %}<p>{{ tx.hours }}: {{ b.hours_text }}</p>{% endif %}
+    {% if hours %}<p>{{ tx.hours }}: {{ hours }}</p>{% endif %}
     {% if phone %}<p>{{ tx.phone }}: <a href="tel:{{ phone|replace(' ', '') }}" style="color: inherit">{{ phone }}</a></p>{% endif %}
   </div>
 </main>
