@@ -26,10 +26,11 @@ String channelName(String channel) => switch (channel) {
 String bookingsWord(int n) => S.current.bookingsCount(n);
 
 /// A price as the business wrote it, with the currency where a person would say it: right after the (last) number.
-/// "500" -> "500 сом", "от 3 500" -> "от 3 500 сом", "3 500 за ночь" -> "3 500 сом за ночь"; a price that already names
+/// "500" -> "500 сом", "от 3 500" -> "от 3 500 сом", "3 500 за ночь" -> "3 500 сом за ночь", "0" -> "бесплатно"; a price that already names
 /// the currency, or has no number («по договорённости»), stays as written.
 String priceWithSom(String price) {
   final som = S.current.som;
+  if (RegExp(r'^0+$').hasMatch(price.trim())) return S.current.free; // «0 сом» reads like a mistake
   if (price.isEmpty || !RegExp(r'\d').hasMatch(price) || price.contains('сом') || price.contains(som)) return price;
   final last = RegExp(r'\d(?:[\d\u00a0 .,]*\d)?').allMatches(price).last;
   return '${price.substring(0, last.end)} $som${price.substring(last.end)}';

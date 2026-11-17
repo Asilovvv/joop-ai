@@ -105,6 +105,8 @@ class S {
     required this.manualTag,
     required this.guestsLabel,
     required this.testTag,
+    required this.free,
+    required this.exampleRow,
     required this.leadKinds,
     required this.orderStatuses,
     required this.orderActions,
@@ -330,6 +332,12 @@ class S {
   final String manualTag;
   final String guestsLabel;
   final String testTag;
+
+  /// A price of 0: «бесплатно», not «0 сом».
+  final String free;
+
+  /// A price row still the sign-up example's: not named to real customers until changed in the panel.
+  final String exampleRow;
   final Map<String, String> leadKinds;
 
   /// joop/order_status.py's STATUSES; 'sent_pickup' is sent_label() for pickup.
@@ -563,6 +571,8 @@ class S {
     manualTag: 'вручную',
     guestsLabel: 'Гостей',
     testTag: 'тест',
+    free: 'бесплатно',
+    exampleRow: 'из примера — клиентам не называется',
     leadKinds: {
       'request': 'Запись без окна',
       'lead': 'Заявка',
@@ -793,6 +803,8 @@ class S {
     manualTag: 'кол менен',
     guestsLabel: 'Конок саны',
     testTag: 'тест',
+    free: 'акысыз',
+    exampleRow: 'мисалдан — кардарларга айтылбайт',
     leadKinds: {
       'request': 'Бош убакытсыз жазылуу',
       'lead': 'Өтүнмө',

@@ -68,6 +68,7 @@ class ServicesScreen extends StatelessWidget {
                     subtitle: Text(
                       [
                         if (s.price.isNotEmpty) priceWithSom(s.price),
+                        if (s.example) S.current.exampleRow,
                         if (!s.available) s.soldOut ? S.current.soldOutStock : (editable ? S.current.stopListed : S.current.soldOut)
                         else if (s.category.isNotEmpty) s.category,
                       ].join(' · '),

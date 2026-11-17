@@ -51,7 +51,7 @@ void main() {
     await tester.tap(find.text('Прайс').last);
     await tester.pumpAndSettle();
     expect(find.text('Консультация'), findsOneWidget);
-    expect(find.text('от 8 000 сом · Стоп-лист: ИИ не предлагает'), findsOneWidget);
+    expect(find.text('от 8 000 сом · из примера — клиентам не называется · Стоп-лист: ИИ не предлагает'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('app-menu')));
     await tester.pumpAndSettle();

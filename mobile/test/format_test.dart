@@ -13,5 +13,6 @@ void main() {
     expect(priceWithSom('250 сом/кг'), '250 сом/кг'); // already named
     expect(priceWithSom('по договорённости'), 'по договорённости');
     expect(priceWithSom(''), '');
+    expect(priceWithSom('0'), 'бесплатно'); // was «0 сом»
   });
 }
