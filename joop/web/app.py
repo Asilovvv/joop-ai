@@ -110,6 +110,20 @@ def nav_groups(items: list[tuple[str, str, str]]) -> list[tuple[str, list[tuple[
 TIMEZONES = ["Asia/Bishkek", "Asia/Almaty", "Asia/Tashkent", "Asia/Dushanbe", "Europe/Moscow"]
 CHANNEL_NAMES = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram", "web": "Чат на сайте", "console": "Тест"}
 
+
+def booking_origin(b: Booking) -> str:
+    """Where a booking came from: a partner's system or another assistant (joop/api.py, joop/mcp.py), the chat channel,
+    or a person in the panel or the app (no channel)."""
+    if b.source == "api":
+        return "через API"
+    if not b.channel:
+        return "вручную"
+    name = CHANNEL_NAMES.get(b.channel, b.channel)
+    return name if b.source == "ai" else f"{name}, записал человек"
+
+
+templates.env.filters["origin"] = booking_origin
+
 router = APIRouter()
 
 

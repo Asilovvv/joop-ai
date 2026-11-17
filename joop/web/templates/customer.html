@@ -28,7 +28,7 @@
     {% for b in c.bookings %}
     <div class="item"><div class="main">{{ b.start.strftime('%d.%m.%Y %H:%M') }} — {{ b.service or 'визит' }}{% if b.staff_name %} у {{ b.staff_name }}{% endif %}
       {% if b.status == 'cancelled' %}<span class="chip warn">отменено</span>{% endif %}{% if b.rating %} · оценка {{ b.rating }}{% endif %}
-      <span class="muted small"> · {{ channel_names.get(b.channel, b.channel) }}{% if b.source != 'ai' %}, записал человек{% endif %}</span></div></div>
+      <span class="muted small"> · {{ b|origin }}</span></div></div>
     {% endfor %}
     {% for o in c.orders %}
     <div class="item"><div class="main">{{ o.created_at | local(business.timezone) }} — заказ{% if o.total %} на {{ o.total }} сом{% endif %} <span class="muted small">· {{ o.status }}</span></div></div>
