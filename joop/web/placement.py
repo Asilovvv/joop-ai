@@ -206,7 +206,8 @@ def attempt_page(request: Request, token: str):
     with new_session() as s:
         a, t, b = _attempt(s, token)
         if a.status == "finished":
-            return _page(request, "test_result.html", a=a, t=t, b=b, sections=placement.sections(a), wa=phone_digits(b.phone))
+            return _page(request, "test_result.html", a=a, t=t, b=b, sections=placement.sections(a),
+                         phone=samples.customer_contact(b, "phone"), wa=phone_digits(samples.customer_contact(b, "phone")))
         questions = placement.questions_of(s, t.id)
         if a.status == "invited":
             if not t.active or not questions:

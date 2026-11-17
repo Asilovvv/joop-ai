@@ -1501,8 +1501,9 @@ def counter_card(request: Request, via: str = ""):
     if b.telegram_bot_token and b.telegram_bot_username:  # only where Joop actually answers
         options["telegram"] = (f"https://t.me/{b.telegram_bot_username}", "Telegram")
     whatsapp_on = bool(b.wa_phone_number_id and b.wa_access_token)
-    if whatsapp_on and phone_digits(b.phone):
-        options["whatsapp"] = (f"https://wa.me/{phone_digits(b.phone)}", "WhatsApp")
+    phone = phone_digits(samples.customer_contact(b, "phone"))  # the link goes to customers: never the example's number
+    if whatsapp_on and phone:
+        options["whatsapp"] = (f"https://wa.me/{phone}", "WhatsApp")
     notes = {"telegram": "Telegram-бот ещё не подключён — подключите его в «Каналах», и ссылка появится.",
              "whatsapp": ("Укажите телефон для клиентов в «Настройках» — тот, что подключён к WhatsApp: на него поведёт ссылка."
                           if whatsapp_on else "WhatsApp ещё не подключён — подключите его в «Каналах», и ссылка появится.")}

@@ -180,7 +180,7 @@ def free_slots(session: Session, business: Business, day: date | None, now_local
     days = SLOT_DAYS
     if day is not None:  # that day only: asked directly, so a busy fortnight cannot push it past the row limit
         days = (day - now_local.date()).days + 1
-        if days < 1:
+        if not 1 <= days <= DAY_AHEAD + 1:  # past, or beyond what anyone books ahead (and beyond date arithmetic)
             return []
     rows = slots.free_slots(session, business.id, now_local, days=days, limit=2000,
                             exclude_staff=frozenset(_unbookable_staff(session, business)), lead_minutes=slots.lead_for(business),

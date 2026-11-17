@@ -148,6 +148,11 @@ def customer_contact(business: Business, field: str) -> str:
     return "" if field in example_contacts(business) else getattr(business, field)
 
 
+def customer_hours(business: Business) -> str:
+    """The opening hours as a customer may read them: "" while they are the example's."""
+    return "" if hours_are_example(business) else business.hours_text
+
+
 def _rows(session: Session, business: Business) -> tuple[list[Service], list[Staff], list[Faq]]:
     """The business's rows that are still exactly the example (none once the owner confirmed them)."""
     if business.example_ok:
