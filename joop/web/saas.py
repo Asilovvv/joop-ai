@@ -178,6 +178,9 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     missing = [w for w, v in (("адрес", b.address), ("телефон", b.phone), ("часы работы", b.hours_text)) if not v]
     if samples.hours_are_example(b):  # copied from the example at sign-up: confirm or change
         missing.append(f"часы работы (сейчас из примера: {b.hours_text})")
+    example_contacts = samples.example_contacts(b)  # hidden from customers until the owner writes their own
+    missing += [f"{word} (сейчас из примера: {getattr(b, field)})"
+                for field, word in (("address", "адрес"), ("phone", "телефон")) if field in example_contacts]
     bot = f"https://t.me/{b.telegram_bot_username}" if b.telegram_bot_token and b.telegram_bot_username else ""
     people = _people_steps(s, b, pack, now)
     return [

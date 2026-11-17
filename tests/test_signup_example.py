@@ -23,3 +23,20 @@ def test_signup_leaves_the_examples_terms_out_and_flags_its_hours(app_client):
         b.hours_text = b.hours_text + ", без выходных"  # the owner changed them
         b.address = "Бишкек, ул. Токтогула 1"
         assert next(i for i in checklist(s, b, NOW_UTC) if i["key"] == "contacts")["done"]
+
+
+def test_a_prospect_demo_is_asked_for_its_own_address_and_phone(engine):
+    """A demo the founder creates for a prospect keeps the example's fictional address and phone: hidden from real
+    customers (samples.example_contacts), so the checklist must not call the contacts done."""
+    from joop.presets import create_business
+
+    with db.new_session() as s:
+        b = create_business(s, slug="prospect", name="Береке", password="prospect-pass", niche="restaurant", demo=True,
+                            now_utc=NOW_UTC)
+        b.hours_text = "Ежедневно 09:00–21:00"  # the owner's own hours
+        contacts = next(i for i in checklist(s, b, NOW_UTC) if i["key"] == "contacts")
+        assert not contacts["done"]
+        assert f"адрес (сейчас из примера: {b.address})" in contacts["hint"]
+        assert f"телефон (сейчас из примера: {b.phone})" in contacts["hint"]
+        b.address, b.phone = "Бишкек, Токтогула 1", "+996 700 123 456"
+        assert next(i for i in checklist(s, b, NOW_UTC) if i["key"] == "contacts")["done"]
