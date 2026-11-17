@@ -391,9 +391,10 @@ def _model_reply(
     # Language guard: a Kyrgyz message sometimes gets a Russian answer because the business data
     # is in Russian. Rewrite such a reply once; keep the draft if the rewrite is not Kyrgyz either, or if it changed
     # a number: a wrong time or sum in Kyrgyz is worse than the right one in Russian.
-    if outcome.reply and is_kyrgyz_message(text):
+    if is_kyrgyz_message(text):
+        # also when the model wrote nothing: the code's own confirmation follows in Kyrgyz (counted for the founder)
         outcome.kyrgyz = "ky"
-        if not looks_kyrgyz(outcome.reply):
+        if outcome.reply and not looks_kyrgyz(outcome.reply):
             rewritten = llm.rewrite_in_kyrgyz(outcome.reply, outcome.usage)
             if rewritten and looks_kyrgyz(rewritten) and same_numbers(outcome.reply, rewritten):
                 outcome.reply = rewritten

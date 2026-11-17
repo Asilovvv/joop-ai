@@ -59,7 +59,8 @@ def price_label(price: str, lang: str) -> str:
 
 def order_link(business: Business, lang: str, table: int | None) -> tuple[str, str]:
     """(url, label) of the main button. WhatsApp links get a prefilled message with the table number."""
-    url = business.menu_chat_url or (f"https://wa.me/{phone_digits(business.phone)}" if phone_digits(business.phone) else "")
+    phone = phone_digits(samples.customer_contact(business, "phone"))  # never the sign-up example's number
+    url = business.menu_chat_url or (f"https://wa.me/{phone}" if phone else "")
     if not url:
         return "", ""
     pack = get_pack(business.niche)
@@ -74,8 +75,9 @@ def channel_links(business: Business, base: str, lang: str) -> list[tuple[str, s
     out: list[tuple[str, str]] = []
     if not business.bot_enabled:
         return out  # the AI is switched off: no «отвечает ИИ» promise
-    if business.wa_phone_number_id and business.wa_access_token and phone_digits(business.phone):
-        out.append((f"https://wa.me/{phone_digits(business.phone)}", "WhatsApp"))  # first: where most customers already write
+    phone = phone_digits(samples.customer_contact(business, "phone"))
+    if business.wa_phone_number_id and business.wa_access_token and phone:
+        out.append((f"https://wa.me/{phone}", "WhatsApp"))  # first: where most customers already write
     if business.telegram_bot_token and business.telegram_bot_username:
         out.append((f"https://t.me/{business.telegram_bot_username}", "Telegram"))
     out.append((f"{base}/c/{business.slug}", TEXT[lang]["web"]))
@@ -143,6 +145,8 @@ def public_menu(request: Request, slug: str, t: int = 0, lang: str = "ru"):
         "order_url": url, "order_label": label, "price": price_label, "title": get_pack(b.niche).catalog_label,
         "has_ky": any(i.name_ky for i in items), "booking": get_pack(b.niche).has("booking"),
         "resources": pack.resource_label if lang == "ru" else TEXT[lang]["masters"], **extras,
+        # the sign-up example's address and phone are fictional: not shown to customers (joop/samples.py)
+        "address": samples.customer_contact(b, "address"), "phone": samples.customer_contact(b, "phone"),
     })
 
 

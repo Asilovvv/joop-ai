@@ -14,5 +14,14 @@ void main() {
     expect(priceWithSom('по договорённости'), 'по договорённости');
     expect(priceWithSom(''), '');
     expect(priceWithSom('0'), 'бесплатно'); // was «0 сом»
+    expect(priceWithSom('0 сом'), 'бесплатно');
+    expect(priceWithSom('800 за 60 минут'), '800 сом за 60 минут'); // was «800 за 60 сом минут»
+    expect(priceWithSom('250 за 1 кг'), '250 сом за 1 кг');
+    expect(priceWithSom('200–300'), '200–300 сом');
+    expect(priceWithSom('200 - 300 за час'), '200 - 300 сом за час');
+    expect(priceWithSom('500 KGS'), '500 KGS');
+    expect(priceWithSom('500 с.'), '500 с.');
+    expect(priceWithSom('500 Сом'), '500 Сом');
+    expect(priceWithSom('1,5'), '1,5 сом');
   });
 }
