@@ -59,6 +59,7 @@ class S {
     required this.bookingCancelled,
     required this.channelSite,
     required this.channelManual,
+    required this.channelApi,
     // orders and requests
     required this.noOrders,
     required this.openCount,
@@ -282,6 +283,9 @@ class S {
   final String bookingCancelled;
   final String channelSite;
   final String channelManual;
+
+  /// A booking from a partner's system or another assistant (the panel's «через API»).
+  final String channelApi;
   final String noOrders;
   final String Function(int n) openCount;
   final String noLeads;
@@ -527,6 +531,7 @@ class S {
     bookingCancelled: 'Запись отменена, время снова свободно',
     channelSite: 'Сайт',
     channelManual: 'Вручную',
+    channelApi: 'через API',
     noOrders: 'Заказов пока нет. Их собирает ИИ в чатах.',
     openCount: _ruOpenCount,
     noLeads: 'Заявок нет. Сюда попадают вопросы, на которые ИИ не ответил сам.',
@@ -759,6 +764,7 @@ class S {
     bookingCancelled: 'Жазылуу жокко чыгарылды, убакыт кайра бош',
     channelSite: 'Сайт',
     channelManual: 'Колдон',
+    channelApi: 'API аркылуу', // check with a native speaker
     noOrders: 'Азырынча буйрутма жок. Аларды ИИ чаттарда чогултат.',
     openCount: _kyOpenCount,
     noLeads: 'Өтүнмө жок. Бул жерге ИИ өзү жооп бере албаган суроолор түшөт.',

@@ -83,6 +83,7 @@ class Booking extends Equatable {
     this.depositDue = 0,
     this.depositStatus = '',
     this.depositDeadline,
+    this.source = '',
   });
 
   factory Booking.fromJson(Map<String, dynamic> json) {
@@ -108,6 +109,7 @@ class Booking extends Equatable {
       depositDeadline: (json['deposit'] as Map?)?['deadline'] == null
           ? null
           : DateTime.parse((json['deposit'] as Map)['deadline'] as String).toLocal(),
+      source: (json['source'] as String?) ?? '',
     );
   }
 
@@ -149,6 +151,9 @@ class Booking extends Equatable {
   /// Until when the prepayment is expected (local time).
   final DateTime? depositDeadline;
 
+  /// Who made it: ai | staff | api (a partner's system or another assistant, joop/api.py and joop/mcp.py).
+  final String source;
+
   /// Staff can mark the prepayment received (the panel's «Предоплата получена»).
   bool get depositOpen => isActive && const {'awaiting', 'check', 'overdue'}.contains(depositStatus);
 
@@ -173,12 +178,13 @@ class Booking extends Equatable {
         depositDue: depositDue,
         depositStatus: depositStatus,
         depositDeadline: depositDeadline,
+        source: source,
       );
 
   @override
   List<Object?> get props => [
         id, start, service, staff, customerName, customerPhone, channel, status, confirmed, paidSom, paidMethod, //
-        suggestedSom, customerKey, movable, depositDue, depositStatus, depositDeadline,
+        suggestedSom, customerKey, movable, depositDue, depositStatus, depositDeadline, source,
       ];
 }
 
