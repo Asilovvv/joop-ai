@@ -246,6 +246,7 @@ def _model_reply(
     system = build_system_prompt(
         business=business,
         hide_hours=hidden.hours,
+        hide_contacts=hidden.contacts,
         own_bookings=own,
         services=services,
         staff=staff,

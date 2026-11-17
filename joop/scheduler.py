@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, missed_calls, nudges, ops, recovery, reorders, restock, trust, unfinished
+from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, missed_calls, nudges, ops, recovery, reorders, restock, samples, trust, unfinished
 from . import gaps as empty_slots
 from .db import new_session
 from .dispatch import notify_admins
@@ -38,16 +38,16 @@ def reminder_text(business: Business, booking: Booking, kyrgyz: bool = False) ->
             parts[0] += f" ({booking.service})"
         if booking.staff_name:
             parts.append(f"Адис: {booking.staff_name}")
-        if business.address:
-            parts.append(f"Дарек: {business.address}")
+        if address := samples.customer_contact(business, "address"):  # not the sign-up example's
+            parts.append(f"Дарек: {address}")
         return ". ".join(parts) + ". " + confirm.ASK_KY
     parts = [f"Напоминаем: завтра, {fmt_slot(booking.start)}, вы записаны в «{business.name}»"]
     if booking.service:
         parts[0] += f" ({booking.service})"
     if booking.staff_name:
         parts.append(f"Специалист: {booking.staff_name}")
-    if business.address:
-        parts.append(f"Адрес: {business.address}")
+    if address := samples.customer_contact(business, "address"):
+        parts.append(f"Адрес: {address}")
     return ". ".join(parts) + ". " + confirm.ASK_RU
 
 
