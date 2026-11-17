@@ -1,3 +1,4 @@
+import '../data/models.dart';
 import 'strings.dart';
 
 String _two(int n) => n.toString().padLeft(2, '0');
@@ -21,6 +22,10 @@ String channelName(String channel) => switch (channel) {
       '' => S.current.channelManual,
       _ => channel,
     };
+
+/// Where a booking came from, as the panel names it (joop/web/app.py booking_origin): a partner's system or another
+/// assistant is «через API» — it has no chat channel, but nobody made it by hand either.
+String bookingOrigin(Booking b) => b.source == 'api' ? S.current.channelApi : channelName(b.channel);
 
 /// "1 запись", "2 записи", "5 записей"; "5 жазылуу".
 String bookingsWord(int n) => S.current.bookingsCount(n);
