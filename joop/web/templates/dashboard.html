@@ -146,7 +146,7 @@
           <div><span class="mono">{{ b.start|slot }}</span> · {{ b.customer_name }}</div>
           <div class="muted small">{{ b.service or 'приём' }} · {{ b.staff_name }} · {{ b.customer_phone }}</div>
         </div>
-        <span class="chip">{{ channel_names.get(b.channel, 'вручную') }}</span>
+        <span class="chip">{{ b|origin }}</span>
       </div>
       {% endfor %}
     </div>
