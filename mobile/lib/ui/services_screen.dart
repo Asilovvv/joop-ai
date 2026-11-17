@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/auth_bloc.dart';
 import '../bloc/load_status.dart';
 import '../bloc/services_cubit.dart';
+import '../core/format.dart';
 import '../core/strings.dart';
 import 'theme.dart';
 
@@ -66,7 +67,7 @@ class ServicesScreen extends StatelessWidget {
                         style: TextStyle(color: s.available ? null : theme.colorScheme.outline)),
                     subtitle: Text(
                       [
-                        if (s.price.isNotEmpty) '${s.price} ${S.current.som}',
+                        if (s.price.isNotEmpty) priceWithSom(s.price),
                         if (!s.available) s.soldOut ? S.current.soldOutStock : (editable ? S.current.stopListed : S.current.soldOut)
                         else if (s.category.isNotEmpty) s.category,
                       ].join(' · '),

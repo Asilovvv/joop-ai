@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/chat_bloc.dart';
+import '../core/format.dart';
 import '../core/strings.dart';
 import '../data/customer_repository.dart';
 import '../data/models.dart';
@@ -201,7 +202,7 @@ class _About extends StatelessWidget {
               child: ListTile(
                 title: Text(s.name),
                 subtitle: s.category.isEmpty ? null : Text(s.category),
-                trailing: Text(s.price.isEmpty ? '—' : (RegExp(r'\d').hasMatch(s.price) && !s.price.contains('сом') ? '${s.price} ${S.current.som}' : s.price),
+                trailing: Text(s.price.isEmpty ? '—' : priceWithSom(s.price),
                     style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
               ),
             ),
