@@ -23,7 +23,7 @@ from ..channels.meta import parse_meta_payload, verify_signature
 from ..channels.telegram import parse_update
 from ..config import Settings, get_settings
 from ..db import init_db, new_session
-from ..dispatch import admin_chat_ids, admin_link, notify_admins, process_incoming
+from ..dispatch import admin_chat_ids, admin_link, alert_chats, notify_admins, process_incoming
 from .. import missed_calls, tgbusiness
 from ..catalog import parse_price
 from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service,
@@ -603,7 +603,7 @@ def dashboard(request: Request):
             leads=leads,
             counts=counts,
             example=example,
-            admins=len(admin_chat_ids(b)),
+            admins=len(alert_chats(b)),
             channels=[
                 ("Telegram", bool(b.telegram_bot_token)),
                 ("WhatsApp", bool(b.wa_phone_number_id and b.wa_access_token)),
@@ -1719,6 +1719,7 @@ def settings_page(request: Request):
             timezones=TIMEZONES,
             packs=picker_packs(),
             admins=admin_chat_ids(b),
+            alerts_off=bool(admin_chat_ids(b)) and not alert_chats(b),
             admin_link=admin_link(b),
             example_settings=samples.example_settings(b),  # still the sign-up example's: not for real customers
             example_terms=samples.example_terms(b),
@@ -2042,7 +2043,9 @@ def telegram_disconnect(request: Request, csrf: str = Form("")):
         b.telegram_bot_username = ""  # the counter card must not point at a bot that no longer answers
         s.add(b)
         s.commit()
-    _flash(request, "Бот отключён: в Telegram ИИ больше не отвечает. Подключить снова — вставьте токен.")
+        alerts = bool(admin_chat_ids(b))  # they went through this bot: the chats stay linked for a reconnect
+    _flash(request, "Бот отключён: в Telegram ИИ больше не отвечает" + (", и уведомления о записях и заявках больше не приходят"
+                    if alerts else "") + ". Подключить снова — вставьте токен.")
     return _back("/panel/channels#telegram")
 
 

@@ -93,6 +93,12 @@ def admin_chat_ids(business: Business) -> list[str]:
     return [x.strip() for x in (business.admin_chat_ids or "").split(",") if x.strip()]
 
 
+def alert_chats(business: Business) -> list[str]:
+    """The linked chats that actually get the alerts. Alerts go through the business's own bot (notify_admins), so with
+    the bot disconnected none arrive: the chats stay linked for a reconnect, but the panel must not count them."""
+    return admin_chat_ids(business) if business.telegram_bot_token else []
+
+
 def notify_admins(rt: Runtime, business: Business, notes: list[str]) -> int:
     """Send notes to every linked admin chat through the business's Telegram bot. Returns messages sent."""
     telegram = rt.telegram(business)
