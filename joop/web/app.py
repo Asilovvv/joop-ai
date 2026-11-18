@@ -124,6 +124,22 @@ def booking_origin(b: Booking) -> str:
 
 templates.env.filters["origin"] = booking_origin
 
+
+def spheres(n: int) -> str:
+    """«35 сфер», «41 сфера», «42 сферы»."""
+    if n % 10 == 1 and n % 100 != 11:
+        return f"{n} сфера"
+    return f"{n} сферы" if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14 else f"{n} сфер"
+
+
+def sphere_count() -> int:
+    """Kinds of business the site offers: the niche picker without «Другой бизнес», as the home page counts them."""
+    return sum(1 for key in picker_packs() if key != "other")
+
+
+templates.env.filters["spheres"] = spheres
+templates.env.globals["sphere_count"] = sphere_count
+
 router = APIRouter()
 
 
