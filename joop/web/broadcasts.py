@@ -7,7 +7,7 @@ from sqlmodel import select
 
 from .. import broadcasts
 from ..db import new_session
-from ..dispatch import admin_chat_ids, notify_admins
+from ..dispatch import alert_chats, notify_admins
 from ..models import Broadcast, Service
 from ..niches import get_pack
 from ..timeutil import utcnow
@@ -28,7 +28,7 @@ def _page(request: Request, s, b, form: dict | None = None, pv: broadcasts.Previ
     return _render(request, "broadcasts.html", "broadcasts", b, segments=broadcasts.segments_for(books), services=services,
                    history=history, label=broadcasts.segment_label, form=form or {"segment": "all", "days": broadcasts.LAPSED_DAYS},
                    pv=pv, opted_out=broadcasts.opted_out_count(s, b), footer=broadcasts.FOOTER, footer_ky=broadcasts.FOOTER_KY,
-                   hours=broadcasts.SEND_HOURS, max_text=broadcasts.MAX_TEXT, linked=bool(admin_chat_ids(b)))
+                   hours=broadcasts.SEND_HOURS, max_text=broadcasts.MAX_TEXT, linked=bool(alert_chats(b)))
 
 
 @router.get("/panel/broadcasts")

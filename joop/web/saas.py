@@ -22,7 +22,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from .. import annual, billing, free_plan, health, partners, pitch, samples, stories, waitlist
-from ..dispatch import admin_link
+from ..dispatch import admin_link, alert_chats
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
@@ -196,7 +196,7 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
          "hint": f"Напишите как клиент: по-русски и по-кыргызски, спросите цену, {act}."},
         {"done": channel, "title": "Подключите Telegram-бота", "href": "#telegram", "key": "telegram",
          "hint": "Одно действие: вставьте токен от @BotFather ниже. WhatsApp и Instagram — в разделе «Каналы»."},
-        {"done": bool(b.admin_chat_ids), "title": "Получайте заявки в Telegram", "key": "admin",
+        {"done": bool(alert_chats(b)), "title": "Получайте заявки в Telegram", "key": "admin",
          "href": admin_link(b) or "/panel/settings", "external": bool(admin_link(b)),
          "hint": "Нажмите — откроется ваш бот; нажмите в нём «Start», и новые записи и заявки будут приходить вам."
                  if admin_link(b) else "Сначала подключите бота: потом здесь будет кнопка, которая привяжет ваш Telegram."},
