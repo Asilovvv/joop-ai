@@ -2,6 +2,11 @@
 {% block title %}Настройки{% endblock %}
 {% block content %}
 <section><h1>Настройки</h1></section>
+{% if example_settings %}
+<section class="card warn">
+  <p><b>Ещё из примера: {{ example_settings | join(', ') }}.</b> Настоящим клиентам ИИ это не называет{% if 'order' in example_terms %}, а минимальную сумму и доставку из примера система к их заказам не применяет{% endif %}. Впишите свои данные — или, если всё так и есть, подтвердите на <a href="/panel#example">главной странице</a>: «Это наши настоящие данные».</p>
+</section>
+{% endif %}
 
 <form method="post" action="/panel/settings" class="stack">
   <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -44,6 +49,7 @@
   <section class="card stack">
     <h2>Заказы</h2>
     <p class="muted small">Система проверяет минимальную сумму и добавляет доставку к сумме заказа. 0 — не применять.</p>
+    {% if 'order' in example_terms %}<p class="small"><span class="chip warn">пример</span> Эти суммы — из примера: к заказам настоящих клиентов они не применяются, пока вы не впишете свои.</p>{% endif %}
     <div class="grid2">
       <label for="s-min">Минимальный заказ, сом<input id="s-min" type="number" min="0" name="min_order" value="{{ business.min_order }}"></label>
       <label for="s-fee">Доставка, сом<input id="s-fee" type="number" min="0" name="delivery_fee" value="{{ business.delivery_fee }}"></label>
@@ -79,6 +85,7 @@
     <h2>Поведение ИИ</h2>
     <label for="s-desc">О компании, одной-двумя фразами<textarea id="s-desc" name="description">{{ business.description }}</textarea></label>
     <label for="s-policy">Порядок записи (например: администратор перезванивает и подтверждает время)<textarea id="s-policy" name="booking_policy">{{ business.booking_policy }}</textarea></label>
+    {% if 'booking_policy' in example_terms %}<p class="small"><span class="chip warn">пример</span> Этот порядок — из примера: настоящим клиентам ИИ его не называет, пока вы не напишете свой.</p>{% endif %}
     <label for="s-tone">Тон общения<input id="s-tone" name="tone" value="{{ business.tone }}" placeholder="Спокойно, вежливо, коротко, на «вы»"></label>
     <label for="s-greet">Приветствие в Telegram по команде /start (пусто — стандартное)<textarea id="s-greet" name="greeting">{{ business.greeting }}</textarea></label>
     <label for="s-pause">Сотрудник ответил клиенту сам — ИИ молчит в этом диалоге

@@ -1720,6 +1720,8 @@ def settings_page(request: Request):
             packs=picker_packs(),
             admins=admin_chat_ids(b),
             admin_link=admin_link(b),
+            example_settings=samples.example_settings(b),  # still the sign-up example's: not for real customers
+            example_terms=samples.example_terms(b),
         )
 
 

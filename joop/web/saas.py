@@ -181,6 +181,13 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     example_contacts = samples.example_contacts(b)  # hidden from customers until the owner writes their own
     missing += [f"{word} (сейчас из примера: {getattr(b, field)})"
                 for field, word in (("address", "адрес"), ("phone", "телефон")) if field in example_contacts]
+    example_terms = samples.example_terms(b)  # not told to customers and not applied to their orders until then
+    if "booking_policy" in example_terms:
+        missing.append(f"порядок записи (сейчас из примера: {b.booking_policy})")
+    if "order" in example_terms:
+        terms = [f"{word} {value} сом" for word, value in (("минимальный заказ", b.min_order), ("доставка", b.delivery_fee),
+                                                          ("бесплатная доставка от", b.free_delivery_from)) if value]
+        missing.append(f"условия заказа (сейчас из примера: {', '.join(terms)})")
     bot = f"https://t.me/{b.telegram_bot_username}" if b.telegram_bot_token and b.telegram_bot_username else ""
     people = _people_steps(s, b, pack, now)
     return [

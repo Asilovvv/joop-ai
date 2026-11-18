@@ -42,6 +42,13 @@ def test_example_is_flagged_until_the_owner_replaces_it(app_client):  # noqa: F8
         for row in s.exec(select(Faq)).all():
             s.delete(row)
         s.commit()
+    page = app_client.get("/panel").text  # the rows are gone; the hours sign-up copied are still hidden from customers
+    assert "Часть данных — ещё пример" in page and '<a href="/panel/settings">Настройки</a>: часы работы</li>' in page
+    with db.new_session() as s:
+        b = s.exec(select(Business)).one()
+        b.hours_text = "Пн–Пт 09:00–18:00"  # the clinic's own
+        s.add(b)
+        s.commit()
     assert "Часть данных — ещё пример" not in app_client.get("/panel").text
 
 

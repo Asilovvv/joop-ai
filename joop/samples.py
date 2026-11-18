@@ -6,6 +6,10 @@ the example while it is exactly as the pack wrote it (joop/niches/<niche>/demo.y
 name, role and what the person takes, the same question and answer. Any edit makes it the business's own; deleting it
 removes it. When some of the business's real rows happen to equal the example, the owner confirms it once
 (Business.example_ok) and nothing is flagged any more.
+
+The same goes for what the example wrote into the settings: the opening hours, the description, address and phone,
+the booking policy and the order terms (minimum order, delivery fee). While a field is exactly the example's, real
+customers are not told it and their orders are not held to it.
 """
 
 from __future__ import annotations
@@ -39,10 +43,11 @@ class Left:
     faq: list[str] = field(default_factory=list)
     tests: list[str] = field(default_factory=list)  # a school's demo level test (joop/placement.py)
     jobs: list[str] = field(default_factory=list)  # a repair shop's demo receipts (joop/jobs.py)
+    settings: list[str] = field(default_factory=list)  # «часы работы», «условия заказа»: example_settings()
 
     @property
     def any(self) -> bool:
-        return bool(self.services or self.staff or self.faq or self.tests or self.jobs)
+        return bool(self.services or self.staff or self.faq or self.tests or self.jobs or self.settings)
 
 
 def _staff_key(name: str, role: str, handles: str, capacity, group_size) -> tuple:
@@ -153,6 +158,44 @@ def customer_hours(business: Business) -> str:
     return "" if hours_are_example(business) else business.hours_text
 
 
+ORDER_TERMS = ("min_order", "delivery_fee", "free_delivery_from")
+
+
+def example_terms(business: Business) -> frozenset[str]:
+    """Which of the booking policy ("booking_policy") and the order terms ("order": the minimum order, the delivery fee
+    and the free-delivery threshold — one card in the settings, the example's only while all three are) are still the
+    sign-up example's. «Стол держим 15 минут», «доставка 150 сом» are the demo café's rules: a real customer is not
+    told them, and a real order is not held to a fictional minimum or charged a fictional fee."""
+    if business.example_ok:
+        return frozenset()
+    try:
+        demo = load_profile(get_pack(_niche(business)).demo_file)
+    except (ProfileError, OSError, KeyError):
+        return frozenset()
+    found = set()
+    if _t(business.booking_policy) and _t(business.booking_policy) == _t(demo.get("booking_policy")):
+        found.add("booking_policy")
+    terms = tuple(getattr(business, f) for f in ORDER_TERMS)
+    if any(terms) and terms == tuple(int(demo.get(f) or 0) for f in ORDER_TERMS):
+        found.add("order")
+    return frozenset(found)
+
+
+def order_terms(business: Business, hidden: frozenset[str] = frozenset()) -> tuple[int, int, int]:
+    """(minimum order, delivery fee, free delivery from) for one chat; `hidden` is that chat's Hidden.terms."""
+    return (0, 0, 0) if "order" in hidden else (business.min_order, business.delivery_fee, business.free_delivery_from)
+
+
+def example_settings(business: Business) -> list[str]:
+    """What on the settings page is still the example's, in the owner's words: hidden from real customers until the
+    owner changes it or confirms the example as their own («Это наши настоящие данные», Business.example_ok)."""
+    contacts, terms = example_contacts(business), example_terms(business)
+    return [word for word, still in (
+        ("адрес", "address" in contacts), ("телефон", "phone" in contacts), ("часы работы", hours_are_example(business)),
+        ("описание компании", "description" in contacts), ("порядок записи", "booking_policy" in terms),
+        ("условия заказа", "order" in terms)) if still]
+
+
 def _rows(session: Session, business: Business) -> tuple[list[Service], list[Staff], list[Faq]]:
     """The business's rows that are still exactly the example (none once the owner confirmed them)."""
     if business.example_ok:
@@ -177,7 +220,8 @@ def example_staff_ids(session: Session, business: Business) -> set[int]:
 def left(session: Session, business: Business) -> Left:
     services, staff, faq = _rows(session, business)
     return Left(services=[r.name for r in services], staff=[r.name for r in staff], faq=[r.question for r in faq],
-                tests=[x.title for x in _tests(session, business)], jobs=[f"№{j.number}" for j in _jobs(session, business)])
+                tests=[x.title for x in _tests(session, business)], jobs=[f"№{j.number}" for j in _jobs(session, business)],
+                settings=example_settings(business))
 
 
 @dataclass(frozen=True)
@@ -193,9 +237,11 @@ class Hidden:
     jobs: frozenset[int] = frozenset()
     hours: bool = False  # the opening hours are still the example's (hours_are_example)
     contacts: frozenset[str] = frozenset()  # description / address / phone still the example's (example_contacts)
+    terms: frozenset[str] = frozenset()  # the booking policy / the order terms still the example's (example_terms)
 
     def __bool__(self) -> bool:
-        return bool(self.services or self.staff or self.faq or self.tests or self.jobs or self.hours or self.contacts)
+        return bool(self.services or self.staff or self.faq or self.tests or self.jobs or self.hours or self.contacts
+                    or self.terms)
 
 
 def hidden_from_customers(session: Session, business: Business, channel: str) -> Hidden:
@@ -205,12 +251,13 @@ def hidden_from_customers(session: Session, business: Business, channel: str) ->
     services, staff, faq = _rows(session, business)
     return Hidden(frozenset(r.id for r in services), frozenset(r.id for r in staff), frozenset(r.id for r in faq),
                   frozenset(x.id for x in _tests(session, business)), frozenset(j.id for j in _jobs(session, business)),
-                  hours_are_example(business), example_contacts(business))
+                  hours_are_example(business), example_contacts(business), example_terms(business))
 
 
 def warning(found: Left) -> str:
     """One line for flashes: what is still the example."""
     parts = [f"{label}: {', '.join(names[:3])}{' и ещё ' + str(len(names) - 3) if len(names) > 3 else ''}"
              for label, names in (("прайс", found.services), ("сотрудники", found.staff), ("ответы", found.faq),
-                                  ("тест на уровень", found.tests), ("квитанции", found.jobs)) if names]
+                                  ("тест на уровень", found.tests), ("квитанции", found.jobs),
+                                  ("настройки", found.settings)) if names]
     return "Ещё из примера — " + "; ".join(parts) + ". Клиентам ИИ это не называет, пока вы не замените пример своими данными или не удалите его."

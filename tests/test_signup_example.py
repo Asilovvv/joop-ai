@@ -39,4 +39,7 @@ def test_a_prospect_demo_is_asked_for_its_own_address_and_phone(engine):
         assert f"адрес (сейчас из примера: {b.address})" in contacts["hint"]
         assert f"телефон (сейчас из примера: {b.phone})" in contacts["hint"]
         b.address, b.phone = "Бишкек, Токтогула 1", "+996 700 123 456"
+        contacts = next(i for i in checklist(s, b, NOW_UTC) if i["key"] == "contacts")  # the example's rules are left
+        assert not contacts["done"] and "адрес" not in contacts["hint"] and "порядок записи (сейчас из примера:" in contacts["hint"]
+        b.booking_policy, b.delivery_fee = "Стол держим 20 минут.", 200  # the café's own
         assert next(i for i in checklist(s, b, NOW_UTC) if i["key"] == "contacts")["done"]

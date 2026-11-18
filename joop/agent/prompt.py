@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Sequence
 
-from .. import deposits, selfservice
+from .. import deposits, samples, selfservice
 from ..models import Booking, Business, Conversation, Faq, Message, Service, Slot, Staff
 from ..niches import Pack, get_pack
 from ..timeutil import WEEKDAYS_FULL, fmt_slot, is_off_hours
@@ -61,6 +61,7 @@ def build_system_prompt(
     extra_facts: str = "",
     hide_hours: bool = False,  # the hours are still the sign-up example's: not for real customers (samples.Hidden)
     hide_contacts: frozenset[str] = frozenset(),  # description / address / phone still the example's (samples.Hidden)
+    hide_terms: frozenset[str] = frozenset(),  # the booking policy / the order terms still the example's (samples.Hidden)
     own_bookings: Sequence[Booking] = (),  # this chat's upcoming bookings the AI may cancel or move (joop/selfservice.py)
 ) -> str:
     pack = get_pack(business.niche)
@@ -125,16 +126,17 @@ def build_system_prompt(
                 out.append(f"- {slot.id}: {fmt_slot(slot.start)} — {member.name}{extra}")
         else:
             out += ["", "Свободного времени в системе нет: записывай заявкой, время подтвердит администратор."]
-    if pack.has("order") and (business.min_order or business.delivery_fee):
+    min_order, delivery_fee, free_delivery_from = samples.order_terms(business, hide_terms)
+    if pack.has("order") and (min_order or delivery_fee):
         terms = []
-        if business.min_order:
-            terms.append(f"минимальная сумма заказа {business.min_order} сом")
-        if business.delivery_fee:
-            terms.append(f"доставка {business.delivery_fee} сом")
-        if business.free_delivery_from:
-            terms.append(f"бесплатная доставка от {business.free_delivery_from} сом")
+        if min_order:
+            terms.append(f"минимальная сумма заказа {min_order} сом")
+        if delivery_fee:
+            terms.append(f"доставка {delivery_fee} сом")
+        if free_delivery_from:
+            terms.append(f"бесплатная доставка от {free_delivery_from} сом")
         out.append("Условия заказа: " + "; ".join(terms) + ".")
-    if business.booking_policy.strip():
+    if business.booking_policy.strip() and "booking_policy" not in hide_terms:
         out.append(f"Порядок записи и заказа в компании: {business.booking_policy.strip()}")
     if deposits.prompt_line(business):  # only when the business turned prepayment on
         out.append(deposits.prompt_line(business))
