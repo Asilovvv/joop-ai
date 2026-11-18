@@ -2,9 +2,10 @@
 
 A business that still holds the whole example connects its bot: a demo the founder made for a prospect, which is
 sign-up's example plus the example's address, phone, description, booking policy and order terms. The test walks what
-a customer can read — what the AI is told and what the code writes in Telegram and in the site chat, the public menu,
-the chat page, the app's place card, MCP, ready answers, two days of scheduled messages — and looks for the example's
-own words. The owner's test chat keeps the example: there it is the point.
+a customer can read in a chat — what the AI is told and what the code writes in Telegram and in the site chat (a
+greeting, a booking, an order, a stay, a receipt, a sold-out item), two days of scheduled messages, MCP, ready
+answers — and looks for the example's own words. The public pages are walked by tests/test_example_never_public.py.
+The owner's test chat keeps the example: there it is the point.
 """
 
 from datetime import timedelta
@@ -61,7 +62,7 @@ def example_words(niche: str) -> dict[str, str]:
 def test_a_real_customer_reads_nothing_of_the_example(niche, settings, rt, engine):
     with db.new_session() as s:
         b = create_business(s, slug="demo", name="Настоящая фирма", password="demo-pass-1", niche=niche, demo=True, now_utc=NOW_UTC)
-        b.telegram_bot_token, b.telegram_bot_username, b.menu_enabled = "123:TEST", "demo_bot", True
+        b.telegram_bot_token, b.telegram_bot_username = "123:TEST", "demo_bot"
         s.commit()
         bid = b.id
         slot = s.exec(select(Slot).where(Slot.business_id == bid, Slot.status == "free").order_by(Slot.start)).first()
@@ -112,10 +113,6 @@ def test_a_real_customer_reads_nothing_of_the_example(niche, settings, rt, engin
 
     rt._llm = FakeLLM([AgentReply("Здравствуйте!")])
     with TestClient(create_app(settings, rt, init=False)) as c:
-        for path in ("/m/demo", "/m/demo?lang=ky", "/c/demo", "/c/demo/widget.js", "/api/mobile/places/demo"):
-            page = c.get(path)
-            assert page.status_code == 200, path
-            read[path] = page.text
         read["the site chat's reply"] = c.post("/c/demo/chat", json={"text": "Где вы и сколько стоит?", "visitor": ""}).text
         read["what the AI is told (site chat)"] = rt._llm.calls[0]["system"]
     with db.new_session() as s:
