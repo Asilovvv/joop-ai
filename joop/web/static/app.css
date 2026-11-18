@@ -64,7 +64,7 @@ p { margin: 0; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-code { font-family: var(--mono); font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; word-break: break-all; }
+code { font-family: var(--mono); font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; overflow-wrap: anywhere; }
 
 /* Sidebar (desktop) / top bar with a menu (phone) */
 .side { background: var(--side); color: var(--side-ink); position: sticky; top: 0; z-index: 10; }
