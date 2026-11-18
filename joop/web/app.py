@@ -1721,6 +1721,8 @@ def settings_page(request: Request):
             admins=admin_chat_ids(b),
             alerts_off=bool(admin_chat_ids(b)) and not alert_chats(b),
             admin_link=admin_link(b),
+            example_settings=samples.example_settings(b),  # still the sign-up example's: not for real customers
+            example_terms=samples.example_terms(b),
         )
 
 

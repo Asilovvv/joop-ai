@@ -247,6 +247,7 @@ def _model_reply(
         business=business,
         hide_hours=hidden.hours,
         hide_contacts=hidden.contacts,
+        hide_terms=hidden.terms,
         own_bookings=own,
         services=services,
         staff=staff,
@@ -296,7 +297,7 @@ def _model_reply(
     rx_note = ""
     if result.order and pack.has("order"):
         outcome.reply, order, rx_note = _try_order(session, business, pack, conv, result.order, result.reply, now, off,
-                                                   channel, hidden.services)
+                                                   channel, hidden.services, hidden.terms)
         if order is not None:
             ordered = order
             outcome.order_id = order.id
@@ -421,7 +422,7 @@ def _model_reply(
         rows = list(session.exec(select(OrderLine).where(OrderLine.order_id == ordered.id).order_by(OrderLine.id)).all())
         names_ky = {sv.id: sv.name_ky for sv in services if sv.name_ky} if ky else {}
         facts = confirmations.order_facts(rows, ordered.total, ordered.delivery_fee,
-                                          (business.min_order, business.free_delivery_from, business.delivery_fee), names_ky)
+                                          samples.order_terms(business, hidden.terms), names_ky)
         outcome.reply = confirmations.with_order(outcome.reply, facts, ky) + (f"\n{rx_note}" if rx_note else "")
     if stayed is not None:
         hall = stays.by_day(business)
@@ -443,7 +444,7 @@ def _model_reply(
         session.add(booked)
 
     if outcome.reply and pack.has("order") and not outcome.order_id:  # «напишем, когда появится» (joop/restock.py)
-        outcome.reply += restock.watch_line(session, business, conv, text, now, is_kyrgyz_message(text))
+        outcome.reply += restock.watch_line(session, business, conv, text, now, is_kyrgyz_message(text), hidden.services)
 
     # The free plan pays with one line: Joop's name on the first reply and on every booking (free_plan.py)
     if outcome.reply and channel in free_plan.CHANNELS and (booked is not None or first_contact) \
@@ -916,9 +917,11 @@ ASK_ORDER_CONTACTS = "Чтобы оформить заказ, напишите, 
 def _try_order(
     session: Session, business: Business, pack: Pack, conv: Conversation, data: dict, reply: str,
     now: datetime, off: bool, channel: str, hidden_items: frozenset[int] = frozenset(),
+    hidden_terms: frozenset[str] = frozenset(),
 ) -> tuple[str, Order | None, str]:
     """Check every line against the catalog and compute the total in code; the model never sets prices.
-    `hidden_items` are sign-up example items (samples.Hidden): not in this customer's list, so not for sale."""
+    `hidden_items` are sign-up example items (samples.Hidden): not in this customer's list, so not for sale.
+    `hidden_terms`: the minimum order and the delivery fee are still the example's, so this order is not held to them."""
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
     if not name or not phone:
@@ -964,15 +967,16 @@ def _try_order(
             return refusal, None, ""
 
     items_total = None if any(item.price_value is None for item, _, _ in lines) else sum(item.price_value * q for item, q, _ in lines)
-    if items_total is not None and business.min_order and items_total < business.min_order:
+    min_order, delivery_fee, free_delivery_from = samples.order_terms(business, hidden_terms)
+    if items_total is not None and min_order and items_total < min_order:
         return (
-            f"Минимальная сумма заказа — {_som(business.min_order)}, сейчас в заказе на {_som(items_total)}. "
+            f"Минимальная сумма заказа — {_som(min_order)}, сейчас в заказе на {_som(items_total)}. "
             "Хотите что-нибудь добавить?"
         ), None, ""
     fee = 0
-    if mode == "delivery" and business.delivery_fee:
-        free = business.free_delivery_from and items_total is not None and items_total >= business.free_delivery_from
-        fee = 0 if free else business.delivery_fee
+    if mode == "delivery" and delivery_fee:
+        free = free_delivery_from and items_total is not None and items_total >= free_delivery_from
+        fee = 0 if free else delivery_fee
     total = None if items_total is None else items_total + fee
     order = Order(
         business_id=business.id, conversation_id=conv.id, customer_name=name, customer_phone=phone, mode=mode,

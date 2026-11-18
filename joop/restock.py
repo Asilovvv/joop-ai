@@ -36,9 +36,12 @@ def asked_for(text: str, sold_out: list[Service]) -> list[Service]:
     return found if len(found) <= MAX_ITEMS else []  # a vague word matching many items is not a wish for each
 
 
-def watch_line(session: Session, business: Business, conv: Conversation, text: str, now_utc: datetime, kyrgyz: bool) -> str:
-    """Keep a watch for each sold-out item the message names and return the line added to the reply ("" if none)."""
-    sold_out = list(session.exec(select(Service).where(Service.business_id == business.id, Service.sold_out)).all())
+def watch_line(session: Session, business: Business, conv: Conversation, text: str, now_utc: datetime, kyrgyz: bool,
+               example: frozenset[int]) -> str:
+    """Keep a watch for each sold-out item the message names and return the line added to the reply ("" if none).
+    `example`: the sign-up example's items hidden from this chat (samples.Hidden.services) — not this shop's to promise."""
+    sold_out = [x for x in session.exec(select(Service).where(Service.business_id == business.id, Service.sold_out)).all()
+                if x.id not in example]
     items = asked_for(text, sold_out)
     if not items or conv.id is None or conv.silenced or is_test(conv):  # the owner's tests are not customers to tell
         return ""
