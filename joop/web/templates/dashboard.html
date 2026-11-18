@@ -6,7 +6,7 @@
   <div class="chips">
     <span class="chip {{ 'ok' if business.bot_enabled else 'warn' }}">ИИ {{ 'отвечает' if business.bot_enabled else 'выключен' }}</span>
     {% for name, on in channels %}<span class="chip {{ 'ok' if on else '' }}">{{ name }}: {{ 'подключён' if on else 'нет' }}</span>{% endfor %}
-    <span class="chip {{ 'ok' if admins else 'warn' }}">Уведомления: {{ admins }}</span>
+    <span class="chip {{ 'ok' if admins else 'warn' }}">Уведомления: {{ admins or 'нет' }}</span>
   </div>
 </section>
 
