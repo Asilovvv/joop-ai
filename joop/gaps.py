@@ -61,11 +61,13 @@ class Day:
 
 
 def week(session: Session, business: Business, now_local: datetime) -> list[Day]:
-    """Free and total slots per day for the next seven days."""
+    """Free and total slots per day for the next seven days: only the times customers can book. The sign-up example's
+    people are nobody (the AI never offers or books them), so their times are left out, as on the dashboard."""
     start = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    example = samples.example_staff_ids(session, business)
     rows = session.exec(select(Slot.start, Slot.status).join(Staff, Staff.id == Slot.staff_id).where(
         Slot.business_id == business.id, Staff.active == True, Slot.start >= now_local,  # noqa: E712
-        Slot.start < start + timedelta(days=DAYS),
+        Slot.start < start + timedelta(days=DAYS), Slot.staff_id.not_in(example or {0}),
     )).all()
     days = []
     for i in range(DAYS):
