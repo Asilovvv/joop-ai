@@ -6,6 +6,7 @@ resource_label: Инструкторы
 resource_item: инструктор
 outcomes: [booking, request, lead, handoff]
 lead_fields: [категория прав, есть ли опыт вождения, механика или автомат, удобное время занятий]
+lead_label: Заявка на обучение вождению
 features: [level_test]
 rules:
   - "Пробное занятие — запись на свободное окно инструктора."

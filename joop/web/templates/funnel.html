@@ -19,7 +19,7 @@
     <div class="item">
       <div class="main">
         <div>{% if l.kind == 'request' %}<span class="chip ok">запись</span> {% elif l.kind == 'lead' %}<span class="chip ok">лид</span> {% else %}<span class="chip">вопрос</span> {% endif %}{{ l.summary }}</div>
-        <div class="muted small">{{ l.customer_name or 'без имени' }} {{ l.customer_phone }} · {{ channel_names.get(l.channel, l.channel) }} · {{ l.created_at|local(business.timezone) }}{% if l.conversation_id %} · <a href="/panel/conversations/{{ l.conversation_id }}">диалог</a>{% endif %}</div>
+        <div class="muted small">{{ l.customer_name or 'без имени' }} {{ l.customer_phone|phone }} · {{ channel_names.get(l.channel, l.channel) }} · {{ l.created_at|local(business.timezone) }}{% if l.conversation_id %} · <a href="/panel/conversations/{{ l.conversation_id }}">диалог</a>{% endif %}</div>
       </div>
       <form method="post" action="/panel/funnel/{{ l.id }}" class="actions"><input type="hidden" name="csrf" value="{{ csrf }}">
         {% if st in ('new', 'contacted') %}<button class="btn small ghost" name="stage" value="booked" type="submit">Записан</button>{% endif %}

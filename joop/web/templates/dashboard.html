@@ -59,17 +59,17 @@
 <section>
   <h2>Последние 14 дней</h2>
   <div class="stats">
-    <div class="stat"><b>{{ s14.conversations }}</b><span>диалогов с клиентами</span></div>
+    <div class="stat"><b>{{ s14.conversations }}</b><span>{{ s14.conversations|forms('диалог', 'диалога', 'диалогов') }} с клиентами</span></div>
     <div class="stat"><b>{{ s14.off_hours_conversations }}</b><span>из них в нерабочее время</span></div>
-    {% if pack.has('order') %}<div class="stat"><b>{{ s14.orders }}</b><span>заказов принял ИИ</span></div>{% endif %}
-    {% if pack.has('booking') %}<div class="stat"><b>{{ s14.bookings }}</b><span>записей сделал ИИ</span></div>
-    <div class="stat"><b>{{ s14.off_hours_bookings }}</b><span>записей в нерабочее время</span></div>{% endif %}
-    {% if pack.has('stay') %}<div class="stat"><b>{{ s14.stays }}</b><span>броней {{ pack.stay_noun }} сделал ИИ</span></div>
-    <div class="stat"><b>{{ s14.off_hours_stays }}</b><span>броней в нерабочее время</span></div>{% endif %}
-    {% if pack.has('booking') or pack.has('request') %}<div class="stat"><b>{{ s14.requests }}</b><span>заявок на запись (перезвонить)</span></div>{% endif %}
-    {% if pack.has('lead') %}<div class="stat"><b>{{ s14.qualified }}</b><span>заявок с ответами на вопросы собрал ИИ</span></div>{% endif %}
-    <div class="stat"><b>{{ s14.leads - s14.qualified }}</b><span>вопросов передано людям</span></div>
-    <div class="stat"><b>${{ '%.2f'|format(s14.ai_cost_usd) }}</b><span>расход на ИИ, {{ s14.ai_replies }} ответов</span></div>
+    {% if pack.has('order') %}<div class="stat"><b>{{ s14.orders }}</b><span>{{ s14.orders|forms('заказ', 'заказа', 'заказов') }} принял ИИ</span></div>{% endif %}
+    {% if pack.has('booking') %}<div class="stat"><b>{{ s14.bookings }}</b><span>{{ s14.bookings|forms('запись', 'записи', 'записей') }} сделал ИИ</span></div>
+    <div class="stat"><b>{{ s14.off_hours_bookings }}</b><span>{{ s14.off_hours_bookings|forms('запись', 'записи', 'записей') }} в нерабочее время</span></div>{% endif %}
+    {% if pack.has('stay') %}<div class="stat"><b>{{ s14.stays }}</b><span>{{ s14.stays|forms('бронь', 'брони', 'броней') }} {{ pack.stay_noun }} сделал ИИ</span></div>
+    <div class="stat"><b>{{ s14.off_hours_stays }}</b><span>{{ s14.off_hours_stays|forms('бронь', 'брони', 'броней') }} в нерабочее время</span></div>{% endif %}
+    {% if pack.has('booking') or pack.has('request') %}<div class="stat"><b>{{ s14.requests }}</b><span>{{ s14.requests|forms('заявка', 'заявки', 'заявок') }} на запись (перезвонить)</span></div>{% endif %}
+    {% if pack.has('lead') %}<div class="stat"><b>{{ s14.qualified }}</b><span>{{ s14.qualified|forms('заявку', 'заявки', 'заявок') }} с ответами на вопросы собрал ИИ</span></div>{% endif %}
+    <div class="stat"><b>{{ s14.leads - s14.qualified }}</b><span>{{ (s14.leads - s14.qualified)|forms('вопрос передан', 'вопроса передано', 'вопросов передано') }} людям</span></div>
+    <div class="stat"><b>${{ '%.2f'|format(s14.ai_cost_usd) }}</b><span>расход на ИИ, {{ s14.ai_replies }} {{ s14.ai_replies|forms('ответ', 'ответа', 'ответов') }}</span></div>
   </div>
 </section>
 
@@ -114,7 +114,7 @@
       <div class="item">
         <div class="main">
           <div><span class="mono">{% if pack.by_day %}{{ st.check_in.strftime('%d.%m.%Y') }}{% else %}{{ st.check_in.strftime('%d.%m') }}–{{ st.check_out.strftime('%d.%m') }}{% endif %}</span> · {{ st.customer_name }}</div>
-          <div class="muted small">{{ st.room_name }}{% if not pack.rental %} · гостей: {{ st.guests }}{% endif %} · {{ st.customer_phone }}</div>
+          <div class="muted small">{{ st.room_name }}{% if not pack.rental %} · гостей: {{ st.guests }}{% endif %} · {{ st.customer_phone|phone }}</div>
         </div>
         <span class="chip">{{ channel_names.get(st.channel, 'вручную') }}</span>
       </div>
@@ -131,7 +131,7 @@
       <div class="item">
         <div class="main">
           <div><a href="/panel/orders">№{{ o.id }}</a> · {{ o.customer_name or 'без имени' }}{% if o.total %} · {{ o.total }} сом{% endif %}</div>
-          <div class="muted small">{{ o.customer_phone }} · {{ o.created_at|local(business.timezone) }}</div>
+          <div class="muted small">{{ o.customer_phone|phone }} · {{ o.created_at|local(business.timezone) }}</div>
         </div>
         <span class="chip">{{ channel_names.get(o.channel, 'вручную') }}</span>
       </div>
@@ -148,7 +148,7 @@
       <div class="item">
         <div class="main">
           <div><span class="mono">{{ b.start|slot }}</span> · {{ b.customer_name }}</div>
-          <div class="muted small">{{ b.service or 'приём' }} · {{ b.staff_name }} · {{ b.customer_phone }}</div>
+          <div class="muted small">{{ b.service or 'приём' }} · {{ b.staff_name }} · {{ b.customer_phone|phone }}</div>
         </div>
         <span class="chip">{{ b|origin }}</span>
       </div>
@@ -165,7 +165,7 @@
       <div class="item">
         <div class="main">
           <div>{{ l.summary }}</div>
-          <div class="muted small">{{ l.customer_name or 'без имени' }} {{ l.customer_phone }} · {{ l.created_at|local(business.timezone) }}</div>
+          <div class="muted small">{{ l.customer_name or 'без имени' }} {{ l.customer_phone|phone }} · {{ l.created_at|local(business.timezone) }}</div>
         </div>
         {% if l.off_hours %}<span class="chip warn">ночью</span>{% endif %}
       </div>

@@ -256,7 +256,7 @@ void dialogueTests() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('reply-input')), findsNothing);
     expect(find.textContaining('только 24 часа'), findsOneWidget);
-    expect(find.textContaining('+996700111222'), findsOneWidget);
+    expect(find.textContaining('+996 700 111 222'), findsOneWidget);
   });
 
   testWidgets('a guest house sees its room bookings and cancels one, which frees the dates', (tester) async {

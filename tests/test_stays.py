@@ -134,7 +134,7 @@ def test_a_hotels_numbers_reports_and_dashboard_count_the_stays(engine, settings
     with TestClient(create_app(settings, rt, init=False)) as c:
         c.post("/login", data={"slug": "hotel", "password": "hotel-pass", "csrf": csrf_of(c.get("/login").text)})
         page = c.get("/panel").text
-        assert "броней номеров сделал ИИ" in page and "Ближайшие брони" in page and "Алмаз" in page
+        assert "бронь номеров сделал ИИ" in page and "Ближайшие брони" in page and "Алмаз" in page
         assert "заявок на запись" not in page  # a hotel takes no booking requests
         assert "Номеров этого типа" in c.get("/panel/staff").text and "удаление зубов" not in c.get("/panel/staff").text
 

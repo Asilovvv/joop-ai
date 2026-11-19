@@ -37,7 +37,7 @@ class _Schedule extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text('${formatTime(b.start)} — ${b.customerName.isEmpty ? S.current.noName : b.customerName}'
-                    '${b.customerPhone.isEmpty ? '' : ', ${b.customerPhone}'}'),
+                    '${b.customerPhone.isEmpty ? '' : ', ${formatPhone(b.customerPhone)}'}'),
               ),
             const SizedBox(height: 8),
             Text(S.current.bookingsLeftText),

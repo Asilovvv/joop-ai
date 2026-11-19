@@ -36,6 +36,7 @@ class Pack:
     outcomes: frozenset[str] = frozenset({"booking", "request", "handoff"})
     party_size: bool = False  # bookings carry a number of guests checked against resource capacity
     lead_fields: tuple[str, ...] = ()  # what to ask before a qualified lead
+    lead_label: str = ""  # how staff see such a lead: «Заявка на перевозку», «Заявка на обучение»
     order_modes: tuple[str, ...] = ("pickup", "delivery")
     rules: tuple[str, ...] = field(default_factory=tuple)
     features: frozenset[str] = frozenset()
@@ -143,6 +144,7 @@ def _load(name: str) -> Pack:
         outcomes=outcomes,
         party_size=bool(data.get("party_size", False)),
         lead_fields=tuple(data.get("lead_fields") or ()),
+        lead_label=str(data.get("lead_label") or ""),
         order_modes=tuple(data.get("order_modes") or ("pickup", "delivery")),
         rules=tuple(data.get("rules") or ()),
         features=features,

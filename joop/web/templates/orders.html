@@ -11,7 +11,7 @@
     {% for o in orders %}
     <div class="item">
       <div class="main">
-        <div><b>#{{ o.id }}</b> · {{ o.customer_name }} <span class="mono small">{{ o.customer_phone }}</span> · {{ 'доставка' if o.mode == 'delivery' else 'самовывоз' }}{% if o.wanted_time %} к {{ o.wanted_time }}{% endif %}</div>
+        <div><b>#{{ o.id }}</b> · {{ o.customer_name }} <span class="mono small">{{ o.customer_phone|phone }}</span> · {{ 'доставка' if o.mode == 'delivery' else 'самовывоз' }}{% if o.wanted_time %} к {{ o.wanted_time }}{% endif %}</div>
         <div class="small">{% for l in lines.get(o.id, []) %}{{ l.quantity }} × {{ l.name }}{% if l.note %} ({{ l.note }}){% endif %}{% if not loop.last %}; {% endif %}{% endfor %}</div>
         {% if o.address %}<div class="small">Адрес: {{ o.address }}</div>{% endif %}
         {% if o.comment %}<div class="small muted">{{ o.comment }}</div>{% endif %}
