@@ -369,7 +369,7 @@ def _model_reply(
             outcome.admin_notes.append(_order_note(session, conv, order, off))
             outcome.admin_notes.extend(stock.take_for_order(session, order.id, now))
     if result.lead and pack.has("lead"):
-        outcome.reply, qualified = _qualified_lead(session, business, conv, result.lead, outcome.reply, now, off)
+        outcome.reply, qualified = _qualified_lead(session, business, pack, conv, result.lead, outcome.reply, now, off)
         if qualified is not None:
             outcome.qualified_lead_id = qualified.id
             outcome.admin_notes.append(_lead_note(business, conv, qualified, off))
@@ -1085,7 +1085,8 @@ def _order_note(session: Session, conv: Conversation, order: Order, off: bool) -
 
 
 def _qualified_lead(
-    session: Session, business: Business, conv: Conversation, data: dict, reply: str, now: datetime, off: bool
+    session: Session, business: Business, pack: Pack, conv: Conversation, data: dict, reply: str, now: datetime,
+    off: bool,
 ) -> tuple[str, Lead | None]:
     name = (data.get("name") or "").strip()[:120]
     phone = normalize_phone(data.get("phone"))
@@ -1093,7 +1094,8 @@ def _qualified_lead(
         return ASK_CONTACTS_REPLY, None
     conv.customer_name, conv.customer_phone = name, phone
     session.add(conv)
-    lead = _add_lead(session, business, conv, "lead", "Заявка на подбор / консультацию. Свяжитесь с клиентом.", now, off)
+    # the niche's own words: «Заявка на подбор / консультацию» read wrong for a removal company or a school
+    lead = _add_lead(session, business, conv, "lead", f"{pack.lead_label or 'Заявка'}. Свяжитесь с клиентом.", now, off)
     lead.details = (data.get("details") or "").strip()[:1000]
     session.add(lead)
     return reply, lead

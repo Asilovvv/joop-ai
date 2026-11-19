@@ -430,7 +430,7 @@ class S {
   final String Function(int days) aiResultsTitle;
 
   /// The label of a figure from /api/mobile/ai-results; empty for a key the app does not know yet.
-  final String Function(String key) aiFigure;
+  final String Function(String key, int n) aiFigure; // the words under a number: «4 диалога с клиентами»
   final String moveBooking;
   final String moveAction;
   final String Function(String name, String when) movingFrom;
@@ -1003,19 +1003,26 @@ String _ruPause(int m) => const {15: '15 минут', 60: '1 час', 180: '3 ч
 String _kyPause(int m) => const {15: '15 мүнөткө', 60: '1 саатка', 180: '3 саатка', 720: '12 саатка', 1440: '24 саатка'}[m] ?? '$m мүнөткө';
 String _ruAiTitle(int days) => 'ИИ за $days дней';
 String _kyAiTitle(int days) => 'ИИ $days күндө';
-String _ruAiFigure(String key) => const {
-      'conversations': 'диалогов с клиентами',
-      'off_hours_conversations': 'из них в нерабочее время',
-      'bookings': 'записей сделал ИИ',
-      'off_hours_bookings': 'записей в нерабочее время',
-      'orders': 'заказов принял ИИ',
-      'stays': 'броней сделал ИИ',
-      'requests': 'заявок на запись (перезвонить)',
-      'qualified': 'заявок собрал ИИ',
-      'handed_to_people': 'вопросов передано людям',
-    }[key] ??
-    '';
-String _kyAiFigure(String key) => const {
+/// The Russian form after a number: 1 диалог, 2 диалога, 5 диалогов, 11 диалогов, 21 диалог.
+String ruForm(int n, String one, String few, String many) {
+  final last2 = n.abs() % 100, last = n.abs() % 10;
+  if (last == 1 && last2 != 11) return one;
+  return last >= 2 && last <= 4 && (last2 < 12 || last2 > 14) ? few : many;
+}
+
+String _ruAiFigure(String key, int n) => switch (key) {
+      'conversations' => '${ruForm(n, 'диалог', 'диалога', 'диалогов')} с клиентами',
+      'off_hours_conversations' => 'из них в нерабочее время',
+      'bookings' => '${ruForm(n, 'запись', 'записи', 'записей')} сделал ИИ',
+      'off_hours_bookings' => '${ruForm(n, 'запись', 'записи', 'записей')} в нерабочее время',
+      'orders' => '${ruForm(n, 'заказ', 'заказа', 'заказов')} принял ИИ',
+      'stays' => '${ruForm(n, 'бронь', 'брони', 'броней')} сделал ИИ',
+      'requests' => '${ruForm(n, 'заявка', 'заявки', 'заявок')} на запись (перезвонить)',
+      'qualified' => '${ruForm(n, 'заявку', 'заявки', 'заявок')} собрал ИИ',
+      'handed_to_people' => '${ruForm(n, 'вопрос передан', 'вопроса передано', 'вопросов передано')} людям',
+      _ => '',
+    };
+String _kyAiFigure(String key, int n) => const { // Kyrgyz nouns do not change after a number
       'conversations': 'кардарлар менен диалог',
       'off_hours_conversations': 'анын ичинде жумуштан тышкары',
       'bookings': 'ИИ жазган визит',

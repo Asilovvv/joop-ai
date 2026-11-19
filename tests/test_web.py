@@ -308,7 +308,7 @@ def test_restaurant_panel(settings, rt, engine):
         c.post("/login", data={"slug": "cafe", "password": "secret-pass", "csrf": token})
         token = csrf_of(c.get("/panel").text)
         panel = c.get("/panel").text
-        assert "Заказы" in panel and "Меню" in panel and "Столы" in panel and "заказов принял ИИ" in panel
+        assert "Заказы" in panel and "Меню" in panel and "Столы" in panel and "заказ принял ИИ" in panel
         orders = c.get("/panel/orders").text
         assert "2 × Плов" in orders and "850 сом" in orders and "доставка 150" in orders and "Киевская 1" in orders
         c.post(f"/panel/orders/{out.order_id}/status", data={"status": "accepted", "csrf": token})

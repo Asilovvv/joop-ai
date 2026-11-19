@@ -4,7 +4,7 @@
 <section class="head">
   <div>
     <h1>{{ conv.customer_name or conv.display_name or 'Клиент' }}</h1>
-    <p class="muted small">{{ channel_names.get(conv.channel, conv.channel) }}{% if conv.staff_test %} · тест{% endif %}{% if conv.customer_phone %} · <span class="mono">{{ conv.customer_phone }}</span>{% endif %}</p>
+    <p class="muted small">{{ channel_names.get(conv.channel, conv.channel) }}{% if conv.staff_test %} · тест{% endif %}{% if conv.customer_phone %} · <span class="mono">{{ conv.customer_phone|phone }}</span>{% endif %}</p>
   </div>
   {% if paused %}
   <form method="post" action="/panel/conversations/{{ conv.id }}/resume"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn" type="submit">Включить ИИ</button></form>
@@ -28,7 +28,7 @@
 <section class="card stack">
   <h2>Ответить клиенту</h2>
   {% if reply_blocked %}
-  <p class="muted">{{ reply_blocked }}{% if conv.customer_phone %} Телефон: <span class="mono">{{ conv.customer_phone }}</span>.{% endif %}</p>
+  <p class="muted">{{ reply_blocked }}{% if conv.customer_phone %} Телефон: <span class="mono">{{ conv.customer_phone|phone }}</span>.{% endif %}</p>
   {% else %}
   <form method="post" action="/panel/conversations/{{ conv.id }}/reply" class="stack">
     <input type="hidden" name="csrf" value="{{ csrf }}">

@@ -29,6 +29,19 @@ void main() {
     expect(find.text('вопросов передано людям'), findsOneWidget);
   });
 
+  testWidgets('the words under the numbers agree with them', (tester) async {
+    final server = FakeJoop()
+      ..aiFigures = {'conversations': 4, 'off_hours_conversations': 1, 'bookings': 1, 'off_hours_bookings': 3,
+        'requests': 22, 'handed_to_people': 21};
+    await signIn(tester, server);
+    await tester.scrollUntilVisible(find.byKey(const Key('ai-results')), 300, scrollable: find.byType(Scrollable).first);
+    expect(find.text('диалога с клиентами'), findsOneWidget); // was «4 диалогов с клиентами»
+    expect(find.text('запись сделал ИИ'), findsOneWidget); // was «1 записей сделал ИИ»
+    expect(find.text('записи в нерабочее время'), findsOneWidget);
+    expect(find.text('заявки на запись (перезвонить)'), findsOneWidget);
+    expect(find.text('вопрос передан людям'), findsOneWidget); // 21
+  });
+
   testWidgets('a master does not see the whole business figures', (tester) async {
     final server = FakeJoop()..role = 'master';
     await signIn(tester, server);

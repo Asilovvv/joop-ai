@@ -130,7 +130,7 @@ class _DialogueState extends State<_Dialogue> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(
-                          [blocked, s.callInstead(dialogue.customerPhone)].where((x) => x.isNotEmpty).join('\n'),
+                          [blocked, s.callInstead(formatPhone(dialogue.customerPhone))].where((x) => x.isNotEmpty).join('\n'),
                           style: TextStyle(color: theme.colorScheme.onErrorContainer),
                         ),
                       )

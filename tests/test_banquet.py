@@ -115,7 +115,7 @@ def test_panel_dashboard_and_reports_speak_of_halls(settings, rt, engine):
         page = c.get("/panel/stays").text
         assert "<h1>Брони залов</h1>" in page and "<th>Зал</th>" in page and f"{TODAY:%d.%m.%Y}" in page
         dash = c.get("/panel").text
-        assert "Брони залов" in dash and "броней залов сделал ИИ" in dash and "номер" not in dash.split("Ближайшие брони")[1][:600]
+        assert "Брони залов" in dash and "бронь залов сделал ИИ" in dash and "номер" not in dash.split("Ближайшие брони")[1][:600]
         staff = c.get("/panel/staff").text
         assert "Каждая строка — зал" in staff and "Номеров этого типа" not in staff
 

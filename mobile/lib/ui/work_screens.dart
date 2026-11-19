@@ -225,7 +225,7 @@ class _OrderCard extends StatelessWidget {
         Wrap(spacing: 6, runSpacing: 6, children: [
           _Tag(channelName(order.channel), channelColor(order.channel)),
           if (order.customerName.isNotEmpty) _Tag(order.customerName, scheme.outline),
-          if (order.customerPhone.isNotEmpty) _Tag(order.customerPhone, scheme.outline),
+          if (order.customerPhone.isNotEmpty) _Tag(formatPhone(order.customerPhone), scheme.outline),
           _Tag(_when(order.createdAt), scheme.outline),
         ]),
         if (order.isOpen) ...[
@@ -276,7 +276,7 @@ class _LeadCard extends StatelessWidget {
         Wrap(spacing: 6, runSpacing: 6, children: [
           _Tag(channelName(lead.channel), channelColor(lead.channel)),
           if (lead.customerName.isNotEmpty) _Tag(lead.customerName, scheme.outline),
-          if (lead.customerPhone.isNotEmpty) _Tag(lead.customerPhone, scheme.outline),
+          if (lead.customerPhone.isNotEmpty) _Tag(formatPhone(lead.customerPhone), scheme.outline),
           if (lead.done) _Tag(lead.closedBy.isEmpty ? S.current.done : S.current.closedBy(lead.closedBy), const Color(0xFF2E9E5B)),
         ]),
         if (!lead.done || lead.conversationId != null) ...[
@@ -362,7 +362,7 @@ class _StayCard extends StatelessWidget {
         Wrap(spacing: 6, runSpacing: 6, children: [
           if (stay.channel.isNotEmpty) _Tag(channelName(stay.channel), channelColor(stay.channel)),
           if (stay.customerName.isNotEmpty) _Tag(stay.customerName, scheme.outline),
-          if (stay.customerPhone.isNotEmpty) _Tag(stay.customerPhone, scheme.outline),
+          if (stay.customerPhone.isNotEmpty) _Tag(formatPhone(stay.customerPhone), scheme.outline),
         ]),
         if (!stay.cancelled || stay.conversationId != null) ...[
           const SizedBox(height: 12),
