@@ -212,7 +212,7 @@ def test_personal_telegram_chats_get_no_broadcasts_and_business_messages_only_wi
                                 last_message_at=NOW_UTC - timedelta(hours=1), created_at=NOW_UTC - timedelta(days=3))
         s.add_all([b, personal])
         s.commit()
-        assert not broadcasts._reachable(personal, NOW_UTC)
+        assert not broadcasts._reachable(b, personal, NOW_UTC)  # the bot is connected: still never
         assert broadcasts.preview(s, b, "all", "", NOW_UTC).reachable == 0
         sent: list[str] = []
         rt.telegram = lambda business: type("C", (), {"send_text": lambda self, chat, text: sent.append(chat) or True})()

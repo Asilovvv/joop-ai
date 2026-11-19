@@ -46,27 +46,39 @@ def qr_svg(url: str, scale: int = 5, sized: bool = False) -> str:
     return buf.getvalue().decode()
 
 
-_NUMBER = r"\d(?:[\d\u00a0\u202f ]*\d)?"
+_NUMBER = r"\d(?:[\d\u00a0\u202f ]*\d)?(?:[.,]\d+)?"
 PRICE_NUMBER = re.compile(rf"{_NUMBER}(?:\s*[–—-]\s*{_NUMBER})?")
+# the business named a currency itself (a realty agency writes «120 000 $»): no «сом» on top of it
+CURRENCY = re.compile(r"сом|kgs|\d\s*с\.|[$€₽₸£¥]|\b(?:usd|eur|rub|руб|тенге|тг|сум|у\.\s?е)\b", re.I)
+# a number right before one of these is a quantity («1 кг — 450», «60 минут — 1 200»), not the price
+UNIT = re.compile(r"\s*(?:кг|гр?|мл|л|шт|мм|см|м²|м2|м|мин|минут[аы]?|час(?:а|ов)?|ч|сут(?:ок|ки)?|дн(?:я|ей)?|день|"
+                  r"ноч(?:ь|и|ей)|мес(?:яц(?:а|ев)?)?|чел(?:овек)?|порц(?:ия|ии|ий)?|занят(?:ие|ия|ий)|урок(?:а|ов)?|"
+                  r"сеанс(?:а|ов)?|раз(?:а)?)\b", re.I)
 
 
 def price_label(price: str, lang: str) -> str:
+    """«сом» right after the price itself (a range counts as one), not after the unit: «3 500 сом за ночь»,
+    «800 сом за 60 минут», «1 кг — 450 сом», «1 500–2 000 сом». A price in another currency, or with no price in it
+    («по договорённости», «2 часа»), stays as written."""
     price = (price or "").strip()
     if not price:
         return ""
     if price == "0":
         return TEXT[lang]["free"]
-    if "сом" in price.lower():
+    if CURRENCY.search(price):
         return price
-    # «сом» right after the price itself (a range counts as one), not after the unit: «3 500 сом за ночь»,
-    # «800 сом за 60 минут», «1 500–2 000 сом»
-    return PRICE_NUMBER.sub(lambda m: f"{m.group(0)} {TEXT[lang]['som']}", price, count=1)
+    for m in PRICE_NUMBER.finditer(price):
+        if not UNIT.match(price, m.end()):
+            return f"{price[:m.end()]} {TEXT[lang]['som']}{price[m.end():]}"
+    return price
 
 
-def order_link(business: Business, lang: str, table: int | None) -> tuple[str, str]:
-    """(url, label) of the main button. WhatsApp links get a prefilled message with the table number."""
+def order_link(business: Business, lang: str, table: int | None, chat_url: str | None = None) -> tuple[str, str]:
+    """(url, label) of the main button. WhatsApp links get a prefilled message with the table number.
+    `chat_url`: None is the owner's saved link; "" asks what the button does with the field left empty."""
     phone = phone_digits(samples.customer_contact(business, "phone"))  # never the sign-up example's number
-    url = business.menu_chat_url or (f"https://wa.me/{phone}" if phone else "")
+    own = business.menu_chat_url if chat_url is None else chat_url
+    url = own or (f"https://wa.me/{phone}" if phone else "")
     if not url:
         return "", ""
     pack = get_pack(business.niche)
@@ -74,6 +86,36 @@ def order_link(business: Business, lang: str, table: int | None) -> tuple[str, s
     if url.startswith("https://wa.me/") and table:
         url += ("&" if "?" in url else "?") + "text=" + quote(f"{TEXT[lang]['table']} {table}: ")
     return url, label
+
+
+def main_button(business: Business, links: list[tuple[str, str]], lang: str, table: int | None,
+                chat_url: str | None = None) -> tuple[str, str]:
+    """The page's main button: the owner's link, else WhatsApp on the company phone; a booking niche without the
+    owner's link, or a page with no phone, leads where the AI answers (`links`: channel_links)."""
+    url, label = order_link(business, lang, table, chat_url)
+    pack = get_pack(business.niche)
+    own = business.menu_chat_url if chat_url is None else chat_url
+    if links and (not url or (pack.has("booking") and not pack.has("order") and not own)):
+        url = links[0][0]  # a booking niche: the button leads where the AI answers, not to the landline
+        label = TEXT[lang]["book"] if pack.has("booking") else TEXT[lang]["ask"]
+    return url, label
+
+
+def empty_hint(business: Business, base: str) -> str:
+    """For the panel: where the button leads when the owner leaves the link empty, as the public page decides."""
+    url, _ = main_button(business, channel_links(business, base, "ru"), "ru", None, chat_url="")
+    phone = samples.customer_contact(business, "phone")
+    note = " (телефон в настройках — из примера, клиентам его не показываем)" if business.phone and not phone else ""
+    if not url:
+        where = "кнопки не будет: укажите телефон компании в настройках или включите ИИ"
+    elif url.startswith(f"{base}/c/"):
+        where = "кнопка ведёт в чат на сайте, где отвечает ИИ"
+    elif url.startswith("https://t.me/"):
+        where = "кнопка ведёт в вашего Telegram-бота, где отвечает ИИ"
+    else:
+        ai = business.bot_enabled and business.wa_phone_number_id and business.wa_access_token
+        where = f"кнопка ведёт в WhatsApp на номер {phone}" + (", где отвечает ИИ" if ai else "")
+    return f"Пусто — {where}{note}."
 
 
 def channel_links(business: Business, base: str, lang: str) -> list[tuple[str, str]]:
@@ -141,11 +183,8 @@ def public_menu(request: Request, slug: str, t: int = 0, lang: str = "ru"):
         from .app import _base_url
 
         extras = booking_extras(s, b, _base_url(request), lang)
-    url, label = order_link(b, lang, table)
+    url, label = main_button(b, extras["links"], lang, table)
     pack = get_pack(b.niche)
-    if extras["links"] and (not url or (pack.has("booking") and not pack.has("order") and not b.menu_chat_url)):
-        url = extras["links"][0][0]  # a booking niche: the button leads where the AI answers, not to the landline
-        label = TEXT[lang]["book"] if pack.has("booking") else TEXT[lang]["ask"]
     return templates.TemplateResponse(request, "menu_public.html", {
         "request": request, "b": b, "groups": _groups(list(items), lang), "lang": lang, "tx": TEXT[lang], "table": table,
         "order_url": url, "order_label": label, "price": price_label, "title": get_pack(b.niche).catalog_label,
@@ -181,7 +220,7 @@ def menu_page(request: Request):
         left = samples.left(s, b)
     url = menu_url(_base_url(request), b.slug)
     return _render(request, "menu.html", "menu", b, url=url, qr=Markup(qr_svg(url)), count=count,
-                   example_items=len(left.services), example_people=len(left.staff))
+                   example_items=len(left.services), example_people=len(left.staff), empty_hint=empty_hint(b, _base_url(request)))
 
 
 @router.post("/panel/menu")

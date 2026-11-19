@@ -286,6 +286,7 @@ def _render(request: Request, template: str, active: str, business: Business | N
         support=_support(request, business),
         pack=get_pack(business.niche if business else None),
         active=active,
+        alerts_on=bool(business and alert_chats(business)),  # «…и придёт вам в Telegram» only when it will
     )
     return templates.TemplateResponse(request, template, ctx)
 
