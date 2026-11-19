@@ -59,8 +59,9 @@ async def broadcasts_post(request: Request):
                 _flash(request, error, "error")
                 return _page(request, s, b, form, broadcasts.preview(s, b, segment, arg, now))
             s.commit()
+            result = "итог придёт вам в Telegram" if alert_chats(b) else "итог будет здесь, в истории рассылок"
             _flash(request, f"Рассылка запущена: {item.total} клиентам. Сообщения уходят партиями с "
-                            f"{broadcasts.SEND_HOURS[0]}:00 до {broadcasts.SEND_HOURS[1]}:00, итог придёт вам в Telegram.")
+                            f"{broadcasts.SEND_HOURS[0]}:00 до {broadcasts.SEND_HOURS[1]}:00, {result}.")
             return _back("/panel/broadcasts")
         if action == "test":
             if not form["text"]:

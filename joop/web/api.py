@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import secrets
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Form, Request
 from fastapi.responses import JSONResponse, Response
@@ -29,7 +29,8 @@ def api_page(request: Request):
     with new_session() as s:
         b = _business(s, request)
         waiting, lost = api.undelivered(s, b, utcnow())
-        return _render(request, "api.html", "api", b, new_key="", new_secret="", base=_base_url(request), waiting=waiting, lost=lost)
+        return _render(request, "api.html", "api", b, new_key="", new_secret="", base=_base_url(request), waiting=waiting, lost=lost,
+                       day_ahead=api.DAY_AHEAD)
 
 
 @router.post("/panel/api")
@@ -70,7 +71,8 @@ def api_save(request: Request, action: str = Form(""), url: str = Form(""), csrf
         s.commit()
         s.refresh(b)
         if new_key or new_secret:  # shown on this page only, never stored in clear or put in the session
-            page = _render(request, "api.html", "api", b, new_key=new_key, new_secret=new_secret, base=_base_url(request), waiting=0, lost=0)
+            page = _render(request, "api.html", "api", b, new_key=new_key, new_secret=new_secret, base=_base_url(request), waiting=0, lost=0,
+                           day_ahead=api.DAY_AHEAD)
             page.headers["Cache-Control"] = "no-store"  # not kept by the browser or a proxy
             return page
     return _back("/panel/api")
@@ -105,7 +107,11 @@ def api_slots(request: Request, date: str = ""):
             day = datetime.strptime(date, "%Y-%m-%d").date() if date else None
         except ValueError:
             return _denied(400, "date must be YYYY-MM-DD")
-        data = api.free_slots(s, b, day, local_now(b.timezone).replace(tzinfo=None))
+        now_local = local_now(b.timezone).replace(tzinfo=None)
+        if day and not now_local.date() <= day <= now_local.date() + timedelta(days=api.DAY_AHEAD):
+            # said out loud, as MCP does: an empty list would read as «no free time» on a day that has some
+            return _denied(400, f"date must be from today to {api.DAY_AHEAD} days ahead")
+        data = api.free_slots(s, b, day, now_local)
         return JSONResponse({"data": data, "timezone": b.timezone}, headers={"Cache-Control": "no-store"})
 
 

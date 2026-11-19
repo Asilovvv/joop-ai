@@ -27,6 +27,6 @@
     </div>
     {% endfor %}
   </div>
-  {% else %}<p class="muted">Заказов пока нет. Когда ИИ оформит заказ, он появится здесь и придёт в Telegram.</p>{% endif %}
+  {% else %}<p class="muted">Заказов пока нет. Когда ИИ оформит заказ, он появится здесь{{ ' и придёт вам в Telegram' if alerts_on }}.</p>{% endif %}
 </section>
 {% endblock %}

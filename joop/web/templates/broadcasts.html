@@ -31,6 +31,7 @@
   <div class="stats">
     <div class="stat"><b>{{ pv.reachable }}</b><span>получат: Telegram {{ pv.telegram }}, WhatsApp и Instagram {{ pv.window }}</span></div>
     <div class="stat"><b>{{ pv.outside }}</b><span>не получат: писали в WhatsApp или Instagram больше суток назад</span></div>
+    {% if pv.off %}<div class="stat"><b>{{ pv.off }}</b><span>не получат: канал отключён ({{ pv.off_names }})</span></div>{% endif %}
     <div class="stat"><b>{{ pv.opted_out }}</b><span>отписались</span></div>
   </div>
   {% endif %}

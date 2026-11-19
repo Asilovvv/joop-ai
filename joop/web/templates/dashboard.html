@@ -120,7 +120,7 @@
       </div>
       {% endfor %}
     </div>
-    {% else %}<p class="muted">Броней пока нет. Когда ИИ забронирует {{ 'зал' if pack.by_day else 'машину' if pack.rental else 'номер' }}, бронь появится здесь и придёт в Telegram.</p>{% endif %}
+    {% else %}<p class="muted">Броней пока нет. Когда ИИ забронирует {{ 'зал' if pack.by_day else 'машину' if pack.rental else 'номер' }}, бронь появится здесь{{ ' и придёт вам в Telegram' if alerts_on }}.</p>{% endif %}
   </section>
   {% elif pack.orders_first %}
   <section class="card">
@@ -137,7 +137,7 @@
       </div>
       {% endfor %}
     </div>
-    {% else %}<p class="muted">Заказов пока нет. Когда ИИ оформит заказ, он появится здесь и придёт в Telegram.</p>{% endif %}
+    {% else %}<p class="muted">Заказов пока нет. Когда ИИ оформит заказ, он появится здесь{{ ' и придёт вам в Telegram' if alerts_on }}.</p>{% endif %}
   </section>
   {% else %}
   <section class="card">
@@ -154,7 +154,7 @@
       </div>
       {% endfor %}
     </div>
-    {% else %}<p class="muted">Записей пока нет. Когда ИИ запишет клиента, запись появится здесь и придёт в Telegram.</p>{% endif %}
+    {% else %}<p class="muted">Записей пока нет. Когда ИИ запишет клиента, запись появится здесь{{ ' и придёт вам в Telegram' if alerts_on }}.</p>{% endif %}
   </section>
   {% endif %}
   <section class="card">
