@@ -92,11 +92,11 @@ def test_a_failed_model_call_keeps_the_customers_message(business):
 
 
 def test_customers_of_different_businesses_are_answered_side_by_side(business, settings, engine):
-    """Four model calls of 0.6 s at once: about 0.6 s in all, not 2.4 s one after another."""
+    """Four model calls of one second at once: about a second in all, not four one after another."""
 
     class SlowLLM(FakeLLM):
         def respond(self, system, messages, schema=None):
-            time.sleep(0.6)
+            time.sleep(1.0)
             return AgentReply("Здравствуйте! Чем помочь?")
 
     ids = [business.id]
@@ -121,7 +121,7 @@ def test_customers_of_different_businesses_are_answered_side_by_side(business, s
     for t in threads:
         t.join()
     assert all(o.reply == "Здравствуйте! Чем помочь?" for o in outcomes), [o.skipped for o in outcomes]
-    assert time.monotonic() - started < 2.0
+    assert time.monotonic() - started < 3.0
 
 
 def test_an_atomic_session_stays_one_unit(business):
@@ -202,14 +202,14 @@ def test_a_repeated_delivery_gets_one_answer(business, settings):
 def test_other_chats_of_the_same_business_do_not_wait(business, settings):
     class SlowLLM(FakeLLM):
         def respond(self, system, messages, schema=None):
-            time.sleep(0.6)
+            time.sleep(1.0)
             return AgentReply("Здравствуйте! Чем помочь?")
 
     rt = FakeRuntime(settings, SlowLLM())
     started = time.monotonic()
     outcomes = _together(rt, business.id, [IncomingMessage("telegram", f"60{i}", "text", "Здравствуйте", "", f"tg:60{i}:1")
                                            for i in range(4)], gap=0.0)
-    assert all(o.reply for o in outcomes) and time.monotonic() - started < 2.0
+    assert all(o.reply for o in outcomes) and time.monotonic() - started < 3.0  # four in turn would take four seconds
 
 
 def test_turns_leave_nothing_behind_and_a_stuck_chat_does_not_block_forever(business, monkeypatch):
