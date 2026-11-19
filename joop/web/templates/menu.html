@@ -15,7 +15,7 @@
       <p class="small">Ссылка: {% if business.menu_enabled %}<a class="mono" href="{{ url }}" target="_blank" rel="noopener">{{ url }}</a>{% else %}<span class="mono muted">{{ url }}</span>{% endif %}</p>
       <label>Куда ведёт кнопка «{{ 'Заказать' if pack.has('order') else 'Задать вопрос' }}» (t.me, wa.me или Instagram)
         <input name="chat_url" value="{{ business.menu_chat_url }}" placeholder="https://t.me/ваш_бот"></label>
-      <p class="muted small">Лучше ссылка на вашего Telegram-бота или WhatsApp — там ответит ИИ. Пусто — кнопка ведёт в WhatsApp на телефон компании{% if not business.phone %} (сейчас телефон не указан в настройках){% endif %}.{% if pack.serves_tables %} В WhatsApp к сообщению добавится номер стола.{% endif %}</p>
+      <p class="muted small">Лучше ссылка на вашего Telegram-бота или WhatsApp — там ответит ИИ. {{ empty_hint }}{% if pack.serves_tables %} В WhatsApp к сообщению добавится номер стола.{% endif %}</p>
       <div class="actions" style="justify-content: flex-start"><button class="btn small" type="submit">Сохранить</button></div>
     </form>
   </div>

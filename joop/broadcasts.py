@@ -18,7 +18,7 @@ Rules that keep it from turning into spam:
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -152,12 +152,30 @@ def _days(arg: str) -> int:
         return LAPSED_DAYS
 
 
-def _reachable(conv: Conversation, now_utc: datetime) -> bool:
+NAMES = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram"}
+
+
+def connected(business: Business, channel: str) -> bool:
+    """The channel can send now: the same fields Runtime.channel_client needs (no client, nothing is delivered)."""
+    if channel == "telegram":
+        return bool(business.telegram_bot_token)
+    if channel == "whatsapp":
+        return bool(business.wa_phone_number_id and business.wa_access_token)
+    if channel == "instagram":
+        return bool(business.ig_account_id and business.ig_access_token)
+    return False
+
+
+def _in_window(conv: Conversation, now_utc: datetime) -> bool:
+    return bool(conv.last_customer_at and now_utc - conv.last_customer_at < SERVICE_WINDOW)
+
+
+def _reachable(business: Business, conv: Conversation, now_utc: datetime) -> bool:
     if is_personal(conv.chat_id):
         return False  # the owner's personal Telegram: a broadcast would go out under their name, friends included
-    if conv.channel == "telegram":
-        return True
-    return bool(conv.channel in WINDOW_CHANNELS and conv.last_customer_at and now_utc - conv.last_customer_at < SERVICE_WINDOW)
+    if not connected(business, conv.channel):
+        return False  # «Отключить бота», WhatsApp or Instagram not connected: nothing would go out
+    return conv.channel == "telegram" or (conv.channel in WINDOW_CHANNELS and _in_window(conv, now_utc))
 
 
 @dataclass
@@ -166,6 +184,12 @@ class Preview:
     window: int = 0  # WhatsApp and Instagram customers who wrote within the last 24 hours
     outside: int = 0  # WhatsApp and Instagram customers outside the window: they will not get it
     opted_out: int = 0
+    off: int = 0  # customers of a channel that is not connected: they will not get it either
+    off_channels: set[str] = field(default_factory=set)
+
+    @property
+    def off_names(self) -> str:
+        return ", ".join(NAMES[c] for c in NAMES if c in self.off_channels)
 
     @property
     def reachable(self) -> int:
@@ -179,12 +203,15 @@ def preview(session: Session, business: Business, segment: str, arg: str, now_ut
             p.opted_out += 1
         elif is_personal(c.chat_id):
             continue  # never broadcast to (see _reachable), so not counted at all
+        elif c.channel in WINDOW_CHANNELS and not _in_window(c, now_utc):
+            p.outside += 1
+        elif not connected(business, c.channel):
+            p.off += 1
+            p.off_channels.add(c.channel)
         elif c.channel == "telegram":
             p.telegram += 1
-        elif _reachable(c, now_utc):
-            p.window += 1
         else:
-            p.outside += 1
+            p.window += 1
     return p
 
 
@@ -226,7 +253,7 @@ def start(session: Session, business: Business, text: str, text_ky: str, segment
         when = utc_to_local(allowed, business.timezone).strftime("%d.%m %H:%M")
         return None, f"Рассылка — не чаще раза в сутки, чтобы клиенты не отписывались. Следующую можно с {when}."
     people = [c for c in _group(session, business, segment, arg, now_utc)
-              if not c.silenced and _reachable(c, now_utc)]
+              if not c.silenced and _reachable(business, c, now_utc)]
     if not people:
         return None, "В этой группе сейчас некому отправить."
     arg = str(_days(arg)) if segment == "lapsed" else arg.strip()[:120] if segment == "service" else ""
