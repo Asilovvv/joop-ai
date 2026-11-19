@@ -107,14 +107,24 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
    the channel sends an "echo". Echoes that match our own replies are ignored; any other echo pauses
    the AI in that conversation for 12 hours. Staff can also pause or resume the AI in the panel.
 4. **At-least-once webhooks, exactly-once replies.** Channels retry deliveries. Every stored message
-   keeps its channel message id, and a repeated id is dropped before any work is done.
-5. **Off-hours is measured, not guessed.** Each message and booking records whether it arrived
+   keeps its channel message id, and a repeated id is dropped before any work is done. One chat's
+   messages take turns (`engine.chat_turn`, a lock in memory: one process serves everything), so a
+   delivery repeated moments later finds the first already stored, and a second message sent in a row
+   is answered with the first reply in its history.
+5. **No model call inside a database transaction.** SQLite lets one connection write at a time, from
+   its first write to commit. The engine commits before each model call (`engine._free_the_database`),
+   so a slow answer to one customer never stops another business's customers, the panel or the
+   scheduler, and the customer's message is kept even if the call fails. Measured before the fix: ten
+   customers at once with a 3-second call were answered one after another and five got nothing
+   («database is locked»); after it, forty at once all got their answer in under four seconds.
+   A session that must stay one unit sets `session.info["atomic"]` (the founder's pitch demo).
+6. **Off-hours is measured, not guessed.** Each message and booking records whether it arrived
    outside the business's working hours. That is the pilot's headline number: how many customers
    were served while nobody was at the desk.
-6. **Secrets stay on the server.** Channel tokens are write-only in the panel, never logged, and
+7. **Secrets stay on the server.** Channel tokens are write-only in the panel, never logged, and
    request URLs that contain the Telegram token are not logged either. Meta webhooks are rejected
    unless their signature matches the app secret.
-7. **Time convention.** `*_at` columns are UTC; slot and booking start times are the business's
+8. **Time convention.** `*_at` columns are UTC; slot and booking start times are the business's
    local time. The business timezone is a setting (default Asia/Bishkek).
 
 ## Code map
@@ -186,6 +196,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 935 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 944 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |

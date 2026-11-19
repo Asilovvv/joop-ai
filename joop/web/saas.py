@@ -969,6 +969,7 @@ def prospect_action(request: Request, pid: int, action: str = Form(""), status: 
                 _flash(request, "Вставьте прайс из поста или сайта компании.", "error")
                 return _back(f"/owner/prospects#p{pid}")
             rt = _rt(request)
+            s.info["atomic"] = True  # a demo that fails halfway is rolled back whole, model calls included
             try:
                 b, problem = pitch.build(s, rt.get_llm(), p, text, settings.trial_days, now)
                 if b is not None:
