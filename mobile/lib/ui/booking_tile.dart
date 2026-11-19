@@ -92,7 +92,7 @@ class BookingTile extends StatelessWidget {
                         if (active && booking.depositStatus.isNotEmpty && depositLabel(booking).isNotEmpty)
                           _Chip(depositLabel(booking),
                               booking.depositStatus == 'paid' ? const Color(0xFF2E9E5B) : const Color(0xFFB7791F)),
-                        if (booking.customerPhone.isNotEmpty) _Chip(booking.customerPhone, scheme.outline),
+                        if (booking.customerPhone.isNotEmpty) _Chip(formatPhone(booking.customerPhone), scheme.outline),
                       ],
                     ),
                   ],

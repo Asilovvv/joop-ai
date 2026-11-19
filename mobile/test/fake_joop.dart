@@ -104,6 +104,8 @@ class FakeJoop {
 
   /// owner | staff | master: who the dental login signs in as.
   String role = 'owner';
+  Map<String, int> aiFigures = {'conversations': 128, 'off_hours_conversations': 41, 'bookings': 37,
+    'off_hours_bookings': 12, 'requests': 5, 'handed_to_people': 9};
 
   final services = <Map<String, dynamic>>[
     {'id': 1, 'name': 'Консультация', 'price': '500', 'category': 'Терапия', 'available': true},
@@ -411,8 +413,7 @@ class FakeJoop {
     }
     if (path == '/api/mobile/ai-results') {
       if (role == 'master') return json({'error': 'Нет доступа.'}, 403);
-      return json({'days': 14, 'figures': {'conversations': 128, 'off_hours_conversations': 41, 'bookings': 37,
-        'off_hours_bookings': 12, 'requests': 5, 'handed_to_people': 9}});
+      return json({'days': 14, 'figures': aiFigures});
     }
     if (path == '/api/mobile/conversations') {
       final q = (request.url.queryParameters['q'] ?? '').toLowerCase();

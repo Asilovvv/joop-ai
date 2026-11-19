@@ -30,6 +30,19 @@ String bookingOrigin(Booking b) => b.source == 'api' ? S.current.channelApi : ch
 /// "1 запись", "2 записи", "5 записей"; "5 жазылуу".
 String bookingsWord(int n) => S.current.bookingsCount(n);
 
+/// A stored phone as people read it: +996777444555 -> +996 777 444 555, +77011234567 -> +7 701 123 45 67; anything else
+/// stays as it is (the server's display_phone does the same for the panel).
+String formatPhone(String phone) {
+  final p = phone.trim();
+  if (RegExp(r'^\+996\d{9}$').hasMatch(p)) {
+    return '${p.substring(0, 4)} ${p.substring(4, 7)} ${p.substring(7, 10)} ${p.substring(10)}';
+  }
+  if (RegExp(r'^\+7\d{10}$').hasMatch(p)) {
+    return '${p.substring(0, 2)} ${p.substring(2, 5)} ${p.substring(5, 8)} ${p.substring(8, 10)} ${p.substring(10)}';
+  }
+  return p;
+}
+
 /// A currency the business named itself — a realty agency writes «120 000 $» — so no «сом» goes on top of it. The same
 /// list as the website's menu (joop/web/menu.py CURRENCY); Dart's \b knows only Latin letters, so the words are fenced
 /// by «no letter or digit around them» instead («150 за рубашку» is not roubles).

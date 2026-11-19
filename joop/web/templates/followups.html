@@ -66,7 +66,7 @@
   <h2>Последние оценки</h2>
   {% if recent %}
   <div class="list">{% for b in recent %}
-    <div class="item"><div class="main"><div><b>{{ b.rating }}/5</b> — {{ b.customer_name or 'клиент' }} {{ b.customer_phone }}</div>
+    <div class="item"><div class="main"><div><b>{{ b.rating }}/5</b> — {{ b.customer_name or 'клиент' }} {{ b.customer_phone|phone }}</div>
     <div class="muted small">{{ b.start|slot }}{% if b.service %} · {{ b.service }}{% endif %}{% if b.staff_name %} · {{ b.staff_name }}{% endif %}{% if b.conversation_id %} · <a href="/panel/conversations/{{ b.conversation_id }}">диалог</a>{% endif %}</div></div></div>
   {% endfor %}</div>
   {% else %}<p class="muted">Оценок пока нет.</p>{% endif %}

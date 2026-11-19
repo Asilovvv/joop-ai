@@ -30,7 +30,7 @@
     {% for m in rows %}
     {% set n = left(m) %}
     <tr class="{{ '' if usable(m, today) else 'cancelled' }}">
-      <td>{{ m.customer_name }}<br><span class="muted small mono">{{ m.customer_phone }}</span></td>
+      <td>{{ m.customer_name }}<br><span class="muted small mono">{{ m.customer_phone|phone }}</span></td>
       <td>{{ m.title }}</td>
       <td><b>{{ 'безлимит' if n is none else n ~ ' из ' ~ m.visits_total }}</b></td>
       <td class="mono small">{{ m.valid_until.strftime('%d.%m.%Y') if m.valid_until else '—' }}</td>

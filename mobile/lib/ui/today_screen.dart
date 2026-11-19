@@ -165,7 +165,7 @@ class _AiCard extends StatelessWidget {
     return BlocBuilder<AiResultsCubit, AiResults?>(
       builder: (context, results) {
         if (results == null) return const SizedBox.shrink();
-        final shown = results.figures.entries.where((e) => s.aiFigure(e.key).isNotEmpty).toList();
+        final shown = results.figures.entries.where((e) => s.aiFigure(e.key, e.value).isNotEmpty).toList();
         return Padding(
           padding: const EdgeInsets.only(top: 12),
           child: Card(
@@ -189,7 +189,7 @@ class _AiCard extends StatelessWidget {
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Text('${e.value}',
                                 style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
-                            Text(s.aiFigure(e.key),
+                            Text(s.aiFigure(e.key, e.value),
                                 style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
                           ]),
                         ),

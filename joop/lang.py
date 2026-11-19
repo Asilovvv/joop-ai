@@ -37,6 +37,14 @@ RU_MESSAGE_MARKERS = {
 _WORD = re.compile(r"[а-яёңөү]+")
 
 
+def plural(n: int, one: str, few: str, many: str) -> str:
+    """The Russian form after a number: 1 диалог, 2 диалога, 5 диалогов, 11 диалогов, 21 диалог."""
+    n = abs(int(n or 0))
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    return few if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14 else many
+
+
 def _words(text: str) -> list[str]:
     return _WORD.findall(text.lower())
 

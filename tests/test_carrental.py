@@ -1,5 +1,6 @@
 """Car rental (joop/niches/carrental): cars booked by days like hotel rooms, in the words of a car hire."""
 
+import re
 from datetime import timedelta
 
 from fastapi.testclient import TestClient
@@ -71,6 +72,6 @@ def test_panel_and_digest_speak_of_cars(settings, rt, engine):
         c.post("/login", data={"slug": "cars", "password": "cars-pass-1", "csrf": token})
         page = c.get("/panel/stays").text
         assert "<h1>Брони машин</h1>" in page and "<th>Машина</th>" in page and "Брони номеров" not in page
-        assert "броней машин сделал ИИ" in c.get("/panel").text
+        assert "<b>1</b><span>бронь машин сделал ИИ" in re.sub(r"\s+", " ", c.get("/panel").text)
         staff = c.get("/panel/staff").text
         assert "Каждая строка — модель машины" in staff and 'aria-label="Машин этой модели"' in staff

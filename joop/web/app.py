@@ -29,7 +29,8 @@ from ..catalog import parse_price
 from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service,
                       SignatureClick, Slot, Staff, Stay, StockMove, WaitlistEntry, takeover_words)
 from ..niches import all_packs, get_pack, picker_packs
-from ..phone import normalize_phone
+from ..lang import plural
+from ..phone import display_phone, normalize_phone
 from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, order_status, quick_replies, samples, schedule, staff_reply, stock, waitlist
 from ..faq_gaps import open_gaps
 from ..reschedule import blocked as move_blocked, cancel as cancel_core, reschedule
@@ -123,6 +124,8 @@ def booking_origin(b: Booking) -> str:
 
 
 templates.env.filters["origin"] = booking_origin
+templates.env.filters["forms"] = plural  # {{ n|forms('диалог', 'диалога', 'диалогов') }}
+templates.env.filters["phone"] = display_phone  # +996 777 444 555
 
 
 def spheres(n: int) -> str:

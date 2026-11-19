@@ -38,4 +38,20 @@ void main() {
     expect(priceWithSom('60 минут — 1 200'), '60 минут — 1 200 сом');
     expect(priceWithSom('2 часа'), '2 часа'); // no price in it
   });
+
+  test('phones read with spaces, as in the panel', () {
+    expect(formatPhone('+996777444555'), '+996 777 444 555');
+    expect(formatPhone('+77011234567'), '+7 701 123 45 67');
+    expect(formatPhone('+996 555 000 001'), '+996 555 000 001'); // already as the business typed it
+    expect(formatPhone('+4915112345678'), '+4915112345678');
+    expect(formatPhone(''), '');
+  });
+
+  test('Russian forms after a number', () {
+    String f(int n) => ruForm(n, 'диалог', 'диалога', 'диалогов');
+    expect([0, 1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 101, 111, 112, 122].map(f).toList(), [
+      'диалогов', 'диалог', 'диалога', 'диалога', 'диалогов', 'диалогов', 'диалогов', 'диалогов', 'диалог', 'диалога',
+      'диалогов', 'диалог', 'диалогов', 'диалогов', 'диалога'
+    ]);
+  });
 }
