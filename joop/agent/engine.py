@@ -9,6 +9,8 @@ from __future__ import annotations
 import hmac
 import logging
 import re
+import threading
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Callable
@@ -100,7 +102,59 @@ def blocked(session: Session, business_id: int, channel: str, chat_id: str) -> b
                                                       Conversation.chat_id == chat_id, Conversation.blocked_at != None)).first() is not None  # noqa: E711
 
 
+CHAT_WAIT = 150.0  # seconds a message waits for the one before it in the same chat: a model call with its retries
+_turns_guard = threading.Lock()
+_turns: dict[tuple[int, str, str], tuple[threading.Lock, int]] = {}  # chats being answered now, with how many wait
+
+
+@contextmanager
+def chat_turn(business_id: int, channel: str, chat_id: str):
+    """One message of a chat at a time, in arrival order. People send two or three messages in a row and Telegram and
+    Meta deliver some twice: handled side by side, the second would be answered without the first reply in its
+    history (two answers to one question, the same time booked twice) and a repeated delivery would get a second
+    answer. Other chats are not held back. One process serves everything (python -m joop serve), so a lock in memory
+    is enough. A message that waited CHAT_WAIT goes ahead anyway: late and out of order beats never."""
+    key = (business_id, channel, chat_id)
+    with _turns_guard:
+        lock, waiting = _turns.get(key) or (threading.Lock(), 0)
+        _turns[key] = (lock, waiting + 1)
+    held = lock.acquire(timeout=CHAT_WAIT)
+    if not held:
+        log.warning("A %s message of business %s waited %.0f s for its chat's turn and goes ahead", channel, business_id, CHAT_WAIT)
+    try:
+        yield
+    finally:
+        if held:
+            lock.release()
+        with _turns_guard:
+            lock, waiting = _turns[key]
+            if waiting <= 1:
+                del _turns[key]
+            else:
+                _turns[key] = (lock, waiting - 1)
+
+
 def handle_incoming(
+    session: Session,
+    business: Business,
+    incoming: IncomingMessage,
+    get_llm: Callable[[], LLMClient],
+    now_utc: datetime | None = None,
+    base_url: str = "",
+    get_altegio: Callable[[Business], "altegio.AltegioClient | None"] | None = None,
+) -> Outcome:
+    """One incoming message: what to answer and whom to tell. The chat's messages take turns (chat_turn), and the
+    outcome is committed before the turn passes on, so the next message reads this one's reply."""
+    if session.info.get("atomic"):  # one unit that its caller rolls back whole (joop/pitch.py): no turns, no commits
+        return _handle_incoming(session, business, incoming, get_llm, now_utc, base_url, get_altegio)
+    _free_the_database(session)  # never wait for a chat's turn while holding the database
+    with chat_turn(business.id, incoming.channel, incoming.chat_id):
+        outcome = _handle_incoming(session, business, incoming, get_llm, now_utc, base_url, get_altegio)
+        session.commit()
+        return outcome
+
+
+def _handle_incoming(
     session: Session,
     business: Business,
     incoming: IncomingMessage,
@@ -213,6 +267,16 @@ def handle_incoming(
     return _model_reply(session, business, conv, incoming.channel, text, now, get_llm, base_url, get_altegio, answered)
 
 
+def _free_the_database(session: Session) -> None:
+    """Commit what is decided before a model call. SQLite lets one connection write at a time, from its first write
+    until commit: a model call inside that would stop every other customer of every business, the panel and the
+    scheduler for its seconds (ten customers at once with a 3-second call: answered one after another, and five got
+    nothing, «database is locked»). The customer's message is kept even if the call then fails.
+    A session that must stay one unit (the founder's pitch demo, joop/pitch.py) sets session.info["atomic"]."""
+    if not session.info.get("atomic"):
+        session.commit()
+
+
 def _model_reply(
     session: Session,
     business: Business,
@@ -271,6 +335,7 @@ def _model_reply(
         + (routes.prompt_hint(session, conv, on_sale, text) if pack_offers(business, "route_price") else ""),
     )
     history = _history(session, conv, now)
+    _free_the_database(session)
 
     try:
         llm = get_llm()
@@ -380,6 +445,7 @@ def _model_reply(
     captured = any(x is not None for x in (outcome.booking_id, outcome.request_id, outcome.order_id, outcome.qualified_lead_id,
                                            outcome.stay_id, outcome.changed_booking_id))
     if outcome.reply and not captured and claims_confirmation(outcome.reply) and not _has_capture(session, conv):
+        _free_the_database(session)
         fixed = llm.remove_false_confirmation(outcome.reply, outcome.usage)
         if fixed and not adds_no_numbers(outcome.reply, fixed):  # the model's edit changed a time or a sum: cut by code
             fixed = ""
@@ -396,6 +462,7 @@ def _model_reply(
         # also when the model wrote nothing: the code's own confirmation follows in Kyrgyz (counted for the founder)
         outcome.kyrgyz = "ky"
         if outcome.reply and not looks_kyrgyz(outcome.reply):
+            _free_the_database(session)  # the booking or order is decided: the rewrite only changes words
             rewritten = llm.rewrite_in_kyrgyz(outcome.reply, outcome.usage)
             if rewritten and looks_kyrgyz(rewritten) and same_numbers(outcome.reply, rewritten):
                 outcome.reply = rewritten
