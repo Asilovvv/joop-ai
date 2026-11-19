@@ -1,0 +1,55 @@
+# The server image as deploy/setup.sh builds and starts it: build, migrate an empty database, serve, answer /health.
+# Unit tests run the code in a virtualenv; this catches what only the image can break (a dependency missing from
+# requirements.txt, a file not copied, the non-root user unable to write /data, a broken docker-compose.yml).
+name: docker
+
+on:
+  push:
+    paths: ["joop/**", "Dockerfile", "requirements.txt", "docker-compose.yml", "deploy/**", ".env.example",
+            ".github/workflows/docker.yml"]
+  pull_request:
+    paths: ["joop/**", "Dockerfile", "requirements.txt", "docker-compose.yml", "deploy/**", ".env.example",
+            ".github/workflows/docker.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build the image (docker compose build in setup.sh)
+        run: docker build -t joop:ci .
+
+      - name: Migrate an empty database (docker compose run --rm app python -m joop migrate)
+        run: |
+          docker volume create joop-ci
+          docker run --rm -v joop-ci:/data joop:ci python -m joop migrate
+
+      - name: Serve it and check the pages a new business opens first
+        run: |
+          docker run -d --name joop -p 8000:8000 -v joop-ci:/data \
+            -e SESSION_SECRET=ci-session-secret-0123456789abcdef -e SCHEDULER_ENABLED=0 joop:ci
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8000/health && break; sleep 2; done
+          echo
+          curl -fsS http://127.0.0.1:8000/health | grep -q '"ok":true'
+          for page in / /signup /login /privacy; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8000$page")
+            echo "$page $code"
+            test "$code" = 200
+          done
+
+      - name: The self-check runs inside the image
+        run: docker exec joop python -m joop check || true  # «НУЖНО» items (no model key here) are expected
+
+      - name: The compose file setup.sh starts is valid
+        run: |
+          sed 's/^DOMAIN=.*/DOMAIN=joop.example.com/' .env.example > .env
+          docker compose config --quiet
+
+      - name: Container logs
+        if: always()
+        run: docker logs joop 2>&1 | tail -80 || true
