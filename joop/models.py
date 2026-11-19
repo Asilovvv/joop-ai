@@ -47,6 +47,7 @@ class Business(SQLModel, table=True):
     admin_password_hash: str = ""
     admin_link_code: str = ""
     admin_chat_ids: str = ""  # Telegram chat ids that receive notifications, comma separated
+    admin_bot: str = ""  # the bot those chats were linked through (channels.telegram.bot_id); "" = linked before 0063
 
     telegram_bot_token: str = Field(default="", sa_type=EncryptedString)  # encrypted at rest (joop/crypto.py)
     telegram_secret: str = ""

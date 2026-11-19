@@ -22,7 +22,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from .. import annual, billing, free_plan, health, partners, pitch, samples, stories, waitlist
-from ..dispatch import admin_link, alert_chats
+from ..dispatch import admin_link, alert_chats, alerts_other_bot
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
@@ -311,11 +311,15 @@ def setup_telegram(request: Request, token: str = Form(""), csrf: str = Form("")
         b.telegram_bot_username = str(me.get("username") or "")
         s.add(b)
         s.commit()
+        relink = alerts_other_bot(b)  # the alert chats were linked through the previous bot
     if not settings.public_base_url.startswith("https://"):
         _flash(request, f"Токен бота @{me.get('username', '')} сохранён. Чтобы бот отвечал, серверу нужен адрес https (PUBLIC_BASE_URL).", "error")
         return _back(page)
     if client.set_webhook(f"{settings.public_base_url}/webhooks/telegram/{b.slug}", b.telegram_secret):
         _flash(request, f"Бот @{me.get('username', '')} подключён. Напишите ему — ИИ ответит.")
+        if relink:
+            _flash(request, "Чаты для уведомлений были привязаны через прежнего бота — новый писать в них не может. "
+                            "Привяжите их заново в «Настройках» → «Уведомления в Telegram».", "error")
         with new_session() as s:  # the bot now answers real customers: say what is still the sign-up example
             found = samples.left(s, s.get(Business, b.id))
         if found.any:

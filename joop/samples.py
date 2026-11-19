@@ -44,9 +44,15 @@ class Left:
     tests: list[str] = field(default_factory=list)  # a school's demo level test (joop/placement.py)
     jobs: list[str] = field(default_factory=list)  # a repair shop's demo receipts (joop/jobs.py)
     settings: list[str] = field(default_factory=list)  # «часы работы», «условия заказа»: example_settings()
+    contacts: list[str] = field(default_factory=list)  # «адрес», «телефон»: example_contact_words(), cleared, not confirmed
 
     @property
     def any(self) -> bool:
+        return bool(self.confirmable or self.contacts)
+
+    @property
+    def confirmable(self) -> bool:
+        """Anything «Это наши настоящие данные» can confirm: everything but the example's contacts, which it clears."""
         return bool(self.services or self.staff or self.faq or self.tests or self.jobs or self.settings)
 
 
@@ -138,7 +144,8 @@ CONTACTS = ("description", "address", "phone")
 
 def example_contacts(business: Business) -> frozenset[str]:
     """Which of the description, address and phone are still the sign-up example's («проспект Чуй 150 (демо-адрес)»,
-    «+996 555 000 002»): a real customer must never be sent to a fictional address or number."""
+    «+996 555 000 002»): a real customer must never be sent to a fictional address or number. Every demo marks them
+    as the demo's, so «Это наши настоящие данные» clears them rather than confirming them (app.example_ok)."""
     if business.example_ok:
         return frozenset()
     try:
@@ -187,13 +194,19 @@ def order_terms(business: Business, hidden: frozenset[str] = frozenset()) -> tup
 
 
 def example_settings(business: Business) -> list[str]:
-    """What on the settings page is still the example's, in the owner's words: hidden from real customers until the
-    owner changes it or confirms the example as their own («Это наши настоящие данные», Business.example_ok)."""
-    contacts, terms = example_contacts(business), example_terms(business)
-    return [word for word, still in (
-        ("адрес", "address" in contacts), ("телефон", "phone" in contacts), ("часы работы", hours_are_example(business)),
-        ("описание компании", "description" in contacts), ("порядок записи", "booking_policy" in terms),
-        ("условия заказа", "order" in terms)) if still]
+    """What on the settings page is still the example's and a real business may share (the hours, the booking policy,
+    the order terms), in the owner's words: hidden from real customers until the owner changes it or confirms the
+    example as their own («Это наши настоящие данные», Business.example_ok)."""
+    terms = example_terms(business)
+    return [word for word, still in (("часы работы", hours_are_example(business)),
+                                     ("порядок записи", "booking_policy" in terms), ("условия заказа", "order" in terms)) if still]
+
+
+def example_contact_words(business: Business) -> list[str]:
+    """The example's address, phone and description still in the settings, in the owner's words: only the owner's
+    own replace them; «Это наши настоящие данные» clears them (example_contacts)."""
+    found = example_contacts(business)
+    return [word for f, word in (("address", "адрес"), ("phone", "телефон"), ("description", "описание компании")) if f in found]
 
 
 def _rows(session: Session, business: Business) -> tuple[list[Service], list[Staff], list[Faq]]:
@@ -221,7 +234,7 @@ def left(session: Session, business: Business) -> Left:
     services, staff, faq = _rows(session, business)
     return Left(services=[r.name for r in services], staff=[r.name for r in staff], faq=[r.question for r in faq],
                 tests=[x.title for x in _tests(session, business)], jobs=[f"№{j.number}" for j in _jobs(session, business)],
-                settings=example_settings(business))
+                settings=example_settings(business), contacts=example_contact_words(business))
 
 
 @dataclass(frozen=True)
@@ -259,5 +272,5 @@ def warning(found: Left) -> str:
     parts = [f"{label}: {', '.join(names[:3])}{' и ещё ' + str(len(names) - 3) if len(names) > 3 else ''}"
              for label, names in (("прайс", found.services), ("сотрудники", found.staff), ("ответы", found.faq),
                                   ("тест на уровень", found.tests), ("квитанции", found.jobs),
-                                  ("настройки", found.settings)) if names]
+                                  ("контакты", found.contacts), ("настройки", found.settings)) if names]
     return "Ещё из примера — " + "; ".join(parts) + ". Клиентам ИИ это не называет, пока вы не замените пример своими данными или не удалите его."

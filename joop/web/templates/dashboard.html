@@ -32,12 +32,15 @@
     {% if example.faq %}<li><a href="/panel/faq">Вопросы</a>: {{ example.faq | join(' · ') }}</li>{% endif %}
     {% if example.tests %}<li><a href="/panel/tests">Тест на уровень</a>: {{ example.tests | join(' · ') }}</li>{% endif %}
     {% if example.jobs %}<li><a href="/panel/jobs">Заказы в работе</a>: {{ example.jobs | join(', ') }}</li>{% endif %}
+    {% if example.contacts %}<li><a href="/panel/settings">Контакты</a>: {{ example.contacts | join(', ') }} — придуманы для примера: впишите свои{% if example.confirmable %} (кнопка ниже их не подтвердит, а уберёт){% endif %}</li>{% endif %}
     {% if example.settings %}<li><a href="/panel/settings">Настройки</a>: {{ example.settings | join(', ') }}{% if 'условия заказа' in example.settings %} — минимальную сумму и доставку из примера система к заказам клиентов не применяет{% endif %}</li>{% endif %}
   </ul>
+  {% if example.confirmable %}
   <form method="post" action="/panel/example/ok" class="inline">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <button class="btn ghost small" type="submit">Это наши настоящие данные</button>
   </form>
+  {% endif %}
 </section>
 {% endif %}
 {% if owner and not (ready[0] and ready[1] and ready[2] and ready[3] and ready[4]) %}

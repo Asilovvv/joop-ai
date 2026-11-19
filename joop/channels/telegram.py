@@ -9,6 +9,12 @@ import httpx
 
 from .base import MAX_MEDIA_BYTES, TELEGRAM_MAX, IncomingMessage, clip
 
+
+def bot_id(token: str) -> str:
+    """A bot's id: the number before the colon of its token (the part after it is the secret). A new token from
+    BotFather for the same bot keeps the id; another bot has another."""
+    return (token or "").split(":", 1)[0]
+
 log = logging.getLogger(__name__)
 
 MEDIA_LABELS = {

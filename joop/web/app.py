@@ -23,7 +23,7 @@ from ..channels.meta import parse_meta_payload, verify_signature
 from ..channels.telegram import parse_update
 from ..config import Settings, get_settings
 from ..db import init_db, new_session
-from ..dispatch import admin_chat_ids, admin_link, alert_chats, notify_admins, process_incoming
+from ..dispatch import admin_chat_ids, admin_link, alert_chats, alerts_other_bot, notify_admins, process_incoming
 from .. import missed_calls, tgbusiness
 from ..catalog import parse_price
 from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service,
@@ -549,11 +549,16 @@ def logout(request: Request, csrf: str = Form("")):
 
 @router.post("/panel/example/ok")
 def example_ok(request: Request, csrf: str = Form("")):
-    """The owner checked: the rows that still equal the sign-up example are the business's real prices and answers."""
+    """The owner checked: the rows that still equal the sign-up example are the business's real prices and answers.
+    Not its address, phone and description: the demo marks them as its own («(демо-адрес)», «555 000 …»), so they are
+    cleared instead of confirmed, and the launch checklist asks for the business's own."""
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
         before = len(free_plan.active_staff(s, b.id))
+        cleared = samples.example_contact_words(b)
+        for field in samples.example_contacts(b):
+            setattr(b, field, "")
         b.example_ok = True
         s.add(b)
         s.flush()
@@ -562,7 +567,8 @@ def example_ok(request: Request, csrf: str = Form("")):
             _flash(request, free_plan.TOO_MANY_EXAMPLE, "error")
             return _back("/panel")
         s.commit()
-    _flash(request, "Готово: эти данные считаются вашими, предупреждение больше не показывается.")
+    _flash(request, "Готово: эти данные считаются вашими, предупреждение больше не показывается."
+                    + (f" {', '.join(cleared).capitalize()} из примера убраны — впишите свои в «Настройках»." if cleared else ""))
     return _back("/panel")
 
 
@@ -1736,9 +1742,11 @@ def settings_page(request: Request):
             timezones=TIMEZONES,
             packs=picker_packs(),
             admins=admin_chat_ids(b),
-            alerts_off=bool(admin_chat_ids(b)) and not alert_chats(b),
+            alerts_off=bool(admin_chat_ids(b)) and not b.telegram_bot_token,
+            alerts_other_bot=alerts_other_bot(b),
             admin_link=admin_link(b),
             example_settings=samples.example_settings(b),  # still the sign-up example's: not for real customers
+            example_contacts=samples.example_contact_words(b),
             example_terms=samples.example_terms(b),
         )
 
