@@ -4,7 +4,8 @@ A business that still holds the whole example connects its bot: a demo the found
 sign-up's example plus the example's address, phone, description, booking policy and order terms. The test walks what
 a customer can read in a chat — what the AI is told and what the code writes in Telegram and in the site chat (a
 greeting, a booking, an order, a stay, a receipt, a sold-out item), two days of scheduled messages, MCP, ready
-answers — and looks for the example's own words. The public pages are walked by tests/test_example_never_public.py.
+answers — and looks for the example's own words. Then the owner makes the rows their own but leaves the settings:
+the booking, order and stay go through, and their confirmations carry none of the example's settings. The public pages are walked by tests/test_example_never_public.py.
 The owner's test chat keeps the example: there it is the point.
 """
 
@@ -19,7 +20,7 @@ from joop import db, quick_replies
 from joop.agent.engine import handle_incoming
 from joop.agent.llm import AgentReply
 from joop.channels.base import IncomingMessage
-from joop.models import Business, Service, Slot, Staff
+from joop.models import Booking, Business, Order, Service, Slot, Staff, Stay
 from joop.niches import all_packs, get_pack
 from joop.presets import create_business
 from joop.profile import load_profile
@@ -27,6 +28,10 @@ from joop.scheduler import run_due_jobs
 from joop.web.app import create_app
 
 from .conftest import NOW_UTC, FakeLLM
+from .test_example_terms import make_the_rows_its_own
+
+
+SETTINGS = ("address", "phone", "hours", "description", "booking_policy", "minimum order", "delivery fee", "free delivery")
 
 
 def _t(value) -> str:
@@ -68,7 +73,7 @@ def test_a_real_customer_reads_nothing_of_the_example(niche, settings, rt, engin
         slot = s.exec(select(Slot).where(Slot.business_id == bid, Slot.status == "free").order_by(Slot.start)).first()
         item = s.exec(select(Service).where(Service.business_id == bid).order_by(Service.sort)).first()
         room = s.exec(select(Staff).where(Staff.business_id == bid).order_by(Staff.id)).first()
-        slot_id, item_id, item_name, room_name = (slot.id if slot else None), item.id, item.name, (room.name if room else "")
+        slot_id, item_id, item_name, room_id = (slot.id if slot else None), item.id, item.name, (room.id if room else None)
     pack, demo, read = get_pack(niche), load_profile(get_pack(niche).demo_file), {}
 
     def say(label, text, reply=None, channel="telegram"):
@@ -91,14 +96,14 @@ def test_a_real_customer_reads_nothing_of_the_example(niche, settings, rt, engin
             say(f"sold out {i}", f"Здравствуйте, {x['name']} есть?")
     if pack.has("booking") and slot_id:
         say("booking", "Запишите меня. Айбек, 0555123456",
-            AgentReply("Записал вас.", booking={"slot_id": slot_id, "service": item_name, **contacts}))
+            AgentReply("Записал вас.", booking={"slot_id": slot_id, "service": item_name, "preferred_time": "", "party_size": 2, **contacts}))
     if pack.has("order"):
         say("order", "Хочу заказать с доставкой на Киевскую 10. Айбек, 0555123456",
             AgentReply("Заказ принят.", order={"lines": [{"item_id": item_id, "quantity": 1}], "mode": "delivery",
                                                "address": "Киевская 10", **contacts}))
     if pack.has("stay"):
         say("stay", "Забронируйте. Айбек, 0555123456",
-            AgentReply("Забронировал.", stay={"room": room_name, "check_in": "2026-11-10", "check_out": "2026-11-12",
+            AgentReply("Забронировал.", stay={"room_id": room_id, "check_in": "2026-11-10", "check_out": "2026-11-12",
                                               "guests": 2, **contacts}))
     with db.new_session() as s:  # the sold-out example goods are back on the shelf: nobody is told about them
         for row in s.exec(select(Service).where(Service.business_id == bid, Service.sold_out == True)).all():  # noqa: E712
@@ -124,6 +129,32 @@ def test_a_real_customer_reads_nothing_of_the_example(niche, settings, rt, engin
 
     words = example_words(niche)
     found = sorted({f"{what} «{text}» in {where}" for what, text in words.items() for where, got in read.items() if text in got})
+    assert not found, "\n".join(found)
+
+    # The owner made the rows their own and left the settings as the example wrote them: a real booking, order and
+    # stay now go through (above they were refused: example rows are not for sale), and what the code writes about
+    # them carries none of the example's settings.
+    with db.new_session() as s:
+        make_the_rows_its_own(s, bid)
+    read.clear()
+    if pack.has("booking") and slot_id:
+        say("own booking", "Запишите меня. Айбек, 0555123456",
+            AgentReply("Записал вас.", booking={"slot_id": slot_id, "service": item_name, "preferred_time": "", "party_size": 2, **contacts}))
+    if pack.has("order"):
+        say("own order", "Хочу заказать с доставкой на Киевскую 10. Айбек, 0555123456",
+            AgentReply("Заказ принят.", order={"lines": [{"item_id": item_id, "quantity": 1}], "mode": "delivery",
+                                               "address": "Киевская 10", **contacts}))
+    if pack.has("stay"):
+        say("own stay", "Забронируйте. Айбек, 0555123456",
+            AgentReply("Забронировал.", stay={"room_id": room_id, "check_in": "2026-11-10", "check_out": "2026-11-12",
+                                              "guests": 2, **contacts}))
+    with db.new_session() as s:
+        made = {kind for kind, model in (("booking", Booking), ("order", Order), ("stay", Stay))
+                if s.exec(select(model).where(model.business_id == bid)).first() is not None}
+    assert made == {kind for kind in ("booking", "order", "stay") if pack.has(kind) and (kind != "booking" or slot_id)}, niche
+    settings_words = {what: text for what, text in words.items() if what in SETTINGS}
+    found = sorted({f"{what} «{text}» in {where}" for what, text in settings_words.items() for where, got in read.items()
+                    if text in got})
     assert not found, "\n".join(found)
 
     say("console", "Сколько стоит и где вы находитесь?", channel="console")  # the owner's test chat: the example is the point

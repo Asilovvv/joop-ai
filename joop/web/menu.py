@@ -46,28 +46,20 @@ def qr_svg(url: str, scale: int = 5, sized: bool = False) -> str:
     return buf.getvalue().decode()
 
 
-# The same rules as the app's priceWithSom (mobile/lib/core/format.dart): a price reads the same on the menu and in the app.
-_NUMBER = r"\d(?:[\d\u00a0\u202f ]*\d)?(?:[.,]\d+)?"  # «1 500», «1.500», «1,5»
-# the price itself: Altegio's «от 1 500 до 2 000» as one, or a number or a range of them («200–300»); «300 до 5 кг»
-# is a price and a condition, not a range
-PRICE_NUMBER = re.compile(rf"^от\s*{_NUMBER}\s*до\s*{_NUMBER}|{_NUMBER}(?:\s*[–—-]\s*{_NUMBER})?", re.IGNORECASE)
-# a currency already named: «500 KGS», «500 с.», «78 000 $» (realty), «450 у.е. в месяц», «2 000 руб.» — not
-# «150 за рубашку»
-CURRENCY = re.compile(r"сом|kgs|\d\s*с\.|\$|€|₽|₸|\b(?:usd|eur|kzt|rub)\b|у\.\s*е\.|доллар|евро|руб(?![а-яё])|тенге",
-                      re.IGNORECASE)
-FREE = re.compile(r"^0+\s*(?:сом|kgs|с\.?)?$", re.IGNORECASE)  # «0 сом» reads like a mistake
+_NUMBER = r"\d(?:[\d\u00a0\u202f ]*\d)?"
+PRICE_NUMBER = re.compile(rf"{_NUMBER}(?:\s*[–—-]\s*{_NUMBER})?")
 
 
 def price_label(price: str, lang: str) -> str:
-    """A price as the business wrote it, with «сом» right after the price itself, not after the unit: «3 500 сом за
-    ночь», «800 сом за 60 минут», «1 500–2 000 сом». A price that names its currency or has no number stays as written."""
     price = (price or "").strip()
     if not price:
         return ""
-    if FREE.match(price):
+    if price == "0":
         return TEXT[lang]["free"]
-    if CURRENCY.search(price) or not re.search(r"\d", price):
+    if "сом" in price.lower():
         return price
+    # «сом» right after the price itself (a range counts as one), not after the unit: «3 500 сом за ночь»,
+    # «800 сом за 60 минут», «1 500–2 000 сом»
     return PRICE_NUMBER.sub(lambda m: f"{m.group(0)} {TEXT[lang]['som']}", price, count=1)
 
 

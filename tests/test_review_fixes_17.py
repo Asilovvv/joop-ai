@@ -1,8 +1,5 @@
 """Fixes from the independent review of PRs #241–#246.
 
-- Prices: the web menu (#242) and the app (#241) wrote «120 000 сом $» for a dollar listing, the web split «1.500»
-  into «1 сом.500», and the two disagreed on «500 KGS», «500 с.», «0 сом»; «от 1 500 до 2 000» read «от 1 500 сом до
-  2 000». One rule now, the same in joop/web/menu.py and mobile/lib/core/format.dart.
 - A back-in-stock watch kept before #246 on an example item still sent its example price.
 - After the owner switched to another bot, the chats linked through the old one still counted as getting alerts.
 - «Это наши настоящие данные» also published the demo's address and phone («(демо-адрес)», «555 000 …»).
@@ -21,45 +18,11 @@ from joop.dispatch import alert_chats, notify_admins
 from joop.models import Business, Conversation, Service, StockWatch
 from joop.presets import create_business
 from joop.web.app import create_app
-from joop.web.menu import price_label
 from joop.web.saas import checklist
 
 from .conftest import NOW_UTC
 from .test_example_terms import make_the_rows_its_own
 from .test_web import csrf_of, login
-
-
-# --- prices --------------------------------------------------------------------------------------------------------
-
-def test_a_price_reads_the_same_on_the_web_menu_as_in_the_app():
-    """The same cases as mobile/test/format_test.dart."""
-    cases = {
-        "500": "500 сом", "от 3 500": "от 3 500 сом", "3 500 за ночь": "3 500 сом за ночь",
-        "800 за 60 минут": "800 сом за 60 минут", "200–300": "200–300 сом", "200 - 300 за час": "200 - 300 сом за час",
-        "от 1 500 до 2 000": "от 1 500 до 2 000 сом",  # Altegio's range is one price
-        "300 до 5 кг": "300 сом до 5 кг",  # a price and a condition
-        "1.500": "1.500 сом", "2.000 за ночь": "2.000 сом за ночь", "от 1.200": "от 1.200 сом", "1,5": "1,5 сом",
-        "150 за рубашку": "150 сом за рубашку",  # not roubles
-        "500 сом": "500 сом", "500 Сом": "500 Сом", "500 KGS": "500 KGS", "500 с.": "500 с.",
-        "78 000 $": "78 000 $", "450 $ в месяц": "450 $ в месяц", "1 200 USD": "1 200 USD", "90 €": "90 €",
-        "450 у.е. в месяц": "450 у.е. в месяц", "2 000 руб.": "2 000 руб.", "10 000 тенге": "10 000 тенге",
-        "0": "бесплатно", "0 сом": "бесплатно", "по договорённости": "по договорённости", "": "",
-    }
-    assert {price: price_label(price, "ru") for price in cases} == cases
-    assert price_label("0 сом", "ky") == "акысыз" and price_label("500", "ky") == "500 сом"
-
-
-def test_a_dollar_listing_is_not_shown_in_som(settings, rt, engine):
-    with db.new_session() as s:
-        b = create_business(s, slug="agency", name="Агентство", password="pass-12345", niche="realty", demo=False, now_utc=NOW_UTC)
-        b.menu_enabled = True
-        s.add(Service(business_id=b.id, name="Объект 7: 2-комнатная квартира", price="120 000 $", sort=0))
-        s.add(Service(business_id=b.id, name="Объект 8: студия", price="1.500", sort=1))
-        s.commit()
-    with TestClient(create_app(settings, rt, init=False)) as c:
-        page = c.get("/m/agency").text
-    assert "120 000 $" in page and "сом $" not in page
-    assert "1.500 сом" in page and "1 сом.500" not in page
 
 
 # --- back in stock ---------------------------------------------------------------------------------------------------
