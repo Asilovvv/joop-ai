@@ -23,5 +23,19 @@ void main() {
     expect(priceWithSom('500 с.'), '500 с.');
     expect(priceWithSom('500 Сом'), '500 Сом');
     expect(priceWithSom('1,5'), '1,5 сом');
+    // the website's rule (joop/web/menu.py price_label, tests/test_review_241_247.py): a currency the business named
+    for (final price in ['120 000 \$', '450 \$ в месяц', '\$300', '100 USD', '50 €', '1 000 ₸', '500 руб', '90 000 тенге',
+        '300 KGS', '450 у.е. в месяц']) {
+      expect(priceWithSom(price), price);
+    }
+    expect(priceWithSom('150 за рубашку'), '150 сом за рубашку'); // «руб» inside a word is not roubles
+    // decimals, and a quantity before the price
+    expect(priceWithSom('1,500'), '1,500 сом');
+    expect(priceWithSom('1.500'), '1.500 сом');
+    expect(priceWithSom('2,5'), '2,5 сом');
+    expect(priceWithSom('1 кг — 450'), '1 кг — 450 сом'); // was «1 сом кг — 450»
+    expect(priceWithSom('0,5 л — 120'), '0,5 л — 120 сом');
+    expect(priceWithSom('60 минут — 1 200'), '60 минут — 1 200 сом');
+    expect(priceWithSom('2 часа'), '2 часа'); // no price in it
   });
 }

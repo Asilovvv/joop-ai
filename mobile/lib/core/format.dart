@@ -30,20 +30,43 @@ String bookingOrigin(Booking b) => b.source == 'api' ? S.current.channelApi : ch
 /// "1 запись", "2 записи", "5 записей"; "5 жазылуу".
 String bookingsWord(int n) => S.current.bookingsCount(n);
 
-/// A price as the business wrote it, with the currency where a person would say it: right after the price itself — the
-/// first number, or a range of them. "500" -> "500 сом", "от 3 500" -> "от 3 500 сом", "3 500 за ночь" ->
-/// "3 500 сом за ночь", "800 за 60 минут" -> "800 сом за 60 минут", "200–300" -> "200–300 сом", "0" -> "бесплатно".
-/// A price that already names the currency (сом, KGS, с.), or has no number («по договорённости»), stays as written.
+/// A currency the business named itself — a realty agency writes «120 000 $» — so no «сом» goes on top of it. The same
+/// list as the website's menu (joop/web/menu.py CURRENCY); Dart's \b knows only Latin letters, so the words are fenced
+/// by «no letter or digit around them» instead («150 за рубашку» is not roubles).
+final _currency = RegExp(
+    r'сом|kgs|\d\s*с\.|[$€₽₸£¥]|(?<![\p{L}\d])(?:usd|eur|rub|руб|тенге|тг|сум|у\.\s?е)(?![\p{L}\d])',
+    caseSensitive: false,
+    unicode: true);
+
+/// A number right before one of these is a quantity («1 кг — 450», «60 минут — 1 200»), not the price
+/// (joop/web/menu.py UNIT).
+final _unit = RegExp(
+    r'\s*(?:кг|гр?|мл|л|шт|мм|см|м²|м2|м|мин|минут[аы]?|час(?:а|ов)?|ч|сут(?:ок|ки)?|дн(?:я|ей)?|день|'
+    r'ноч(?:ь|и|ей)|мес(?:яц(?:а|ев)?)?|чел(?:овек)?|порц(?:ия|ии|ий)?|занят(?:ие|ия|ий)|урок(?:а|ов)?|'
+    r'сеанс(?:а|ов)?|раз(?:а)?)(?![\p{L}\d])',
+    caseSensitive: false,
+    unicode: true);
+
+const _number = r'\d(?:[\d   ]*\d)?(?:[.,]\d+)?'; // «1 500», «1.500», «1,5»
+final _price = RegExp('$_number(?:\\s*[–—-]\\s*$_number)?'); // a range counts as one price
+
+/// A price as the business wrote it, with the currency where a person would say it — right after the price itself,
+/// not after a quantity or a unit, by the website's rule (joop/web/menu.py price_label): "500" -> "500 сом",
+/// "3 500 за ночь" -> "3 500 сом за ночь", "800 за 60 минут" -> "800 сом за 60 минут", "1 кг — 450" ->
+/// "1 кг — 450 сом", "1 500–2 000" -> "1 500–2 000 сом", "0" -> "бесплатно". A price that names a currency
+/// («120 000 $», «500 KGS», «2 000 руб.») or has no price in it («по договорённости», «2 часа») stays as written.
 String priceWithSom(String price) {
   final som = S.current.som;
   if (RegExp(r'^0+\s*(сом|kgs|с\.?)?$', caseSensitive: false).hasMatch(price.trim())) {
     return S.current.free; // «0 сом» reads like a mistake
   }
-  final named = RegExp(r'сом|kgs|\d\s*с\.|' + RegExp.escape(som), caseSensitive: false).hasMatch(price);
-  if (price.isEmpty || !RegExp(r'\d').hasMatch(price) || named) return price;
-  const number = r'\d(?:[\d\u00a0 ]*\d)?(?:[.,]\d+)?';
-  final first = RegExp('$number(?:\\s*[–—-]\\s*$number)?').firstMatch(price)!;
-  return '${price.substring(0, first.end)} $som${price.substring(first.end)}';
+  if (_currency.hasMatch(price) || price.toLowerCase().contains(som.toLowerCase())) return price;
+  for (final m in _price.allMatches(price)) {
+    if (_unit.matchAsPrefix(price, m.end) == null) {
+      return '${price.substring(0, m.end)} $som${price.substring(m.end)}';
+    }
+  }
+  return price; // only quantities, or no number at all
 }
 
 /// 1200 -> "1 200 сом".
