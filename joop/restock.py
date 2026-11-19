@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
 
-from . import itemwords
+from . import itemwords, samples
 from .followups import _kyrgyz, deliver_to_chat
 from .models import Business, Conversation, Message, Order, OrderLine, Service, StockWatch
 from .stats import TEST_CHANNEL, is_test
@@ -77,6 +77,7 @@ def notify_back(session: Session, rt: "Runtime", business: Business, now_utc: da
     opens, closes = _hour(business.work_start, 9), _hour(business.work_end, 21)
     awake = opens <= local.hour < max(closes, opens + 1)  # stock returned at night (a released hold) waits for the morning
     rows = session.exec(select(StockWatch).where(StockWatch.business_id == business.id, StockWatch.notified_at.is_(None))).all()
+    example: dict[str, frozenset[int]] = {}  # by channel: the sign-up example's items, not this shop's to offer
     for watch in rows:
         if watch.created_at < now_utc - KEEP:
             watch.notified_at, expired = now_utc, expired + 1
@@ -84,6 +85,12 @@ def notify_back(session: Session, rt: "Runtime", business: Business, now_utc: da
             continue
         item, conv = session.get(Service, watch.service_id), session.get(Conversation, watch.conversation_id)
         if item is None or conv is None:
+            continue
+        if conv.channel not in example:
+            example[conv.channel] = samples.hidden_from_customers(session, business, conv.channel).services
+        if item.id in example[conv.channel]:  # a watch kept before #246 on an example item: never sent its price
+            watch.notified_at = now_utc
+            session.add(watch)
             continue
         if not item.available or item.sold_out or not awake:
             continue  # still out, the owner stopped selling it, or the night: tell in working hours

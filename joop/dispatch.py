@@ -10,6 +10,7 @@ from .agent.engine import Outcome, _already_seen as already_seen, blocked, handl
 from .billing import access_ok
 from .timeutil import utcnow
 from .channels.base import IncomingMessage
+from .channels.telegram import bot_id
 from .db import new_session
 from .models import Business
 from .runtime import Runtime
@@ -95,14 +96,26 @@ def admin_chat_ids(business: Business) -> list[str]:
 
 def alert_chats(business: Business) -> list[str]:
     """The linked chats that actually get the alerts. Alerts go through the business's own bot (notify_admins), so with
-    the bot disconnected none arrive: the chats stay linked for a reconnect, but the panel must not count them."""
-    return admin_chat_ids(business) if business.telegram_bot_token else []
+    the bot disconnected none arrive: the chats stay linked for a reconnect, but the panel must not count them. Nor
+    after the owner connected another bot: Telegram lets a bot write only to chats that started it or added it, so the
+    chats linked through the previous bot have to be linked again (/admin to the new bot)."""
+    if not business.telegram_bot_token:
+        return []
+    if business.admin_bot and business.admin_bot != bot_id(business.telegram_bot_token):
+        return []
+    return admin_chat_ids(business)
+
+
+def alerts_other_bot(business: Business) -> bool:
+    """Chats are linked, but through a bot that is no longer the business's: the settings say to link them again."""
+    return bool(admin_chat_ids(business) and business.telegram_bot_token and business.admin_bot
+                and business.admin_bot != bot_id(business.telegram_bot_token))
 
 
 def notify_admins(rt: Runtime, business: Business, notes: list[str]) -> int:
     """Send notes to every linked admin chat through the business's Telegram bot. Returns messages sent."""
     telegram = rt.telegram(business)
-    chats = admin_chat_ids(business)
+    chats = alert_chats(business)  # not the chats of a previous bot: this one cannot write there
     if telegram is None or not chats:
         log.info("Admin notifications for %s are not set up; %d note(s) kept only in the panel", business.slug, len(notes))
         return 0

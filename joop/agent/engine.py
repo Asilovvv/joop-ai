@@ -19,7 +19,7 @@ from .. import altegio, broadcasts, confirm, confirmations, deposits, free_plan,
 from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
-from ..channels.telegram import is_personal, split_chat_id
+from ..channels.telegram import bot_id, is_personal, split_chat_id
 from ..lang import (chat_is_kyrgyz, claims_confirmation, drop_claim_sentences, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz,
                     adds_no_numbers, same_numbers, use_kyrgyz_names)
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, Stay
@@ -670,9 +670,12 @@ def _admin_link(session: Session, business: Business, incoming: IncomingMessage,
         return Outcome(reply="Слишком много попыток. Попробуйте завтра или возьмите новый код в панели.")
     if incoming.channel == "telegram" and argument and business.admin_link_code and hmac.compare_digest(argument, business.admin_link_code):
         ids = [x for x in business.admin_chat_ids.split(",") if x.strip()]
+        current = bot_id(business.telegram_bot_token)
+        if business.admin_bot and business.admin_bot != current:
+            ids = []  # linked through the previous bot: this one cannot write to them, so they are linked again
         if incoming.chat_id not in ids:
             ids.append(incoming.chat_id)
-        business.admin_chat_ids = ",".join(ids)
+        business.admin_chat_ids, business.admin_bot = ",".join(ids), current
         business.admin_link_code = new_link_code()  # a code that worked once cannot be reused by whoever saw it
         session.add(business)
         earlier = session.exec(select(Conversation).where(  # the owner tried the bot before linking: that was a test too

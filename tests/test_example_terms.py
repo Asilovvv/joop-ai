@@ -71,7 +71,8 @@ def test_which_terms_are_still_the_example_s(engine):
         assert samples.example_terms(b) == frozenset()
         b.example_ok, b.booking_policy, b.min_order, b.delivery_fee, b.free_delivery_from = False, "", 0, 0, 0  # as sign-up leaves it
         assert samples.example_terms(b) == frozenset()
-        assert samples.example_settings(b) == ["адрес", "телефон", "часы работы", "описание компании"]  # the rest of a demo
+        assert samples.example_settings(b) == ["часы работы"]  # the rest of a demo
+        assert samples.example_contact_words(b) == ["адрес", "телефон", "описание компании"]
 
 
 def test_the_ai_is_told_the_owner_s_policy_and_terms_but_not_the_example_s(engine):

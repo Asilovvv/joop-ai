@@ -2,9 +2,11 @@
 {% block title %}Настройки{% endblock %}
 {% block content %}
 <section><h1>Настройки</h1></section>
-{% if example_settings %}
+{% if example_settings or example_contacts %}
 <section class="card warn">
-  <p><b>Ещё из примера: {{ example_settings | join(', ') }}.</b> Настоящим клиентам ИИ это не называет{% if 'order' in example_terms %}, а минимальную сумму и доставку из примера система к их заказам не применяет{% endif %}. Впишите свои данные — или, если всё так и есть, подтвердите на <a href="/panel#example">главной странице</a>: «Это наши настоящие данные».</p>
+  <p><b>Ещё из примера: {{ (example_contacts + example_settings) | join(', ') }}.</b> Настоящим клиентам ИИ это не называет{% if 'order' in example_terms %}, а минимальную сумму и доставку из примера система к их заказам не применяет{% endif %}.
+    {% if example_contacts %}Контакты из примера придуманы — впишите свои.{% endif %}
+    {% if example_settings %}{{ 'Часы и правила' if example_contacts else 'Свои данные' }} впишите сами — или, если всё так и есть, подтвердите на <a href="/panel#example">главной странице</a>: «Это наши настоящие данные».{% endif %}</p>
 </section>
 {% endif %}
 
@@ -111,6 +113,7 @@
   </ol>
   <p class="muted small">Привязано чатов: {{ admins|length }}.</p>
   {% if alerts_off %}<p class="flash error">Бот отключён: уведомления не приходят, пока вы снова не подключите его на странице <a href="/panel/channels">«Каналы»</a>.</p>{% endif %}
+  {% if alerts_other_bot %}<p class="flash error">Чаты привязаны через прежнего бота, а новый бот писать в них не может: уведомления не приходят. Привяжите чаты заново — ссылкой или кодом выше.</p>{% endif %}
   <div class="chips">
     <form method="post" action="/panel/settings/link-code" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small ghost" type="submit">Новый код</button></form>
     {% if admins %}<form method="post" action="/panel/settings/unlink" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small danger" type="submit">Отвязать все чаты</button></form>{% endif %}

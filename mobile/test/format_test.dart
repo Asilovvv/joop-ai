@@ -23,5 +23,18 @@ void main() {
     expect(priceWithSom('500 с.'), '500 с.');
     expect(priceWithSom('500 Сом'), '500 Сом');
     expect(priceWithSom('1,5'), '1,5 сом');
+    // the same cases as the web menu (tests/test_review_fixes_17.py)
+    expect(priceWithSom('78 000 \$'), '78 000 \$'); // a realty listing in dollars, was «78 000 сом $»
+    expect(priceWithSom('450 \$ в месяц'), '450 \$ в месяц');
+    expect(priceWithSom('1 200 USD'), '1 200 USD');
+    expect(priceWithSom('90 €'), '90 €');
+    expect(priceWithSom('450 у.е. в месяц'), '450 у.е. в месяц');
+    expect(priceWithSom('2 000 руб.'), '2 000 руб.');
+    expect(priceWithSom('10 000 тенге'), '10 000 тенге');
+    expect(priceWithSom('150 за рубашку'), '150 сом за рубашку'); // not roubles
+    expect(priceWithSom('от 1 500 до 2 000'), 'от 1 500 до 2 000 сом'); // Altegio's range, was «от 1 500 сом до 2 000»
+    expect(priceWithSom('300 до 5 кг'), '300 сом до 5 кг'); // a price and a condition
+    expect(priceWithSom('1.500'), '1.500 сом');
+    expect(priceWithSom('2.000 за ночь'), '2.000 сом за ночь');
   });
 }
