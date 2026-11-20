@@ -197,6 +197,21 @@ def cmd_restore_copy(args) -> int:
     return 0
 
 
+def cmd_ky_phrases(args) -> int:
+    from pathlib import Path
+
+    from .ky_phrases import collect, to_csv
+
+    phrases = collect()
+    if args.csv:
+        Path(args.csv).write_text(to_csv(phrases), encoding="utf-8")
+        print(f"{len(phrases)} фраз записано в {args.csv}: отдайте файл носителю кыргызского.")
+    else:
+        for p in phrases:
+            print(f"{p.where}\t{p.ky}" + (f"\t({p.ru})" if p.ru else ""))
+    return 0
+
+
 def cmd_serve(args) -> int:
     import uvicorn
 
@@ -320,6 +335,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("file", help="файл joop-ГГГГ-ММ-ДД.db.gz.enc")
     p.add_argument("--out", default="joop-restored.db", help="куда записать базу (файл не должен существовать)")
     p.set_defaults(func=cmd_restore_copy)
+    p = sub.add_parser("ky-phrases", help="все готовые кыргызские фразы для проверки носителем")
+    p.add_argument("--csv", default="", help="записать таблицу CSV для носителя (Excel, Google Таблицы)")
+    p.set_defaults(func=cmd_ky_phrases)
     p = sub.add_parser("serve", help="запустить сервер (панель и вебхуки)")
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8000)
