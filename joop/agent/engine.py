@@ -117,7 +117,7 @@ def chat_turn(business_id: int, channel: str, chat_id: str):
     is enough. A message that waited CHAT_WAIT goes ahead anyway: late and out of order beats never."""
     key = (business_id, channel, chat_id)
     with _turns_guard:
-        lock, waiting = _turns.get(key) or (threading.Lock(), 0)
+        lock, waiting = _turns.get(key) or (threading.RLock(), 0)  # re-entered by handle_incoming inside dispatch's turn
         _turns[key] = (lock, waiting + 1)
     held = lock.acquire(timeout=CHAT_WAIT)
     if not held:
