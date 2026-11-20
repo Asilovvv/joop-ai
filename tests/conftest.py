@@ -185,8 +185,11 @@ def fresh_counters():
     from joop.agent import engine as agent_engine
     from joop.web import app as web_app, audit as web_audit
 
+    from joop.web import booking_page
+
     web_app._daily.clear()
     web_audit._lead_by_ip.clear()
+    booking_page.reset_limits()
     agent_engine._admin_misses.clear()
     yield
 

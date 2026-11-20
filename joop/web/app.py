@@ -117,6 +117,8 @@ def booking_origin(b: Booking) -> str:
     or a person in the panel or the app (no channel)."""
     if b.source == "api":
         return "через API"
+    if b.source == "page":  # the customer picked the time on /m/<slug>/book (joop/page_booking.py)
+        return "со страницы записи"
     if not b.channel:
         return "вручную"
     name = CHANNEL_NAMES.get(b.channel, b.channel)
@@ -410,7 +412,7 @@ FEATURE_GROUPS = [
         ("Воронка", "Заявки по этапам: новая, в работе, записан, пришёл, потерян."),  # funnel
         ("Абонементы", "Учёт пакетов визитов; ИИ отвечает клиенту, сколько осталось."),  # memberships
         ("Постоянные клиенты", "ИИ знает прошлые визиты клиента и его ближайшую запись."),  # regulars
-        ("Онлайн-запись по ссылке", "Страница с услугами, мастерами и ближайшим свободным временем."),  # menu
+        ("Онлайн-запись по ссылке", "Клиент сам выбирает мастера и свободное время — без переписки; запись сразу в графике."),  # menu, booking_page
     ]},
     {"title": "Деньги и товары", "cards": [
         ("Касса", "Оплаты визитов наличными, картой и переводом; день, месяц, по мастерам; отметка о чеке ККМ."),  # cash
@@ -2243,6 +2245,9 @@ def create_app(settings: Settings | None = None, runtime: Runtime | None = None,
     from .menu import router as menu_router
 
     app.include_router(menu_router)
+    from .booking_page import router as booking_page_router
+
+    app.include_router(booking_page_router)
     from .audit import router as audit_router
 
     app.include_router(audit_router)

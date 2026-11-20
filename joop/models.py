@@ -106,6 +106,7 @@ class Business(SQLModel, table=True):
     # Public menu / price list /m/<slug> with QR codes (joop/web/menu.py)
     menu_enabled: bool = False
     menu_chat_url: str = ""  # where "Заказать" leads: t.me / wa.me / instagram link
+    page_booking: bool = False  # customers book a free time themselves on /m/<slug>/book, no chat (joop/page_booking.py)
 
     last_reminder_date: str = ""
     last_digest_date: str = ""

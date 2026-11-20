@@ -24,8 +24,13 @@ String channelName(String channel) => switch (channel) {
     };
 
 /// Where a booking came from, as the panel names it (joop/web/app.py booking_origin): a partner's system or another
-/// assistant is «через API» — it has no chat channel, but nobody made it by hand either.
-String bookingOrigin(Booking b) => b.source == 'api' ? S.current.channelApi : channelName(b.channel);
+/// assistant is «через API», the customer's own pick on the booking page «со страницы записи» — neither has a chat
+/// channel, but nobody made them by hand either.
+String bookingOrigin(Booking b) => switch (b.source) {
+      'api' => S.current.channelApi,
+      'page' => S.current.channelPage,
+      _ => channelName(b.channel),
+    };
 
 /// "1 запись", "2 записи", "5 записей"; "5 жазылуу".
 String bookingsWord(int n) => S.current.bookingsCount(n);
