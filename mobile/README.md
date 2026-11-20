@@ -82,9 +82,27 @@ lets port 8000 in.
 
 ## Release
 
-When the Joop server is public (docs/deploy.md), run **Actions → mobile-release → Run workflow** with its address
-(`PUBLIC_BASE_URL`, for example `https://joop.kg`). The workflow checks that the server answers and already has
-`/api/mobile`, builds the APK with that address built in, and attaches it to a GitHub Release.
+When the Joop server is public, run **Actions → mobile-release → Run workflow** with a version (`mobile-v1.0.0`)
+and the server's address (`PUBLIC_BASE_URL`, for example `https://joop.kg`). The workflow checks that the server
+answers and already has `/api/mobile`, builds the APK with that address built in, signs it with the owner's key and
+attaches it to a GitHub Release. The key is made once and lives in the repository secrets: the steps are in
+[docs/deploy.md](../docs/deploy.md), section 10.
+
+A phone installs an update only when it is signed with the same key as the installed app. So a release is refused
+without the key, or with another key than the previous release's, and the CI artifact above (`joop-mobile-apk`,
+signed with a key made for that one run) is for trying only: nothing can update it. What the workflow decides is in
+[deploy/app_release.py](../deploy/app_release.py), with tests in `tests/test_app_release.py`; every change to the
+app also builds an APK through the same signing steps with a throwaway key.
+
+To build a signed APK on your own machine, name the keystore in `mobile/android/key.properties` (never committed):
+
+```properties
+storeFile=/Users/you/joop-signing/joop-release.jks
+storePassword=the keystore's password
+keyAlias=joop
+```
+
+Without that file `flutter build apk --release` signs with the machine's debug key, as `flutter run --release` needs.
 
 ## Tests
 

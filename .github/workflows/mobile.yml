@@ -3,9 +3,9 @@ name: mobile
 
 on:
   push:
-    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+    paths: ["mobile/**", ".github/workflows/mobile.yml", "deploy/app_release.py"]
   pull_request:
-    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+    paths: ["mobile/**", ".github/workflows/mobile.yml", "deploy/app_release.py"]
 
 permissions:
   contents: read
@@ -43,8 +43,35 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: flutter build apk --release
-      - uses: actions/upload-artifact@v4
+      - run: flutter build apk --release  # no key: this machine's debug key, as on a developer's laptop
+      # mobile-release signs with the owner's keystore from the repository secrets. The same three steps run here
+      # with a keystore made on the spot, so a change that breaks signing fails this check and not the first real
+      # release. The password below is not a secret: the key is made in this run and dies with the runner.
+      - name: "The release's signing path: a key made for this run"
+        id: key
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/one-run.jks
+          ANDROID_KEYSTORE_PASSWORD: made-for-this-run-only
+        run: |
+          keytool -genkeypair -keystore "$RUNNER_TEMP/made.jks" -storepass:env ANDROID_KEYSTORE_PASSWORD -alias joop \
+            -keyalg RSA -keysize 2048 -validity 2 -dname "CN=Joop CI one run"
+          ANDROID_KEYSTORE_BASE64=$(base64 -w0 "$RUNNER_TEMP/made.jks") python3 ../deploy/app_release.py keystore
+      - name: Build the APK again, signed with it
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/one-run.jks  # read by android/app/build.gradle.kts
+          ANDROID_KEYSTORE_PASSWORD: made-for-this-run-only
+        run: flutter build apk --release
+      - name: The APK carries that key's certificate
+        env:
+          EXPECTED_CERT: ${{ steps.key.outputs.cert }}
+          BUILD_NAME: 0.0.0
+          BUILD_NUMBER: 1
+        run: |
+          apksigner=$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -name apksigner -type f | sort -V | tail -1)
+          [ -x "$apksigner" ] || { echo "::error::apksigner was not found in the Android SDK."; exit 1; }
+          "$apksigner" verify --print-certs build/app/outputs/flutter-apk/app-release.apk > "$RUNNER_TEMP/certs.txt"
+          python3 ../deploy/app_release.py signed "$RUNNER_TEMP/certs.txt"
+      - uses: actions/upload-artifact@v4  # to try on a phone; signed with the one-run key, so nothing can update it
         with:
           name: joop-mobile-apk
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
