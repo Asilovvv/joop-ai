@@ -88,6 +88,7 @@ class BookingTile extends StatelessWidget {
                         _Chip(bookingOrigin(booking), channelColor(booking.channel)),
                         if (!active) _Chip(S.current.cancelled, scheme.outline),
                         if (active && booking.confirmed) _Chip(S.current.confirmed, const Color(0xFF2E9E5B)),
+                        if (active && remindByHand(booking)) _Chip(S.current.remindByHand, scheme.outline),
                         if (active && booking.isPaid) _Chip(paidLabel(booking), const Color(0xFF2E9E5B)),
                         if (active && booking.depositStatus.isNotEmpty && depositLabel(booking).isNotEmpty)
                           _Chip(depositLabel(booking),

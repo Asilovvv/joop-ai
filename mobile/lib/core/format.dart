@@ -26,6 +26,10 @@ String channelName(String channel) => switch (channel) {
 /// Where a booking came from, as the panel names it (joop/web/app.py booking_origin): a partner's system or another
 /// assistant is «через API», the customer's own pick on the booking page «со страницы записи» — neither has a chat
 /// channel, but nobody made them by hand either.
+/// A booking from the booking page or another system has no chat to send the eve's reminder to (unless the customer
+/// tied Telegram on the confirmation page): the server tells staff «напомните вручную» — the tile says so up front.
+bool remindByHand(Booking b) => b.channel.isEmpty && (b.source == 'page' || b.source == 'api') && !b.confirmed;
+
 String bookingOrigin(Booking b) => switch (b.source) {
       'api' => S.current.channelApi,
       'page' => S.current.channelPage,
