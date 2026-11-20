@@ -1,6 +1,12 @@
-# Builds the mobile app against a running Joop server and attaches the Android APK to a GitHub Release.
-# Started by hand: Actions -> mobile-release -> Run workflow, with the server's public address
-# (the PUBLIC_BASE_URL of the server, for example https://joop.kg). The app then needs no «Другой сервер».
+# Builds the mobile app against a running Joop server, signs it with the owner's key and attaches the Android APK
+# to a GitHub Release. Started by hand: Actions -> mobile-release -> Run workflow.
+#   version  the release tag, for example mobile-v1.0.0: the phone shows 1.0.0; the build number rises by itself.
+#   api_url  the server's public address (its PUBLIC_BASE_URL, for example https://joop.kg); left empty, the
+#            repository variable JOOP_URL is used. The app then needs no «Другой сервер».
+# The signing key comes from the secrets ANDROID_KEYSTORE_BASE64 and ANDROID_KEYSTORE_PASSWORD (docs/deploy.md,
+# «The app's signing key»: once, about 10 minutes). A phone installs an update only when it is signed with the same
+# key as the installed app, so there is no release without the key, and none with another key than the previous
+# release's unless «new_key» is ticked (deploy/app_release.py).
 name: mobile-release
 
 on:
@@ -11,21 +17,51 @@ on:
         required: true
         default: mobile-v1.0.0
       api_url:
-        description: "Public address of the Joop server, for example https://joop.kg"
-        required: true
+        description: "Public address of the Joop server, for example https://joop.kg (empty: the repository variable JOOP_URL)"
+        required: false
+      new_key:
+        description: "The signing key was replaced on purpose: everyone will have to remove the app and install it again"
+        type: boolean
+        default: false
 
 permissions:
   contents: read  # the build runs third-party packages: no write token there; only «publish» may write
 
+concurrency:
+  group: mobile-release  # one at a time: each release is compared with the one before it
+  cancel-in-progress: false
+
 env:
-  API_URL: ${{ inputs.api_url }}
+  API_URL: ${{ inputs.api_url || vars.JOOP_URL }}
+  VERSION: ${{ inputs.version }}  # read as $VERSION in scripts, and only after «plan» has checked its shape
 
 jobs:
   check:
-    name: the server answers
+    name: the key is there, the server answers
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      name: ${{ steps.plan.outputs.name }}
+      build: ${{ steps.plan.outputs.build }}
+      previous_tag: ${{ steps.plan.outputs.previous_tag }}
+      previous_cert: ${{ steps.plan.outputs.previous_cert }}
     steps:
-      - run: |
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          sparse-checkout: deploy/app_release.py
+          sparse-checkout-cone-mode: false
+      - name: The version, the build number, the signing key
+        id: plan
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+          HAS_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD != '' }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 deploy/app_release.py plan
+      - name: The server answers
+        run: |
+          [ -n "$API_URL" ] || { echo "::error::No server address: fill in api_url, or set the repository variable JOOP_URL."; exit 1; }
           case "$API_URL" in https://*) ;; *) echo "::error::The address must start with https://"; exit 1;; esac
           curl -sf --max-time 30 "${API_URL%/}/health" || { echo "::error::${API_URL%/}/health does not answer."; exit 1; }
           # The server must already have the mobile API (joop/web/mobile.py): a wrong password answers 401, not 404.
@@ -55,12 +91,49 @@ jobs:
           cache: true
       - run: flutter pub get
       - run: flutter test
-      - run: flutter build apk --release --dart-define=API_URL="${API_URL%/}"
-      - run: cp build/app/outputs/flutter-apk/app-release.apk "joop-ai-${{ inputs.version }}.apk"
+      - name: The signing key opens and is the previous release's key
+        id: key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}  # optional: only a keystore made before Java 9 has one
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}  # optional: the guide names the key «joop»
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/joop-release.jks
+          PREVIOUS_CERT: ${{ needs.check.outputs.previous_cert }}
+          PREVIOUS_TAG: ${{ needs.check.outputs.previous_tag }}
+          NEW_KEY: ${{ inputs.new_key }}
+        run: python3 ../deploy/app_release.py keystore
+      - name: Build the APK, signed with it
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/joop-release.jks  # read by android/app/build.gradle.kts
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          BUILD_NAME: ${{ needs.check.outputs.name }}
+          BUILD_NUMBER: ${{ needs.check.outputs.build }}
+        run: flutter build apk --release --dart-define=API_URL="${API_URL%/}" --build-name="$BUILD_NAME" --build-number="$BUILD_NUMBER"
+      - name: The key leaves the machine
+        if: always()
+        run: rm -f "$RUNNER_TEMP/joop-release.jks"
+      - name: The APK carries that key's certificate
+        env:
+          EXPECTED_CERT: ${{ steps.key.outputs.cert }}
+          PREVIOUS_CERT: ${{ needs.check.outputs.previous_cert }}
+          BUILD_NAME: ${{ needs.check.outputs.name }}
+          BUILD_NUMBER: ${{ needs.check.outputs.build }}
+          NOTES_PATH: ${{ runner.temp }}/release/notes.md
+        run: |
+          mkdir -p "$RUNNER_TEMP/release"
+          apksigner=$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -name apksigner -type f | sort -V | tail -1)
+          [ -x "$apksigner" ] || { echo "::error::apksigner was not found in the Android SDK."; exit 1; }
+          "$apksigner" verify --print-certs build/app/outputs/flutter-apk/app-release.apk > "$RUNNER_TEMP/certs.txt"
+          python3 ../deploy/app_release.py signed "$RUNNER_TEMP/certs.txt"
+          cat "$NOTES_PATH" >> "$GITHUB_STEP_SUMMARY"
+          cp build/app/outputs/flutter-apk/app-release.apk "$RUNNER_TEMP/release/joop-ai-$VERSION.apk"
       - uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: mobile/joop-ai-${{ inputs.version }}.apk
+          path: ${{ runner.temp }}/release/
           retention-days: 3
 
   publish:
@@ -78,7 +151,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          apk="joop-ai-${{ inputs.version }}.apk"
-          notes="Joop AI for owners, staff and customers. Server: ${API_URL%/}. Install the APK on Android; allow installing from this source when asked."
-          gh release create "${{ inputs.version }}" "$apk" --target "${{ github.sha }}" --title "Joop AI mobile ${{ inputs.version }}" --notes "$notes" \
-            || gh release upload "${{ inputs.version }}" "$apk" --clobber
+          apk="joop-ai-$VERSION.apk"
+          # The same file under a name that never changes: releases/latest/download/joop-ai.apk is a lasting link
+          # to the newest version, for the site or a QR code.
+          cp "$apk" joop-ai.apk
+          title="Joop AI mobile $VERSION"
+          if gh release view "$VERSION" >/dev/null 2>&1; then  # the same version built again: its files and notes are replaced
+            gh release upload "$VERSION" "$apk" joop-ai.apk --clobber
+            gh release edit "$VERSION" --title "$title" --notes-file notes.md --latest
+          else
+            gh release create "$VERSION" "$apk" joop-ai.apk --target "$GITHUB_SHA" --title "$title" --notes-file notes.md --latest
+          fi
+          echo "Download: https://github.com/$GH_REPO/releases/latest/download/joop-ai.apk" >> "$GITHUB_STEP_SUMMARY"

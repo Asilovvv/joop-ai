@@ -164,15 +164,58 @@ docker compose logs -f app                 # what the server is doing
 
 ## 10. The mobile app
 
-The owner's and the customers' app (Flutter, `mobile/`) talks to this server's `/api/mobile/…`.
-Build it for your domain once the server answers `https://joop.kg/health`:
+The owner's and the customers' app (Flutter, `mobile/`) talks to this server's `/api/mobile/…`. A release is an
+Android APK attached to a GitHub Release, built for your domain and signed with your own key.
+
+### The app's signing key
+
+Once, before the first release; about 10 minutes. A phone installs an update only when it is signed with the same
+key as the installed app, so the key is made once, stays with the owner, and signs every release.
+
+1. Make the keystore. `keytool` comes with Android Studio and with any Java:
+
+   ```bash
+   mkdir -p ~/joop-signing && cd ~/joop-signing
+   keytool -genkeypair -keystore joop-release.jks -alias joop -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Joop AI"
+   ```
+
+   It asks for a new password twice (6 characters or more): choose one and write it down. On a Mac with Android
+   Studio and no separate Java, type `"/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/keytool"`
+   in place of `keytool`.
+2. On GitHub: **Settings → Secrets and variables → Actions → New repository secret**, two secrets:
+   - `ANDROID_KEYSTORE_BASE64`: the keystore file as text. `base64 -i joop-release.jks | pbcopy` copies it on a Mac
+     (Linux: `base64 -w0 joop-release.jks`; Windows PowerShell:
+     `[Convert]::ToBase64String([IO.File]::ReadAllBytes("joop-release.jks")) | Set-Clipboard`); paste it as the value.
+   - `ANDROID_KEYSTORE_PASSWORD`: the password from step 1.
+3. Keep `~/joop-signing/joop-release.jks` and the password in two places of your own (a password manager, a flash
+   drive). GitHub never shows a secret again, and without the key no update can be installed over the app:
+   everyone would have to remove it and install it anew.
+
+Never commit the keystore or its password: the repository is public (`mobile/android/.gitignore` ignores `*.jks`
+and `key.properties`). A keystore made long ago whose key has its own name or password: put them into the secrets
+`ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`.
+
+### A release
+
+When the server answers `https://joop.kg/health`:
 
 1. On GitHub: **Actions → mobile-release → Run workflow**.
-2. `api_url`: `https://joop.kg` (the server's `PUBLIC_BASE_URL`), `version`: `mobile-v1.0.0`.
-3. The workflow checks that the server answers (`/health`, and `/api/mobile/login` with a wrong password gives
-   401), builds the Android APK and attaches it to a GitHub Release with that tag.
+2. `version`: `mobile-v1.0.0` (the phone shows 1.0.0; the next one is `mobile-v1.0.1` or `mobile-v1.1.0`).
+   `api_url`: `https://joop.kg`, the server's `PUBLIC_BASE_URL`; leave it empty when the repository variable
+   `JOOP_URL` (section 8) is set.
+3. The workflow stops at once, saying what to fix, when the signing key is not in the secrets, the password does
+   not open it, the server does not answer (`/health`, and `/api/mobile/login` with a wrong password gives 401), or
+   the key is not the one the previous release was signed with. Otherwise it builds the APK, checks its signature
+   and attaches it to a GitHub Release with that tag. The release notes record the build number and the key's
+   certificate; the next release is compared with them, and its build number is always higher.
 
-Owners install the APK and sign in with the company login and panel password; customers open a business by its
-code (the slug in its `/c/<slug>` link). An APK built without `api_url` (the CI artifact) still works: on the
-sign-in screen «Другой сервер» takes the address by hand. iOS needs an Apple developer account and is not built here.
+`https://github.com/<owner>/<repository>/releases/latest/download/joop-ai.apk` always gives the newest release:
+a lasting link for the site, a message or a QR code. Owners install the APK and sign in with the company login and
+panel password; customers open a business by its code (the slug in its `/c/<slug>` link). A new version installs
+over the old one, and nobody signs in again.
 
+If the keystore is lost for good, make a new one and run the workflow with **new_key** ticked: the release notes
+then tell everyone to remove the app before installing. To try the app before any of this, take the APK from the
+latest **Actions → mobile** run (`mobile/README.md`): on its sign-in screen «Другой сервер» takes the address by
+hand, but that build is signed with a one-run key and cannot be updated. iOS needs an Apple developer account and
+is not built here.
