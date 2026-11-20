@@ -59,6 +59,24 @@ class ProbingLLM(FakeLLM):
         return super().remove_false_confirmation(text, usage)
 
 
+class OverlapLLM(FakeLLM):
+    """A one-second model call that records how many calls ran at the same time (no wall-clock limit: CI is slow)."""
+
+    def __init__(self):
+        super().__init__()
+        self.running = self.most = 0
+        self._guard = threading.Lock()
+
+    def respond(self, system, messages, schema=None):
+        with self._guard:
+            self.running += 1
+            self.most = max(self.most, self.running)
+        time.sleep(1.0)
+        with self._guard:
+            self.running -= 1
+        return AgentReply("Здравствуйте! Чем помочь?")
+
+
 def _say(business_id: int, text: str, llm, ext: str, chat: str = "1001"):
     with db.new_session() as s:
         b = s.get(Business, business_id)
@@ -92,13 +110,7 @@ def test_a_failed_model_call_keeps_the_customers_message(business):
 
 
 def test_customers_of_different_businesses_are_answered_side_by_side(business, settings, engine):
-    """Four model calls of one second at once: about a second in all, not four one after another."""
-
-    class SlowLLM(FakeLLM):
-        def respond(self, system, messages, schema=None):
-            time.sleep(1.0)
-            return AgentReply("Здравствуйте! Чем помочь?")
-
+    """Four model calls of one second at once run side by side, not one after another."""
     ids = [business.id]
     with db.new_session() as s:
         for i in range(3):
@@ -107,21 +119,21 @@ def test_customers_of_different_businesses_are_answered_side_by_side(business, s
             s.add(b)
             s.commit()
             ids.append(b.id)
-    rt = FakeRuntime(settings, SlowLLM())
+    llm = OverlapLLM()
+    rt = FakeRuntime(settings, llm)
     outcomes: list = [None] * len(ids)
 
     def one(i: int) -> None:
         outcomes[i] = process_incoming(rt, ids[i], IncomingMessage("telegram", f"77{i}", "text", "Здравствуйте", "", f"tg:77{i}:1"),
                                        NOW_UTC)
 
-    started = time.monotonic()
     threads = [threading.Thread(target=one, args=(i,)) for i in range(len(ids))]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
     assert all(o.reply == "Здравствуйте! Чем помочь?" for o in outcomes), [o.skipped for o in outcomes]
-    assert time.monotonic() - started < 3.0
+    assert llm.most >= 2  # one after another, it would stay 1
 
 
 def test_an_atomic_session_stays_one_unit(business):
@@ -200,16 +212,11 @@ def test_a_repeated_delivery_gets_one_answer(business, settings):
 
 
 def test_other_chats_of_the_same_business_do_not_wait(business, settings):
-    class SlowLLM(FakeLLM):
-        def respond(self, system, messages, schema=None):
-            time.sleep(1.0)
-            return AgentReply("Здравствуйте! Чем помочь?")
-
-    rt = FakeRuntime(settings, SlowLLM())
-    started = time.monotonic()
+    llm = OverlapLLM()
+    rt = FakeRuntime(settings, llm)
     outcomes = _together(rt, business.id, [IncomingMessage("telegram", f"60{i}", "text", "Здравствуйте", "", f"tg:60{i}:1")
                                            for i in range(4)], gap=0.0)
-    assert all(o.reply for o in outcomes) and time.monotonic() - started < 3.0  # four in turn would take four seconds
+    assert all(o.reply for o in outcomes) and llm.most >= 2  # four in turn would never overlap
 
 
 def test_turns_leave_nothing_behind_and_a_stuck_chat_does_not_block_forever(business, monkeypatch):
