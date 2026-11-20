@@ -4,7 +4,7 @@
 {% block content %}
 {% include "owner_nav.html" %}
 {% if ai.down %}
-<div class="flash error" role="alert"><b>ИИ не отвечает клиентам.</b> За последние 30 минут не удалось ответить {{ ai.failures }} раз{% if ai.last_at %}, последний сбой {{ ai.last_at | local("Asia/Bishkek") }}{% endif %}. Причина: {{ ai.reason or 'неизвестна (сервер перезапускался) — проверьте баланс и ключ Anthropic' }}. Клиенты получают «Извините, сейчас не получается ответить», заявки уходят администраторам.</div>
+<div class="flash error" role="alert"><b>ИИ не отвечает клиентам.</b> За последние 30 минут не удалось ответить {{ ai.failures }} раз{% if ai.last_at %}, последний сбой {{ ai.last_at | local("Asia/Bishkek") }}{% endif %}. Причина: {{ ai.reason or 'неизвестна (сервер перезапускался) — ' ~ check_hint }}. Клиенты получают «Извините, сейчас не получается ответить», заявки уходят администраторам.</div>
 {% elif ai.recovered %}
 <div class="flash" role="status">ИИ снова отвечает (с {{ ai.last_success | local("Asia/Bishkek") }}). За последние 30 минут не удалось ответить {{ ai.failures }} раз; клиентам, которые ждали, ИИ ответит сам с извинением за задержку (до 12 часов после сообщения).</div>
 {% elif ai.failures %}

@@ -8,6 +8,7 @@ import secrets
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import urlparse
 
 log = logging.getLogger(__name__)
 
@@ -83,6 +84,25 @@ class Settings:
         if self.llm_provider == "openai":
             return self.llm_api_key if self.llm_base_url else ""
         return self.anthropic_api_key
+
+    @property
+    def model_processor(self) -> str:
+        """Who reads customers' messages to write the answers, for the privacy page (the provider in use)."""
+        if self.llm_provider != "openai":
+            return "Anthropic (модель Claude, США)"
+        host = (urlparse(self.llm_base_url).hostname or "").lower()
+        known = {"generativelanguage.googleapis.com": "Google (модель Gemini, США)", "api.openai.com": "OpenAI (США)"}
+        for domain, name in known.items():
+            if host == domain or host.endswith("." + domain):
+                return name
+        return f"Поставщик модели ИИ ({host})" if host else "Поставщик модели ИИ"
+
+    @property
+    def model_api_name(self) -> str:
+        """The provider's API in founder alerts: «закончился баланс Gemini API», not Anthropic on a Gemini server."""
+        names = {"Anthropic (модель Claude, США)": "Anthropic API", "Google (модель Gemini, США)": "Gemini API",
+                 "OpenAI (США)": "OpenAI API"}
+        return names.get(self.model_processor, "API модели")
 
     @property
     def model_key_name(self) -> str:
