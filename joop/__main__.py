@@ -193,7 +193,7 @@ def cmd_restore_copy(args) -> int:
     except (CopyError, OSError) as exc:
         print(exc)
         return 1
-    print(f"База восстановлена в {out}. Дальше: docs/deploy.md, раздел «Резервные копии».")
+    print(f"База восстановлена в {out}. Дальше: docs/deploy.md, раздел 7 «Backups».")
     return 0
 
 

@@ -1,0 +1,45 @@
+# Is the whole server up? Opens <JOOP_URL>/health from outside every 10 minutes and writes to the founder's
+# Telegram once when it stops answering and once when it is back (deploy/uptime.py).
+# Off until the repository variable JOOP_URL is set (Settings -> Secrets and variables -> Actions -> Variables),
+# e.g. https://joop.kg. Messages need the secrets FOUNDER_BOT_TOKEN and FOUNDER_CHAT_ID (the same as in .env).
+# Free on a public repository. GitHub may start a scheduled run a few minutes late, and pauses schedules
+# after 60 days without commits: then Actions -> uptime -> Enable workflow.
+name: uptime
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read  # only to read the previous run's result
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  health:
+    if: vars.JOOP_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: deploy/uptime.py
+          sparse-checkout-cone-mode: false
+      - name: Previous result
+        id: prev
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prev=$(gh api "repos/${{ github.repository }}/actions/workflows/uptime.yml/runs?status=completed&per_page=1" \
+                 --jq '.workflow_runs[0].conclusion // ""' || true)
+          echo "conclusion=$prev" >> "$GITHUB_OUTPUT"
+      - name: Check /health
+        env:
+          JOOP_URL: ${{ vars.JOOP_URL }}
+          PREVIOUS: ${{ steps.prev.outputs.conclusion }}
+          FOUNDER_BOT_TOKEN: ${{ secrets.FOUNDER_BOT_TOKEN }}
+          FOUNDER_CHAT_ID: ${{ secrets.FOUNDER_CHAT_ID }}
+        run: python3 deploy/uptime.py
