@@ -71,3 +71,15 @@ def test_without_secrets_it_still_fails_the_run():
 def test_the_workflow_runs_this_script_on_a_schedule():
     text = (ROOT / ".github" / "workflows" / "uptime.yml").read_text()
     assert "python3 deploy/uptime.py" in text and 'cron: "*/10 * * * *"' in text and "vars.JOOP_URL" in text
+
+
+def test_news_telegram_did_not_take_is_told_again_next_run():
+    """Review of #259: an outage message Telegram refused left the run «failure», so the next run kept silent."""
+    class Refusing(Net):
+        def __call__(self, url, data=None, timeout=None):
+            if "api.telegram.org" in url:
+                raise urllib.error.URLError("telegram down")
+            return super().__call__(url, data, timeout)
+
+    assert uptime.main({**ENV, "PREVIOUS": "success"}, Refusing(urllib.error.URLError(ConnectionRefusedError()))) == 0
+    assert uptime.main({**ENV, "PREVIOUS": "failure"}, Refusing({"ok": True})) == 1

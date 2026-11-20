@@ -25,7 +25,8 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
 
-from .agent.engine import ERROR_REPLY, _model_reply
+from .agent.engine import ERROR_REPLY, _model_reply, chat_turn
+from .db import free
 from .billing import access_ok
 from .dispatch import deliver, notify_admins
 from .models import Business, Conversation, Lead, Message
@@ -74,8 +75,19 @@ def _last_customer_text(session: Session, conv: Conversation) -> str:
     return (text or "").strip()
 
 
+def _still_waiting(session: Session, conv: Conversation) -> bool:
+    """Read again inside the chat's turn: the fallback reply is still the chat's last word."""
+    session.expire_all()
+    last = session.exec(select(Message).where(Message.conversation_id == conv.id).order_by(Message.id.desc())).first()
+    return last is not None and last.role == "ai" and last.text == ERROR_REPLY
+
+
 def answer_waiting(session: Session, rt: "Runtime", business: Business, now: datetime) -> int:
-    """Answer waiting customers of one business. Returns how many got an answer."""
+    """Answer waiting customers of one business. Returns how many got an answer.
+
+    Each late answer takes the chat's turn (engine.chat_turn) like a live message: since the model call no longer
+    holds the database (#253), a customer writing «вы тут?» at that moment would otherwise get two answers and two
+    bookings."""
     global _next_try
     with _lock:
         if _next_try is not None and now < _next_try:
@@ -85,28 +97,32 @@ def answer_waiting(session: Session, rt: "Runtime", business: Business, now: dat
     items = waiting(session, business, now)[:PER_TICK]
     answered: list[str] = []
     for conv, leads in items:
-        text = _last_customer_text(session, conv)
-        if not text:
-            continue
-        try:
-            outcome = _model_reply(session, business, conv, conv.channel, text, now, rt.get_llm,
-                                   rt.settings.public_base_url, rt.altegio, late=True)
-        except Exception:
-            session.rollback()
-            with _lock:
-                _next_try = now + RETRY_EVERY
-            log.info("The AI still does not answer; waiting customers of %s are tried again later", business.slug)
-            break
-        if not outcome.reply:
-            session.rollback()
-            continue
-        for lead in leads:
-            lead.status, lead.closed_by = "done", CLOSED_BY
-            session.add(lead)
-        session.commit()  # stored before sending: a crash must not send the same answer twice
-        deliver(rt, business, conv.channel, conv.chat_id, outcome)
-        who = conv.customer_name or conv.display_name or "клиент без имени"
-        answered.append(f"{who} ({CHANNEL_NAMES.get(conv.channel, conv.channel)})")
+        free(session)  # never wait for a chat's turn while holding the database
+        with chat_turn(business.id, conv.channel, conv.chat_id):
+            if not _still_waiting(session, conv):
+                continue  # the customer wrote again and got a live answer meanwhile: no second, late one
+            text = _last_customer_text(session, conv)
+            if not text:
+                continue
+            try:
+                outcome = _model_reply(session, business, conv, conv.channel, text, now, rt.get_llm,
+                                       rt.settings.public_base_url, rt.altegio, late=True)
+            except Exception:
+                session.rollback()
+                with _lock:
+                    _next_try = now + RETRY_EVERY
+                log.info("The AI still does not answer; waiting customers of %s are tried again later", business.slug)
+                break
+            if not outcome.reply:
+                session.rollback()
+                continue
+            for lead in leads:
+                lead.status, lead.closed_by = "done", CLOSED_BY
+                session.add(lead)
+            session.commit()  # stored before sending: a crash must not send the same answer twice
+            deliver(rt, business, conv.channel, conv.chat_id, outcome)
+            who = conv.customer_name or conv.display_name or "клиент без имени"
+            answered.append(f"{who} ({CHANNEL_NAMES.get(conv.channel, conv.channel)})")
     if answered:
         with _lock:
             _next_try = None

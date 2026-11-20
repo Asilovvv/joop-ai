@@ -118,15 +118,30 @@ def booking_for(session: Session, business: Business, secret: str, token: str) -
 # --- the reminder in Telegram ---------------------------------------------------------------------------
 
 REMIND_START = "b"  # t.me/<bot>?start=b<booking id>_<signature>: the confirmation page's «Напомнить в Telegram»
+KY_MARK = "_ky"  # appended when the customer booked on the Kyrgyz page: the bot answers in Kyrgyz
 
 
-def remind_link(business: Business, booking: Booking) -> str:
+def reminder_coming(business: Business, booking: Booking, now_local: datetime) -> bool:
+    """Will the reminder round on the eve of the visit still run (joop/scheduler.py: once a day at reminder_hour, for
+    tomorrow's bookings)? Not for a visit today, nor for tomorrow's once today's round is done or its hours passed."""
+    from .scheduler import JOB_WINDOW_HOURS
+
+    eve, today = booking.start.date() - timedelta(days=1), now_local.date()
+    if eve != today:
+        return eve > today
+    return business.last_reminder_date != today.isoformat() and now_local.hour < business.reminder_hour + JOB_WINDOW_HOURS
+
+
+def remind_link(business: Business, booking: Booking, now_local: datetime, lang: str = "ru") -> str:
     """One tap ties the booking to the customer's Telegram chat with the business's bot: the reminder the day before
     then goes there with its «да» question, instead of to staff as «напомните вручную». Signed with the bot token,
     which only the server holds (Telegram allows 64 characters of letters, digits and _)."""
     if not (business.telegram_bot_token and business.telegram_bot_username and business.bot_enabled):
         return ""
-    return f"https://t.me/{business.telegram_bot_username}?start={REMIND_START}{booking.id}_{_remind_sig(business, booking.id)}"
+    if not reminder_coming(business, booking, now_local):
+        return ""  # never promise a reminder nobody will send: staff already have the phone in their alert
+    return (f"https://t.me/{business.telegram_bot_username}?start={REMIND_START}{booking.id}_{_remind_sig(business, booking.id)}"
+            + (KY_MARK if lang == "ky" else ""))
 
 
 def _remind_sig(business: Business, booking_id: int) -> str:
@@ -144,7 +159,7 @@ def take_reminder(session: Session, business: Business, argument: str, channel: 
         return None
     booking = session.get(Booking, int(raw))
     if (booking is None or booking.business_id != business.id or booking.source != SOURCE or booking.status != "booked"
-            or booking.start <= now_local or booking.chat_id
+            or booking.start <= now_local or booking.chat_id or not reminder_coming(business, booking, now_local)
             or not hmac.compare_digest(sig, _remind_sig(business, booking.id))):
         return None
     booking.channel, booking.chat_id, booking.conversation_id = channel, chat_id, conversation_id

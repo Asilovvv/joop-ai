@@ -22,6 +22,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from .. import annual, billing, free_plan, health, partners, pitch, samples, stories, waitlist
+from ..channels.telegram import bot_id
 from ..dispatch import admin_link, alert_chats, alerts_other_bot
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
@@ -301,6 +302,8 @@ def setup_telegram(request: Request, token: str = Form(""), csrf: str = Form("")
         if any(o.telegram_bot_token == token for o in others):  # tokens are encrypted: compare after decryption
             _flash(request, "Этот бот уже подключён к другой компании.", "error")
             return _back(page + "#telegram")
+        if b.admin_chat_ids and not b.admin_bot and b.telegram_bot_token:
+            b.admin_bot = bot_id(b.telegram_bot_token)  # linked before 0063: they went through the bot being replaced
         b.telegram_bot_token = token
         client = _rt(request).telegram(b)
         me = client.get_me() if client else None

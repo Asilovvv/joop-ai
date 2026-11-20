@@ -241,7 +241,7 @@ def booked_page(request: Request, slug: str, token: str, lang: str = "ru"):
         return _page(request, b, lang, "done", booking=x, when=f"{_date_long(x.start, lang)}, {TEXT[lang]['at']} {x.start:%H:%M}",
                      ics_url=f"/m/{b.slug}/book/{token}/booking.ics", cancelled=x.status != "booked",
                      phone_link=display_phone(samples.customer_contact(b, "phone")),
-                     remind_url="" if x.chat_id else pb.remind_link(b, x), reminded=x.channel == "telegram")
+                     remind_url="" if x.chat_id else pb.remind_link(b, x, local_now(b.timezone).replace(tzinfo=None), lang), reminded=x.channel == "telegram")
 
 
 @router.get("/m/{slug}/book/{token}/booking.ics")
