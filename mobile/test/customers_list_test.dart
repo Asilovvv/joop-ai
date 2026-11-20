@@ -26,6 +26,8 @@ void main() {
     expect(find.byKey(const Key('customer-700000001')), findsOneWidget);
     expect(find.byKey(const Key('customer-555123456')), findsOneWidget);
     expect(find.textContaining('визитов: 3 · 4 500 сом'), findsOneWidget);
+    expect(find.textContaining('+996 700 000 001'), findsOneWidget); // readable, as in the panel (#252)
+    expect(find.textContaining('+996700000001'), findsNothing);
 
     await tester.enterText(find.byKey(const Key('customers-search')), 'бакыт');
     await tester.pump(const Duration(milliseconds: 500));
@@ -45,5 +47,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(server.calls, contains('GET /api/mobile/customers/700000001'));
     expect(find.text('4.7 ★'), findsOneWidget);
+    expect(find.textContaining('+996 700 000 001'), findsWidgets);
   });
 }

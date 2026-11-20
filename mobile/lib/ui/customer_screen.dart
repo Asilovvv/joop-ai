@@ -91,7 +91,7 @@ class _CustomerState extends State<_Customer> {
                     children: [
                       if (card.phone.isNotEmpty || card.channels.isNotEmpty)
                         Text(
-                          [card.phone, ...card.channels.map(channelName)].where((x) => x.isNotEmpty).join(' · '),
+                          [formatPhone(card.phone), ...card.channels.map(channelName)].where((x) => x.isNotEmpty).join(' · '),
                           style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline),
                         ),
                       const SizedBox(height: 12),

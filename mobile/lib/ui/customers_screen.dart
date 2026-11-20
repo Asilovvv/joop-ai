@@ -121,7 +121,7 @@ class _CustomersState extends State<_Customers> {
                             title: Text(c.name.isEmpty ? s.noName : c.name,
                                 style: const TextStyle(fontWeight: FontWeight.w600)),
                             subtitle: Text([
-                              if (c.phone.isNotEmpty) c.phone,
+                              if (c.phone.isNotEmpty) formatPhone(c.phone),
                               s.customerLine(c.visits, formatSom(c.spendSom)),
                               if (c.tags.isNotEmpty) c.tags.join(', '),
                             ].join('\n')),
