@@ -112,7 +112,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
    delivery repeated moments later finds the first already stored, and a second message sent in a row
    is answered with the first reply in its history.
 5. **No model call inside a database transaction.** SQLite lets one connection write at a time, from
-   its first write to commit. The engine commits before each model call (`engine._free_the_database`),
+   its first write to commit. The engine commits before each model call (`db.free`),
    so a slow answer to one customer never stops another business's customers, the panel or the
    scheduler, and the customer's message is kept even if the call fails. Measured before the fix: ten
    customers at once with a 3-second call were answered one after another and five got nothing

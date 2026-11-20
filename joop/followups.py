@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
 
+from .db import free
+
 from .channels.telegram import is_personal
 from .lang import chat_is_kyrgyz, is_kyrgyz_message
 from .models import Booking, Business, Conversation, Lead, Message, Service
@@ -69,7 +71,10 @@ def deliver_to_chat(session: Session, rt: "Runtime", business: Business, conv: C
     if not can_write(conv.channel, conv.chat_id, conv.last_customer_at, now_utc):
         return False
     client = rt.channel_client(business, conv.channel)
-    if not (client and client.send_text(conv.chat_id, text)):
+    if client is None:
+        return False
+    free(session)  # what led to this message is stored first; the messenger may take seconds to answer
+    if not client.send_text(conv.chat_id, text):
         return False
     session.add(Message(business_id=business.id, conversation_id=conv.id, role="ai", text=text, created_at=now_utc))
     conv.last_message_at = now_utc
@@ -228,7 +233,8 @@ def send_return_invites(session: Session, rt: "Runtime", business: Business, now
     if manual:
         from .dispatch import notify_admins  # the engine imports this module; dispatch imports the engine
 
-        notify_admins(rt, business, ["Пора пригласить снова (написать не получилось — свяжитесь сами):\n" + "\n".join(manual)])
+        notify_admins(rt, business, ["Пора пригласить снова (написать не получилось — свяжитесь сами):\n" + "\n".join(manual)],
+                      session=session)
     return {"sent": sent, "manual": len(manual)}
 
 

@@ -11,7 +11,9 @@ from .billing import access_ok
 from .timeutil import utcnow
 from .channels.base import IncomingMessage
 from .channels.telegram import bot_id
-from .db import new_session
+from sqlmodel import Session
+
+from .db import free, new_session
 from .models import Business
 from .runtime import Runtime
 
@@ -112,13 +114,16 @@ def alerts_other_bot(business: Business) -> bool:
                 and business.admin_bot != bot_id(business.telegram_bot_token))
 
 
-def notify_admins(rt: Runtime, business: Business, notes: list[str]) -> int:
-    """Send notes to every linked admin chat through the business's Telegram bot. Returns messages sent."""
+def notify_admins(rt: Runtime, business: Business, notes: list[str], session: Session | None = None) -> int:
+    """Send notes to every linked admin chat through the business's Telegram bot. Returns messages sent.
+    `session`: the caller's, when it may hold changes — they are stored before Telegram is asked (db.free)."""
     telegram = rt.telegram(business)
     chats = alert_chats(business)  # not the chats of a previous bot: this one cannot write there
     if telegram is None or not chats:
         log.info("Admin notifications for %s are not set up; %d note(s) kept only in the panel", business.slug, len(notes))
         return 0
+    if session is not None and notes:
+        free(session)
     sent = 0
     for note in notes:
         for chat_id in chats:

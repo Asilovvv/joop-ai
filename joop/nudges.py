@@ -84,7 +84,7 @@ def send(session: Session, rt: "Runtime", business: Business, now_utc: datetime)
         return 0
     from .dispatch import notify_admins
 
-    if not notify_admins(rt, business, [nudge_text(business, leads)]):
+    if not notify_admins(rt, business, [nudge_text(business, leads)], session=session):
         return 0  # try again next tick
     for lead in leads:
         lead.nudged_at = now_utc

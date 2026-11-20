@@ -22,6 +22,7 @@ from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
 from ..channels.telegram import bot_id, is_personal, split_chat_id
+from ..db import free
 from ..lang import (chat_is_kyrgyz, claims_confirmation, drop_claim_sentences, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz,
                     adds_no_numbers, same_numbers, use_kyrgyz_names)
 from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, Stay
@@ -147,7 +148,7 @@ def handle_incoming(
     outcome is committed before the turn passes on, so the next message reads this one's reply."""
     if session.info.get("atomic"):  # one unit that its caller rolls back whole (joop/pitch.py): no turns, no commits
         return _handle_incoming(session, business, incoming, get_llm, now_utc, base_url, get_altegio)
-    _free_the_database(session)  # never wait for a chat's turn while holding the database
+    free(session)  # never wait for a chat's turn while holding the database
     with chat_turn(business.id, incoming.channel, incoming.chat_id):
         outcome = _handle_incoming(session, business, incoming, get_llm, now_utc, base_url, get_altegio)
         session.commit()
@@ -267,16 +268,6 @@ def _handle_incoming(
     return _model_reply(session, business, conv, incoming.channel, text, now, get_llm, base_url, get_altegio, answered)
 
 
-def _free_the_database(session: Session) -> None:
-    """Commit what is decided before a model call. SQLite lets one connection write at a time, from its first write
-    until commit: a model call inside that would stop every other customer of every business, the panel and the
-    scheduler for its seconds (ten customers at once with a 3-second call: answered one after another, and five got
-    nothing, «database is locked»). The customer's message is kept even if the call then fails.
-    A session that must stay one unit (the founder's pitch demo, joop/pitch.py) sets session.info["atomic"]."""
-    if not session.info.get("atomic"):
-        session.commit()
-
-
 def _model_reply(
     session: Session,
     business: Business,
@@ -335,7 +326,7 @@ def _model_reply(
         + (routes.prompt_hint(session, conv, on_sale, text) if pack_offers(business, "route_price") else ""),
     )
     history = _history(session, conv, now)
-    _free_the_database(session)
+    free(session)  # the customer's message is kept, and nobody waits for the database while the model thinks
 
     try:
         llm = get_llm()
@@ -445,7 +436,7 @@ def _model_reply(
     captured = any(x is not None for x in (outcome.booking_id, outcome.request_id, outcome.order_id, outcome.qualified_lead_id,
                                            outcome.stay_id, outcome.changed_booking_id))
     if outcome.reply and not captured and claims_confirmation(outcome.reply) and not _has_capture(session, conv):
-        _free_the_database(session)
+        free(session)
         fixed = llm.remove_false_confirmation(outcome.reply, outcome.usage)
         if fixed and not adds_no_numbers(outcome.reply, fixed):  # the model's edit changed a time or a sum: cut by code
             fixed = ""
@@ -462,7 +453,7 @@ def _model_reply(
         # also when the model wrote nothing: the code's own confirmation follows in Kyrgyz (counted for the founder)
         outcome.kyrgyz = "ky"
         if outcome.reply and not looks_kyrgyz(outcome.reply):
-            _free_the_database(session)  # the booking or order is decided: the rewrite only changes words
+            free(session)  # the booking or order is decided: the rewrite only changes words
             rewritten = llm.rewrite_in_kyrgyz(outcome.reply, outcome.usage)
             if rewritten and looks_kyrgyz(rewritten) and same_numbers(outcome.reply, rewritten):
                 outcome.reply = rewritten

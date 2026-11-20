@@ -22,6 +22,7 @@ from sqlmodel import Session, select
 from .agent.engine import takeover_pause
 from . import funnel
 from .channels.telegram import is_personal
+from .db import free
 from .followups import can_write
 from .models import Business, Conversation, Lead, Message
 
@@ -77,6 +78,7 @@ def send(session: Session, rt: "Runtime", business: Business, conv: Conversation
         client = rt.channel_client(business, conv.channel)
         if client is None:
             return False, f"{CHANNEL_NAMES[conv.channel]} не подключён в разделе «Каналы»."
+        free(session)  # the network call never holds the database's write lock
         if not client.send_text(conv.chat_id, text):
             return False, f"{CHANNEL_NAMES[conv.channel]} не принял сообщение. Попробуйте ещё раз или позвоните клиенту."
     session.add(Message(business_id=business.id, conversation_id=conv.id, role="staff", text=text, created_at=now_utc,
