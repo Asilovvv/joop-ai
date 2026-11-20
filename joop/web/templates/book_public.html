@@ -42,6 +42,8 @@ a.line { display: block; margin-top: 12px; padding: 12px; border: 1px solid var(
     <p>{{ booking.staff_name }}{% if booking.service %} · {{ booking.service }}{% endif %}</p>
     {% if address %}<p class="muted">{{ address }}</p>{% endif %}
   </div>
+  {% if remind_url %}<a class="go" href="{{ remind_url }}" rel="noopener">{{ tx.remind }}</a><p class="muted small" style="margin: 8px 0 0">{{ tx.remind_hint }}</p>
+  {% elif reminded %}<p class="note">{{ tx.reminded }}</p>{% endif %}
   <a class="line" href="{{ ics_url }}">{{ tx.calendar }}</a>
   {% endif %}
   {% if links or phone %}

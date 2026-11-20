@@ -252,3 +252,41 @@ def test_calendar_file_escapes_and_folds():
     assert all(len(x.encode()) <= 75 for x in lines) and all(x.startswith(" ") for x in lines[1:])
     assert "".join(x[1:] if i else x for i, x in enumerate(lines)) == "SUMMARY:" + "Консультация, чистка; " * 6
     assert pb._escape("a, b; c\nd") == "a\\, b\\; c\\nd"
+
+
+def test_the_reminder_goes_to_telegram_after_one_tap(business, settings, rt):
+    from joop.agent.engine import handle_incoming
+    from joop.channels.base import IncomingMessage
+    from joop.scheduler import send_reminders
+
+    _open(business.id)
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.telegram_bot_username = "aktish_bot"
+        s.add(b)
+        s.commit()
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        url = _book(c, _first_time(c)).headers["location"]
+        page = c.get(url).text
+        link = re.search(r'href="(https://t\.me/aktish_bot\?start=(b\d+_[0-9a-f]+))"', page)
+        assert link and "Напомнить в Telegram" in page and len(link.group(2)) <= 64
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        x = s.exec(select(Booking).where(Booking.source == "page")).one()
+        forged = handle_incoming(s, b, IncomingMessage("telegram", "900", "command", f"/start b{x.id}_{'0' * 20}", "Чужой", "f1"),
+                                 lambda: None, NOW_UTC)
+        assert "Напомним сюда" not in (forged.reply or "") and s.get(Booking, x.id).chat_id == ""
+        out = handle_incoming(s, b, IncomingMessage("telegram", "777", "command", f"/start {link.group(2)}", "Айбек", "r1"),
+                              lambda: None, NOW_UTC)
+        assert out.reply.startswith("Готово: напомним сюда накануне.")
+        x = s.get(Booking, x.id)
+        assert (x.channel, x.chat_id) == ("telegram", "777") and x.conversation_id
+        again = handle_incoming(s, b, IncomingMessage("telegram", "888", "command", f"/start {link.group(2)}", "Другой", "r2"),
+                                lambda: None, NOW_UTC)
+        assert s.get(Booking, x.id).chat_id == "777" and "Напомним сюда" not in (again.reply or "")  # a link works once
+        evening = x.start - timedelta(hours=18) - timedelta(hours=6)  # the evening before, in UTC
+        send_reminders(s, rt, b, evening)
+    assert any(chat == "777" and "Напоминаем" in text for chat, text in rt.tg.sent)
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        page = c.get(url).text
+        assert "Напоминание придёт в Telegram" in page and "t.me/aktish_bot?start=" not in page

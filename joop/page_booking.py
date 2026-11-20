@@ -115,6 +115,43 @@ def booking_for(session: Session, business: Business, secret: str, token: str) -
     return booking if hmac.compare_digest(sig, _sign(secret, f"done|{business.id}|{booking.id}")) else None
 
 
+# --- the reminder in Telegram ---------------------------------------------------------------------------
+
+REMIND_START = "b"  # t.me/<bot>?start=b<booking id>_<signature>: the confirmation page's «Напомнить в Telegram»
+
+
+def remind_link(business: Business, booking: Booking) -> str:
+    """One tap ties the booking to the customer's Telegram chat with the business's bot: the reminder the day before
+    then goes there with its «да» question, instead of to staff as «напомните вручную». Signed with the bot token,
+    which only the server holds (Telegram allows 64 characters of letters, digits and _)."""
+    if not (business.telegram_bot_token and business.telegram_bot_username and business.bot_enabled):
+        return ""
+    return f"https://t.me/{business.telegram_bot_username}?start={REMIND_START}{booking.id}_{_remind_sig(business, booking.id)}"
+
+
+def _remind_sig(business: Business, booking_id: int) -> str:
+    return _sign(business.telegram_bot_token, f"remind|{business.id}|{booking_id}")[:20]
+
+
+def take_reminder(session: Session, business: Business, argument: str, channel: str, chat_id: str,
+                  conversation_id: int | None, now_local: datetime) -> Booking | None:
+    """/start b<id>_<sig> in Telegram: the page booking now has this chat. None when the link is not one of ours,
+    the booking is gone or past, or it already has a chat."""
+    if channel != "telegram" or not argument.startswith(REMIND_START):
+        return None
+    raw, _, sig = argument[len(REMIND_START):].partition("_")
+    if not raw.isdigit() or len(raw) > 12 or not business.telegram_bot_token:
+        return None
+    booking = session.get(Booking, int(raw))
+    if (booking is None or booking.business_id != business.id or booking.source != SOURCE or booking.status != "booked"
+            or booking.start <= now_local or booking.chat_id
+            or not hmac.compare_digest(sig, _remind_sig(business, booking.id))):
+        return None
+    booking.channel, booking.chat_id, booking.conversation_id = channel, chat_id, conversation_id
+    session.add(booking)
+    return booking
+
+
 # --- limits and the staff's note ---------------------------------------------------------------------------
 
 
