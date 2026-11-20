@@ -197,6 +197,11 @@ def _handle_incoming(
     if incoming.kind == "echo":
         return _handle_echo(session, business, conv, incoming, now, off)
 
+    if incoming.kind == "command":
+        tied = _tie_page_booking(session, business, conv, incoming, now, off)
+        if tied is not None:  # a tap on the booking page's link, not a customer's question: no dialogue to count
+            return tied
+
     text = (incoming.text or "").strip()
     stored = (voice.STORED_PREFIX + text) if incoming.transcribed else text
     if incoming.kind == "media":
@@ -686,16 +691,6 @@ def _handle_command(
 ) -> Outcome | None:
     command, _, argument = text.partition(" ")
     command = command.split("@", 1)[0].lower()
-    if command == "/start" and argument.strip().startswith(page_booking.REMIND_START):
-        taken = page_booking.take_reminder(session, business, argument.strip(), incoming.channel, incoming.chat_id, conv.id,
-                                           utc_to_local(now, business.timezone).replace(tzinfo=None))
-        if taken is not None:  # from the booking page's «Напомнить в Telegram»: this chat gets the reminder
-            if taken.customer_name and not conv.display_name:
-                conv.display_name = taken.customer_name[:120]
-            reply = (f"Готово: напомним сюда накануне. Ваша запись в «{business.name}»: {fmt_slot(taken.start)}"
-                     + (f", {taken.staff_name}" if taken.staff_name else "") + ". Вопросы можно задать здесь же.")
-            _add_message(session, business, conv, "ai", reply, now, off)
-            return Outcome(reply=reply)
     if command == "/start":
         reply = (business.greeting or DEFAULT_GREETING).format(name=business.name)
         if free_plan.is_free(get_subscription(session, business.id)):  # on Telegram this greeting is the first contact
@@ -703,6 +698,31 @@ def _handle_command(
         _add_message(session, business, conv, "ai", reply, now, off)
         return Outcome(reply=reply)
     return None  # other slash-texts are answered like normal messages
+
+
+def _tie_page_booking(session: Session, business: Business, conv: Conversation, incoming: IncomingMessage,
+                      now: datetime, off: bool) -> Outcome | None:
+    """/start b<id>_<sig> from the booking page's «Напомнить в Telegram» (joop/page_booking.py): this chat gets the
+    reminder. Only the answer is stored, so the tap is not counted as a dialogue with the AI (joop/stats.py)."""
+    command, _, argument = (incoming.text or "").strip().partition(" ")
+    if command.split("@", 1)[0].lower() != "/start" or not argument.strip().startswith(page_booking.REMIND_START):
+        return None
+    argument, kyrgyz = argument.strip(), argument.strip().endswith(page_booking.KY_MARK)
+    taken = page_booking.take_reminder(session, business, argument.removesuffix(page_booking.KY_MARK) if kyrgyz else argument,
+                                       incoming.channel, incoming.chat_id, conv.id,
+                                       utc_to_local(now, business.timezone).replace(tzinfo=None))
+    if taken is None:
+        return None
+    if taken.customer_name and not conv.display_name:
+        conv.display_name = taken.customer_name[:120]
+    if kyrgyz:  # проверить носителем
+        reply = (f"Даяр: бир күн мурун ушул жерге эскертебиз. «{business.name}» жазылууңуз: {confirm.fmt_slot_ky(taken.start)}"
+                 + (f", {taken.staff_name}" if taken.staff_name else "") + ". Суроолорду ушул жерден берсеңиз болот.")
+    else:
+        reply = (f"Готово: напомним сюда накануне. Ваша запись в «{business.name}»: {fmt_slot(taken.start)}"
+                 + (f", {taken.staff_name}" if taken.staff_name else "") + ". Вопросы можно задать здесь же.")
+    _add_message(session, business, conv, "ai", reply, now, off)
+    return Outcome(reply=reply)
 
 
 TEST_START = "test_"  # t.me/<bot>?start=test_<Business.test_link_code>, the panel's «Написать боту» link

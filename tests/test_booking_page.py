@@ -265,8 +265,12 @@ def test_the_reminder_goes_to_telegram_after_one_tap(business, settings, rt):
         b.telegram_bot_username = "aktish_bot"
         s.add(b)
         s.commit()
+    with db.new_session() as s:  # now is 23:14: tomorrow's reminder round is over, the day after's is still to come
+        later = LOCAL.date() + timedelta(days=2)
+        slot = next(x for x in s.exec(select(Slot).where(Slot.business_id == business.id, Slot.status == "free")
+                                      .order_by(Slot.start)).all() if x.start.date() == later)
     with TestClient(create_app(settings, rt, init=False)) as c:
-        url = _book(c, _first_time(c)).headers["location"]
+        url = _book(c, slot.id).headers["location"]
         page = c.get(url).text
         link = re.search(r'href="(https://t\.me/aktish_bot\?start=(b\d+_[0-9a-f]+))"', page)
         assert link and "Напомнить в Telegram" in page and len(link.group(2)) <= 64

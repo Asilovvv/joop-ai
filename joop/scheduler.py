@@ -441,8 +441,9 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
         if not (_due(now_local.hour, business.reminder_hour) and business.last_reminder_date != today):
             return None
         report["reminders"] = send_reminders(session, rt, business, now_utc)
-        report["returns"] = send_return_invites(session, rt, business, now_utc)
-        report["reorders"] = reorders.send_due(session, rt, business, now_utc)
+        if business.bot_enabled:  # invitations speak for the AI; with it off only bookings are reminded
+            report["returns"] = send_return_invites(session, rt, business, now_utc)
+            report["reorders"] = reorders.send_due(session, rt, business, now_utc)
         # Marked last: a round cut short (a restart, a failure) goes on at the next tick. What already went out is
         # marked on its own booking as soon as it is sent (db.free), so it is not sent again.
         business.last_reminder_date = today
@@ -475,6 +476,13 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
         client = rt.crm(business)
         return crm.push_due(session, client, business, now_utc, rt.settings.public_base_url) if client is not None else None
 
+    if not business.bot_enabled:
+        # the AI is off, but the booking page still books (joop/page_booking.py): its bookings are reminded, staff
+        # get the morning summary and partners their webhooks; nothing that speaks to customers for the AI
+        step("reminders_round", reminders)
+        step("digest_round", digest)
+        step("webhooks", lambda: api.send_due(session, rt.http, business, now_utc))
+        return report
     # first: customers an outage left waiting get their answer before staff are reminded about their requests
     step("answered_after_outage", lambda: recovery.answer_waiting(session, rt, business, now_utc))
     step("reminders_round", reminders)
@@ -506,7 +514,8 @@ class Scheduler(threading.Thread):
 
     def tick(self, now_utc: datetime | None = None) -> None:
         with new_session() as session:
-            ids = session.exec(select(Business.id).where(Business.bot_enabled == True)).all()  # noqa: E712
+            ids = session.exec(select(Business.id).where(  # the booking page books with the AI off too
+                (Business.bot_enabled == True) | (Business.page_booking == True))).all()  # noqa: E712
         for business_id in ids:
             with new_session() as session:
                 business = session.get(Business, business_id)

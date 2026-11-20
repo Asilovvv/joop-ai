@@ -20,7 +20,7 @@ from sqlmodel import Session, select
 from starlette.middleware.sessions import SessionMiddleware
 
 from ..channels.meta import parse_meta_payload, verify_signature
-from ..channels.telegram import parse_update
+from ..channels.telegram import bot_id, parse_update
 from ..config import Settings, get_settings
 from ..db import init_db, new_session
 from ..dispatch import admin_chat_ids, admin_link, alert_chats, alerts_other_bot, notify_admins, process_incoming
@@ -2069,6 +2069,8 @@ def telegram_disconnect(request: Request, csrf: str = Form("")):
                 client.delete_webhook()
             except Exception:  # noqa: BLE001 - Telegram unreachable: the token is removed anyway
                 log.warning("Telegram webhook not deleted for %s", b.slug)
+        if b.admin_chat_ids and not b.admin_bot and b.telegram_bot_token:
+            b.admin_bot = bot_id(b.telegram_bot_token)  # linked before 0063: a different bot later must not inherit them
         b.telegram_bot_token = ""
         b.telegram_bot_username = ""  # the counter card must not point at a bot that no longer answers
         s.add(b)

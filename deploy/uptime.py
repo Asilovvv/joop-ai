@@ -82,7 +82,11 @@ def main(env=os.environ, opener=urllib.request.urlopen) -> int:
     text = message(url, problem, env.get("PREVIOUS", "").strip())
     token, chat = env.get("FOUNDER_BOT_TOKEN", "").strip(), env.get("FOUNDER_CHAT_ID", "").strip()
     if text and token and chat:
-        tell(token, chat, text, opener)
+        if not tell(token, chat, text, opener):
+            # The run's result is the state the next run compares with. Undelivered news keeps the old state, so
+            # the next run tells it again instead of staying silent about an outage nobody heard of.
+            print("The message was not delivered: the next run tries again.")
+            return 0 if problem else 1
     elif text:
         print("FOUNDER_BOT_TOKEN / FOUNDER_CHAT_ID secrets are not set: no Telegram message.")
     return 1 if problem else 0
