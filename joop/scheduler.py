@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, missed_calls, nudges, ops, recovery, reorders, restock, samples, trust, unfinished
+from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, missed_calls, nudges, offsite, ops, recovery, reorders, restock, samples, trust, unfinished
 from . import gaps as empty_slots
 from .db import free, new_session
 from .dispatch import notify_admins
@@ -529,7 +529,9 @@ class Scheduler(threading.Thread):
                 log.exception("Founder digest failed")
         try:  # one consistent copy of the database a day (joop/ops.py)
             if ops.backup_due(self.rt.settings, now_utc or utcnow()):
-                ops.make_backup(self.rt.settings, now_utc or utcnow())
+                path = ops.make_backup(self.rt.settings, now_utc or utcnow())
+                if path is not None:  # and one copy off the server (joop/offsite.py)
+                    offsite.send(self.rt.http, self.rt.settings, path)
         except Exception:
             log.exception("Daily database backup failed")
 
