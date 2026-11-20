@@ -17,7 +17,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, confirm, confirmations, deposits, free_plan, health, owner_commands, regulars, samples, selfservice, stock, trust, upsell, voice
+from .. import altegio, broadcasts, confirm, confirmations, deposits, free_plan, health, owner_commands, page_booking, regulars, samples, selfservice, stock, trust, upsell, voice
 from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -686,6 +686,16 @@ def _handle_command(
 ) -> Outcome | None:
     command, _, argument = text.partition(" ")
     command = command.split("@", 1)[0].lower()
+    if command == "/start" and argument.strip().startswith(page_booking.REMIND_START):
+        taken = page_booking.take_reminder(session, business, argument.strip(), incoming.channel, incoming.chat_id, conv.id,
+                                           utc_to_local(now, business.timezone).replace(tzinfo=None))
+        if taken is not None:  # from the booking page's «Напомнить в Telegram»: this chat gets the reminder
+            if taken.customer_name and not conv.display_name:
+                conv.display_name = taken.customer_name[:120]
+            reply = (f"Готово: напомним сюда накануне. Ваша запись в «{business.name}»: {fmt_slot(taken.start)}"
+                     + (f", {taken.staff_name}" if taken.staff_name else "") + ". Вопросы можно задать здесь же.")
+            _add_message(session, business, conv, "ai", reply, now, off)
+            return Outcome(reply=reply)
     if command == "/start":
         reply = (business.greeting or DEFAULT_GREETING).format(name=business.name)
         if free_plan.is_free(get_subscription(session, business.id)):  # on Telegram this greeting is the first contact

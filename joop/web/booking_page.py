@@ -39,7 +39,9 @@ TEXT = {
            "consent": "Нажимая «Записаться», вы соглашаетесь на обработку имени и телефона для записи.",
            "staff": "Вы вошли в панель этой компании: запись будет настоящей и займёт время. Если это проверка — отмените её "
                     "в «Записях».",
-           "done": "Вы записаны", "wait": "Ждём вас:", "at": "в", "calendar": "Добавить в календарь",
+           "done": "Вы записаны", "wait": "Ждём вас:", "at": "в", "remind": "Напомнить в Telegram",
+           "remind_hint": "Напомним накануне — подтвердите запись одним словом «да».",
+           "reminded": "Напоминание придёт в Telegram накануне.", "calendar": "Добавить в календарь",
            "change": "Если планы изменятся — напишите или позвоните нам:", "again": "Записаться ещё",
            "cancelled": "Эта запись отменена. Выберите другое время или свяжитесь с нами.", "call": "Позвонить",
            "menu": "Цены и контакты",
@@ -62,7 +64,9 @@ TEXT = {
            "consent": "«Жазылуу» баскычын басып, жазылуу үчүн атыңыз жана телефонуңуз иштетилишине макул болосуз.",
            "staff": "Сиз бул компаниянын панелине кирдиңиз: жазылуу чыныгы болот жана убакытты ээлейт. Текшерүү болсо — "
                     "«Жазылуулар» бөлүмүндө жокко чыгарыңыз.",
-           "done": "Сиз жазылдыңыз", "wait": "Сизди күтөбүз:", "at": "саат", "calendar": "Календарга кошуу",
+           "done": "Сиз жазылдыңыз", "wait": "Сизди күтөбүз:", "at": "саат", "remind": "Telegram аркылуу эскертүү",
+           "remind_hint": "Бир күн мурун эскертебиз — жазылууну «ооба» деп ырастаңыз.",
+           "reminded": "Эскертүү бир күн мурун Telegram'га келет.", "calendar": "Календарга кошуу",
            "change": "Пландар өзгөрсө — бизге жазыңыз же чалыңыз:", "again": "Дагы жазылуу",
            "cancelled": "Бул жазылуу жокко чыгарылды. Башка убакыт тандаңыз же биз менен байланышыңыз.", "call": "Чалуу",
            "menu": "Баалар жана байланыш",
@@ -236,7 +240,8 @@ def booked_page(request: Request, slug: str, token: str, lang: str = "ru"):
         b, x = _booked(request, s, slug, token)
         return _page(request, b, lang, "done", booking=x, when=f"{_date_long(x.start, lang)}, {TEXT[lang]['at']} {x.start:%H:%M}",
                      ics_url=f"/m/{b.slug}/book/{token}/booking.ics", cancelled=x.status != "booked",
-                     phone_link=display_phone(samples.customer_contact(b, "phone")))
+                     phone_link=display_phone(samples.customer_contact(b, "phone")),
+                     remind_url="" if x.chat_id else pb.remind_link(b, x), reminded=x.channel == "telegram")
 
 
 @router.get("/m/{slug}/book/{token}/booking.ics")
