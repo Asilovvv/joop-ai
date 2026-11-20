@@ -54,7 +54,7 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: made-for-this-run-only
         run: |
           keytool -genkeypair -keystore "$RUNNER_TEMP/made.jks" -storepass:env ANDROID_KEYSTORE_PASSWORD -alias joop \
-            -keyalg RSA -keysize 2048 -validity 2 -dname "CN=Joop CI, one run"
+            -keyalg RSA -keysize 2048 -validity 2 -dname "CN=Joop CI one run"
           ANDROID_KEYSTORE_BASE64=$(base64 -w0 "$RUNNER_TEMP/made.jks") python3 ../deploy/app_release.py keystore
       - name: Build the APK again, signed with it
         env:
