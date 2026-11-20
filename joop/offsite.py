@@ -62,7 +62,7 @@ def send(http: httpx.Client, settings, backup: Path) -> bool:
     base = f"{settings.telegram_api_base.rstrip('/')}/bot{settings.founder_bot_token}"
     if len(sealed) > MAX_BYTES:
         text = (f"Joop AI: резервная копия базы {backup.name} больше 50 МБ и в Telegram не помещается. "
-                "Скачивайте её с сервера раз в неделю (docs/deploy.md, раздел «Резервные копии»).")
+                "Скачивайте её с сервера раз в неделю (docs/deploy.md, раздел 7 «Backups»).")
         _post(http, f"{base}/sendMessage", json={"chat_id": settings.founder_chat_id, "text": text})
         return False
     caption = (f"Резервная копия базы {backup.name[len('joop-'):-len('.db')]}, зашифрована ключом TOKEN_ENCRYPTION_KEY. "
