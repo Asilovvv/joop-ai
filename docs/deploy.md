@@ -141,14 +141,28 @@ Hub, so `docker compose build` itself was not exercised there). Checked: `migrat
 section, `backup` and a restored copy (`integrity_check` ok), and an upgrade of a 1 November database (schema 0016)
 to 0047 in one run, repeated without changes, with no foreign-key errors and all data kept.
 
-## 8. Updates and logs
+## 8. Alert when the whole server is down
+
+The server tells you when the AI stops answering, but not when the server itself is gone (machine off, disk full,
+domain or certificate expired). A GitHub check does that from outside, every 10 minutes, for free:
+
+1. On GitHub: **Settings → Secrets and variables → Actions → Variables → New repository variable**:
+   `JOOP_URL` = `https://joop.kg` (your `PUBLIC_BASE_URL`).
+2. Same page, **Secrets**: `FOUNDER_BOT_TOKEN` and `FOUNDER_CHAT_ID` with the values from the server's `.env`.
+3. **Actions → uptime → Run workflow** once to see it pass.
+
+You get one Telegram message when `/health` stops answering (with the reason in words) and one when it is back.
+GitHub may run the check a few minutes late, and pauses scheduled checks after 60 days without commits: then
+**Actions → uptime → Enable workflow**.
+
+## 9. Updates and logs
 
 ```bash
 git pull && docker compose up -d --build   # migrations run on start
 docker compose logs -f app                 # what the server is doing
 ```
 
-## 9. The mobile app
+## 10. The mobile app
 
 The owner's and the customers' app (Flutter, `mobile/`) talks to this server's `/api/mobile/…`.
 Build it for your domain once the server answers `https://joop.kg/health`:
