@@ -877,6 +877,24 @@ def owner_pilot_csv(request: Request):
                     headers={"Content-Disposition": f'attachment; filename="joop-pilot-{start}-{end}.csv"'})
 
 
+@router.get("/owner/kyrgyz")
+def kyrgyz_page(request: Request):
+    """Every fixed Kyrgyz phrase in the product, for a native speaker (joop/ky_phrases.py)."""
+    _owner(request)
+    from ..ky_phrases import collect
+
+    return _owner_render(request, "owner_kyrgyz.html", phrases=collect())
+
+
+@router.get("/owner/kyrgyz.csv")
+def kyrgyz_csv(request: Request):
+    _owner(request)
+    from ..ky_phrases import collect, to_csv
+
+    return Response(to_csv(collect()), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="joop-kyrgyz-phrases.csv"'})
+
+
 @router.get("/owner/playbook")
 def playbook_page(request: Request):
     """The founder's sales playbook: the first-ten moves, prices, objections, where to look, week one."""
