@@ -35,20 +35,34 @@ _last_success: datetime | None = None  # the model answered (in memory, like the
 _alert_open: datetime | None = None  # a "down" alert went out and its "back" message has not
 
 
+_api = "Anthropic API"  # the provider in use (Runtime calls use_provider); alerts must name the right one
+
+
+def use_provider(api_name: str) -> None:
+    global _api
+    _api = api_name
+
+
+def check_hint() -> str:
+    return f"проверьте баланс и ключ {_api}"
+
+
 def reason_of(exc: BaseException) -> str:
     """A short Russian reason for the founder, from the exception and its cause."""
+    api = _api
     cause = exc.__cause__ or exc
     text = f"{type(exc).__name__} {exc} {type(cause).__name__} {cause}".lower()
     if "credit balance" in text or "billing" in text:
-        return "закончился баланс Anthropic API — пополните его в Plans & Billing"
+        return (f"закончился баланс {api} — пополните его в Plans & Billing" if api == "Anthropic API"
+                else f"закончился баланс {api} — пополните его или включите оплату у поставщика")
     if "authentication" in text or "invalid x-api-key" in text or "401" in text or ("api_key" in text and "not set" in text):
-        return "ключ Anthropic API неверный или не задан"
+        return f"ключ {api} неверный или не задан"
     if "ratelimit" in text or "rate_limit" in text or "429" in text:
-        return "превышен лимит запросов Anthropic API"
+        return f"превышен лимит запросов {api}"
     if "overloaded" in text or "529" in text:
-        return "Anthropic API перегружен"
+        return f"{api} перегружен"
     if "timeout" in text or "connect" in text:
-        return "нет связи с Anthropic API"
+        return f"нет связи с {api}"
     return f"ошибка вызова модели ({type(cause).__name__})"
 
 
@@ -97,7 +111,7 @@ def status(session: Session, now: datetime) -> Status:
 
 
 def alert_text(st: Status) -> str:
-    why = st.reason or "причина неизвестна (сервер перезапускался) — проверьте баланс и ключ Anthropic"
+    why = st.reason or f"причина неизвестна (сервер перезапускался) — {check_hint()}"
     return (f"Joop AI: ИИ не отвечает клиентам. За последние {int(WINDOW.total_seconds() // 60)} минут "
             f"не удалось ответить {st.failures} раз. Причина: {why}. Пока это не исправлено, клиенты получают "
             "ответ «Извините, сейчас не получается ответить», а заявки уходят администраторам.")

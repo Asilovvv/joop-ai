@@ -690,7 +690,8 @@ def owner_home(request: Request):
     return _owner_render(request, "owner.html", rows=rows, counts=counts, mrr=mrr, paid30=paid30, pending=pending, year=year,
                          annual_months=settings.annual_months,
                          names=names, price=settings.price_som, trial_days=settings.trial_days,
-                         total_cost=sum(cost.values()), site=site, asked=asked, ai=ai, alerts_on=bool(settings.founder_bot_token and settings.founder_chat_id))
+                         total_cost=sum(cost.values()), site=site, asked=asked, ai=ai, check_hint=health.check_hint(),
+                         alerts_on=bool(settings.founder_bot_token and settings.founder_chat_id))
 
 
 @router.post("/owner/business/{bid}")

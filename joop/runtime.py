@@ -24,6 +24,9 @@ class Runtime:
         self.settings = settings
         self.http = http or httpx.Client(timeout=20.0)
         self._llm = llm
+        from . import health
+
+        health.use_provider(settings.model_api_name)
 
     def get_llm(self) -> LLMClient:
         if self._llm is None:
