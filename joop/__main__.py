@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import getpass
 import logging
+import os
 import sys
 
 from sqlmodel import select
@@ -180,6 +181,22 @@ def cmd_backup(args) -> int:
     return 0 if path else 1
 
 
+def cmd_restore_copy(args) -> int:
+    from pathlib import Path
+
+    from .config import load_dotenv
+    from .offsite import CopyError, restore
+
+    load_dotenv(os.environ.get("JOOP_ENV_FILE", ".env"))
+    try:
+        out = restore(Path(args.file), Path(args.out))
+    except (CopyError, OSError) as exc:
+        print(exc)
+        return 1
+    print(f"База восстановлена в {out}. Дальше: docs/deploy.md, раздел «Резервные копии».")
+    return 0
+
+
 def cmd_serve(args) -> int:
     import uvicorn
 
@@ -299,6 +316,10 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("backup", help="сделать резервную копию базы сейчас")
     p.add_argument("--to", default="", help="папка для копии (по умолчанию backups рядом с базой)")
     p.set_defaults(func=cmd_backup)
+    p = sub.add_parser("restore-copy", help="расшифровать копию базы из Telegram основателя")
+    p.add_argument("file", help="файл joop-ГГГГ-ММ-ДД.db.gz.enc")
+    p.add_argument("--out", default="joop-restored.db", help="куда записать базу (файл не должен существовать)")
+    p.set_defaults(func=cmd_restore_copy)
     p = sub.add_parser("serve", help="запустить сервер (панель и вебхуки)")
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8000)

@@ -83,6 +83,10 @@ def launch_checks(settings: Settings, env: Mapping[str, str] | None = None,
     add("Оповещения основателю (FOUNDER_BOT_TOKEN, FOUNDER_CHAT_ID)",
         bool(settings.founder_bot_token and settings.founder_chat_id), False,
         "без них о сбоях ИИ вы узнаете только из панели")
+    add("Копия базы вне сервера (в Telegram основателя)",
+        bool(settings.backup_to_telegram and settings.founder_bot_token and settings.founder_chat_id
+             and _encryption_ok(env)), False,
+        "копия только на этом же диске: если сервер пропадёт, пропадёт и она; нужны бот основателя и TOKEN_ENCRYPTION_KEY")
     add("WhatsApp и Instagram (META_VERIFY_TOKEN, META_APP_SECRET)",
         bool(settings.meta_verify_token and (settings.meta_app_secret or settings.instagram_app_secret)), False,
         "нужны только для этих каналов")

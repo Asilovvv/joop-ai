@@ -102,7 +102,22 @@ bot token → «Подключить Telegram».
 
 The server makes one consistent copy of the database a day into `/data/backups` (14 days kept;
 `BACKUP_KEEP_DAYS`). It uses SQLite's backup API, because copying the live file can give a broken copy.
-A copy on the same server does not survive the server, so once a week take one home:
+A copy on the same server does not survive the server. When the founder bot is set up (`FOUNDER_BOT_TOKEN`,
+`FOUNDER_CHAT_ID`), each daily copy also arrives in that chat as a file `joop-YYYY-MM-DD.db.gz.enc`, silently:
+compressed and encrypted with `TOKEN_ENCRYPTION_KEY`, so customers' names and phones never leave the server in the
+clear. Turn it off with `BACKUP_TO_TELEGRAM=false`. A database above 50 MB does not fit in Telegram; the bot then
+says so and the weekly download below is the off-site copy.
+
+To restore from such a file, on any machine with the code and the same `TOKEN_ENCRYPTION_KEY` in `.env`:
+
+```bash
+python -m joop restore-copy joop-2026-11-03.db.gz.enc --out joop-2026-11-03.db
+```
+
+then put that `.db` back as shown under «Restore» below. Without the key the file cannot be read by anyone,
+including you: keep the key outside the server.
+
+Without the founder bot, take a copy home once a week:
 
 ```bash
 docker compose run --rm app python -m joop backup          # a fresh copy now
