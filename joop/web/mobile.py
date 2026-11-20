@@ -25,7 +25,7 @@ from sqlmodel import Session, func, select
 from .. import altegio, cash, customers, deposits, order_status, quick_replies, schedule, staff_reply, stays
 from ..reschedule import blocked as move_blocked, reschedule
 from ..api import booking_json, customer_json, lead_json, order_json
-from ..db import new_session
+from ..db import free, new_session
 from ..models import Booking, Business, Conversation, Lead, Message, Order, PanelUser, Service, Slot, Staff, Stay
 from ..niches import get_pack
 from ..phone import normalize_phone
@@ -607,10 +607,18 @@ def mobile_new_booking(request: Request, body: NewBookingIn):
             return _fail(409, "Это время уже занято. Выберите другое.")
         record_id = ""
         if client is not None:
+            # The claim is saved first, so Altegio's two calls never hold the database's write lock; a sync that
+            # lands before the booking is saved leaves the slot alone (altegio.on_the_way).
+            altegio.on_the_way(slot.id, utcnow())
+            free(s)
             try:
                 record_id = altegio.push_booking(s, b, client, slot, member, service, name, phone or "",
                                                  api_id=f"joop-{b.id}-{slot.id}")
-            except altegio.AltegioError as exc:
+            except Exception as exc:
+                if not isinstance(exc, altegio.AltegioError):  # the claim is already saved: give the time back
+                    release_slot(s, slot.id, seats_needed(slot, 1))
+                    s.commit()
+                    raise
                 if exc.taken:  # booked in Altegio meanwhile: the slot stays closed here too
                     s.commit()
                     return _fail(409, "В Altegio это время уже занято. Выберите другое.")

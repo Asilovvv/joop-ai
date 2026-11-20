@@ -405,6 +405,7 @@ def sync_altegio(session: Session, rt: Runtime, business: Business, now_utc: dat
         business.altegio_synced_at = now_utc
         session.add(business)
         return False
+    free(session)  # earlier jobs' writes are saved; Altegio's calls (fetched first) never hold the write lock
     try:
         with session.begin_nested():
             altegio.sync(session, business, client, now_utc)

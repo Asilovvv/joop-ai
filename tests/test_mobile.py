@@ -398,6 +398,7 @@ def test_a_staff_booking_goes_to_altegio_too(client, business, rt):
     assert r.status_code == 200 and fake.paths("POST")[-1] == "book_record/4242"
     with db.new_session() as s:
         assert s.exec(select(Booking).where(Booking.slot_id == slot_id)).one().external_id == "987654"
+    assert fake.locked == []  # Altegio's calls never held the database's write lock
 
 
 # --- payment after the visit ----------------------------------------------------------------------------

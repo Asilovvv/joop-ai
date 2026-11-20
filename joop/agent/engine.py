@@ -912,14 +912,24 @@ def _try_booking(
     if external is not None and member.external_id:
         # Joop's checks passed and the slot is claimed here; now the salon's system checks it too, then records it.
         service = (data.get("service") or "").strip()[:200]
+        # The claim is saved first, so Altegio's two calls never hold the database's write lock; a sync that lands
+        # before the booking is saved leaves the slot alone (altegio.on_the_way).
+        altegio.on_the_way(slot.id, now)
+        free(session)
         try:
             record_id = altegio.push_booking(session, business, external, slot, member, service, name, phone,
                                              api_id=f"joop-{business.id}-{slot.id}")
-        except altegio.AltegioError as exc:
+        except Exception as exc:
+            if not isinstance(exc, altegio.AltegioError):  # the claim is already saved: give the time back
+                release_slot(session, slot.id, seats_needed(slot, party))
+                free(session)
+                raise
             log.warning("Altegio booking for %s failed: %s", business.slug, exc)
             if not exc.taken:
+                when = fmt_slot(slot.start)
                 release_slot(session, slot.id, seats_needed(slot, party))
-                raise _ExternalDown(fmt_slot(slot.start)) from exc
+                free(session)  # the time is free again whatever happens to the rest of this message
+                raise _ExternalDown(when) from exc
             # Taken in Altegio (someone booked by phone or in the widget): the slot stays closed here as well.
             options = _alternatives(session, business, now_local, slot.staff_id, hidden_staff=hidden_staff)
             text = "Извините, это время уже занято. " + ("Свободно: " + "; ".join(options) + ". Какое удобно?" if options
