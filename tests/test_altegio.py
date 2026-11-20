@@ -16,7 +16,7 @@ from joop.models import Booking, Business, Lead, Service, Slot, Staff
 from joop.scheduler import run_due_jobs
 from joop.timeutil import utc_to_local
 
-from .conftest import NOW_UTC, FakeLLM
+from .conftest import NOW_UTC, FakeLLM, database_is_free
 from .test_web import client, csrf_of, login  # noqa: F401  (client is a fixture)
 
 LOC = 4242
@@ -41,8 +41,11 @@ class FakeAltegio:
         self.check_status, self.check_body = 201, None
         self.record_status = 201
         self.calls: list[tuple[str, str, dict | None, dict]] = []
+        self.locked: list[str] = []  # calls made while the caller held the database's write lock
 
     def handler(self, request: httpx.Request) -> httpx.Response:
+        if not database_is_free(0.3):
+            self.locked.append(request.url.path)
         body = json.loads(request.content) if request.content else None
         path = request.url.path.removeprefix("/api/v1/")
         self.calls.append((request.method, path, body, dict(request.headers)))
@@ -76,7 +79,10 @@ def fake(business):
         b.altegio_location_id = LOC
         s.add(b)
         s.commit()
-    return FakeAltegio(now_local)
+    api = FakeAltegio(now_local)
+    yield api
+    # A call to Altegio (up to 20 s each, dozens in a sync) inside a write transaction stops every other writer.
+    assert api.locked == [], f"Altegio called while the database was write-locked: {api.locked}"
 
 
 def make_client(fake):
@@ -253,6 +259,7 @@ def test_panel_connects_altegio_and_never_shows_the_key(client, business, rt, ke
         b = s.get(Business, business.id)
         assert b.altegio_location_id == LOC and b.altegio_token == TOKEN and b.altegio_synced_at is None
     assert fake.paths() == [f"book_services/{LOC}", f"book_staff/{LOC}"]  # times are left to the scheduler
+    assert fake.locked == []  # the ID is checked in Altegio before anything is written
     client.post("/panel/altegio", data={"location_id": str(LOC), "action": "disconnect", "csrf": csrf_of(page)})
     with db.new_session() as s:
         assert s.get(Business, business.id).altegio_location_id == 0
@@ -288,3 +295,47 @@ def test_a_booking_newer_than_the_times_read_is_not_released(business, fake):
     assert res.released == 0
     with db.new_session() as s:
         assert s.get(Booking, out.booking_id).status == "booked" and s.get(Slot, slot.id).status == "booked"
+
+
+def test_an_unexpected_failure_gives_the_claimed_time_back(business, fake, monkeypatch):
+    """The claim is saved before Altegio is called; a crash in between must not leave the time closed for nobody."""
+    synced(business, fake)
+    slot = altegio_slot(business)
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("bug")
+
+    monkeypatch.setattr(altegio, "push_booking", boom)
+    with pytest.raises(RuntimeError):
+        book(business, fake, slot.id)
+    with db.new_session() as s:
+        assert s.get(Slot, slot.id).status == "free" and not s.exec(select(Booking)).all()
+
+
+def test_a_sync_in_the_middle_of_a_booking_does_not_offer_the_time_again(business, fake):
+    """The claim is saved before Altegio is asked. A sync that lands before the booking row is saved sees «booked
+    here, free in Altegio, no booking» — the look of a visit cancelled in Altegio — and must leave the slot alone."""
+    synced(business, fake)
+    slot = altegio_slot(business)
+    plain, ran = fake.handler, []
+
+    def with_a_sync_before_the_record(request):
+        if request.url.path.endswith(f"book_record/{LOC}") and not ran:
+            ran.append(True)
+            with db.new_session() as s:  # the scheduler's thread, while the booking waits for Altegio's answer
+                altegio.sync(s, s.get(Business, business.id), make_client(fake), NOW_UTC + timedelta(seconds=30))
+                s.commit()
+        return plain(request)
+
+    fake.handler = with_a_sync_before_the_record
+    out = book(business, fake, slot.id)
+    assert ran and out.booking_id is not None
+    with db.new_session() as s:
+        assert (s.get(Slot, slot.id).status, s.get(Slot, slot.id).taken) == ("booked", 1)
+        assert s.get(Booking, out.booking_id).status == "booked"
+    # Later syncs treat it like any booking: still listed as free in Altegio after SETTLE means cancelled there.
+    with db.new_session() as s:
+        res = altegio.sync(s, s.get(Business, business.id), make_client(fake), NOW_UTC + timedelta(minutes=10))
+        s.commit()
+    assert res.released == 1
+

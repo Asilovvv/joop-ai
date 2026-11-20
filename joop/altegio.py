@@ -26,6 +26,7 @@ How Joop uses it, keeping the rule "the model proposes, the code decides":
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
@@ -167,20 +168,64 @@ def _local(value: str, tz: str) -> datetime | None:
     return dt.astimezone(get_tz(tz)).replace(tzinfo=None) if dt.tzinfo else dt
 
 
+@dataclass
+class Remote:
+    """What Altegio said, fetched before anything is written: its calls never hold the database's write lock."""
+
+    services: list[dict]
+    staff: list[dict]
+    times: dict[str, dict[datetime, int]]  # staff external id -> free start (local) -> minutes
+    asked: set[str]  # staff whose free times were asked for (the call budget, MAX_CALLS, stops a sync before the rest)
+
+
+def fetch(business: Business, client: AltegioClient, now_utc: datetime, days: int = SYNC_DAYS,
+          with_slots: bool = True) -> Remote:
+    loc = business.altegio_location_id
+    services = client.services(loc)
+    staff = client.staff(loc)
+    remote = Remote(services, staff, {}, set())
+    if not with_slots:
+        return remote
+    now_local = utc_to_local(now_utc, business.timezone)
+    last_day = now_local.date() + timedelta(days=days)
+    for item in staff:
+        ext = str(item.get("id") or "")
+        if not ext or not item.get("name") or not bool(item.get("bookable", True)):
+            continue
+        if client.calls >= MAX_CALLS:
+            log.warning("Altegio sync for %s stopped at %s calls", business.slug, client.calls)
+            break
+        wanted: dict[datetime, int] = {}
+        for day in client.dates(loc, int(ext)):
+            try:
+                d = date.fromisoformat(day[:10])
+            except ValueError:
+                continue
+            if not now_local.date() <= d <= last_day or client.calls >= MAX_CALLS:
+                continue
+            for t in client.times(loc, int(ext), d.isoformat()):
+                start = _local(t.get("datetime") or "", business.timezone)
+                if start is not None and start > now_local:
+                    wanted[start] = max(5, int(t.get("seance_length") or 3600) // 60)
+        remote.times[ext] = wanted
+        remote.asked.add(ext)
+    return remote
+
+
 def sync(session: Session, business: Business, client: AltegioClient, now_utc: datetime, days: int = SYNC_DAYS,
          with_slots: bool = True) -> SyncResult:
     """Copy services, team members and free times from Altegio. Bookings already made in Joop are kept.
 
     The price list and the team come from Altegio only: entries typed in Joop before (the niche's sample data)
-    are switched off, so the AI never offers a service or a specialist the salon's system does not know."""
-    loc = business.altegio_location_id
+    are switched off, so the AI never offers a service or a specialist the salon's system does not know.
+    Altegio is asked everything first (fetch), then the database is written in one go."""
+    remote = fetch(business, client, now_utc, days, with_slots)
     res = SyncResult()
 
-    services = client.services(loc)
     current = {s.external_id: s for s in session.exec(select(Service).where(
         Service.business_id == business.id, Service.external_id != "")).all()}
     seen: set[str] = set()
-    for i, item in enumerate(services):
+    for i, item in enumerate(remote.services):
         ext = str(item.get("id") or "")
         if not ext or not item.get("title"):
             continue
@@ -205,7 +250,7 @@ def sync(session: Session, business: Business, client: AltegioClient, now_utc: d
         Staff.business_id == business.id, Staff.external_id != "")).all()}
     active: list[Staff] = []
     listed: set[str] = set()
-    for item in client.staff(loc):
+    for item in remote.staff:
         ext = str(item.get("id") or "")
         if not ext or not item.get("name"):
             continue
@@ -232,22 +277,10 @@ def sync(session: Session, business: Business, client: AltegioClient, now_utc: d
     now_local = utc_to_local(now_utc, business.timezone)
     last_day = now_local.date() + timedelta(days=days)
     for member in active:
-        if client.calls >= MAX_CALLS:
-            log.warning("Altegio sync for %s stopped at %s calls", business.slug, client.calls)
-            break
-        wanted: dict[datetime, int] = {}
-        for day in client.dates(loc, int(member.external_id)):
-            try:
-                d = date.fromisoformat(day[:10])
-            except ValueError:
-                continue
-            if not now_local.date() <= d <= last_day or client.calls >= MAX_CALLS:
-                continue
-            for t in client.times(loc, int(member.external_id), d.isoformat()):
-                start = _local(t.get("datetime") or "", business.timezone)
-                if start is not None and start > now_local:
-                    wanted[start] = max(5, int(t.get("seance_length") or 3600) // 60)
-        added, removed, released = _reconcile(session, business, member, wanted, now_local, last_day, now_utc)
+        if member.external_id not in remote.asked:
+            continue  # the call budget ran out before this person: their times stay as they were
+        added, removed, released = _reconcile(session, business, member, remote.times[member.external_id], now_local,
+                                              last_day, now_utc)
         res.slots_added += added
         res.slots_removed += removed
         res.released += released
@@ -258,6 +291,28 @@ def sync(session: Session, business: Business, client: AltegioClient, now_utc: d
     return res
 
 
+# Slots whose booking has set off to Altegio: slot id -> when. The claim is saved before Altegio is asked (its calls
+# must not hold the database's write lock), so for a moment the slot is «booked here, free in Altegio, no booking
+# yet». A sync landing in that moment would read it as a visit cancelled in Altegio and offer the time again.
+# In memory: one process serves everything (python -m joop serve), like the chats' turns in the engine.
+_on_the_way: dict[int, datetime] = {}
+_on_the_way_guard = threading.Lock()
+
+
+def on_the_way(slot_id: int, now_utc: datetime) -> None:
+    """Call before saving the claim of a slot whose booking goes to Altegio (push_booking)."""
+    with _on_the_way_guard:
+        for old in [key for key, at in _on_the_way.items() if at < now_utc - timedelta(hours=1)]:
+            del _on_the_way[old]
+        _on_the_way[slot_id] = now_utc
+
+
+def _set_off_recently(slot_id: int | None, now_utc: datetime) -> bool:
+    with _on_the_way_guard:
+        at = _on_the_way.get(slot_id)
+    return at is not None and at > now_utc - SETTLE
+
+
 def _reconcile(session: Session, business: Business, member: Staff, wanted: dict[datetime, int], now_local: datetime,
                last_day: date, now_utc: datetime) -> tuple[int, int, int]:
     """Make Joop's slots of one team member follow Altegio's free times; Altegio owns the schedule.
@@ -265,7 +320,7 @@ def _reconcile(session: Session, business: Business, member: Staff, wanted: dict
     A time Joop holds as booked but Altegio lists as free means the visit was cancelled or moved in Altegio
     (by staff, or by the client in the widget): the Joop booking is closed, so Joop never reminds anyone of a
     visit that is gone, and the time is offered again. Bookings younger than SETTLE are left alone: the times
-    this sync read may predate them."""
+    this sync read may predate them. So is a slot whose booking set off to Altegio that recently (on_the_way)."""
     rows = session.exec(select(Slot).where(
         Slot.business_id == business.id, Slot.staff_id == member.id, Slot.start > now_local,
         Slot.start < datetime.combine(last_day + timedelta(days=1), datetime.min.time()))).all()
@@ -285,6 +340,8 @@ def _reconcile(session: Session, business: Business, member: Staff, wanted: dict
             session.add(have[start])
         else:
             row = have[start]
+            if _set_off_recently(row.id, now_utc):
+                continue
             active = session.exec(select(Booking).where(Booking.slot_id == row.id, Booking.status == "booked")).all()
             if any(b.created_at > now_utc - SETTLE for b in active):
                 continue

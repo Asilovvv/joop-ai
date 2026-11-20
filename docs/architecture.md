@@ -118,6 +118,11 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
    customers at once with a 3-second call were answered one after another and five got nothing
    («database is locked»); after it, forty at once all got their answer in under four seconds.
    A session that must stay one unit sets `session.info["atomic"]` (the founder's pitch demo).
+   The same rule holds for every send to a messenger (the tests fail any send made while the
+   database is write-locked) and for Altegio: a sync asks Altegio everything first and writes after
+   (`altegio.fetch`); a booking saves its claim of the slot before the two Altegio calls and marks it
+   `altegio.on_the_way`, so a sync that lands in between does not take «booked here, free in Altegio,
+   no booking yet» for a visit cancelled in Altegio.
 6. **Off-hours is measured, not guessed.** Each message and booking records whether it arrived
    outside the business's working hours. That is the pilot's headline number: how many customers
    were served while nobody was at the desk.
@@ -196,6 +201,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 1015 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 1017 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |
