@@ -106,6 +106,7 @@ def blocked(session: Session, business_id: int, channel: str, chat_id: str) -> b
 CHAT_WAIT = 150.0  # seconds a message waits for the one before it in the same chat: a model call with its retries
 _turns_guard = threading.Lock()
 _turns: dict[tuple[int, str, str], tuple[threading.Lock, int]] = {}  # chats being answered now, with how many wait
+_inside = threading.local()  # the chats whose turn this thread has taken, or has waited out
 
 
 @contextmanager
@@ -114,17 +115,26 @@ def chat_turn(business_id: int, channel: str, chat_id: str):
     Meta deliver some twice: handled side by side, the second would be answered without the first reply in its
     history (two answers to one question, the same time booked twice) and a repeated delivery would get a second
     answer. Other chats are not held back. One process serves everything (python -m joop serve), so a lock in memory
-    is enough. A message that waited CHAT_WAIT goes ahead anyway: late and out of order beats never."""
+    is enough. A message that waited CHAT_WAIT goes ahead anyway: late and out of order beats never.
+
+    Asking again inside the turn costs nothing: dispatch holds the turn until the reply is sent and handle_incoming
+    asks for it too. That holds after a wait that ran out as well: the message waits CHAT_WAIT once, not twice."""
     key = (business_id, channel, chat_id)
+    mine: set = _inside.__dict__.setdefault("chats", set())
+    if key in mine:
+        yield
+        return
     with _turns_guard:
-        lock, waiting = _turns.get(key) or (threading.RLock(), 0)  # re-entered by handle_incoming inside dispatch's turn
+        lock, waiting = _turns.get(key) or (threading.Lock(), 0)
         _turns[key] = (lock, waiting + 1)
     held = lock.acquire(timeout=CHAT_WAIT)
     if not held:
         log.warning("A %s message of business %s waited %.0f s for its chat's turn and goes ahead", channel, business_id, CHAT_WAIT)
+    mine.add(key)
     try:
         yield
     finally:
+        mine.discard(key)
         if held:
             lock.release()
         with _turns_guard:

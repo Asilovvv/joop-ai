@@ -191,9 +191,10 @@ def fresh_counters():
     web_audit._lead_by_ip.clear()
     booking_page.reset_limits()
     agent_engine._admin_misses.clear()
-    from joop import altegio
+    from joop import altegio, health
 
     altegio._on_the_way.clear()  # slot ids repeat from test to test (a fresh database each)
+    health.use_provider("Anthropic API")  # the last Runtime made names the provider: not the previous test's
     yield
 
 

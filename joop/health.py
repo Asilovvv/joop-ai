@@ -43,8 +43,9 @@ def use_provider(api_name: str) -> None:
     _api = api_name
 
 
-def check_hint() -> str:
-    return f"проверьте баланс и ключ {_api}"
+def check_hint(sentence: bool = False) -> str:
+    """What the founder should look at, naming the provider this server uses; `sentence`: with a capital letter."""
+    return f"{'Проверьте' if sentence else 'проверьте'} баланс и ключ {_api}"
 
 
 def reason_of(exc: BaseException) -> str:

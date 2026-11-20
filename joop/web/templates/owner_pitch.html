@@ -38,7 +38,7 @@
       {% for m in messages %}{% if m.role in ('customer', 'ai') %}
       <div class="msg {{ m.role }}">{{ m.text }}<time>{{ (m.created_at|local(tz)).split(' ')[1] if ' ' in (m.created_at|local(tz)) else '' }}</time></div>
       {% endif %}{% endfor %}
-      {% if not messages %}<div class="msg ai">Диалога ещё нет: ИИ не ответил. Проверьте баланс Anthropic и нажмите «Сделать демо» снова.</div>{% endif %}
+      {% if not messages %}<div class="msg ai">Диалога ещё нет: ИИ не ответил. {{ check_hint }} и нажмите «Сделать демо» снова.</div>{% endif %}
     </div>
   </div>
   <div class="side">
