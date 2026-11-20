@@ -98,6 +98,7 @@ class Settings:
     stt_api_base: str = "https://api.elevenlabs.io"
     backup_dir: str = ""  # daily SQLite backups (joop/ops.py); empty = "backups" next to the database file
     backup_keep: int = 14  # daily copies kept; 0 = no automatic backups
+    backup_to_telegram: bool = True  # also send each daily copy, encrypted, to the founder chat (joop/offsite.py)
     billing_instructions: str = ""  # how to pay by transfer or QR, shown on the billing page
     freedompay_merchant_id: str = ""
     freedompay_secret_key: str = ""
@@ -158,6 +159,7 @@ def settings_from_env() -> Settings:
         stt_api_base=env.get("STT_API_BASE", "https://api.elevenlabs.io").strip().rstrip("/"),
         backup_dir=env.get("BACKUP_DIR", "").strip(),
         backup_keep=_int(env.get("BACKUP_KEEP_DAYS"), 14),
+        backup_to_telegram=env.get("BACKUP_TO_TELEGRAM", "true").strip().lower() not in {"0", "false", "no", "off"},
         billing_instructions=env.get("BILLING_INSTRUCTIONS", "").strip(),
         freedompay_merchant_id=env.get("FREEDOMPAY_MERCHANT_ID", "").strip(),
         freedompay_secret_key=env.get("FREEDOMPAY_SECRET_KEY", "").strip(),
