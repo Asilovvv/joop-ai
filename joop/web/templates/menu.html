@@ -16,6 +16,20 @@
       <label>Куда ведёт кнопка «{{ 'Заказать' if pack.has('order') else 'Задать вопрос' }}» (t.me, wa.me или Instagram)
         <input name="chat_url" value="{{ business.menu_chat_url }}" placeholder="https://t.me/ваш_бот"></label>
       <p class="muted small">Лучше ссылка на вашего Telegram-бота или WhatsApp — там ответит ИИ. {{ empty_hint }}{% if pack.serves_tables %} В WhatsApp к сообщению добавится номер стола.{% endif %}</p>
+      {% if pack.has('booking') %}
+      {% if page_why == 'altegio' %}
+      <p class="muted small">Запись без переписки: ваш график ведётся в Altegio — для неё используйте онлайн-запись Altegio.</p>
+      {% else %}
+      <label class="check"><input type="checkbox" name="self_booking" value="1" {{ 'checked' if business.page_booking }}> Клиенты записываются сами: выбирают время на странице, без переписки</label>
+      <p class="muted small">Клиент выбирает {{ pack.resource_label|lower }} и свободное время, оставляет имя и телефон — запись сразу в вашем графике с пометкой «со страницы записи», вам приходит оповещение. Предоплату такая запись не просит, напоминание накануне — вручную: номер клиента будет в оповещении.
+        {% if business.page_booking %}
+          {% if page_why == 'page' %}Сначала откройте страницу.
+          {% elif page_why == 'unpaid' %}Запись на странице работает при активной подписке или пробном периоде.
+          {% elif not page_times %}Сейчас свободного времени на две недели нет — клиенты увидят «напишите или позвоните». Добавьте своих сотрудников и окна в «Расписании».
+          {% else %}Ссылка для записи — в шапку Instagram и в 2ГИС: <a class="mono" href="{{ book_link }}" target="_blank" rel="noopener">{{ book_link }}</a>{% endif %}
+        {% endif %}</p>
+      {% endif %}
+      {% endif %}
       <div class="actions" style="justify-content: flex-start"><button class="btn small" type="submit">Сохранить</button></div>
     </form>
   </div>

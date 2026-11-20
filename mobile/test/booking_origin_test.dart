@@ -41,9 +41,17 @@ void main() {
     expect(find.text('Telegram'), findsOneWidget);
   });
 
+  testWidgets('a booking the customer made on the booking page is «со страницы записи», not «Вручную»', (tester) async {
+    await _show(tester, _booking(source: 'page'));
+    expect(find.text('со страницы записи'), findsOneWidget);
+    expect(find.text('Вручную'), findsNothing);
+  });
+
   testWidgets('in Kyrgyz too', (tester) async {
     S.current = S.ky;
     await _show(tester, _booking(source: 'api'));
     expect(find.text('API аркылуу'), findsOneWidget);
+    await _show(tester, _booking(source: 'page'));
+    expect(find.text('жазылуу барагынан'), findsOneWidget);
   });
 }

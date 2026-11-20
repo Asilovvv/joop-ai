@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="{{ 'ky' if lang == 'ky' else 'ru' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{{ tx.title }} — {{ b.name }}</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+{% include "_public_style.html" %}
+<style>
+.chips a.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.days { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+.days a { white-space: nowrap; }
+.times { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; margin-top: 10px; }
+.times a { display: block; text-align: center; padding: 12px 0; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; color: var(--ink); text-decoration: none; font-weight: 600; font-variant-numeric: tabular-nums; }
+.times a:hover, .chips a:hover { border-color: var(--accent); }
+.note { padding: 10px 12px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); margin: 14px 0 0; font-size: 15px; }
+.note.err { border-color: #c4523a; }
+.summary { margin-top: 14px; padding: 12px 14px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; }
+.summary p { margin: 2px 0; }
+form.book label { display: block; margin-top: 14px; font-size: 15px; color: var(--muted); }
+form.book input, form.book select { display: block; width: 100%; margin-top: 6px; padding: 12px; font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 12px; }
+form.book input:focus, form.book select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+button.go, a.go { display: block; width: 100%; margin-top: 20px; padding: 14px; border: 0; border-radius: 12px; background: var(--accent); color: var(--accent-ink); font: inherit; font-weight: 600; text-align: center; text-decoration: none; cursor: pointer; }
+a.line { display: block; margin-top: 12px; padding: 12px; border: 1px solid var(--accent); border-radius: 12px; color: var(--ink); text-align: center; text-decoration: none; }
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.back { color: var(--muted); }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <a class="muted small" href="{{ menu_url }}">{{ tx.menu }}</a>
+    <span class="lang"><a class="{{ 'on' if lang == 'ru' }}" href="{{ switch_ru }}">RU</a> <a class="{{ 'on' if lang == 'ky' }}" href="{{ switch_ky }}">KG</a></span>
+  </div>
+  {% if step == 'done' %}
+  <h1>{{ b.name if cancelled else tx.done }}</h1>
+  {% if cancelled %}<p class="note err" role="alert">{{ tx.cancelled }}</p>
+  {% else %}
+  <div class="summary">
+    <p>{{ tx.wait }} <strong>{{ when }}</strong></p>
+    <p>{{ booking.staff_name }}{% if booking.service %} · {{ booking.service }}{% endif %}</p>
+    {% if address %}<p class="muted">{{ address }}</p>{% endif %}
+  </div>
+  <a class="line" href="{{ ics_url }}">{{ tx.calendar }}</a>
+  {% endif %}
+  {% if links or phone %}
+  <p class="muted small" style="margin: 20px 0 0">{{ tx.change }}</p>
+  <div class="links">{% for href, name in links %}<a href="{{ href }}" rel="noopener">{{ name }}</a>{% endfor %}{% if phone %}<a href="tel:{{ phone|replace(' ', '') }}">{{ tx.call }}: {{ phone_link }}</a>{% endif %}</div>
+  {% endif %}
+  <p style="margin-top: 20px"><a class="back" href="{{ book_url }}">{{ tx.again }}</a></p>
+  {% else %}
+  <h1>{{ b.name }}</h1>
+  <p class="muted" style="margin: 0">{{ tx.title }}</p>
+  {% if staff_view %}<p class="note">{{ tx.staff }}</p>{% endif %}
+  {% if error %}<p class="note err" role="alert">{{ error }}</p>{% endif %}
+  {% if step == 'pick' %}
+  {% if masters %}
+  <h2>{{ resources }}</h2>
+  <div class="chips">
+    <a class="{{ 'on' if not member }}" href="{{ book_url }}">{{ tx.any }}</a>
+    {% for m in masters %}<a class="{{ 'on' if member and member.id == m.id }}" href="?staff={{ m.id }}{{ '&lang=ky' if lang == 'ky' }}">{{ m.name }}{% if m.role %} · {{ m.role }}{% endif %}</a>{% endfor %}
+  </div>
+  {% endif %}
+  {% if days %}
+  <h2>{{ tx.day }}</h2>
+  <div class="chips days">{% for d, label in days %}<a class="{{ 'on' if d == chosen }}" href="?day={{ d.isoformat() }}{{ '&' ~ keep if keep }}">{{ label }}</a>{% endfor %}</div>
+  <h2>{{ tx.time }}</h2>
+  <div class="times">{% for id, label in times %}<a href="?slot={{ id }}{{ '&lang=ky' if lang == 'ky' }}">{{ label }}</a>{% endfor %}</div>
+  {% else %}
+  <p class="note">{{ tx.none }}</p>
+  {% if links or phone %}<div class="links">{% for href, name in links %}<a href="{{ href }}" rel="noopener">{{ name }}</a>{% endfor %}{% if phone %}<a href="tel:{{ phone|replace(' ', '') }}">{{ tx.call }}: {{ phone|phone }}</a>{% endif %}</div>{% endif %}
+  {% endif %}
+  {% elif step == 'form' %}
+  <div class="summary"><p><strong>{{ when }}</strong></p><p>{{ who }}</p></div>
+  <p class="small" style="margin: 10px 0 0"><a class="back" href="{{ book_url }}">{{ tx.back }}</a></p>
+  <form class="book" method="post" action="/m/{{ b.slug }}/book">
+    <input type="hidden" name="slot" value="{{ slot.id }}">
+    <input type="hidden" name="t" value="{{ token }}">
+    <input type="hidden" name="lang" value="{{ lang }}">
+    <div class="hp" aria-hidden="true"><label>Note <input name="hp_note" tabindex="-1" autocomplete="off"></label></div>
+    <label>{{ tx.name }}<input name="name" required maxlength="60" autocomplete="name" value="{{ values.name or '' }}"></label>
+    <label>{{ tx.phone }}<input name="phone" type="tel" required maxlength="30" autocomplete="tel" inputmode="tel" placeholder="0555 123 456" value="{{ values.phone or '' }}"></label>
+    {% if services %}<label>{{ tx.service }}<select name="service"><option value="0">{{ tx.service_none }}</option>{% for x in services %}<option value="{{ x.id }}" {{ 'selected' if values.service == x.id }}>{{ x.name_ky if lang == 'ky' and x.name_ky else x.name }}{% if x.price %} — {{ price(x.price, lang) }}{% endif %}</option>{% endfor %}</select></label>{% endif %}
+    {% if party_max > 1 %}<label>{{ tx.party }}<input name="party" type="number" min="1" max="{{ party_max }}" value="{{ values.party or 1 }}"></label>{% endif %}
+    <button class="go" type="submit">{{ tx.submit }}</button>
+    <p class="muted small">{{ tx.consent }} <a href="/privacy" style="color: inherit">{{ tx.privacy }}</a></p>
+  </form>
+  {% endif %}
+  {% if step == 'pick' and (address or phone) %}
+  <div class="info muted">
+    {% if address %}<p>{{ address }}</p>{% endif %}
+    {% if phone %}<p><a href="tel:{{ phone|replace(' ', '') }}" style="color: inherit">{{ phone|phone }}</a></p>{% endif %}
+  </div>
+  {% endif %}
+  {% endif %}
+</main>
+</body>
+</html>

@@ -172,9 +172,9 @@ def _unbookable_staff(session: Session, business: Business) -> set[int]:
     return set(example_staff_ids(session, business)) | set(altegio)
 
 
-def free_slots(session: Session, business: Business, day: date | None, now_local: datetime) -> list[dict]:
+def bookable(session: Session, business: Business, day: date | None, now_local: datetime) -> list[tuple[Slot, Staff]]:
     """Free times a customer can be booked into: one day, or the next SLOT_DAYS days, after the niche's lead time
-    (the AI's own rule: a dental time starting in two minutes is not offered)."""
+    (the AI's own rule: a dental time starting in two minutes is not offered). The API and the booking page."""
     if business.altegio_location_id:
         return []
     days = SLOT_DAYS
@@ -182,11 +182,14 @@ def free_slots(session: Session, business: Business, day: date | None, now_local
         days = (day - now_local.date()).days + 1
         if not 1 <= days <= DAY_AHEAD + 1:  # past, or beyond what anyone books ahead (and beyond date arithmetic)
             return []
-    rows = slots.free_slots(session, business.id, now_local, days=days, limit=2000,
+    return slots.free_slots(session, business.id, now_local, days=days, limit=2000,
                             exclude_staff=frozenset(_unbookable_staff(session, business)), lead_minutes=slots.lead_for(business),
                             on_day=day)
+
+
+def free_slots(session: Session, business: Business, day: date | None, now_local: datetime) -> list[dict]:
     return [{"id": slot.id, "start_local": _iso(slot.start, utc=False), "staff": member.name, "staff_id": member.id,
-             "role": member.role, "capacity": member.capacity or None} for slot, member in rows]
+             "role": member.role, "capacity": member.capacity or None} for slot, member in bookable(session, business, day, now_local)]
 
 
 def booking_note(x: Booking) -> str:
@@ -200,47 +203,51 @@ class Booked:
     booking: Booking | None = None
     status: int = 201
     error: str = ""
+    reason: str = ""  # off | altegio | unpaid | slot | party | contact | time | taken: the booking page words it
 
 
 def _positive_int(value) -> int | None:
     return value if type(value) is int and 0 < value < 2**62 else None
 
 
-def book(session: Session, business: Business, data: dict, now_local: datetime, now_utc: datetime) -> Booked:
+def book(session: Session, business: Business, data: dict, now_local: datetime, now_utc: datetime,
+         source: str = "api") -> Booked:
     """POST /api/v1/bookings: {"slot_id", "name", "phone", "service"?, "party_size"?}. The caller commits.
+    `source` "page": a customer booking themselves on /m/<slug>/book (joop/page_booking.py), which has its own switch.
 
     The AI's booking rules: a real person's free time after the lead time, a table big enough for the party, a
     working subscription. Not the prepayment rule: see below."""
-    if not business.api_booking:
-        return Booked(status=403, error="booking through the API is off: turn it on in «API и вебхуки»")
+    if source == "api" and not business.api_booking:
+        return Booked(status=403, error="booking through the API is off: turn it on in «API и вебхуки»", reason="off")
     if business.altegio_location_id:
-        return Booked(status=409, error="this business's schedule is kept in Altegio: book there")
+        return Booked(status=409, error="this business's schedule is kept in Altegio: book there", reason="altegio")
     if not access_ok(session, business.id, now_utc):
-        return Booked(status=402, error="the business's Joop subscription is not active")
+        return Booked(status=402, error="the business's Joop subscription is not active", reason="unpaid")
     name = str(data.get("name") or "").strip()[:120]
     phone = normalize_phone(str(data.get("phone") or ""))
     service = str(data.get("service") or "").strip()[:200]
     slot_id = _positive_int(data.get("slot_id"))
     if slot_id is None:
-        return Booked(status=422, error="slot_id must be a whole number from GET /api/v1/slots")
+        return Booked(status=422, error="slot_id must be a whole number from GET /api/v1/slots", reason="slot")
     party = data.get("party_size", 1)
     if _positive_int(party) is None or party > 500:
-        return Booked(status=422, error="party_size must be a whole number from 1")
+        return Booked(status=422, error="party_size must be a whole number from 1", reason="party")
     if not name or not phone:
-        return Booked(status=422, error="name and a valid phone are required")
+        return Booked(status=422, error="name and a valid phone are required", reason="contact")
     slot = session.get(Slot, slot_id)
     member = session.get(Staff, slot.staff_id) if slot else None
     if slot is None or member is None or slot.business_id != business.id or not member.active \
             or member.id in _unbookable_staff(session, business):
-        return Booked(status=404, error="no such free time")
+        return Booked(status=404, error="no such free time", reason="time")
     if member.capacity and party > member.capacity:
-        return Booked(status=409, error=f"this place takes up to {member.capacity} guests")
+        return Booked(status=409, error=f"this place takes up to {member.capacity} guests", reason="party")
     if slot.start <= now_local + timedelta(minutes=slots.lead_for(business)) \
             or not claim_slot(session, slot.id, seats_needed(slot, party)):
-        return Booked(status=409, error="this time is taken: ask GET /api/v1/slots again")
+        return Booked(status=409, error="this time is taken: ask GET /api/v1/slots again", reason="taken")
     booking = Booking(business_id=business.id, slot_id=slot.id, staff_id=member.id, staff_name=member.name, start=slot.start,
-                      service=service, customer_name=name, customer_phone=phone, channel="", source="api", created_at=now_utc,
-                      party_size=party if member.capacity else 0)
+                      service=service, customer_name=name, customer_phone=phone, channel="", source=source, created_at=now_utc,
+                      # a group class took one seat per person: kept, so a cancellation gives all of them back
+                      party_size=party if member.capacity or slot.seats > 1 else 0)
     session.add(booking)
     session.flush()
     # No prepayment is required: Joop has no chat with this customer to send the payment details to, and the

@@ -12,7 +12,7 @@ from fastapi.responses import Response
 from markupsafe import Markup
 from sqlmodel import select
 
-from .. import samples
+from .. import page_booking, samples
 from ..db import new_session
 from ..models import Business, Service
 from ..niches import get_pack
@@ -26,11 +26,12 @@ TEXT = {
     "ru": {"order": "Заказать", "ask": "Задать вопрос", "book": "Записаться", "none": "Сейчас нет", "table": "Стол", "free": "бесплатно",
            "som": "сом", "other": "Другое", "hours": "Часы работы", "address": "Адрес", "phone": "Телефон",
            "masters": "Мастера", "nearest": "Ближайшее свободное время", "write": "Написать и записаться", "web": "Чат на сайте",
-           "answers": "Отвечает ИИ-администратор — в любое время, записывает в свободное окно"},
+           "answers": "Отвечает ИИ-администратор — в любое время, записывает в свободное окно", "online": "Записаться онлайн"},
     "ky": {"order": "Буйрутма берүү", "ask": "Суроо берүү", "book": "Жазылуу", "none": "Азыр жок", "table": "Үстөл", "free": "акысыз",
            "som": "сом", "other": "Башкалар", "hours": "Иш убактысы", "address": "Дарек", "phone": "Телефон",
            "masters": "Усталар", "nearest": "Жакынкы бош убакыт", "write": "Жазып, жазылуу", "web": "Сайттагы чат",
-           "answers": "ИИ-администратор жооп берет — каалаган убакта, бош убакытка жазат"},  # проверить носителем
+           "answers": "ИИ-администратор жооп берет — каалаган убакта, бош убакытка жазат",
+           "online": "Онлайн жазылуу"},  # проверить носителем
 }
 
 
@@ -132,25 +133,38 @@ def channel_links(business: Business, base: str, lang: str) -> list[tuple[str, s
     return out
 
 
+def book_url(base: str, business: Business, lang: str, slot_id: int = 0) -> str:
+    """The booking page without a chat (joop/web/booking_page.py), optionally straight at one free time."""
+    query = "&".join(x for x in (f"slot={slot_id}" if slot_id else "", "lang=ky" if lang == "ky" else "") if x)
+    return f"{base}/m/{business.slug}/book" + (f"?{query}" if query else "")
+
+
 def booking_extras(session, business: Business, base: str, lang: str) -> dict:
-    """What a booking page adds to the price list: masters, the nearest free times, where to write."""
+    """What a booking page adds to the price list: masters, the nearest free times, where to write. When customers
+    may book on the page themselves (joop/page_booking.py), each nearest time leads to its booking form."""
     from ..models import Staff
     from ..slots import free_slots, lead_for
-    from ..timeutil import fmt_slot, local_now
+    from ..timeutil import fmt_slot, local_now, utcnow
 
     pack = get_pack(business.niche)
     if not pack.has("booking"):
-        return {"masters": [], "nearest": [], "links": channel_links(business, base, lang)}
+        return {"masters": [], "nearest": [], "links": channel_links(business, base, lang), "page_booking": False}
     example = samples.hidden_from_customers(session, business, "web").staff  # sign-up example people are nobody
     masters = [m for m in session.exec(select(Staff).where(Staff.business_id == business.id, Staff.active == True)  # noqa: E712
                                        .order_by(Staff.name)).all() if m.id not in example]
+    now_local = local_now(business.timezone).replace(tzinfo=None)
+    if not page_booking.unavailable(session, business, utcnow()):
+        times = page_booking.one_per_time(page_booking.free_times(session, business, now_local))[:3]
+        return {"masters": masters, "links": channel_links(business, base, lang), "page_booking": True,
+                "nearest": [(fmt_slot(slot.start), book_url(base, business, lang, slot.id)) for slot, _ in times]}
     seen: dict = {}
-    for slot, staff in free_slots(session, business.id, local_now(business.timezone), days=7, limit=60, exclude_staff=example,
+    for slot, staff in free_slots(session, business.id, now_local, days=7, limit=60, exclude_staff=example,
                                   lead_minutes=lead_for(business)):
         seen.setdefault(slot.start, staff.name)
         if len(seen) == 3:
             break
-    return {"masters": masters, "nearest": [fmt_slot(at) for at in sorted(seen)], "links": channel_links(business, base, lang)}
+    return {"masters": masters, "nearest": [(fmt_slot(at), "") for at in sorted(seen)],
+            "links": channel_links(business, base, lang), "page_booking": False}
 
 
 def _groups(items: list[Service], lang: str) -> list[tuple[str, list[Service]]]:
@@ -184,6 +198,8 @@ def public_menu(request: Request, slug: str, t: int = 0, lang: str = "ru"):
 
         extras = booking_extras(s, b, _base_url(request), lang)
     url, label = main_button(b, extras["links"], lang, table)
+    if extras["page_booking"]:  # the owner turned on booking without a chat: the main button books
+        url, label = book_url(_base_url(request), b, lang), TEXT[lang]["online"]
     pack = get_pack(b.niche)
     return templates.TemplateResponse(request, "menu_public.html", {
         "request": request, "b": b, "groups": _groups(list(items), lang), "lang": lang, "tx": TEXT[lang], "table": table,
@@ -214,21 +230,30 @@ def menu_qr(request: Request, slug: str, t: int = 0):
 def menu_page(request: Request):
     from .app import _base_url
 
+    from ..timeutil import local_now, utcnow
+
     with new_session() as s:
         b = _business(s, request)
         count = len(s.exec(select(Service.id).where(Service.business_id == b.id)).all())
         left = samples.left(s, b)
+        page_why = page_booking.unavailable(s, b, utcnow())
+        page_times = len(page_booking.free_times(s, b, local_now(b.timezone).replace(tzinfo=None))) \
+            if get_pack(b.niche).has("booking") else 0
     url = menu_url(_base_url(request), b.slug)
     return _render(request, "menu.html", "menu", b, url=url, qr=Markup(qr_svg(url)), count=count,
-                   example_items=len(left.services), example_people=len(left.staff), empty_hint=empty_hint(b, _base_url(request)))
+                   example_items=len(left.services), example_people=len(left.staff), empty_hint=empty_hint(b, _base_url(request)),
+                   page_why=page_why, page_times=page_times, book_link=book_url(_base_url(request), b, "ru"))
 
 
 @router.post("/panel/menu")
-def menu_save(request: Request, enabled: str = Form(""), chat_url: str = Form(""), csrf: str = Form("")):
+def menu_save(request: Request, enabled: str = Form(""), chat_url: str = Form(""), self_booking: str = Form(""),
+              csrf: str = Form("")):
     _check_csrf(request, csrf)
     with new_session() as s:
         b = _business(s, request)
         b.menu_enabled = bool(enabled)
+        if get_pack(b.niche).has("booking"):
+            b.page_booking = bool(self_booking)  # customers book a free time on the page themselves (joop/page_booking.py)
         clean = clean_booking_url(chat_url)
         if chat_url.strip() and not clean:
             _flash(request, "Ссылка для заказа должна вести в t.me, wa.me или Instagram — она не сохранена.", "error")
