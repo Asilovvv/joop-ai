@@ -225,3 +225,21 @@ def test_turns_leave_nothing_behind_and_a_stuck_chat_does_not_block_forever(busi
         t.join(timeout=5)
         assert done and done[0].reply  # went ahead after the wait
     assert engine._turns == {}
+
+
+def test_replies_go_out_in_order_even_when_the_first_send_is_slow(business, settings):
+    """The first reply's send took longer than the whole second answer: the customer saw the answers swapped."""
+    llm = SlowFirstLLM()
+    rt = FakeRuntime(settings, llm)
+    plain = rt.tg.send_text
+
+    def slow_first(chat_id, text):
+        if text.startswith("Чистка"):
+            time.sleep(0.6)
+        return plain(chat_id, text)
+
+    rt.tg.send_text = slow_first
+    _together(rt, business.id, [
+        IncomingMessage("telegram", "502", "text", "Сколько стоит чистка?", "Айбек", "tg:502:1"),
+        IncomingMessage("telegram", "502", "text", "А завтра есть время?", "Айбек", "tg:502:2")])
+    assert [text for _, text in rt.tg.sent] == ["Чистка — 2 500 сом.", "Завтра свободно в 10:00."]

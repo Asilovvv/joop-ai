@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 
 from . import voice
-from .agent.engine import Outcome, _already_seen as already_seen, blocked, handle_incoming
+from .agent.engine import Outcome, _already_seen as already_seen, blocked, chat_turn, handle_incoming
 from .billing import access_ok
 from .timeutil import utcnow
 from .channels.base import IncomingMessage
@@ -30,19 +30,23 @@ def process_incoming(rt: Runtime, business_id: int, incoming: IncomingMessage, n
                 and not blocked(session, found.id, incoming.channel, incoming.chat_id)
         if worth:
             incoming = voice.prepare(rt, found, incoming)
-    with new_session() as session:
-        business = session.get(Business, business_id)
-        if business is None:
-            return Outcome(skipped="unknown_business")
-        try:
-            outcome = handle_incoming(session, business, incoming, rt.get_llm, now_utc, base_url=rt.settings.public_base_url,
-                                       get_altegio=rt.altegio)
-            session.commit()
-        except Exception:
-            session.rollback()
-            log.exception("Failed to process a %s message for %s", incoming.channel, business.slug)
-            return Outcome(skipped="error")
-    deliver(rt, business, incoming.channel, incoming.chat_id, outcome, reply_to=incoming.reply_to, who=incoming.user_name or incoming.chat_id)
+    # The chat's turn lasts until the reply is sent: two messages in a row are answered in that order, not the
+    # second reply first because the first one's send was slower.
+    with chat_turn(business_id, incoming.channel, incoming.chat_id):
+        with new_session() as session:
+            business = session.get(Business, business_id)
+            if business is None:
+                return Outcome(skipped="unknown_business")
+            try:
+                outcome = handle_incoming(session, business, incoming, rt.get_llm, now_utc,
+                                          base_url=rt.settings.public_base_url, get_altegio=rt.altegio)
+                session.commit()
+            except Exception:
+                session.rollback()
+                log.exception("Failed to process a %s message for %s", incoming.channel, business.slug)
+                return Outcome(skipped="error")
+        deliver(rt, business, incoming.channel, incoming.chat_id, outcome, reply_to=incoming.reply_to,
+                who=incoming.user_name or incoming.chat_id)
     return outcome
 
 
