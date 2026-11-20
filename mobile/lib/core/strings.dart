@@ -61,6 +61,7 @@ class S {
     required this.channelManual,
     required this.channelApi,
     required this.channelPage,
+    required this.remindByHand,
     // orders and requests
     required this.noOrders,
     required this.openCount,
@@ -290,6 +291,9 @@ class S {
 
   /// A booking the customer made on the booking page, without a chat (the panel's «со страницы записи»).
   final String channelPage;
+
+  /// A booking with no chat for the reminder: staff call the day before.
+  final String remindByHand;
   final String noOrders;
   final String Function(int n) openCount;
   final String noLeads;
@@ -537,6 +541,7 @@ class S {
     channelManual: 'Вручную',
     channelApi: 'через API',
     channelPage: 'со страницы записи',
+    remindByHand: 'напомнить вручную',
     noOrders: 'Заказов пока нет. Их собирает ИИ в чатах.',
     openCount: _ruOpenCount,
     noLeads: 'Заявок нет. Сюда попадают вопросы, на которые ИИ не ответил сам.',
@@ -771,6 +776,7 @@ class S {
     channelManual: 'Колдон',
     channelApi: 'API аркылуу', // check with a native speaker
     channelPage: 'жазылуу барагынан', // check with a native speaker
+    remindByHand: 'кол менен эскертүү', // check with a native speaker
     noOrders: 'Азырынча буйрутма жок. Аларды ИИ чаттарда чогултат.',
     openCount: _kyOpenCount,
     noLeads: 'Өтүнмө жок. Бул жерге ИИ өзү жооп бере албаган суроолор түшөт.',
