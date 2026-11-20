@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 
 from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, missed_calls, nudges, ops, recovery, reorders, restock, samples, trust, unfinished
 from . import gaps as empty_slots
-from .db import new_session
+from .db import free, new_session
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
 from .followups import _kyrgyz, can_write, send_return_invites, send_review_requests
@@ -56,6 +56,7 @@ def _send_reminder(session: Session, rt: Runtime, business: Business, booking: B
     conv = session.get(Conversation, booking.conversation_id) if booking.conversation_id else None
     text = reminder_text(business, booking, bool(conv) and _kyrgyz(session, conv.id))
     sent = ""
+    free(session)  # the reminders before this one are stored; WhatsApp or Telegram may take seconds to answer
     if can_write(booking.channel, booking.chat_id, conv.last_customer_at if conv else None, now_utc):
         client = rt.channel_client(business, booking.channel)
         sent = "sent" if client and client.send_text(booking.chat_id, text) else ""
@@ -86,15 +87,21 @@ def send_reminders(session: Session, rt: Runtime, business: Business, now_utc: d
     ).all()
     manual: list[Booking] = []
     for booking in bookings:
-        ok = _send_reminder(session, rt, business, booking, now_utc)
+        try:
+            ok = _send_reminder(session, rt, business, booking, now_utc)
+        except Exception:  # one odd booking must not leave the customers after it without a reminder
+            session.rollback()
+            log.exception("Reminder for booking %s of %s failed", booking.id, business.slug)
+            ok = ""
         booking.reminder_status = ok or "manual"
         session.add(booking)
+        free(session)  # kept at once: a failure later in the round must not send this reminder again
         if not ok:
             manual.append(booking)
     if manual:
         lines = ["Напомните вручную о записи на завтра:"]
         lines += [f"{b.start:%H:%M} — {b.customer_name}, {b.customer_phone or 'телефон не указан'} ({b.staff_name})" for b in manual]
-        notify_admins(rt, business, ["\n".join(lines)])
+        notify_admins(rt, business, ["\n".join(lines)], session=session)
     return {"sent": len(bookings) - len(manual), "manual": len(manual)}
 
 
@@ -433,10 +440,12 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
     def reminders():
         if not (_due(now_local.hour, business.reminder_hour) and business.last_reminder_date != today):
             return None
-        business.last_reminder_date = today
         report["reminders"] = send_reminders(session, rt, business, now_utc)
         report["returns"] = send_return_invites(session, rt, business, now_utc)
         report["reorders"] = reorders.send_due(session, rt, business, now_utc)
+        # Marked last: a round cut short (a restart, a failure) goes on at the next tick. What already went out is
+        # marked on its own booking as soon as it is sent (db.free), so it is not sent again.
+        business.last_reminder_date = today
         return None
 
     def digest():
@@ -459,7 +468,7 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
             if monthly:
                 texts.append(monthly)
                 report["monthly"] = True
-        report["digest"] = bool(texts) and notify_admins(rt, business, texts) > 0
+        report["digest"] = bool(texts) and notify_admins(rt, business, texts, session=session) > 0
         return None
 
     def push_crm():

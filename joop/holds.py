@@ -75,5 +75,5 @@ def release_expired(session: Session, rt: "Runtime", business: Business, now_utc
         note = "Снят резерв (срок хранения истёк, товар вернулся на склад): " + ", ".join(f"№{n}" for n in real) + "."
         if call:
             note += "\nКлиенту написать не получилось — позвоните: " + "; ".join(call) + "."
-        notify_admins(rt, business, [note])
+        notify_admins(rt, business, [note], session=session)
     return released

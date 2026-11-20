@@ -321,5 +321,5 @@ def send_due(session: Session, rt: "Runtime", business: Business, now_utc: datet
     if notes:
         from .dispatch import notify_admins
 
-        notify_admins(rt, business, notes)
+        notify_admins(rt, business, notes, session=session)
     return {"sent": sent, "finished": len(notes)} if sent or notes else {}

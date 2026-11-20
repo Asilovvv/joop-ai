@@ -203,5 +203,5 @@ def check_deadlines(session: Session, rt: "Runtime", business: Business, now_utc
             notes.append(f"Предоплата не пришла к сроку: {who}, запись {fmt_slot(booking.start)}. "
                          "Свяжитесь с клиентом или отмените запись в панели.")
             overdue += 1
-    notify_admins(rt, business, notes)
+    notify_admins(rt, business, notes, session=session)
     return {"released": released, "overdue": overdue}

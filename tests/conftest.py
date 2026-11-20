@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import dataclasses
 import os
+import sqlite3
+import traceback
 from datetime import datetime
 
 import pytest
@@ -55,7 +57,37 @@ class FakeLLM:
         return item
 
 
+LOCKED_SENDS: list[str] = []  # sends made inside a write transaction: every test must leave this empty
+
+
+def database_is_free(wait: float = 1.0) -> bool:
+    """Whether another connection could write now. SQLite lets one connection write at a time, from its first write to
+    commit; a caller that talks to a messenger or the model inside that stops every other writer on the server.
+    `wait`: a write of another thread is over in milliseconds, the caller's own lasts as long as this check."""
+    eng = db._engine
+    path = eng.url.database if eng is not None and eng.url.get_backend_name() == "sqlite" else None
+    if not path or path == ":memory:":
+        return True
+    con = sqlite3.connect(path, timeout=wait)
+    try:
+        con.execute("BEGIN IMMEDIATE")
+        con.execute("ROLLBACK")
+        return True
+    except sqlite3.OperationalError:
+        return False
+    finally:
+        con.close()
+
+
+def _sending() -> None:
+    if not database_is_free():
+        chain = [f"{os.path.basename(f.filename)}:{f.name}" for f in traceback.extract_stack() if "/joop/" in f.filename.replace(os.sep, "/")]
+        LOCKED_SENDS.append(" > ".join(chain[-4:]) or "called by the test with its own changes not committed")
+
+
 class FakeSender:
+    """A channel client that records what was sent. Every send also checks that the database is free (LOCKED_SENDS)."""
+
     def __init__(self, ok: bool = True):
         self.ok = ok
         self.sent: list[tuple[str, str]] = []
@@ -64,19 +96,23 @@ class FakeSender:
         self.public: list[tuple[str, str]] = []
 
     def send_text(self, chat_id, text):
+        _sending()
         self.sent.append((str(chat_id), text))
         return self.ok
 
     def send_template(self, to, name, lang, params):
+        _sending()
         self.templates.append((to, name, lang, list(params)))
         return self.ok
 
     def send_private_reply(self, comment_id, text):  # Instagram: Direct opened through a comment
+        _sending()
         self.private = getattr(self, "private", [])
         self.private.append((comment_id, text))
         return self.ok
 
     def reply_to_comment(self, comment_id, text):
+        _sending()
         self.public = getattr(self, "public", [])
         self.public.append((comment_id, text))
         return self.ok
@@ -129,6 +165,18 @@ def frozen_clock(monkeypatch):
     from joop import timeutil
 
     monkeypatch.setattr(timeutil, "clock", lambda: NOW_UTC)
+
+
+@pytest.fixture(autouse=True)
+def no_send_inside_a_write_transaction():
+    """Store, then send (db.free): a message sent while its caller holds the database's write lock stops every other
+    customer's message, the panel and the scheduler until the messenger answers. Checked for every send of every test."""
+    LOCKED_SENDS.clear()
+    yield
+    if LOCKED_SENDS:
+        found = "; ".join(sorted(set(LOCKED_SENDS)))
+        LOCKED_SENDS.clear()
+        pytest.fail(f"Sent while the database was write-locked (commit first: db.free): {found}")
 
 
 @pytest.fixture(autouse=True)

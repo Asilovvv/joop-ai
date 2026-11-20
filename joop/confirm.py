@@ -159,5 +159,5 @@ def release_unconfirmed(session: Session, rt: "Runtime", business: Business, now
                      + (f" Время предложено из листа ожидания: {offered}." if offered else ""))
     if not released:
         return {}
-    notify_admins(rt, business, notes)
+    notify_admins(rt, business, notes, session=session)
     return {"released": released}
