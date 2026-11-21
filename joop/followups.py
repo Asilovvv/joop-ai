@@ -87,6 +87,13 @@ def _deliver(session: Session, rt: "Runtime", business: Business, booking: Booki
     return deliver_to_chat(session, rt, business, conv, text, now_utc)
 
 
+def _said_stop(session: Session, booking: Booking) -> bool:
+    """The customer wrote «стоп» or «отписаться» (or staff blocked the chat): no rating request and no invitation.
+    Reminders of their own booking still go: those they need."""
+    conv = session.get(Conversation, booking.conversation_id) if booking.conversation_id else None
+    return conv is not None and conv.silenced
+
+
 # --- ratings -----------------------------------------------------------------------------------
 
 
@@ -109,7 +116,8 @@ def send_review_requests(session: Session, rt: "Runtime", business: Business, no
     )).all()
     sent = 0
     for b in bookings:
-        ok = _deliver(session, rt, business, b, review_request_text(business, _kyrgyz(session, b.conversation_id)), now_utc)
+        ok = not _said_stop(session, b) and _deliver(
+            session, rt, business, b, review_request_text(business, _kyrgyz(session, b.conversation_id)), now_utc)
         b.review_status, b.review_asked_at = ("asked", now_utc) if ok else ("skipped", None)
         session.add(b)
         sent += ok
@@ -221,6 +229,10 @@ def send_return_invites(session: Session, rt: "Runtime", business: Business, now
             continue
         due = b.start.date() + timedelta(days=service.repeat_days)
         if not due <= today <= due + timedelta(days=RETURN_LATE_DAYS) or _came_back(all_bookings, b):
+            continue
+        if _said_stop(session, b):
+            b.return_status = "off"  # not written to, and staff are not asked to call them instead
+            session.add(b)
             continue
         days = (today - b.start.date()).days
         ok = _deliver(session, rt, business, b, return_text(business, service, days, _kyrgyz(session, b.conversation_id)), now_utc)

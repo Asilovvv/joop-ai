@@ -15,7 +15,7 @@ from typing import Any
 
 from sqlmodel import Session, select
 
-from . import autofill, billing
+from . import autofill, billing, health
 from .agent.engine import handle_incoming
 from .catalog import parse_price
 from .channels.base import IncomingMessage
@@ -48,7 +48,8 @@ def build(session: Session, llm: Any, prospect: Prospect, source: str, trial_day
     """Make (or refill) the prospect's demo company from the pasted text. Returns (business, problem)."""
     proposal = autofill.propose(llm, source, [], [])
     if proposal is None:
-        return None, "ИИ не смог разобрать текст. Проверьте баланс Anthropic и попробуйте снова."
+        # the hint names the provider this server uses: not always Anthropic
+        return None, f"ИИ не смог разобрать текст. {health.check_hint(sentence=True)} и попробуйте снова."
     priced = [s for s in proposal.services if s.price]
     if not priced:
         return None, "В тексте не нашлось услуг с ценами. Вставьте пост с прайсом."

@@ -28,7 +28,7 @@ from sqlmodel import Session, select
 from .agent.engine import ERROR_REPLY, _model_reply, chat_turn
 from .db import free
 from .billing import access_ok
-from .dispatch import deliver, notify_admins
+from .dispatch import after_reply, notify_admins, send_reply
 from .models import Business, Conversation, Lead, Message
 from .pilot import LATE as CLOSED_BY  # how the panel shows who closed the request
 
@@ -120,9 +120,10 @@ def answer_waiting(session: Session, rt: "Runtime", business: Business, now: dat
                 lead.status, lead.closed_by = "done", CLOSED_BY
                 session.add(lead)
             session.commit()  # stored before sending: a crash must not send the same answer twice
-            deliver(rt, business, conv.channel, conv.chat_id, outcome)
+            send_reply(rt, business, conv.channel, conv.chat_id, outcome)
             who = conv.customer_name or conv.display_name or "клиент без имени"
             answered.append(f"{who} ({CHANNEL_NAMES.get(conv.channel, conv.channel)})")
+        after_reply(rt, business, outcome)  # only an answer that went out gets here: notes and offers need no turn
     if answered:
         with _lock:
             _next_try = None

@@ -1134,7 +1134,7 @@ def prospect_pitch(request: Request, pid: int):
         services = s.exec(select(Service).where(Service.business_id == b.id).order_by(Service.sort)).all()
         return templates.TemplateResponse(request, "owner_pitch.html", {
             "request": request, "p": p, "b": b, "messages": messages, "services": services, "outreach": pitch.outreach(p),
-            "csrf": _csrf(request), "tz": b.timezone,
+            "csrf": _csrf(request), "tz": b.timezone, "check_hint": health.check_hint(sentence=True),
         })
 
 

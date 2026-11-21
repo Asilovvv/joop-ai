@@ -141,9 +141,10 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/agent/llm.py` | Claude client, response schema per niche, tolerant JSON parsing |
 | `joop/agent/openai_compat.py` | Second model provider: any OpenAI-compatible API (development and evaluation; docs/model-providers.md) |
 | `joop/agent/engine.py` | One message in: commands, media, pause, model call, checks of every booking, order and lead, language and confirmation guards |
-| `joop/dispatch.py` | Runs the engine in a DB session, then delivers the reply and staff notes |
+| `joop/dispatch.py` | Takes the chat's turn (before a voice message is recognised, until the reply is sent), runs the engine in a DB session, then sends staff notes and waiting-list offers outside the turn |
 | `joop/channels/` | Telegram, WhatsApp and Instagram parsing and send clients; Telegram polling |
 | `joop/lang.py`, `joop/kyrgyz.py` | Kyrgyz/Russian heuristics; Kyrgyz drafts of service names and FAQ |
+| `joop/ky_phrases.py` | Every fixed Kyrgyz phrase in the code with its Russian twin, for a native speaker: `python -m joop ky-phrases --csv`, `/owner/kyrgyz` |
 | `joop/slots.py`, `joop/stays.py` | Time slots with an atomic claim; hotel nights booked atomically |
 | **Niches and modules** | |
 | `joop/niches/<name>/` | Niche packs: labels, outcomes, rules, demo data, evaluation dialogues |
@@ -197,10 +198,11 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/health.py` | Alerts for the founder when model calls keep failing; `tell_founder` for other notes (a cancelled subscription) |
 | `joop/recovery.py` | Answers the customers an outage left waiting, once the model works again |
 | `joop/ops.py` | Pre-launch check (`python -m joop check`) and database backups |
+| `joop/offsite.py` | The daily backup, encrypted, to the founder's Telegram; `python -m joop restore-copy` |
 | `deploy/setup.sh`, `docker-compose.yml`, `deploy/Caddyfile` | One-command server setup; the app plus Caddy for HTTPS |
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 1017 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 1032 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |

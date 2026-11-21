@@ -21,18 +21,19 @@ log = logging.getLogger(__name__)
 
 
 def process_incoming(rt: Runtime, business_id: int, incoming: IncomingMessage, now_utc: datetime | None = None) -> Outcome:
-    if incoming.kind == "media" and incoming.media_ref:  # a voice message: recognise it before the engine sees it
-        with new_session() as session:
-            found = session.get(Business, business_id)
-            # Recognition costs money: not for a duplicate webhook delivery, a switched-off bot or a lapsed subscription.
-            worth = found is not None and found.bot_enabled and access_ok(session, found.id, now_utc or utcnow()) \
-                and not (incoming.external_id and already_seen(session, found.id, incoming.external_id)) \
-                and not blocked(session, found.id, incoming.channel, incoming.chat_id)
-        if worth:
-            incoming = voice.prepare(rt, found, incoming)
-    # The chat's turn lasts until the reply is sent: two messages in a row are answered in that order, not the
-    # second reply first because the first one's send was slower.
+    # The chat's turn starts before a voice message is recognised (the text sent right after it must not be answered
+    # first) and lasts until the reply is sent: two messages in a row are answered in that order, not the second
+    # reply first because the first one's send was slower.
     with chat_turn(business_id, incoming.channel, incoming.chat_id):
+        if incoming.kind == "media" and incoming.media_ref:  # a voice message: recognise it before the engine sees it
+            with new_session() as session:
+                found = session.get(Business, business_id)
+                # Recognition costs money: not for a duplicate webhook delivery, a switched-off bot or a lapsed subscription.
+                worth = found is not None and found.bot_enabled and access_ok(session, found.id, now_utc or utcnow()) \
+                    and not (incoming.external_id and already_seen(session, found.id, incoming.external_id)) \
+                    and not blocked(session, found.id, incoming.channel, incoming.chat_id)
+            if worth:
+                incoming = voice.prepare(rt, found, incoming)
         with new_session() as session:
             business = session.get(Business, business_id)
             if business is None:
@@ -45,31 +46,45 @@ def process_incoming(rt: Runtime, business_id: int, incoming: IncomingMessage, n
                 session.rollback()
                 log.exception("Failed to process a %s message for %s", incoming.channel, business.slug)
                 return Outcome(skipped="error")
-        deliver(rt, business, incoming.channel, incoming.chat_id, outcome, reply_to=incoming.reply_to,
-                who=incoming.user_name or incoming.chat_id)
+        send_reply(rt, business, incoming.channel, incoming.chat_id, outcome, reply_to=incoming.reply_to,
+                   who=incoming.user_name or incoming.chat_id)
+    after_reply(rt, business, outcome)
     return outcome
 
 
-def deliver(rt: Runtime, business: Business, channel: str, chat_id: str, outcome: Outcome, reply_to: str = "", who: str = "") -> None:
-    if outcome.reply:
-        client = rt.channel_client(business, channel)
-        if client is None:
-            log.warning("No %s credentials for %s; reply not sent", channel, business.slug)
-        elif reply_to and channel == "instagram":  # a comment: Direct opens through the comment, then a public pointer under it
-            # The private reply fails when the permission is missing, the person closed message requests, or the comment is
-            # older than seven days; a person who wrote to Direct before can still be reached by id. Otherwise staff answer.
-            if client.send_private_reply(reply_to, outcome.reply) or client.send_text(chat_id, outcome.reply):
-                if business.ig_comment_public_reply.strip():
-                    client.reply_to_comment(reply_to, business.ig_comment_public_reply.strip())
-            else:
-                log.warning("Instagram comment reply for %s was not delivered", business.slug)
-                outcome.admin_notes.append(f"Не удалось ответить в Директ на комментарий в Instagram от {who or chat_id}: "
-                                           f"«{outcome.reply[:120]}» — ответьте под ним сами.")
-        elif not client.send_text(chat_id, outcome.reply):
-            log.warning("Reply to %s via %s was not delivered", business.slug, channel)
+def send_reply(rt: Runtime, business: Business, channel: str, chat_id: str, outcome: Outcome, reply_to: str = "",
+               who: str = "") -> None:
+    """The customer's reply: the only send that has to keep the chat's order, so the only one inside its turn."""
+    if not outcome.reply:
+        return
+    client = rt.channel_client(business, channel)
+    if client is None:
+        log.warning("No %s credentials for %s; reply not sent", channel, business.slug)
+    elif reply_to and channel == "instagram":  # a comment: Direct opens through the comment, then a public pointer under it
+        # The private reply fails when the permission is missing, the person closed message requests, or the comment is
+        # older than seven days; a person who wrote to Direct before can still be reached by id. Otherwise staff answer.
+        if client.send_private_reply(reply_to, outcome.reply) or client.send_text(chat_id, outcome.reply):
+            if business.ig_comment_public_reply.strip():
+                client.reply_to_comment(reply_to, business.ig_comment_public_reply.strip())
+        else:
+            log.warning("Instagram comment reply for %s was not delivered", business.slug)
+            outcome.admin_notes.append(f"Не удалось ответить в Директ на комментарий в Instagram от {who or chat_id}: "
+                                       f"«{outcome.reply[:120]}» — ответьте под ним сами.")
+    elif not client.send_text(chat_id, outcome.reply):
+        log.warning("Reply to %s via %s was not delivered", business.slug, channel)
+
+
+def after_reply(rt: Runtime, business: Business, outcome: Outcome) -> None:
+    """Notes to staff and offers to the waiting list. Each is a send of up to 20 seconds to somebody else's chat:
+    outside the customer's turn, so the customer's next message is not kept waiting for them."""
     if outcome.admin_notes:
         notify_admins(rt, business, outcome.admin_notes)
     offer_freed(rt, business, outcome.freed_slot_ids)
+
+
+def deliver(rt: Runtime, business: Business, channel: str, chat_id: str, outcome: Outcome, reply_to: str = "", who: str = "") -> None:
+    send_reply(rt, business, channel, chat_id, outcome, reply_to=reply_to, who=who)
+    after_reply(rt, business, outcome)
 
 
 def offer_freed(rt: Runtime, business: Business, slot_ids: list[int]) -> None:

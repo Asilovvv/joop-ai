@@ -439,7 +439,11 @@ def features(request: Request):
 
 @router.get("/privacy")
 def privacy(request: Request):
-    return _site(request, "site_privacy.html", updated="20.11.2026", model_processor=_settings(request).model_processor)
+    from .. import offsite
+
+    s = _settings(request)
+    return _site(request, "site_privacy.html", updated="20.11.2026", model_processor=s.model_processor,
+                 offsite_backup=offsite.ready(s))
 
 
 @router.get("/data-deletion")
