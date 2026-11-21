@@ -3,24 +3,182 @@
 from __future__ import annotations
 
 import logging
+import threading
+import time
+from collections import deque
+from contextlib import nullcontext
 from datetime import datetime
 
 from . import voice
 from .agent.engine import Outcome, _already_seen as already_seen, blocked, chat_turn, handle_incoming
 from .billing import access_ok
 from .timeutil import utcnow
-from .channels.base import IncomingMessage
+from .channels.base import CHANNEL_NAMES, IncomingMessage
 from .channels.telegram import bot_id
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from .db import free, new_session
-from .models import Business
+from .lang import plural
+from .models import Business, Conversation, ConversationNote
 from .runtime import Runtime
 
 log = logging.getLogger(__name__)
 
 
+# --- one thread for a chat, however many messages arrive --------------------------------------------------------
+# Every message from a webhook is a task in the server's shared thread pool (40 threads; the panel's pages run in it
+# too). A chat is answered one message at a time, so fifty messages sent to one chat held fifty threads, each waiting
+# for its turn for up to CHAT_WAIT: one chat could stop every answer and every page of the server. Now a message that
+# arrives while its chat is being answered is left in the chat's queue and its thread goes back to the pool at once;
+# the thread that is answering takes the queue, in arrival order, when it is done.
+
+MAX_QUEUED = 50  # messages of one chat waiting behind the one being answered: more is not a person typing
+STUCK_AFTER = 300.0  # seconds one message may be in work before the chat's next messages stop waiting behind it
+
+
+class _Queue:
+    """The messages of one chat waiting behind the one in work."""
+
+    __slots__ = ("waiting", "since", "dropped")
+
+    def __init__(self, waiting: deque) -> None:
+        self.waiting = waiting
+        self.since = time.monotonic()  # when the message in work was taken
+        self.dropped = 0
+
+
+_Key = tuple[int, str, str]  # business, channel, chat
+_queues: dict[_Key, _Queue] = {}  # the chats being answered right now (one process: memory is enough)
+_queues_guard = threading.Lock()
+
+
 def process_incoming(rt: Runtime, business_id: int, incoming: IncomingMessage, now_utc: datetime | None = None) -> Outcome:
+    """Answer the message, or leave it to the thread that is answering its chat right now.
+
+    Returns the message's outcome when this thread answered it, Outcome(skipped="queued") when it waits in the chat's
+    queue (the caller's thread is free at once), Outcome(skipped="flood") when MAX_QUEUED are waiting already: that
+    message is not read; staff are told once and the dialogue keeps a note of how many. A thread that has been at one
+    message for STUCK_AFTER no longer holds the chat: the next message, or the scheduler (take_over_stuck), takes the
+    queue over, as late and out of order beats never."""
+    return process_chat(rt, business_id, [incoming], now_utc)[0]
+
+
+def process_chat(rt: Runtime, business_id: int, messages: list[IncomingMessage], now_utc: datetime | None = None) -> list[Outcome]:
+    """The same for messages of one chat that came together: Meta puts what a person sends in a row into one POST.
+
+    They join the chat's queue in their order before any of them is answered, so a message from a later POST cannot
+    get between them. One outcome per message, as process_incoming returns it."""
+    first = messages[0]
+    return _join(rt, (business_id, first.channel, first.chat_id), [(message, now_utc) for message in messages])
+
+
+def take_over_stuck(rt: Runtime) -> list[threading.Thread]:
+    """Chats whose message in work never came back while others wait behind it: each gets a thread that answers them.
+
+    Called on every tick of the scheduler. Without it the waiting messages were answered only when the customer wrote
+    once more; a customer who gives up does not."""
+    now = time.monotonic()
+    with _queues_guard:
+        stuck = [key for key, queue in _queues.items() if queue.waiting and now - queue.since >= STUCK_AFTER]
+    threads = [threading.Thread(target=_join, args=(rt, key, []), name="joop-chat-takeover", daemon=True) for key in stuck]
+    for thread in threads:
+        thread.start()
+    return threads
+
+
+def _join(rt: Runtime, key: _Key, items: list[tuple[IncomingMessage, datetime | None]]) -> list[Outcome]:
+    """Put the messages into the chat's queue; answer the queue when nobody else is doing it. No messages: a takeover."""
+    business_id, channel, _ = key
+    results = [Outcome(skipped="queued") for _ in items]  # until this thread gets to them, when it is the one to answer
+    place = {id(item): i for i, item in enumerate(items)}
+    flood: IncomingMessage | None = None
+    with _queues_guard:
+        queue = _queues.get(key)
+        stuck = queue is not None and time.monotonic() - queue.since >= STUCK_AFTER
+        mine = queue is None or stuck  # nobody is answering this chat, or not any more: this thread does
+        if mine:
+            if not items and not (stuck and queue.waiting):
+                return results  # a takeover that is no longer needed
+            if stuck:
+                log.error("A %s message of business %s has been in work for over %.0f s: its chat goes on without it",
+                          channel, business_id, STUCK_AFTER)
+            queue = _Queue(queue.waiting if stuck else deque())  # what waited behind the stuck one comes first
+            _queues[key] = queue
+        for i, item in enumerate(items):
+            if len(queue.waiting) >= MAX_QUEUED:
+                queue.dropped += 1
+                results[i] = Outcome(skipped="flood")
+                if queue.dropped == 1:
+                    flood = item[0]
+            else:
+                queue.waiting.append(item)
+    if flood is not None:
+        _tell_staff_of_flood(rt, business_id, flood)
+    if mine:
+        # The stuck thread may still hold the chat's turn: the queue waits CHAT_WAIT for it once, not once a message.
+        with chat_turn(*key) if stuck else nullcontext():
+            _empty(rt, key, queue, place, results)
+    return results
+
+
+def _empty(rt: Runtime, key: _Key, queue: _Queue, place: dict[int, int], results: list[Outcome]) -> None:
+    """Answer the chat's queue in arrival order until nothing waits; `results` gets the outcomes of this thread's own."""
+    business_id, channel, _ = key
+    while True:
+        with _queues_guard:
+            if _queues.get(key) is not queue:  # this thread was stuck and the chat went on without it
+                return
+            if not queue.waiting:
+                del _queues[key]
+                break
+            item = queue.waiting.popleft()
+            queue.since = time.monotonic()
+        try:
+            result = _answer(rt, business_id, *item)
+        except Exception:  # the queue goes on: one message that broke must not leave the chat unanswered for good
+            log.exception("Failed to process a %s message of business %s", channel, business_id)
+            result = Outcome(skipped="error")
+        if id(item) in place:
+            results[place[id(item)]] = result
+    if queue.dropped:
+        log.warning("%d %s message(s) of business %s were not read: over %d waited in one chat",
+                    queue.dropped, channel, business_id, MAX_QUEUED)
+        _note_unread(key, queue.dropped)
+
+
+def _note_unread(key: _Key, count: int) -> None:
+    """A staff-only note in the dialogue: with no alerts chat set, nobody would know that messages were left unread."""
+    business_id, channel, chat_id = key
+    try:
+        with new_session() as session:
+            conv = session.exec(select(Conversation).where(
+                Conversation.business_id == business_id, Conversation.channel == channel, Conversation.chat_id == chat_id)).first()
+            if conv is None:
+                return
+            session.add(ConversationNote(
+                business_id=business_id, conversation_id=conv.id, author="Joop AI", created_at=utcnow(),
+                text=f"ИИ не прочитал и не сохранил {count} {plural(count, 'сообщение', 'сообщения', 'сообщений')} этого чата: "
+                     f"в очереди уже ждали ответа {MAX_QUEUED}. Если это клиент, а не спам, спросите у него, что он писал."))
+            session.commit()
+    except Exception:
+        log.exception("Could not note %d unread message(s) in a %s dialogue of business %s", count, channel, business_id)
+
+
+def _tell_staff_of_flood(rt: Runtime, business_id: int, incoming: IncomingMessage) -> None:
+    try:
+        with new_session() as session:
+            business = session.get(Business, business_id)
+        if business is not None:
+            who = incoming.user_name or incoming.chat_id
+            notify_admins(rt, business, [
+                f"В чат {CHANNEL_NAMES.get(incoming.channel, incoming.channel)} «{who}» приходит слишком много сообщений "
+                f"подряд: больше {MAX_QUEUED} ждут ответа, следующие ИИ не читает, пока очередь не разберётся. "
+                "Если это спам — заблокируйте чат: «Диалоги» → этот чат → «В чёрный список»."])
+    except Exception:
+        log.exception("Could not tell staff of business %s about a flood of messages", business_id)
+
+
+def _answer(rt: Runtime, business_id: int, incoming: IncomingMessage, now_utc: datetime | None = None) -> Outcome:
     # The chat's turn starts before a voice message is recognised (the text sent right after it must not be answered
     # first) and lasts until the reply is sent: two messages in a row are answered in that order, not the second
     # reply first because the first one's send was slower.
