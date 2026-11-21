@@ -142,6 +142,7 @@ class Staff(SQLModel, table=True):
     group_size: int = 0  # group class: how many people one slot takes (0 or 1 = one booking per slot)
     active: bool = True
     external_id: str = ""  # id in the booking system the schedule comes from (Altegio)
+    altegio_times_at: Optional[NaiveDatetime] = None  # free times last read from Altegio (UTC): oldest are read first
 
 
 class Faq(SQLModel, table=True):
