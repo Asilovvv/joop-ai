@@ -266,7 +266,8 @@ WhatsApp message fees for reminders.
 - **Ratings and coming back** (`/panel/followups`, off by default): two hours after a visit the AI asks
   for a 1-5 rating; 4-5 get a link to leave a review on 2GIS / Google Maps, 1-3 go to the staff at once
   as a handoff. Each service can have "invite again after N days" (manicure 21, cleaning 180): the AI
-  invites the customer back unless they have already booked. Messages go only where the channel allows
+  invites the customer back unless they have already booked or were invited from "Пустые окна" in the
+  last two weeks. Messages go only where the channel allows
   (Telegram any time, WhatsApp / Instagram within 24 hours); the rest is listed for the staff.
 - **Trust at first contact**: in WhatsApp and Instagram the first reply to a new customer opens with one calm
   line, "Я ИИ-помощник «…»: отвечаю сразу, а если нужно — позову администратора" (Kyrgyz when the customer
@@ -420,7 +421,8 @@ WhatsApp message fees for reminders.
   the payback in days at the current price and the ratio to a salary. Arithmetic in the page, nothing sent.
 - **Empty slots** (`/panel/gaps`, "Пустые окна"): free times for the week ahead and the regulars to invite into
   them — the service's repeat interval has passed, or a customer with two or more visits has not been seen for
-  a month — with no upcoming booking, no opt-out and no invitation in the last two weeks. For each, a drafted
+  a month — with no upcoming booking, no opt-out and no invitation in the last two weeks, from this page or the
+  automatic one (the two keep each other's quiet: one invitation to come again, then two weeks). For each, a drafted
   message with the two nearest free times, preferring the specialist they last saw; one click sends it, or all
   at once; WhatsApp and Instagram customers outside the 24-hour window are listed as calls with the phone. The
   Monday report counts invitations and the bookings that followed.
@@ -488,7 +490,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 1093 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 1097 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

@@ -32,6 +32,7 @@ REVIEW_UNTIL = timedelta(hours=48)  # do not ask about old visits
 RATING_REPLY_WINDOW = timedelta(hours=72)
 REVIEW_HOURS = (10, 21)  # local hours when the request may be sent
 RETURN_LATE_DAYS = 3  # still invite if the job ran a few days late
+QUIET_DAYS = 14  # one invitation to come again, then two weeks of quiet: the automatic one and «Пустые окна» (joop/gaps.py) alike
 _RATING = re.compile(r"^\s*([1-5])\s*(?:/\s*5|из\s*5|балл\w*|звезд\w*|звёзд\w*|жылдыз\w*|упай\w*)?\s*[.!]?\s*$", re.I)
 _DIGITS = re.compile(r"\D")
 
@@ -203,15 +204,26 @@ def return_text(business: Business, service: Service, days: int, kyrgyz: bool) -
             f"{_plural(days, 'день', 'дня', 'дней')}. Записать вас снова? Подберу удобное время.")
 
 
-def _came_back(bookings: list[Booking], b: Booking) -> bool:
+def _same_customer(a: Booking, b: Booking) -> bool:
+    """The same chat, or the same phone written in any way."""
     phone = _DIGITS.sub("", b.customer_phone)[-9:]
-    for other in bookings:
-        if other.id == b.id or other.start <= b.start:
-            continue
-        if (b.conversation_id and other.conversation_id == b.conversation_id) or (
-                len(phone) == 9 and _DIGITS.sub("", other.customer_phone)[-9:] == phone):
-            return True
-    return False
+    return bool(b.conversation_id and a.conversation_id == b.conversation_id) or (
+        len(phone) == 9 and _DIGITS.sub("", a.customer_phone)[-9:] == phone)
+
+
+def _came_back(bookings: list[Booking], b: Booking) -> bool:
+    return any(other.id != b.id and other.start > b.start and _same_customer(other, b) for other in bookings)
+
+
+def _invited_lately(session: Session, bookings: list[Booking], b: Booking, now_utc: datetime) -> bool:
+    """This customer was invited to come again in the last QUIET_DAYS: by the owner from «Пустые окна», or by this job
+    for another service of the same visit. Two invitations within days read as pestering, not care."""
+    quiet = timedelta(days=QUIET_DAYS)
+    conv = session.get(Conversation, b.conversation_id) if b.conversation_id else None
+    if conv is not None and conv.invited_at is not None and now_utc - conv.invited_at < quiet:
+        return True
+    return any(other.id != b.id and other.return_sent_at is not None and now_utc - other.return_sent_at < quiet
+               and _same_customer(other, b) for other in bookings)
 
 
 def send_return_invites(session: Session, rt: "Runtime", business: Business, now_utc: datetime) -> dict[str, int]:
@@ -240,9 +252,13 @@ def send_return_invites(session: Session, rt: "Runtime", business: Business, now
             b.return_status = "off"  # not written to, and staff are not asked to call them instead
             session.add(b)
             continue
+        if _invited_lately(session, all_bookings, b, now_utc):
+            continue  # it waits; its days run out sooner than the quiet does, so as a rule this invitation is never sent
         days = (today - b.start.date()).days
         ok = _deliver(session, rt, business, b, return_text(business, service, days, _kyrgyz(session, b.conversation_id)), now_utc)
         b.return_status = "sent" if ok else "manual"
+        if ok:
+            b.return_sent_at = now_utc
         session.add(b)
         if ok:
             sent += 1
