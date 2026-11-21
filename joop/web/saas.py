@@ -21,21 +21,18 @@ from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .. import annual, billing, free_plan, health, partners, pitch, samples, stories, waitlist
+from .. import annual, billing, free_plan, health, partners, pitch, samples, stories
 from ..dispatch import admin_link, alert_chats
-from ..agent.engine import handle_incoming
-from ..channels.base import IncomingMessage
 from ..db import new_session
 from ..models import (
     Booking, Business, Conversation, Lead, Message, Order, Partner, PartnerPayout, Payment, Prospect, Service, Slot, Staff,
-    Subscription, WaitlistEntry,
+    Subscription,
 )
 from ..niches import all_packs, get_pack, picker_packs
 from ..presets import create_business
 from ..signup import Refused, register
-from .. import telegram_setup
+from .. import telegram_setup, try_chat
 from ..pricing import empty_usage
-from ..slots import release_slot, seats_needed
 from ..stats import real_conversation, test_conversations
 from ..timeutil import utc_to_local, utcnow
 from .app import _back, _base_url, _business, _check_csrf, _csrf, _flash, _render, _rt, _settings, templates
@@ -43,8 +40,8 @@ from .app import _back, _base_url, _business, _check_csrf, _csrf, _flash, _rende
 log = logging.getLogger(__name__)
 router = APIRouter()
 
-TRY_CHAT_ID = "panel-test"
-TRY_DAILY_LIMIT = 60  # test-chat messages per business per day: open sign-up must not burn the AI budget
+TRY_CHAT_ID = try_chat.CHAT_ID
+TRY_DAILY_LIMIT = try_chat.DAILY_LIMIT  # read per request, so tests can lower it
 PROSPECT_STATUSES = {
     "new": "Новый",
     "contacted": "Написали",
@@ -290,56 +287,20 @@ def setup_telegram(request: Request, token: str = Form(""), csrf: str = Form("")
 def try_page(request: Request):
     with new_session() as s:
         b = _business(s, request)
-        conv = s.exec(
-            select(Conversation).where(Conversation.business_id == b.id, Conversation.channel == "console", Conversation.chat_id == TRY_CHAT_ID)
-        ).first()
-        messages = (
-            s.exec(select(Message).where(Message.conversation_id == conv.id).order_by(Message.id)).all()[-40:] if conv else []
-        )
+        messages = try_chat.messages(s, b)
     return _render(request, "try.html", "try", b, messages=messages)
 
 
 @router.post("/panel/try")
 def try_send(request: Request, text: str = Form(""), csrf: str = Form("")):
     _check_csrf(request, csrf)
-    text = text.strip()[:1000]
-    if not text:
+    if not text.strip():
         return _back("/panel/try")
     with new_session() as s:
-        b = _business(s, request)
-        since = utcnow() - timedelta(days=1)
-        used = s.exec(
-            select(func.count()).select_from(Message).join(Conversation, Message.conversation_id == Conversation.id)
-            .where(Message.business_id == b.id, Conversation.channel == "console", Message.role == "customer", Message.created_at >= since)
-        ).one()
-        if used >= TRY_DAILY_LIMIT:
-            _flash(request, f"В тестовом чате не больше {TRY_DAILY_LIMIT} сообщений в сутки. Подключите Telegram и проверьте там.", "error")
-            return _back("/panel/try")
-        incoming = IncomingMessage("console", TRY_CHAT_ID, "command" if text.startswith("/") else "text", text, "Тест",
-                                   f"console:{TRY_CHAT_ID}:{secrets.token_hex(6)}")
-        try:
-            outcome = handle_incoming(s, b, incoming, _rt(request).get_llm, base_url=_base_url(request),
-                                       get_altegio=_rt(request).altegio)
-            s.commit()
-        except Exception:
-            s.rollback()
-            log.exception("Test chat failed for %s", b.slug)
-            _flash(request, "ИИ сейчас недоступен. Попробуйте через минуту.", "error")
-            return _back("/panel/try")
-    if outcome.skipped == "subscription":
-        _flash(request, "Пробный период закончился — оплатите подписку, чтобы ИИ отвечал.", "error")
-    elif outcome.skipped == "bot_disabled":
-        _flash(request, "ИИ выключен в настройках.", "error")
-    for note in outcome.admin_notes:
-        _flash(request, "Уведомление администратору: " + note.splitlines()[0])
-    if outcome.freed_slot_ids:  # a test booking cancelled or moved: its real time goes to the waiting list, as «Новый диалог» does
-        from ..dispatch import offer_freed
-
-        offer_freed(_rt(request), b, outcome.freed_slot_ids)
-    if outcome.booking_id:
-        _flash(request, "Это тестовая запись: она видна в «Записях» и занимает время. Напоминаний по ней не будет"
-               + (", в Altegio она не отправлена" if b.altegio_location_id else "")
-               + ". Кнопка «Новый диалог» её отменит.")
+        business_id = _business(s, request).id
+    sent = try_chat.send(_rt(request), business_id, text, _base_url(request), limit=TRY_DAILY_LIMIT)
+    for note, kind in sent.notes:
+        _flash(request, note, kind)
     return _back("/panel/try#end")
 
 
@@ -347,41 +308,10 @@ def try_send(request: Request, text: str = Form(""), csrf: str = Form("")):
 def try_reset(request: Request, csrf: str = Form("")):
     _check_csrf(request, csrf)
     with new_session() as s:
-        b = _business(s, request)
-        conv = s.exec(
-            select(Conversation).where(Conversation.business_id == b.id, Conversation.channel == "console", Conversation.chat_id == TRY_CHAT_ID)
-        ).first()
-        cancelled = 0
-        if conv:
-            cancelled = _undo_test_bookings(s, _rt(request), b, conv)
-            conv.chat_id = f"{TRY_CHAT_ID}-{secrets.token_hex(4)}"  # keep the dialogue in the panel, start a fresh chat
-            s.add(conv)
-            s.commit()
+        cancelled = try_chat.reset(s, _rt(request), _business(s, request))
     if cancelled:
         _flash(request, f"Тестовые записи отменены, время снова свободно: {cancelled}.")
     return _back("/panel/try")
-
-
-def _undo_test_bookings(s: Session, rt, b: Business, conv: Conversation) -> int:
-    """A new test dialogue leaves nothing behind on the schedule: the test's bookings are cancelled, their times
-    freed (and offered to customers on the waiting list, as after any cancellation), its waiting-list entries closed."""
-    now = utcnow()
-    count = 0
-    for booking in s.exec(select(Booking).where(Booking.conversation_id == conv.id, Booking.status == "booked")).all():
-        booking.status = "cancelled"
-        s.add(booking)
-        slot = s.get(Slot, booking.slot_id) if booking.slot_id else None
-        release_slot(s, booking.slot_id, seats_needed(slot, booking.party_size) if slot else 1)
-        s.flush()
-        if slot is not None:
-            s.refresh(slot)
-            waitlist.offer_freed_slot(s, rt, b, slot, now)
-        count += 1
-    for entry in s.exec(select(WaitlistEntry).where(WaitlistEntry.conversation_id == conv.id,
-                                                    WaitlistEntry.status.in_(["waiting", "notified"]))).all():
-        entry.status = "cancelled"
-        s.add(entry)
-    return count
 
 
 # --- billing (business side) ---------------------------------------------------------------------------

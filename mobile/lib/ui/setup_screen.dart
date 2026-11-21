@@ -7,6 +7,7 @@ import '../core/api_client.dart';
 import '../data/joop_repository.dart';
 import '../data/models.dart';
 import 'qr_code.dart';
+import 'try_screen.dart';
 
 /// The owner's launch checklist, the panel's «Запуск»: the Telegram bot is connected here by its token and booking by
 /// link is switched on with one tap; the other steps (prices, people, hours) name their page in the panel.
@@ -129,7 +130,20 @@ class _SetupScreenState extends State<SetupScreen> {
               const SizedBox(height: 8),
               FilledButton(key: const Key('bot-connect'), onPressed: _busy ? null : _connect,
                   child: Text(S.current.connectBot)),
-            ] else if (!step.done && step.panel.isNotEmpty)
+            ] else if (step.key == 'try')
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: OutlinedButton.icon(
+                  key: const Key('open-try'),
+                  icon: const Icon(Icons.chat_outlined),
+                  label: Text(S.current.openTry),
+                  onPressed: () async {
+                    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TryScreen()));
+                    if (mounted) _run(() => context.read<JoopRepository>().setup()); // the step may be done now
+                  },
+                ),
+              )
+            else if (!step.done && step.panel.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: SelectableText('${S.current.inPanel} ${step.panel}', style: Theme.of(context).textTheme.bodySmall),

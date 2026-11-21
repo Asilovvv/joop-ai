@@ -27,7 +27,7 @@ void main() {
     final server = await _signIn(tester);
     await tester.tap(find.byKey(const Key('menu-setup')));
     await tester.pumpAndSettle();
-    expect(find.text('Готово 1 из 3'), findsOneWidget);
+    expect(find.text('Готово 1 из 4'), findsOneWidget);
     expect(find.byKey(const Key('step-telegram-todo')), findsOneWidget);
     expect(find.textContaining('https://joop.test/panel/settings'), findsOneWidget); // a step the app does not take
 
@@ -44,7 +44,7 @@ void main() {
     expect(find.text('Бот @aktish_bot подключён.'), findsOneWidget);
     expect(find.byKey(const Key('step-telegram-done')), findsOneWidget);
     expect(find.byKey(const Key('bot-token')), findsNothing);
-    expect(find.text('Готово 2 из 3'), findsOneWidget);
+    expect(find.text('Готово 2 из 4'), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const Key('page-booking-switch')));
     expect(find.text('https://joop.test/m/aktish/book'), findsOneWidget);
@@ -62,6 +62,36 @@ void main() {
     await tester.tapAt(tester.getCenter(find.byKey(const Key('qr-full'))));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('qr-full')), findsNothing);
+  });
+
+  testWidgets('the owner tries the AI in the test chat from the launch checklist', (tester) async {
+    final server = await _signIn(tester);
+    await tester.tap(find.byKey(const Key('menu-setup')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('step-try-todo')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('open-try')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('open-try')));
+    await tester.pumpAndSettle();
+    expect(find.text('Тестовый чат'), findsOneWidget);
+    expect(find.textContaining('Эти сообщения нигде не считаются'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const Key('try-input')), 'Сколько стоит консультация?');
+    await tester.tap(find.byKey(const Key('try-send')));
+    await tester.pumpAndSettle();
+    expect(find.text('Сколько стоит консультация?'), findsOneWidget);
+    expect(find.text('Консультация стоит 500 сом. Записать вас на завтра в 10:00?'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('try-reset')));
+    await tester.pumpAndSettle();
+    expect(find.text('Сколько стоит консультация?'), findsNothing);
+    expect(find.text('Тестовые записи отменены, время снова свободно: 1.'), findsOneWidget);
+    expect(server.tryChat, isEmpty);
+
+    server.tryChat.add({'id': 1, 'role': 'customer', 'text': 'Привет', 'created_at': '2026-11-13T07:00:00Z', 'author': ''});
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('step-try-done')), findsOneWidget); // the list is read again on return
   });
 
   testWidgets('staff do not see the launch checklist', (tester) async {
