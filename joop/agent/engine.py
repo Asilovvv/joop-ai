@@ -923,8 +923,9 @@ def _try_booking(
         # Joop's checks passed and the slot is claimed here; now the salon's system checks it too, then records it.
         service = (data.get("service") or "").strip()[:200]
         # The claim is saved first, so Altegio's two calls never hold the database's write lock; a sync that lands
-        # before the booking is saved leaves the slot alone (altegio.on_the_way).
-        altegio.on_the_way(slot.id, now)
+        # before the booking is saved leaves the slot alone (altegio.on_the_way). The mark carries the clock's time,
+        # not the message's: `now` is when the message came, and the model may have thought for minutes since.
+        altegio.on_the_way(slot.id, utcnow())
         free(session)
         try:
             record_id = altegio.push_booking(session, business, external, slot, member, service, name, phone,
