@@ -21,7 +21,7 @@ from .channels.telegram import is_personal
 from .lang import chat_is_kyrgyz, is_kyrgyz_message
 from .models import Booking, Business, Conversation, Lead, Message, Service
 from .stats import not_test
-from .timeutil import fmt_slot, utc_to_local
+from .timeutil import fmt_slot, local_to_utc, utc_to_local
 
 if TYPE_CHECKING:
     from .runtime import Runtime
@@ -32,6 +32,7 @@ REVIEW_UNTIL = timedelta(hours=48)  # do not ask about old visits
 RATING_REPLY_WINDOW = timedelta(hours=72)
 REVIEW_HOURS = (10, 21)  # local hours when the request may be sent
 RETURN_LATE_DAYS = 3  # still invite if the job ran a few days late
+QUIET_DAYS = 14  # one invitation to come again, then two weeks of quiet: the automatic one and «Пустые окна» (joop/gaps.py) alike
 _RATING = re.compile(r"^\s*([1-5])\s*(?:/\s*5|из\s*5|балл\w*|звезд\w*|звёзд\w*|жылдыз\w*|упай\w*)?\s*[.!]?\s*$", re.I)
 _DIGITS = re.compile(r"\D")
 
@@ -203,13 +204,35 @@ def return_text(business: Business, service: Service, days: int, kyrgyz: bool) -
             f"{_plural(days, 'день', 'дня', 'дней')}. Записать вас снова? Подберу удобное время.")
 
 
-def _came_back(bookings: list[Booking], b: Booking) -> bool:
+def _same_customer(a: Booking, b: Booking) -> bool:
+    """The same chat, or the same phone written in any way."""
     phone = _DIGITS.sub("", b.customer_phone)[-9:]
-    for other in bookings:
-        if other.id == b.id or other.start <= b.start:
-            continue
-        if (b.conversation_id and other.conversation_id == b.conversation_id) or (
-                len(phone) == 9 and _DIGITS.sub("", other.customer_phone)[-9:] == phone):
+    return bool(b.conversation_id and a.conversation_id == b.conversation_id) or (
+        len(phone) == 9 and _DIGITS.sub("", a.customer_phone)[-9:] == phone)
+
+
+def _came_back(bookings: list[Booking], b: Booking) -> bool:
+    return any(other.id != b.id and other.start > b.start and _same_customer(other, b) for other in bookings)
+
+
+def invited_lately(at: datetime | None, visit_utc: datetime, now_utc: datetime) -> bool:
+    """An invitation to come again went out at `at`: after the customer's last visit and within the last QUIET_DAYS.
+
+    One before that visit was answered by it, and is no reason for quiet: with a service every week the next
+    invitation is due eight days after the last one."""
+    return at is not None and at > visit_utc and now_utc - at < timedelta(days=QUIET_DAYS)
+
+
+def _invited_lately(session: Session, business: Business, bookings: list[Booking], b: Booking, now_utc: datetime) -> bool:
+    """Since this visit the customer has an invitation already: the owner's from «Пустые окна» (joop/gaps.py), or this
+    job's for another service of the same visit. Two within days read as pestering, not care."""
+    visit_utc = local_to_utc(b.start, business.timezone)
+    theirs = [other for other in bookings if other.id == b.id or _same_customer(other, b)]
+    if any(other.id != b.id and invited_lately(other.return_sent_at, visit_utc, now_utc) for other in theirs):
+        return True
+    for conv_id in {other.conversation_id for other in theirs if other.conversation_id}:  # the same phone in two chats
+        conv = session.get(Conversation, conv_id)
+        if conv is not None and invited_lately(conv.invited_at, visit_utc, now_utc):
             return True
     return False
 
@@ -240,9 +263,13 @@ def send_return_invites(session: Session, rt: "Runtime", business: Business, now
             b.return_status = "off"  # not written to, and staff are not asked to call them instead
             session.add(b)
             continue
+        if _invited_lately(session, business, all_bookings, b, now_utc):
+            continue  # it waits; its days run out sooner than the quiet does, so as a rule this invitation is never sent
         days = (today - b.start.date()).days
         ok = _deliver(session, rt, business, b, return_text(business, service, days, _kyrgyz(session, b.conversation_id)), now_utc)
         b.return_status = "sent" if ok else "manual"
+        if ok:
+            b.return_sent_at = now_utc
         session.add(b)
         if ok:
             sent += 1

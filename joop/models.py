@@ -250,6 +250,7 @@ class Booking(SQLModel, table=True):
     review_asked_at: Optional[NaiveDatetime] = None
     rating: Optional[int] = None  # 1-5 from the customer after the visit
     return_status: str = ""  # "" | sent | manual | off (the customer said «стоп»): invitation to come again
+    return_sent_at: Optional[NaiveDatetime] = None  # when it went out: one invitation, then two weeks of quiet (followups.QUIET_DAYS)
     intake_status: str = ""  # "" | asked | answered
     intake_answers: str = ""
     loyalty_visit: int = 0  # this was the customer's N-th visit and earned the reward

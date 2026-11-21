@@ -3,11 +3,12 @@
 The one move that turns an AI administrator from a saving into revenue (docs: «Joop AI — стратегия с нуля»,
 "Пустые окна"): instead of waiting for someone to write, the business fills next week's free times with its own
 regulars. Code lists who is due — the service's repeat interval has passed, or a regular has not been seen for
-a month — who has no upcoming booking, did not opt out and was not invited in the last two weeks; for each, a
-drafted message with the two nearest free times, preferring the specialist they last saw. The owner sends one
-at a time or all at once; WhatsApp and Instagram customers outside the 24-hour window are listed as calls, with
-the phone, because no message can reach them. Nothing goes out without a click. The Altegio marketplace's free
-"who to invite" app only prints the list; Joop also sends.
+a month — who has no upcoming booking, did not opt out and has not been invited since their last visit in the last
+two weeks, from here or by the automatic invitation to come again (joop/followups.py); for each, a drafted message
+with the two nearest free times, preferring the specialist they last saw. The owner sends one at a time or all at
+once; WhatsApp and Instagram customers outside the 24-hour window are listed as calls, with the phone, because no
+message can reach them. Nothing goes out without a click. The Altegio marketplace's free "who to invite" app only
+prints the list; Joop also sends.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .followups import _kyrgyz, _service_for, can_write, deliver_to_chat
+from .followups import _kyrgyz, _service_for, can_write, deliver_to_chat, invited_lately
 from .models import Booking, Business, Conversation, Service, Slot, Staff
 from . import samples
 from .slots import free_slots, lead_for
@@ -33,7 +34,6 @@ if TYPE_CHECKING:
 DAYS = 7
 ABSENT_DAYS = 30  # a regular not seen this long is worth a message even without a service interval
 MIN_VISITS = 2  # ...if they came at least twice
-QUIET_DAYS = 14  # one invitation, then leave them alone for two weeks
 LIMIT = 30
 _DIGITS = re.compile(r"\D")
 
@@ -121,7 +121,10 @@ def candidates(session: Session, business: Business, now_local: datetime) -> lis
         conv = session.get(Conversation, last.conversation_id)
         if conv is None or is_test(conv) or conv.silenced:
             continue
-        if conv.invited_at and now_utc - conv.invited_at < timedelta(days=QUIET_DAYS):
+        # One invitation since their last visit, then two weeks of quiet: this page's own, or the automatic one to
+        # come again (joop/followups.py). An invitation they answered with a visit is not counted.
+        visit_utc = local_to_utc(last.start, business.timezone)
+        if invited_lately(conv.invited_at, visit_utc, now_utc) or any(invited_lately(b.return_sent_at, visit_utc, now_utc) for b in rows):
             continue
         service = _service_for([s for s in services if s.repeat_days > 0], last)
         days_ago = (today - last.start.date()).days
