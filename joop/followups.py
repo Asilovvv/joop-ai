@@ -21,7 +21,7 @@ from .channels.telegram import is_personal
 from .lang import chat_is_kyrgyz, is_kyrgyz_message
 from .models import Booking, Business, Conversation, Lead, Message, Service
 from .stats import not_test
-from .timeutil import fmt_slot, utc_to_local
+from .timeutil import fmt_slot, local_to_utc, utc_to_local
 
 if TYPE_CHECKING:
     from .runtime import Runtime
@@ -215,15 +215,26 @@ def _came_back(bookings: list[Booking], b: Booking) -> bool:
     return any(other.id != b.id and other.start > b.start and _same_customer(other, b) for other in bookings)
 
 
-def _invited_lately(session: Session, bookings: list[Booking], b: Booking, now_utc: datetime) -> bool:
-    """This customer was invited to come again in the last QUIET_DAYS: by the owner from «Пустые окна», or by this job
-    for another service of the same visit. Two invitations within days read as pestering, not care."""
-    quiet = timedelta(days=QUIET_DAYS)
-    conv = session.get(Conversation, b.conversation_id) if b.conversation_id else None
-    if conv is not None and conv.invited_at is not None and now_utc - conv.invited_at < quiet:
+def invited_lately(at: datetime | None, visit_utc: datetime, now_utc: datetime) -> bool:
+    """An invitation to come again went out at `at`: after the customer's last visit and within the last QUIET_DAYS.
+
+    One before that visit was answered by it, and is no reason for quiet: with a service every week the next
+    invitation is due eight days after the last one."""
+    return at is not None and at > visit_utc and now_utc - at < timedelta(days=QUIET_DAYS)
+
+
+def _invited_lately(session: Session, business: Business, bookings: list[Booking], b: Booking, now_utc: datetime) -> bool:
+    """Since this visit the customer has an invitation already: the owner's from «Пустые окна» (joop/gaps.py), or this
+    job's for another service of the same visit. Two within days read as pestering, not care."""
+    visit_utc = local_to_utc(b.start, business.timezone)
+    theirs = [other for other in bookings if other.id == b.id or _same_customer(other, b)]
+    if any(other.id != b.id and invited_lately(other.return_sent_at, visit_utc, now_utc) for other in theirs):
         return True
-    return any(other.id != b.id and other.return_sent_at is not None and now_utc - other.return_sent_at < quiet
-               and _same_customer(other, b) for other in bookings)
+    for conv_id in {other.conversation_id for other in theirs if other.conversation_id}:  # the same phone in two chats
+        conv = session.get(Conversation, conv_id)
+        if conv is not None and invited_lately(conv.invited_at, visit_utc, now_utc):
+            return True
+    return False
 
 
 def send_return_invites(session: Session, rt: "Runtime", business: Business, now_utc: datetime) -> dict[str, int]:
@@ -252,7 +263,7 @@ def send_return_invites(session: Session, rt: "Runtime", business: Business, now
             b.return_status = "off"  # not written to, and staff are not asked to call them instead
             session.add(b)
             continue
-        if _invited_lately(session, all_bookings, b, now_utc):
+        if _invited_lately(session, business, all_bookings, b, now_utc):
             continue  # it waits; its days run out sooner than the quiet does, so as a rule this invitation is never sent
         days = (today - b.start.date()).days
         ok = _deliver(session, rt, business, b, return_text(business, service, days, _kyrgyz(session, b.conversation_id)), now_utc)

@@ -7,7 +7,7 @@ from datetime import timedelta
 
 from fastapi.testclient import TestClient
 
-from joop import db, gaps
+from joop import db, followups, gaps
 from joop.models import Booking, Business, Conversation
 from joop.scheduler import run_due_jobs
 from joop.timeutil import utc_to_local
@@ -51,7 +51,7 @@ def test_free_slots_do_not_offer_whom_the_automatic_invitation_just_reached(busi
     assert offered(business.id, LOCAL + timedelta(days=13)) == []
     with db.new_session() as s:  # two weeks on, the customer has still not come: worth another word
         b = s.get(Booking, booking)
-        b.return_sent_at = DAY_UTC - timedelta(days=gaps.QUIET_DAYS, hours=1)
+        b.return_sent_at = DAY_UTC - timedelta(days=followups.QUIET_DAYS, hours=1)
         s.add(b)
         s.commit()
     assert offered(business.id) == [conv]
@@ -68,7 +68,7 @@ def test_the_automatic_invitation_waits_after_one_from_free_slots(business, rt):
         cand = next(c for c in gaps.candidates(s, b, LOCAL) if c.conversation_id == conv)
         assert gaps.send(s, rt, b, cand, DAY_UTC - timedelta(days=3))  # the owner, three days ago
         was = s.get(Conversation, old)
-        was.invited_at = DAY_UTC - timedelta(days=gaps.QUIET_DAYS + 1)  # and this one over two weeks ago
+        was.invited_at = DAY_UTC - timedelta(days=followups.QUIET_DAYS + 1)  # and this one over two weeks ago
         s.add(was)
         s.commit()
     assert jobs(business.id, rt) == {"sent": 2, "manual": 0}
@@ -95,6 +95,29 @@ def test_two_services_of_one_visit_are_one_invitation(business, rt):
     assert jobs(business.id, rt) == {"sent": 1, "manual": 0}
     assert len(invited(rt)) == 1
     assert jobs(business.id, rt, DAY_UTC + timedelta(days=1)) == {"sent": 0, "manual": 0} and len(invited(rt)) == 1
+
+
+def test_an_invitation_answered_with_a_visit_does_not_silence_the_next(business, rt):
+    """A service every week: the invitation after one visit brought the customer back. The quiet is for a customer who
+    has not come; here the next visit is its own occasion, eight days after the last invitation."""
+    _interval(business.id, CLEANING, 7)
+    enable(business.id, return_invites=True, reminder_hour=15)
+    first, conv = visit(business.id, LOCAL - timedelta(days=15), chat="801", phone="0555 801 801")
+    _, by_owner = visit(business.id, LOCAL - timedelta(days=15), chat="802", phone="0555 802 802")
+    with db.new_session() as s:
+        old = s.get(Booking, first)
+        old.return_status, old.return_sent_at = "sent", DAY_UTC - timedelta(days=8)  # invited; they came the next day
+        s.add(old)
+        owner = s.get(Conversation, by_owner)
+        owner.invited_at = DAY_UTC - timedelta(days=8)  # this one the owner invited from «Пустые окна»; they came too
+        s.add(owner)
+        for conv_id, chat, phone in ((conv, "801", "0555 801 801"), (by_owner, "802", "0555 802 802")):
+            s.add(Booking(business_id=business.id, conversation_id=conv_id, start=LOCAL - timedelta(days=7), service=CLEANING,
+                          staff_name="Доктор", customer_name="Айбек", customer_phone=phone, channel="telegram", chat_id=chat))
+        s.commit()
+    assert sorted(offered(business.id)) == sorted([conv, by_owner])  # due again: neither invitation hides them now
+    assert jobs(business.id, rt) == {"sent": 2, "manual": 0}
+    assert sorted(invited(rt)) == ["801", "802"]
 
 
 def test_the_panel_says_so(business, rt, settings):

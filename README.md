@@ -421,8 +421,9 @@ WhatsApp message fees for reminders.
   the payback in days at the current price and the ratio to a salary. Arithmetic in the page, nothing sent.
 - **Empty slots** (`/panel/gaps`, "Пустые окна"): free times for the week ahead and the regulars to invite into
   them — the service's repeat interval has passed, or a customer with two or more visits has not been seen for
-  a month — with no upcoming booking, no opt-out and no invitation in the last two weeks, from this page or the
-  automatic one (the two keep each other's quiet: one invitation to come again, then two weeks). For each, a drafted
+  a month — with no upcoming booking, no opt-out and no invitation since their last visit in the last two weeks,
+  from this page or the automatic one (one invitation to come again, then two weeks of quiet, whoever sent it).
+  For each, a drafted
   message with the two nearest free times, preferring the specialist they last saw; one click sends it, or all
   at once; WhatsApp and Instagram customers outside the 24-hour window are listed as calls with the phone. The
   Monday report counts invitations and the bookings that followed.
@@ -490,7 +491,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 1101 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 1102 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
