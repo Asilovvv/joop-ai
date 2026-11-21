@@ -34,12 +34,14 @@ void main() {
     expect(find.text('Вручную'), findsNothing);
   });
 
-  testWidgets('a page booking without a chat says the reminder is by hand; tied to Telegram it does not', (tester) async {
+  testWidgets('a booking without a chat says the reminder is by hand; one with a chat does not', (tester) async {
     await _show(tester, _booking(source: 'page'));
     expect(find.text('напомнить вручную'), findsOneWidget);
     await _show(tester, _booking(source: 'page', channel: 'telegram'));
     expect(find.text('напомнить вручную'), findsNothing);
-    await _show(tester, _booking(source: 'staff'));
+    await _show(tester, _booking(source: 'staff')); // entered from a call: the server says «напомните вручную» too
+    expect(find.text('напомнить вручную'), findsOneWidget);
+    await _show(tester, _booking(source: 'ai', channel: 'whatsapp'));
     expect(find.text('напомнить вручную'), findsNothing);
   });
 

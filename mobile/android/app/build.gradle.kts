@@ -20,6 +20,10 @@ val keyProperties = Properties().apply {
 fun signing(property: String, variable: String): String? =
     (keyProperties.getProperty(property) ?: System.getenv(variable))?.trim()?.takeIf { it.isNotEmpty() }
 
+// Passwords exactly as given, spaces included: deploy/app_release.py checks them with keytool the same way.
+fun password(property: String, variable: String): String? =
+    (keyProperties.getProperty(property) ?: System.getenv(variable))?.takeIf { it.isNotEmpty() }
+
 val releaseKeystore = signing("storeFile", "ANDROID_KEYSTORE_PATH")
 
 android {
@@ -47,10 +51,10 @@ android {
         releaseKeystore?.let { keystore ->
             create("release") {
                 storeFile = file(keystore)
-                storePassword = signing("storePassword", "ANDROID_KEYSTORE_PASSWORD")
+                storePassword = password("storePassword", "ANDROID_KEYSTORE_PASSWORD")
                 keyAlias = signing("keyAlias", "ANDROID_KEY_ALIAS") ?: "joop"  // the name the guide gives the key
                 // A keystore made since Java 9 has one password for the file and the key.
-                keyPassword = signing("keyPassword", "ANDROID_KEY_PASSWORD") ?: storePassword
+                keyPassword = password("keyPassword", "ANDROID_KEY_PASSWORD") ?: storePassword
             }
         }
     }

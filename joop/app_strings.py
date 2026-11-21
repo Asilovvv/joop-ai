@@ -38,8 +38,10 @@ def _literals(text: str, offset: int = 0) -> list[tuple[int, str]]:
             start, j, value = i, i + 1, []
             while j < len(text) and text[j] != ch:
                 if text.startswith("${", j):  # an interpolation, which may hold strings of its own: shown as {…}
-                    j = _closing(text, j + 2)
-                    value.append("{…}")
+                    end = _closing(text, j + 2)
+                    inner = [t for _, t in _literals(text[j + 2:end - 1]) if CYRILLIC.search(t)]
+                    value.append("{" + (" / ".join(inner) or "…") + "}")  # «{диалог / диалога / диалогов} с клиентами»
+                    j = end
                     continue
                 if text[j] == "\\" and j + 1 < len(text):
                     value.append({"n": "\n", "t": "\t"}.get(text[j + 1], text[j + 1]))

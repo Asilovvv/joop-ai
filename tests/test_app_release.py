@@ -304,3 +304,20 @@ def test_every_change_to_the_app_tries_the_signing_path():
     assert "deploy/app_release.py" in workflow[True]["pull_request"]["paths"]  # PyYAML reads the key `on` as True
     runs = "\n".join(step["run"] for step in _steps(workflow["jobs"]["android"]))
     assert "keytool -genkeypair" in runs and "app_release.py keystore" in runs and "app_release.py signed" in runs
+
+
+@needs_keytool
+def test_a_key_password_a_pkcs12_keystore_ignores_is_refused(keystores, tmp_path, capsys):
+    """Review of #269: keytool ignores -keypass for the guide's keystore format, so a wrong ANDROID_KEY_PASSWORD
+    passed the check and the build failed ten minutes later."""
+    code, _, said = _run("keystore", _key_env(keystores, tmp_path, ANDROID_KEY_PASSWORD="stale-other-pass"), tmp_path, capsys)
+    assert code == 1 and "one password for the file and the key" in said and "stale-other-pass" not in said
+    same = _key_env(keystores, tmp_path, ANDROID_KEY_PASSWORD=PASSWORD)
+    assert _run("keystore", same, tmp_path, capsys)[0] == 0
+
+
+def test_gradle_takes_the_passwords_as_keytool_does():
+    gradle = (ROOT / "mobile" / "android" / "app" / "build.gradle.kts").read_text(encoding="utf-8")
+    assert 'storePassword = password("storePassword"' in gradle and 'keyPassword = password("keyPassword"' in gradle
+    body = gradle.split("fun password(", 1)[1].split("\n\n", 1)[0]
+    assert "trim" not in body
