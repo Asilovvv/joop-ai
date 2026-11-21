@@ -103,6 +103,13 @@
 
 <section class="card stack" id="meta">
   <h2>WhatsApp и Instagram Direct</h2>
+  {% if ig_login_ready %}
+  <form method="post" action="/panel/channels/instagram" class="row-tail">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <p class="small muted">{% if business.ig_account_id and business.ig_access_token %}Instagram подключён{% if business.ig_username %}: @{{ business.ig_username }}{% endif %}. Чтобы сменить аккаунт, подключите другой.{% else %}Войдите в Instagram бизнеса и разрешите Joop отвечать в Директ. Аккаунт должен быть профессиональным (бизнес или автор).{% endif %}</p>
+    <button class="btn" type="submit">{{ 'Подключить другой аккаунт' if business.ig_account_id and business.ig_access_token else 'Подключить Instagram' }}</button>
+  </form>
+  {% endif %}
   {% if meta_ready or business.wa_phone_number_id or business.ig_account_id %}
   <form method="post" action="/panel/channels" class="stack">
     <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -135,7 +142,7 @@
     <div><button class="btn" type="submit">Сохранить WhatsApp и Instagram</button></div>
   </form>
   {% else %}
-  <p class="small muted">WhatsApp и Instagram Direct подключает команда Joop: для них Meta сначала проверяет приложение.
+  <p class="small muted">{{ 'WhatsApp' if ig_login_ready else 'WhatsApp и Instagram Direct' }} подключает команда Joop: Meta сначала проверяет приложение.
     Напишите нам, если хотите их подключить. Пока поставьте ссылку на чат (выше) в описание Instagram и отправляйте её
     клиентам в WhatsApp — по ней ИИ отвечает сразу.</p>
   {% endif %}
