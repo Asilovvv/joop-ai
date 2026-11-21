@@ -183,6 +183,9 @@ class Conversation(SQLModel, table=True):
     reviewed_at: Optional[NaiveDatetime] = None  # a person first opened this dialogue in the panel (joop/retention.py)
     followup_at: Optional[NaiveDatetime] = None  # the one follow-up to a customer who asked and went quiet (joop/unfinished.py)
     invited_at: Optional[NaiveDatetime] = None  # last invitation into an empty slot sent from «Пустые окна» (joop/gaps.py)
+    # the business last wrote first with what the customer did not ask for and may refuse: a rating request, an invitation,
+    # the one follow-up, «снова в наличии». A bare «стоп» as their next word unsubscribes (joop/broadcasts.py: opt_change)
+    unasked_at: Optional[NaiveDatetime] = None
     blocked_at: Optional[NaiveDatetime] = None  # staff put this chat on the block list: no AI, no staff notes, nothing Joop starts (followups.deliver_to_chat)
     blocked_by: str = ""
     # the owner or staff wrote to their own bot (from the alerts chat, or via the panel's «Написать боту» link):

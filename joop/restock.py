@@ -102,9 +102,11 @@ def notify_back(session: Session, rt: "Runtime", business: Business, now_utc: da
         if conv.channel in (TEST_CHANNEL, "web"):
             session.add(Message(business_id=business.id, conversation_id=conv.id,
                                 role="ai" if conv.channel == TEST_CHANNEL else "staff", text=text, created_at=now_utc))
+            conv.unasked_at = now_utc  # «стоп» as the next word works here as in a messenger (followups.deliver_to_chat)
+            session.add(conv)
             ok = True
         else:
-            ok = deliver_to_chat(session, rt, business, conv, text, now_utc)
+            ok = deliver_to_chat(session, rt, business, conv, text, now_utc, unasked=True)
         watch.sent = ok
         sent, failed = sent + ok, failed + (not ok)
     return {k: v for k, v in {"sent": sent, "failed": failed, "expired": expired}.items() if v}

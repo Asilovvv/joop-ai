@@ -346,8 +346,11 @@ WhatsApp message fees for reminders.
   add a Kyrgyz version for customers who write in Kyrgyz. Channel rules hold: Telegram any time, WhatsApp
   and Instagram only within 24 hours of the customer's last message; web-chat visitors cannot be reached.
   Every message ends with "ответьте «стоп»"; "стоп" after a broadcast (or "отписаться" any time) turns
-  them off for that customer. At most one broadcast a day, sent in batches from 10:00 to 20:00; the
-  owner gets the result in Telegram.
+  them off for that customer, with everything else the business sends unasked: rating requests,
+  invitations, the follow-up, reorder reminders, back-in-stock notices. "стоп" also counts as the
+  customer's next word after any of those; in the middle of a booking it still means "wait". Reminders
+  of the customer's own booking stay. At most one broadcast a day, sent in batches from 10:00 to 20:00;
+  the owner gets the result in Telegram.
 - **Group classes** (packs with `features: [group_classes]`: fitness, training centres): a resource with
   "Мест в группе" = 12 gets slots that take up to 12 bookings; a claim takes one seat per person atomically
   (`claim_slot(slot, count)`), the slot closes when full, cancelling frees the same seats. The AI sees
@@ -485,7 +488,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 1067 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 1080 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

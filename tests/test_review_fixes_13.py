@@ -96,7 +96,7 @@ def test_no_reminder_after_a_cancelled_order_and_stop_only_after_a_delivered_one
         assert reorders.send_due(s, rt, s.get(Business, other.id), NOW_UTC + timedelta(days=14)) == {"sent": 0, "failed": 1}
         s.commit()
         conv = s.exec(select(Conversation).where(Conversation.business_id == other.id)).one()
-        assert broadcasts.opt_change(s, conv, "стоп") is None  # «стоп» here means «wait», not «unsubscribe»
+        assert broadcasts.opt_change(s, conv, "стоп", None) is None  # «стоп» here means «wait», not «unsubscribe»
 
 
 def test_mobile_cannot_book_the_example_person(settings, rt, engine):

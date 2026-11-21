@@ -217,6 +217,7 @@ def _handle_incoming(
     if incoming.kind == "media":
         stored = f"[{incoming.media_label or 'вложение'}]" + (f" {text}" if text else "")
     _add_message(session, business, conv, "customer", stored, now, off, incoming.external_id)
+    said_before = conv.last_customer_at  # «стоп» as the first word after what we sent unasked (broadcasts.opt_change)
     conv.last_customer_at = now
     if incoming.user_name and not conv.display_name:
         conv.display_name = incoming.user_name[:120]
@@ -227,7 +228,7 @@ def _handle_incoming(
             return handled
 
     # "стоп" after a broadcast: recorded even while staff answer by hand, so nobody gets the next one
-    opt = broadcasts.opt_change(session, conv, text) if incoming.kind in {"text", "command"} else None
+    opt = broadcasts.opt_change(session, conv, text, said_before) if incoming.kind in {"text", "command"} else None
     if opt is not None:
         conv.broadcast_opt_out = opt
         session.add(conv)
