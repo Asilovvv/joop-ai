@@ -29,6 +29,23 @@ class FakeJoop {
     },
   ];
 
+  /// The launch checklist's state, changed by the two setup calls.
+  bool botConnected = false;
+  bool pageOn = false;
+  final setupCalls = <Map>[];
+
+  Map<String, dynamic> setupJson([List<Map> notes = const []]) => {
+        'steps': [
+          {'key': 'services', 'done': true, 'title': 'Прайс', 'hint': 'Услуги и цены.', 'panel': 'https://joop.test/panel/services'},
+          {'key': 'telegram', 'done': botConnected, 'title': 'Telegram-бот', 'hint': 'Клиенты пишут боту.', 'panel': 'https://joop.test/panel/channels'},
+          {'key': 'hours', 'done': false, 'title': 'Часы работы', 'hint': 'Когда вы открыты.', 'panel': 'https://joop.test/panel/settings'},
+        ],
+        'telegram': {'connected': botConnected, 'username': botConnected ? 'aktish_bot' : ''},
+        'page_booking': {'available': true, 'on': pageOn, 'works': pageOn, 'why': pageOn ? '' : 'off',
+            'url': 'https://joop.test/m/aktish/book'},
+        if (notes.isNotEmpty) 'notes': notes,
+      };
+
   /// Bodies of POST /api/mobile/signup.
   final signups = <Map>[];
 
@@ -213,6 +230,20 @@ class FakeJoop {
     }
     if (request.headers['Authorization'] != 'Bearer $token') return json({'error': 'Войдите заново.'}, 401);
     if (path == '/api/mobile/me') return json(account);
+    if (path == '/api/mobile/setup') return json(setupJson());
+    if (path == '/api/mobile/setup/telegram') {
+      final body = jsonDecode(request.body) as Map;
+      setupCalls.add(body);
+      if (body['token'] != '123456:good-token') return json({'error': 'Telegram не принял токен. Скопируйте его из @BotFather целиком.'}, 422);
+      botConnected = true;
+      return json(setupJson([{'text': 'Бот @aktish_bot подключён.', 'ok': true}]));
+    }
+    if (path == '/api/mobile/setup/page-booking') {
+      final body = jsonDecode(request.body) as Map;
+      setupCalls.add(body);
+      pageOn = body['on'] as bool;
+      return json(setupJson());
+    }
     if (path == '/api/mobile/summary') {
       final active = bookings.where((b) => b['status'] == 'booked').toList();
       int on(String day) => active.where((b) => (b['start_local'] as String).startsWith(day)).length;

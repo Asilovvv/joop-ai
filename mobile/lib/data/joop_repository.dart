@@ -71,6 +71,14 @@ class JoopRepository {
     return (Account.fromJson(data), '${_api.baseUrl}${data['setup_path'] ?? '/panel/setup'}');
   }
 
+  Future<SetupInfo> setup() async => SetupInfo.fromJson(await _api.get('/api/mobile/setup') as Map<String, dynamic>);
+
+  Future<SetupInfo> connectTelegram(String token) async =>
+      SetupInfo.fromJson(await _api.post('/api/mobile/setup/telegram', {'token': token}) as Map<String, dynamic>);
+
+  Future<SetupInfo> setPageBooking(bool on) async =>
+      SetupInfo.fromJson(await _api.post('/api/mobile/setup/page-booking', {'on': on}) as Map<String, dynamic>);
+
   Future<void> logout() async {
     _api.token = null;
     final prefs = await SharedPreferences.getInstance();
