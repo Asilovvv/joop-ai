@@ -21,6 +21,7 @@ from sqlmodel import Session, select
 
 from .agent.engine import takeover_pause
 from . import funnel
+from .channels.base import CHANNEL_NAMES
 from .channels.telegram import is_personal
 from .db import free
 from .followups import can_write
@@ -31,7 +32,6 @@ if TYPE_CHECKING:
 
 MAX_TEXT = 2000
 WEB_KEEP = timedelta(days=7)  # staff replies a web chat page still shows to a returning visitor
-CHANNEL_NAMES = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram"}
 
 
 def blocked(conv: Conversation, now_utc: datetime) -> str:

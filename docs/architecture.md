@@ -110,7 +110,14 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
    keeps its channel message id, and a repeated id is dropped before any work is done. One chat's
    messages take turns (`engine.chat_turn`, a lock in memory: one process serves everything), so a
    delivery repeated moments later finds the first already stored, and a second message sent in a row
-   is answered with the first reply in its history.
+   is answered with the first reply in its history. A message that arrives while its chat is being
+   answered does not wait in a thread: it goes to the chat's queue in memory and the thread that is
+   answering takes it next (`dispatch.process_incoming`). One chat uses one of the server's 40
+   threads however many messages it sends. Measured with 80 messages sent to one chat and a 1-second
+   model call: before, the login page did not open for 30 seconds and another customer got no answer
+   in that time; after, the page opens in 0.03 s and the other customer is answered in 1.2 s. More
+   than 50 waiting in one chat are not read and staff are told once; a message in work for over five
+   minutes no longer holds its chat.
 5. **No model call inside a database transaction.** SQLite lets one connection write at a time, from
    its first write to commit. The engine commits before each model call (`db.free`),
    so a slow answer to one customer never stops another business's customers, the panel or the
@@ -141,7 +148,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/agent/llm.py` | Claude client, response schema per niche, tolerant JSON parsing |
 | `joop/agent/openai_compat.py` | Second model provider: any OpenAI-compatible API (development and evaluation; docs/model-providers.md) |
 | `joop/agent/engine.py` | One message in: commands, media, pause, model call, checks of every booking, order and lead, language and confirmation guards |
-| `joop/dispatch.py` | Takes the chat's turn (before a voice message is recognised, until the reply is sent), runs the engine in a DB session, then sends staff notes and waiting-list offers outside the turn |
+| `joop/dispatch.py` | Keeps one thread per chat (a queue in memory for messages that arrive while the chat is being answered), takes the chat's turn (before a voice message is recognised, until the reply is sent), runs the engine in a DB session, then sends staff notes and waiting-list offers outside the turn |
 | `joop/channels/` | Telegram, WhatsApp and Instagram parsing and send clients; Telegram polling |
 | `joop/lang.py`, `joop/kyrgyz.py` | Kyrgyz/Russian heuristics; Kyrgyz drafts of service names and FAQ |
 | `joop/ky_phrases.py` | Every fixed Kyrgyz phrase in the code with its Russian twin, for a native speaker: `python -m joop ky-phrases --csv`, `/owner/kyrgyz` |
@@ -203,6 +210,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 1061 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 1068 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |

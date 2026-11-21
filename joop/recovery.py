@@ -28,6 +28,7 @@ from sqlmodel import Session, select
 from .agent.engine import ERROR_REPLY, _model_reply, chat_turn
 from .db import free
 from .billing import access_ok
+from .channels.base import CHANNEL_NAMES
 from .dispatch import after_reply, notify_admins, send_reply
 from .models import Business, Conversation, Lead, Message
 from .pilot import LATE as CLOSED_BY  # how the panel shows who closed the request
@@ -40,7 +41,6 @@ log = logging.getLogger(__name__)
 RECOVERY_WINDOW = timedelta(hours=12)
 RETRY_EVERY = timedelta(minutes=5)
 CHANNELS = ("telegram", "whatsapp", "instagram")
-CHANNEL_NAMES = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram"}
 PER_TICK = 20  # answers per business per tick; the rest wait for the next tick
 
 _lock = threading.Lock()

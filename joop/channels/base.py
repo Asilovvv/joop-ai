@@ -20,6 +20,8 @@ class IncomingMessage:
     staff_test: bool = False  # the owner or staff writing as a customer, e.g. the web chat opened while logged in to the panel
 
 
+CHANNEL_NAMES = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram"}  # in notes to staff
+
 MAX_MEDIA_BYTES = 10 * 1024 * 1024  # larger voice files are not downloaded: staff answer them by hand
 
 

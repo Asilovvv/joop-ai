@@ -191,7 +191,7 @@ def test_the_second_message_of_a_chat_reads_the_first_reply(business, settings):
     outcomes = _together(rt, business.id, [
         IncomingMessage("telegram", "500", "text", "Сколько стоит чистка?", "Айбек", "tg:500:1"),
         IncomingMessage("telegram", "500", "text", "А завтра есть время?", "Айбек", "tg:500:2")])
-    assert [o.reply for o in outcomes] == ["Чистка — 2 500 сом.", "Завтра свободно в 10:00."]
+    assert outcomes[0].reply == "Чистка — 2 500 сом." and outcomes[1].skipped == "queued"  # left to the first one's thread
     assert llm.calls[1]["messages"] == [
         {"role": "user", "content": "Сколько стоит чистка?"},
         {"role": "assistant", "content": "Чистка — 2 500 сом."},
@@ -205,7 +205,7 @@ def test_a_repeated_delivery_gets_one_answer(business, settings):
     rt = FakeRuntime(settings, llm)
     same = IncomingMessage("telegram", "501", "text", "Сколько стоит чистка?", "Айбек", "tg:501:7")
     outcomes = _together(rt, business.id, [same, same, same], gap=0.05)
-    assert sorted(o.skipped for o in outcomes) == ["", "duplicate", "duplicate"]
+    assert sorted(o.skipped for o in outcomes) == ["", "queued", "queued"]  # the repeats wait, then are dropped as seen
     assert len(llm.calls) == 1 and len(rt.tg.sent) == 1
     with db.new_session() as s:
         assert len(s.exec(select(Message).where(Message.business_id == business.id, Message.role == "customer")).all()) == 1
