@@ -179,7 +179,10 @@ class Remote:
 
 
 def fetch(business: Business, client: AltegioClient, now_utc: datetime, days: int = SYNC_DAYS,
-          with_slots: bool = True) -> Remote:
+          with_slots: bool = True, read_at: dict[str, datetime | None] | None = None) -> Remote:
+    """`read_at`: when each person's times were last read; those never or longest ago are asked first. A person whose
+    days do not all fit in what is left of MAX_CALLS is not asked at all: half a week of times would read as the
+    other days being taken, and those free times would stop being offered."""
     loc = business.altegio_location_id
     services = client.services(loc)
     staff = client.staff(loc)
@@ -188,21 +191,28 @@ def fetch(business: Business, client: AltegioClient, now_utc: datetime, days: in
         return remote
     now_local = utc_to_local(now_utc, business.timezone)
     last_day = now_local.date() + timedelta(days=days)
-    for item in staff:
-        ext = str(item.get("id") or "")
-        if not ext or not item.get("name") or not bool(item.get("bookable", True)):
-            continue
+    read_at = read_at or {}
+    people = [item for item in staff
+              if str(item.get("id") or "") and item.get("name") and bool(item.get("bookable", True))]
+    people.sort(key=lambda item: read_at.get(str(item["id"])) or datetime.min)  # stable: Altegio's order among equals
+    for item in people:
+        ext = str(item["id"])
         if client.calls >= MAX_CALLS:
-            log.warning("Altegio sync for %s stopped at %s calls", business.slug, client.calls)
+            log.info("Altegio sync for %s stopped at %s calls; the rest next time", business.slug, client.calls)
             break
-        wanted: dict[datetime, int] = {}
+        open_days = []
         for day in client.dates(loc, int(ext)):
             try:
                 d = date.fromisoformat(day[:10])
             except ValueError:
                 continue
-            if not now_local.date() <= d <= last_day or client.calls >= MAX_CALLS:
-                continue
+            if now_local.date() <= d <= last_day:
+                open_days.append(d)
+        if client.calls + len(open_days) > MAX_CALLS:
+            log.info("Altegio sync for %s: no room for %s's %s days; next time", business.slug, ext, len(open_days))
+            break
+        wanted: dict[datetime, int] = {}
+        for d in open_days:
             for t in client.times(loc, int(ext), d.isoformat()):
                 start = _local(t.get("datetime") or "", business.timezone)
                 if start is not None and start > now_local:
@@ -219,7 +229,10 @@ def sync(session: Session, business: Business, client: AltegioClient, now_utc: d
     The price list and the team come from Altegio only: entries typed in Joop before (the niche's sample data)
     are switched off, so the AI never offers a service or a specialist the salon's system does not know.
     Altegio is asked everything first (fetch), then the database is written in one go."""
-    remote = fetch(business, client, now_utc, days, with_slots)
+    with session.no_autoflush:  # a read: pending changes (the panel's new ID and key) are not written before Altegio
+        read_at = {p.external_id: p.altegio_times_at for p in session.exec(select(Staff).where(
+            Staff.business_id == business.id, Staff.external_id != "")).all()}
+    remote = fetch(business, client, now_utc, days, with_slots, read_at)
     res = SyncResult()
 
     current = {s.external_id: s for s in session.exec(select(Service).where(
@@ -281,6 +294,8 @@ def sync(session: Session, business: Business, client: AltegioClient, now_utc: d
             continue  # the call budget ran out before this person: their times stay as they were
         added, removed, released = _reconcile(session, business, member, remote.times[member.external_id], now_local,
                                               last_day, now_utc)
+        member.altegio_times_at = now_utc
+        session.add(member)
         res.slots_added += added
         res.slots_removed += removed
         res.released += released

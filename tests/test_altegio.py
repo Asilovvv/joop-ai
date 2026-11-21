@@ -38,6 +38,7 @@ class FakeAltegio:
             {"id": 8, "name": "Нурия", "bookable": False, "specialization": "стилист"},
         ]
         self.times = {7: [f"{self.day}T10:00:00+06:00", f"{self.day}T12:00:00+06:00"]}
+        self.dates: list[str] = []  # days with free times; [] = tomorrow only
         self.check_status, self.check_body = 201, None
         self.record_status = 201
         self.calls: list[tuple[str, str, dict | None, dict]] = []
@@ -55,7 +56,8 @@ class FakeAltegio:
         if path == f"book_staff/{LOC}":
             return ok(self.staff)
         if path == f"book_dates/{LOC}":
-            return ok({"booking_dates": [self.day], "booking_days": {}, "working_dates": [self.day]})
+            days = self.dates or [self.day]
+            return ok({"booking_dates": days, "booking_days": {}, "working_dates": days})
         m = re.fullmatch(rf"book_times/{LOC}/(\d+)/([\d-]+)", path)
         if m:
             return ok([{"time": t[11:16], "seance_length": 3600, "datetime": t} for t in self.times.get(int(m.group(1)), [])])
@@ -339,3 +341,34 @@ def test_a_sync_in_the_middle_of_a_booking_does_not_offer_the_time_again(busines
         s.commit()
     assert res.released == 1
 
+
+
+def test_a_large_salon_gets_every_persons_times_within_two_syncs(business, fake):
+    """One sync reads at most MAX_CALLS (120): a salon with 20 people open all week had the last 7 never read, and the
+    13th was read for half the week only — the other days' free times stopped being offered."""
+    local = utc_to_local(NOW_UTC, business.timezone)
+    days = [(local.date() + timedelta(days=i)).isoformat() for i in range(1, 9)]  # 8 open days: 1 + 8 calls a person
+    fake.dates = days
+    fake.staff = [{"id": 100 + i, "name": f"Мастер {i}", "bookable": True} for i in range(20)]
+    fake.times = {100 + i: [f"{d}T10:00:00+06:00" for d in days[:7]] for i in range(20)}
+
+    def free_days():
+        with db.new_session() as s:
+            rows = s.exec(select(Slot, Staff).join(Staff, Slot.staff_id == Staff.id).where(
+                Slot.business_id == business.id, Slot.status == "free", Staff.external_id != "")).all()
+        out: dict[str, int] = {}
+        for _slot, member in rows:
+            out[member.name] = out.get(member.name, 0) + 1
+        return out
+
+    with db.new_session() as s:
+        altegio.sync(s, s.get(Business, business.id), make_client(fake), NOW_UTC)
+        s.commit()
+    first = free_days()
+    assert len(fake.calls) <= altegio.MAX_CALLS
+    assert 10 <= len(first) < 20 and set(first.values()) == {7}  # nobody read for part of the week
+    with db.new_session() as s:
+        altegio.sync(s, s.get(Business, business.id), make_client(fake), NOW_UTC + timedelta(minutes=10))
+        s.commit()
+    second = free_days()
+    assert len(second) == 20 and set(second.values()) == {7}  # the rest first, on the very next sync
