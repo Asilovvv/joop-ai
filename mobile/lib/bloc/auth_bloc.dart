@@ -34,6 +34,16 @@ final class AuthLoginRequested extends AuthEvent {
   List<Object?> get props => [company, password, user, server];
 }
 
+/// A business just signed up in the app (the sign-up screen made the session itself).
+final class AuthSignedUp extends AuthEvent {
+  const AuthSignedUp(this.account);
+
+  final Account account;
+
+  @override
+  List<Object?> get props => [account];
+}
+
 final class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
 }
@@ -80,6 +90,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthStarted>(_onStarted);
     on<AuthLoginRequested>(_onLogin);
     on<AuthLogoutRequested>(_onLogout);
+    on<AuthSignedUp>((event, emit) => emit(AuthSignedIn(event.account)));
   }
 
   final JoopRepository _repository;

@@ -72,6 +72,7 @@ void main() {
     await tester.pumpWidget(JoopApp(repository: server.repository(), customers: server.customers(), today: DateTime(2026, 11, 13)));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.byKey(const Key('customer')));
     await tester.tap(find.byKey(const Key('customer')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('place-code')), 'aktish');

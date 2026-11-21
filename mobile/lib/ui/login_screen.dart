@@ -6,6 +6,7 @@ import '../core/strings.dart';
 import '../data/joop_repository.dart';
 import 'customer_home_screen.dart';
 import 'language_button.dart';
+import 'signup_screen.dart';
 import 'theme.dart';
 
 /// Sign-in with the panel's credentials.
@@ -149,6 +150,19 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      key: const Key('signup'),
+                      onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => SignupScreen(server: _showServer ? _server.text : null))),
+                      icon: const Icon(Icons.add_business_outlined),
+                      label: Text(S.current.signUp),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white54),
+                        minimumSize: const Size.fromHeight(52),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     OutlinedButton.icon(
                       key: const Key('customer'),
                       onPressed: () => Navigator.of(context)

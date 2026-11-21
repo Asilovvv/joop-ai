@@ -168,6 +168,12 @@ def _checked(env, run, path: str) -> dict[str, str]:
                        "ANDROID_KEY_ALIAS.")
         raise Stop(f"The secret ANDROID_KEYSTORE_BASE64 is not a keystore Java can open ({_first_error(report)}). "
                    f"Copy the file again: {GUIDE}.")
+    key_password = env.get("ANDROID_KEY_PASSWORD", "")
+    if key_password and key_password != store and "Keystore type: PKCS12" in _keytool(run, child, "-list", *opened)[1]:
+        # keytool ignores a key password for these (the guide's format, Java 9+), so the check below would pass and
+        # the build fail ten minutes later: here the key's password is always the keystore's.
+        raise Stop("This keystore has one password for the file and the key: delete the secret ANDROID_KEY_PASSWORD, "
+                   "or set it to the same value as ANDROID_KEYSTORE_PASSWORD.")
     if "Entry type: PrivateKeyEntry" not in report:
         raise Stop(f"«{alias}» in the keystore is a certificate without its private key: an app cannot be signed with it.")
     found = KEYSTORE_SHA256.search(report)

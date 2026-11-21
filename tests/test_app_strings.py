@@ -9,8 +9,8 @@ from joop import app_strings, ky_phrases
 
 
 def test_the_snapshot_matches_the_apps_texts():
-    now = {(ky, ru) for _, ky, ru in app_strings.pairs(app_strings.DART.read_text(encoding="utf-8"))}
-    kept = {(row["ky"], row["ru"]) for row in json.loads(app_strings.SNAPSHOT.read_text(encoding="utf-8"))}
+    now = [{"line": n, "ky": ky, "ru": ru} for n, ky, ru in app_strings.pairs(app_strings.DART.read_text(encoding="utf-8"))]
+    kept = json.loads(app_strings.SNAPSHOT.read_text(encoding="utf-8"))  # lines too: the list says where each text is
     assert kept == now, "the app's texts changed: run  python -m joop.app_strings  and commit joop/app_ky_strings.json"
 
 
@@ -24,6 +24,8 @@ def test_texts_are_paired_with_their_russian_twin():
     months = next(ky for ky in rows if ky.startswith("январь"))
     assert months.endswith("декабрь") and months.count(",") == 11  # one line, not twelve
     assert not any("'" in ky and "Altegio" not in ky for ky in rows)  # interpolations are {…}, never cut strings
+    assert rows["адамдарга берилген суроо"] == "{вопрос передан / вопроса передано / вопросов передано} людям"
+    assert any("залдарды" in ky for ky in rows)  # words inside ${…} reach the speaker too
 
 
 def test_the_dart_reader_on_its_own():
@@ -44,7 +46,7 @@ String _ruB(int n) => '${n > 1 ? 'много' : 'один'} раз';
 String _kyB(int n) => '$n жолу';
 /// next
 """
-    assert app_strings.pairs(source) == [(8, "Бир", "Один"), (15, "$n жолу", "{…} раз"), (10, "Узун текст", "Длинный текст")]
+    assert app_strings.pairs(source) == [(8, "Бир", "Один"), (15, "$n жолу", "{много / один} раз"), (10, "Узун текст", "Длинный текст")]
 
 
 def test_the_list_for_the_speaker_has_the_app(phrases=None):

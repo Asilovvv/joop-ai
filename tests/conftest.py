@@ -190,6 +190,9 @@ def fresh_counters():
     web_app._daily.clear()
     web_audit._lead_by_ip.clear()
     booking_page.reset_limits()
+    from joop.web import mobile as web_mobile
+
+    web_mobile._signups.clear()
     agent_engine._admin_misses.clear()
     from joop import altegio, health
 

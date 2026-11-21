@@ -27,14 +27,16 @@ from ..reschedule import blocked as move_blocked, reschedule
 from ..api import booking_json, customer_json, lead_json, order_json
 from ..db import free, new_session
 from ..models import Booking, Business, Conversation, Lead, Message, Order, PanelUser, Service, Slot, Staff, Stay
-from ..niches import get_pack
+from ..niches import get_pack, picker_packs
 from ..phone import normalize_phone
 from ..samples import example_staff_ids
 from ..security import verify_password
+from ..signup import Refused, register
 from ..slots import CLOSED, claim_slot, free_on_day, release_slot, seats_left, seats_needed
 from ..stats import TEST_CHANNEL, activity, not_test, real_conversation, test_conversations
 from ..timeutil import local_now, utcnow
 from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
+from .saas import unique_slug
 
 router = APIRouter()
 
@@ -136,6 +138,51 @@ def mobile_login(request: Request, body: LoginIn):
         _login_fails.pop(f"{key}|{client_ip(request)}", None)
         token = _serializer(request).dumps({"b": business.id, "u": user.id if user else 0, "p": _fingerprint(business, user)})
         return {"token": token, **Who(business, user).json()}
+
+
+class SignupIn(BaseModel):
+    name: str
+    niche: str = "other"
+    phone: str
+    password: str
+    contact_name: str = ""
+
+
+SIGNUPS_PER_HOUR = 3  # from one address: a real owner signs up once; a script is stopped here
+_signups: dict[str, list[float]] = {}  # address -> times of sign-ups this hour; reset with the process
+
+
+@router.get("/api/mobile/niches")
+def mobile_niches(request: Request):
+    """What a business can be, as the sign-up form lists it (the site's /signup shows the same)."""
+    if not _settings(request).signup_enabled:
+        return _fail(404, "Регистрация закрыта.")
+    return {"niches": [{"key": key, "label": pack.label} for key, pack in picker_packs().items()],
+            "trial_days": _settings(request).trial_days}
+
+
+@router.post("/api/mobile/signup")
+def mobile_signup(request: Request, body: SignupIn):
+    """A business signs itself up from the app, as on the site (joop/signup.py), and is signed in at once."""
+    settings, now = _settings(request), time_module.time()
+    if not settings.signup_enabled:
+        return _fail(404, "Регистрация закрыта.")
+    address = client_ip(request)
+    recent = [t for t in _signups.get(address, []) if now - t < 3600]
+    if len(recent) >= SIGNUPS_PER_HOUR:
+        return _fail(429, "С этого адреса уже зарегистрировали несколько компаний. Попробуйте через час.")
+    with new_session() as s:
+        try:
+            business = register(s, slug=unique_slug(s, body.name), name=body.name, niche=body.niche, phone=body.phone,
+                                password=body.password, trial_days=settings.trial_days, now=utcnow(),
+                                contact_name=body.contact_name, source="signup-app")
+        except Refused as refused:
+            return _fail(422, str(refused))
+        s.commit()
+        s.refresh(business)
+        _signups[address] = recent + [now]
+        token = _serializer(request).dumps({"b": business.id, "u": 0, "p": _fingerprint(business, None)})
+        return {"token": token, **Who(business, None).json(), "setup_path": "/panel/setup"}
 
 
 @router.get("/api/mobile/me")
