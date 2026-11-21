@@ -104,7 +104,7 @@ class _DialogueState extends State<_Dialogue> {
                 child: ListView(
                   controller: _scroll,
                   padding: const EdgeInsets.all(12),
-                  children: [for (final m in dialogue.messages) _Bubble(message: m)],
+                  children: [for (final m in dialogue.messages) MessageBubble(message: m)],
                 ),
               ),
               if (dialogue.aiPaused && dialogue.aiPausedUntil != null)
@@ -202,8 +202,9 @@ String _until(DateTime until) {
   return today ? formatTime(until) : '${formatDay(until)}, ${formatTime(until)}';
 }
 
-class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message});
+/// One message of a dialogue: the customer on the left, the AI and staff on the right.
+class MessageBubble extends StatelessWidget {
+  const MessageBubble({super.key, required this.message});
 
   final DialogueMessage message;
 

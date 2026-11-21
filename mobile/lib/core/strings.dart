@@ -34,6 +34,12 @@ class S {
     required this.inPanel,
     required this.copy,
     required this.qrHint,
+    required this.tryTitle,
+    required this.newDialogue,
+    required this.tryHint,
+    required this.tryInputHint,
+    required this.openTry,
+    required this.testBookingsCancelled,
     required this.setupProgress,
     required this.trialNote,
     required this.signUpNext,
@@ -282,6 +288,12 @@ class S {
   final String inPanel;
   final String copy;
   final String qrHint;
+  final String tryTitle;
+  final String newDialogue;
+  final String tryHint;
+  final String tryInputHint;
+  final String openTry;
+  final String Function(int n) testBookingsCancelled;
   final String Function(int done, int total) setupProgress;
   final String signUp;
   final String signUpTitle;
@@ -563,6 +575,12 @@ class S {
     inPanel: 'В панели:',
     copy: 'Копировать',
     qrHint: 'QR-код этой страницы: покажите клиенту с экрана (нажмите, чтобы увеличить) или распечатайте на стойку.',
+    tryTitle: 'Тестовый чат',
+    newDialogue: 'Новый диалог',
+    tryHint: 'Напишите как клиент: по-русски и по-кыргызски, спросите цену, попробуйте записаться. Эти сообщения нигде не считаются.',
+    tryInputHint: 'Сообщение как от клиента',
+    openTry: 'Открыть тестовый чат',
+    testBookingsCancelled: _ruTestBookingsCancelled,
     setupProgress: _ruSetupProgress,
     signUp: 'Зарегистрировать компанию',
     signUpTitle: 'Новая компания',
@@ -821,6 +839,12 @@ class S {
     inPanel: 'Панелде:', // check with a native speaker
     copy: 'Көчүрүү', // check with a native speaker
     qrHint: 'Бул барактын QR-коду: кардарга экрандан көрсөтүңүз (чоңойтуу үчүн басыңыз) же басып чыгарып, стойкага коюңуз.', // check with a native speaker
+    tryTitle: 'Сынак чат', // check with a native speaker
+    newDialogue: 'Жаңы диалог', // check with a native speaker
+    tryHint: 'Кардар катары жазыңыз: орусча жана кыргызча, баасын сураңыз, жазылып көрүңүз. Бул билдирүүлөр эч жерде эсептелбейт.', // check with a native speaker
+    tryInputHint: 'Кардардын атынан билдирүү', // check with a native speaker
+    openTry: 'Сынак чатты ачуу', // check with a native speaker
+    testBookingsCancelled: _kyTestBookingsCancelled,
     setupProgress: _kySetupProgress,
     signUp: 'Компанияны каттоо', // check with a native speaker
     signUpTitle: 'Жаңы компания', // check with a native speaker
@@ -1226,3 +1250,6 @@ String _kySignUpNext(String login, String setup) => // check with a native speak
 
 String _ruSetupProgress(int done, int total) => 'Готово $done из $total';
 String _kySetupProgress(int done, int total) => '$total кадамдан $done даяр'; // check with a native speaker
+
+String _ruTestBookingsCancelled(int n) => 'Тестовые записи отменены, время снова свободно: $n.';
+String _kyTestBookingsCancelled(int n) => 'Сынак жазылуулар жокко чыгарылды, убакыт кайра бош: $n.'; // check with a native speaker

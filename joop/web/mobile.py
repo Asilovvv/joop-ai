@@ -32,11 +32,11 @@ from ..phone import normalize_phone
 from ..samples import example_staff_ids
 from ..security import verify_password
 from ..signup import Refused, register
-from .. import page_booking, telegram_setup
+from .. import page_booking, telegram_setup, try_chat
 from ..slots import CLOSED, claim_slot, free_on_day, release_slot, seats_left, seats_needed
 from ..stats import TEST_CHANNEL, activity, not_test, real_conversation, test_conversations
 from ..timeutil import local_now, utcnow
-from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
+from .app import _base_url, _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
 from .saas import checklist, unique_slug
 from .menu import qr_rows
 
@@ -264,6 +264,51 @@ def mobile_setup_page_booking(request: Request, body: PageBookingIn):
         s.commit()
         s.refresh(b)
         return _setup(s, request, b)
+
+
+# --- the test chat (the panel's «Тестовый чат», joop/try_chat.py): the owner writes as a customer, nothing counted ---
+
+
+class TryIn(BaseModel):
+    text: str
+
+
+def _try_messages(s: Session, b: Business) -> list[dict]:
+    return [{"id": m.id, "role": m.role, "text": m.text, "created_at": m.created_at.isoformat() + "Z", "author": m.author}
+            for m in try_chat.messages(s, b) if m.role in ("customer", "ai", "staff")]
+
+
+@router.get("/api/mobile/try")
+def mobile_try(request: Request):
+    with new_session() as s:
+        who, denied = _owner_only(s, request)
+        return denied or {"messages": _try_messages(s, who.business)}
+
+
+@router.post("/api/mobile/try")
+def mobile_try_send(request: Request, body: TryIn):
+    if not body.text.strip():
+        return _fail(422, "Напишите сообщение.")
+    with new_session() as s:
+        who, denied = _owner_only(s, request)
+        if denied:
+            return denied
+        business_id = who.business.id
+    sent = try_chat.send(_rt(request), business_id, body.text, _base_url(request))
+    with new_session() as s:
+        return {"notes": [{"text": text, "ok": kind == "ok"} for text, kind in sent.notes],
+                "messages": _try_messages(s, s.get(Business, business_id))}
+
+
+@router.post("/api/mobile/try/reset")
+def mobile_try_reset(request: Request):
+    """«Новый диалог»: the test's bookings cancelled and their times free again, a fresh chat."""
+    with new_session() as s:
+        who, denied = _owner_only(s, request)
+        if denied:
+            return denied
+        cancelled = try_chat.reset(s, _rt(request), s.get(Business, who.business.id))
+        return {"cancelled": cancelled, "messages": []}
 
 
 @router.get("/api/mobile/me")

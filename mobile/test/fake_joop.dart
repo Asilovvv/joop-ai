@@ -34,10 +34,14 @@ class FakeJoop {
   bool pageOn = false;
   final setupCalls = <Map>[];
 
+  /// The owner's test chat (/api/mobile/try).
+  final tryChat = <Map<String, dynamic>>[];
+
   Map<String, dynamic> setupJson([List<Map> notes = const []]) => {
         'steps': [
           {'key': 'services', 'done': true, 'title': 'Прайс', 'hint': 'Услуги и цены.', 'panel': 'https://joop.test/panel/services'},
           {'key': 'telegram', 'done': botConnected, 'title': 'Telegram-бот', 'hint': 'Клиенты пишут боту.', 'panel': 'https://joop.test/panel/channels'},
+          {'key': 'try', 'done': tryChat.isNotEmpty, 'title': 'Проверьте ИИ', 'hint': 'Напишите как клиент.', 'panel': 'https://joop.test/panel/try'},
           {'key': 'hours', 'done': false, 'title': 'Часы работы', 'hint': 'Когда вы открыты.', 'panel': 'https://joop.test/panel/settings'},
         ],
         'telegram': {'connected': botConnected, 'username': botConnected ? 'aktish_bot' : ''},
@@ -231,6 +235,20 @@ class FakeJoop {
     if (request.headers['Authorization'] != 'Bearer $token') return json({'error': 'Войдите заново.'}, 401);
     if (path == '/api/mobile/me') return json(account);
     if (path == '/api/mobile/setup') return json(setupJson());
+    if (path == '/api/mobile/try' && request.method == 'GET') return json({'messages': tryChat});
+    if (path == '/api/mobile/try') {
+      final text = (jsonDecode(request.body) as Map)['text'] as String;
+      final n = tryChat.length;
+      tryChat.addAll([
+        {'id': n + 1, 'role': 'customer', 'text': text, 'created_at': '2026-11-13T07:00:00Z', 'author': ''},
+        {'id': n + 2, 'role': 'ai', 'text': 'Консультация стоит 500 сом. Записать вас на завтра в 10:00?', 'created_at': '2026-11-13T07:00:02Z', 'author': ''},
+      ]);
+      return json({'messages': tryChat, 'notes': []});
+    }
+    if (path == '/api/mobile/try/reset') {
+      tryChat.clear();
+      return json({'cancelled': 1, 'messages': []});
+    }
     if (path == '/api/mobile/setup/telegram') {
       final body = jsonDecode(request.body) as Map;
       setupCalls.add(body);
