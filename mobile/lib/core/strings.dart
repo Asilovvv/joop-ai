@@ -33,6 +33,7 @@ class S {
     required this.pageBookingUnpaid,
     required this.inPanel,
     required this.copy,
+    required this.qrHint,
     required this.setupProgress,
     required this.trialNote,
     required this.signUpNext,
@@ -280,6 +281,7 @@ class S {
   final String pageBookingUnpaid;
   final String inPanel;
   final String copy;
+  final String qrHint;
   final String Function(int done, int total) setupProgress;
   final String signUp;
   final String signUpTitle;
@@ -560,6 +562,7 @@ class S {
     pageBookingUnpaid: 'Сейчас не принимает записи: нужна подписка или пробный период.',
     inPanel: 'В панели:',
     copy: 'Копировать',
+    qrHint: 'QR-код этой страницы: покажите клиенту с экрана (нажмите, чтобы увеличить) или распечатайте на стойку.',
     setupProgress: _ruSetupProgress,
     signUp: 'Зарегистрировать компанию',
     signUpTitle: 'Новая компания',
@@ -817,6 +820,7 @@ class S {
     pageBookingUnpaid: 'Азыр жазылуу кабыл алынбайт: жазылуу же сыноо мөөнөтү керек.', // check with a native speaker
     inPanel: 'Панелде:', // check with a native speaker
     copy: 'Көчүрүү', // check with a native speaker
+    qrHint: 'Бул барактын QR-коду: кардарга экрандан көрсөтүңүз (чоңойтуу үчүн басыңыз) же басып чыгарып, стойкага коюңуз.', // check with a native speaker
     setupProgress: _kySetupProgress,
     signUp: 'Компанияны каттоо', // check with a native speaker
     signUpTitle: 'Жаңы компания', // check with a native speaker

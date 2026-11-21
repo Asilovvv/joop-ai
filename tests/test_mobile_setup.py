@@ -1,11 +1,13 @@
 """The launch checklist in the owner's app: the panel's «Запуск» list, the Telegram bot by its token, booking by
 link without a chat — so an owner who signed up on the phone needs no computer for the first customer."""
 
+import segno
 from sqlmodel import select
 
 from joop import db
 from joop.models import Business, PanelUser
 from joop.security import hash_password
+from joop.web.menu import qr_rows
 
 from .test_mobile import auth, client, sign_in  # noqa: F401 - the client fixture
 
@@ -23,8 +25,21 @@ def test_the_owner_sees_the_panels_launch_list(client, business):
     prices = next(x for x in data["steps"] if x["key"] == "prices")
     assert prices["panel"] == "https://joop.test/panel/services"
     assert data["telegram"] == {"connected": True, "username": business.telegram_bot_username}
+    qr = data["page_booking"].pop("qr")
     assert data["page_booking"] == {"available": True, "on": False, "works": False, "why": "page",
                                     "url": "https://joop.test/m/aktish/book"}
+    assert qr == qr_rows("https://joop.test/m/aktish/book")
+
+
+def test_the_qr_is_the_page_address():
+    """The app draws the modules itself: square, finder patterns in three corners, and a scanner reads the address."""
+    rows = qr_rows("https://joop.test/m/aktish/book")
+    assert len(rows) >= 21 and all(len(r) == len(rows) and set(r) <= {"0", "1"} for r in rows)
+    finder = ["1111111", "1000001", "1011101", "1011101", "1011101", "1000001", "1111111"]
+    assert [r[:7] for r in rows[:7]] == finder and [r[-7:] for r in rows[:7]] == finder
+    assert [r[:7] for r in rows[-7:]] == finder
+    assert segno.make("https://joop.test/m/aktish/book", error="m").matrix == tuple(
+        bytearray(int(c) for c in r) for r in rows)
 
 
 def test_the_bot_is_connected_from_the_phone(client, business, rt):

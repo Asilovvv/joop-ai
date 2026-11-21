@@ -42,7 +42,7 @@ class FakeJoop {
         ],
         'telegram': {'connected': botConnected, 'username': botConnected ? 'aktish_bot' : ''},
         'page_booking': {'available': true, 'on': pageOn, 'works': pageOn, 'why': pageOn ? '' : 'off',
-            'url': 'https://joop.test/m/aktish/book'},
+            'url': 'https://joop.test/m/aktish/book', 'qr': ['1110111', '1000001', '1011101']},
         if (notes.isNotEmpty) 'notes': notes,
       };
 

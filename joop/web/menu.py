@@ -47,6 +47,11 @@ def qr_svg(url: str, scale: int = 5, sized: bool = False) -> str:
     return buf.getvalue().decode()
 
 
+def qr_rows(url: str) -> list[str]:
+    """The QR code's modules, one string of 0/1 a row, without the quiet zone: the app draws it itself."""
+    return ["".join("1" if m else "0" for m in row) for row in segno.make(url, error="m").matrix]
+
+
 _NUMBER = r"\d(?:[\d\u00a0\u202f ]*\d)?(?:[.,]\d+)?"
 PRICE_NUMBER = re.compile(rf"{_NUMBER}(?:\s*[–—-]\s*{_NUMBER})?")
 # the business named a currency itself (a realty agency writes «120 000 $»): no «сом» on top of it

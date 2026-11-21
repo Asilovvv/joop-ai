@@ -1025,6 +1025,7 @@ class SetupInfo extends Equatable {
     this.pageWorks = false,
     this.pageWhy = '',
     this.pageUrl = '',
+    this.pageQr = const [],
     this.notes = const [],
   });
 
@@ -1040,6 +1041,7 @@ class SetupInfo extends Equatable {
       pageWorks: (page['works'] as bool?) ?? false,
       pageWhy: (page['why'] as String?) ?? '',
       pageUrl: (page['url'] as String?) ?? '',
+      pageQr: [for (final r in (page['qr'] as List? ?? const [])) r as String],
       notes: [for (final n in (json['notes'] as List? ?? const [])) ((n as Map)['text'] as String, n['ok'] == true)],
     );
   }
@@ -1057,11 +1059,14 @@ class SetupInfo extends Equatable {
   final String pageWhy;
   final String pageUrl;
 
+  /// The page's QR code: one string of 0/1 a row, without the quiet zone (the app draws it).
+  final List<String> pageQr;
+
   /// What the server said about the last change, (text, good news).
   final List<(String, bool)> notes;
 
   int get done => steps.where((s) => s.done).length;
 
   @override
-  List<Object?> get props => [steps, botConnected, botUsername, pageAvailable, pageOn, pageWorks, pageWhy, pageUrl, notes];
+  List<Object?> get props => [steps, botConnected, botUsername, pageAvailable, pageOn, pageWorks, pageWhy, pageUrl, pageQr, notes];
 }
