@@ -78,6 +78,7 @@ void main() {
     final server = FakeJoop();
     await _open(tester, server);
     await _choose(tester, 'Кыргызча');
+    await tester.ensureVisible(find.byKey(const Key('customer')));
     await tester.tap(find.byKey(const Key('customer')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('place-code')), 'aktish');

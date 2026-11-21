@@ -24,6 +24,18 @@ class S {
     required this.iAmStaff,
     required this.serverAddress,
     required this.signIn,
+    required this.trialNote,
+    required this.signUpNext,
+    required this.signUp,
+    required this.signUpTitle,
+    required this.businessName,
+    required this.niche,
+    required this.yourName,
+    required this.businessPhone,
+    required this.newPassword,
+    required this.createCompany,
+    required this.signUpDone,
+    required this.continueToApp,
     required this.hideServer,
     required this.otherServer,
     required this.iAmCustomer,
@@ -249,6 +261,18 @@ class S {
   final String iAmStaff;
   final String serverAddress;
   final String signIn;
+  final String signUp;
+  final String signUpTitle;
+  final String businessName;
+  final String niche;
+  final String yourName;
+  final String businessPhone;
+  final String newPassword;
+  final String createCompany;
+  final String signUpDone;
+  final String continueToApp;
+  final String Function(int days) trialNote;
+  final String Function(String login, String setup) signUpNext;
   final String hideServer;
   final String otherServer;
   final String iAmCustomer;
@@ -507,6 +531,18 @@ class S {
     iAmStaff: 'Я сотрудник',
     serverAddress: 'Адрес сервера Joop',
     signIn: 'Войти',
+    signUp: 'Зарегистрировать компанию',
+    signUpTitle: 'Новая компания',
+    businessName: 'Название компании',
+    niche: 'Чем занимаетесь',
+    yourName: 'Ваше имя',
+    businessPhone: 'Телефон',
+    newPassword: 'Пароль, от 8 символов',
+    createCompany: 'Создать',
+    signUpDone: 'Компания создана',
+    continueToApp: 'Перейти в приложение',
+    trialNote: _ruTrial,
+    signUpNext: _ruSignUpNext,
     hideServer: 'Скрыть адрес сервера',
     otherServer: 'Другой сервер',
     iAmCustomer: 'Я клиент: записаться',
@@ -742,6 +778,18 @@ class S {
     iAmStaff: 'Мен кызматкермин',
     serverAddress: 'Joop серверинин дареги',
     signIn: 'Кирүү',
+    signUp: 'Компанияны каттоо', // check with a native speaker
+    signUpTitle: 'Жаңы компания', // check with a native speaker
+    businessName: 'Компаниянын аталышы', // check with a native speaker
+    niche: 'Эмне менен алектенесиз', // check with a native speaker
+    yourName: 'Атыңыз', // check with a native speaker
+    businessPhone: 'Телефон', // check with a native speaker
+    newPassword: 'Сырсөз, 8 белгиден кем эмес', // check with a native speaker
+    createCompany: 'Түзүү', // check with a native speaker
+    signUpDone: 'Компания түзүлдү', // check with a native speaker
+    continueToApp: 'Тиркемеге өтүү', // check with a native speaker
+    trialNote: _kyTrial,
+    signUpNext: _kySignUpNext,
     hideServer: 'Сервердин дарегин жашыруу',
     otherServer: 'Башка сервер',
     iAmCustomer: 'Мен кардармын: жазылуу',
@@ -1118,3 +1166,16 @@ String _ruRoomFree(int n) => n == 0 ? 'занято' : 'свободно: $n';
 String _kyRoomFree(int n) => n == 0 ? 'бош эмес' : 'бош: $n';
 String _ruStayBooked(String who, String dates) => 'Забронировано: $who, $dates';
 String _kyStayBooked(String who, String dates) => 'Брондолду: $who, $dates';
+
+String _ruTrial(int days) => days > 0
+    ? '$days ${ruForm(days, 'день', 'дня', 'дней')} бесплатно, без карты. Пример прайса уже заполнен — замените его своим.'
+    : 'Пример прайса уже заполнен — замените его своим.';
+String _kyTrial(int days) => days > 0
+    ? '$days күн акысыз, картасыз. Прайстын үлгүсү толтурулган — өзүңүздүкүнө алмаштырыңыз.' // check with a native speaker
+    : 'Прайстын үлгүсү толтурулган — өзүңүздүкүнө алмаштырыңыз.';
+String _ruSignUpNext(String login, String setup) =>
+    'Ваш логин: $login (или телефон), пароль — тот, что вы ввели. Чтобы ИИ начал отвечать клиентам, подключите '
+    'Telegram-бота и проверьте прайс в панели на компьютере: $setup';
+String _kySignUpNext(String login, String setup) => // check with a native speaker
+    'Логиниңиз: $login (же телефон), сырсөз — сиз жазгандай. ИИ кардарларга жооп бере башташы үчүн компьютердеги '
+    'панелде Telegram-ботту туташтырып, прайсты текшериңиз: $setup';

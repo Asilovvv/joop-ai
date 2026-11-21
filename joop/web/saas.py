@@ -32,7 +32,8 @@ from ..models import (
     Subscription, WaitlistEntry,
 )
 from ..niches import all_packs, get_pack, picker_packs
-from ..presets import SlugTaken, create_business
+from ..presets import create_business
+from ..signup import Refused, register
 from ..pricing import empty_usage
 from ..slots import release_slot, seats_needed
 from ..stats import real_conversation, test_conversations
@@ -118,35 +119,19 @@ def signup(
         _flash(request, "Подождите полминуты перед повторной регистрацией.", "error")
         return _back("/signup")
     name, phone = name.strip()[:120], phone.strip()[:40]
-    if len(name) < 2 or len(password) < 8 or len(re.sub(r"\D", "", phone)) < 9:
-        _flash(request, "Укажите название, телефон и пароль не короче 8 символов.", "error")
-        return _back("/signup")
-    if niche not in all_packs():
-        niche = "other"
     now = utcnow()
+    source = ("signup-ai" if request.session.get("from_ai")  # came through a free business's AI signature
+              else "signup-demo" if request.session.get("demo_tried") else "signup")  # wrote to the live demo first
     with new_session() as s:
-        slug = unique_slug(s, name)
         try:
-            business = create_business(s, slug=slug, name=name, password=password, niche=niche, demo=True, now_utc=now)
-        except SlugTaken:
-            _flash(request, "Не получилось создать компанию, попробуйте ещё раз.", "error")
+            business = register(s, slug=unique_slug(s, name), name=name, niche=niche, phone=phone, password=password,
+                                trial_days=settings.trial_days, now=now, contact_name=contact_name, source=source,
+                                ref=request.session.get("ref", ""))
+        except Refused as refused:
+            _flash(request, str(refused), "error")
             return _back("/signup")
-        # The demo profile brings a sample price list and hours (flagged until changed: samples.hours_are_example); its
-        # address, phone and terms are fake and would reach real customers as fact, so they start empty.
-        business.address = ""
-        business.phone = phone
-        business.description = business.booking_policy = ""
-        business.min_order = business.delivery_fee = business.free_delivery_from = 0
-        source = ("signup-ai" if request.session.get("from_ai")  # came through a free business's AI signature
-                  else "signup-demo" if request.session.get("demo_tried") else "signup")  # wrote to the live demo first
-        billing.start_trial(s, business, settings.trial_days, now, source, contact_name, phone)
-        partner = partners.find_active(s, request.session.get("ref", ""))
-        if partner is not None:
-            partners.attach(s, business.id, partner)
-        s.add(business)
         s.commit()
-        bid = business.id
-    log.info("New sign-up: %s (%s)", slug, niche)
+        bid, slug = business.id, business.slug
     request.session.clear()
     request.session["bid"] = bid
     request.session["signup_at"] = time.time()

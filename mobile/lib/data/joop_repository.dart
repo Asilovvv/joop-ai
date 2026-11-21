@@ -46,6 +46,31 @@ class JoopRepository {
     return Account.fromJson(data);
   }
 
+  /// What a business can be, for the sign-up form: (key, name) pairs and the trial's length in days.
+  Future<(List<(String, String)>, int)> niches({String? server}) async {
+    if (server != null) _api.baseUrl = server;
+    final data = await _api.get('/api/mobile/niches') as Map<String, dynamic>;
+    final list = [for (final n in data['niches'] as List) (n['key'] as String, n['label'] as String)];
+    return (list, (data['trial_days'] as int?) ?? 0);
+  }
+
+  /// Signs a new business up, as the site's /signup does, and keeps the session like [login].
+  /// Returns the account and the panel's setup address on this server.
+  Future<(Account, String)> signup({required String name, required String niche, required String phone,
+      required String password, String contactName = '', String? server}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (server != null) {
+      _api.baseUrl = server;
+      await prefs.setString(_serverKey, _api.baseUrl);
+    }
+    final data = await _api.post('/api/mobile/signup',
+        {'name': name, 'niche': niche, 'phone': phone, 'password': password, 'contact_name': contactName})
+        as Map<String, dynamic>;
+    _api.token = data['token'] as String;
+    await prefs.setString(_tokenKey, _api.token!);
+    return (Account.fromJson(data), '${_api.baseUrl}${data['setup_path'] ?? '/panel/setup'}');
+  }
+
   Future<void> logout() async {
     _api.token = null;
     final prefs = await SharedPreferences.getInstance();
