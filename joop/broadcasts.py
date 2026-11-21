@@ -8,7 +8,8 @@ out). The web chat has no address to write to later, so its visitors are not in 
 
 Rules that keep it from turning into spam:
 - every message ends with how to unsubscribe, and "стоп" after a broadcast (or "отписаться" any time)
-  turns broadcasts off for that customer; "подписаться" turns them back on;
+  turns broadcasts off for that customer, along with everything else the business sends unasked;
+  "подписаться" turns them back on;
 - at most one broadcast a day per business;
 - sending happens only between SEND_HOURS local time, BATCH messages per scheduler tick, so a long list
   does not hit Telegram's limits or wake anybody at night;
@@ -27,7 +28,7 @@ from sqlmodel import Session, select
 from .followups import SERVICE_WINDOW, _kyrgyz, deliver_to_chat
 from .channels.telegram import is_personal
 from .lang import is_kyrgyz_message
-from .models import Booking, Broadcast, BroadcastDelivery, Business, Conversation, Order
+from .models import Booking, Broadcast, BroadcastDelivery, Business, Conversation, Order, StockWatch
 from .timeutil import utc_to_local
 from .stats import real_conversation
 
@@ -61,6 +62,7 @@ OPT_IN_REPLY_KY = "Макул, жаңылыктарды жана акцияла�
 STOP_ALWAYS = {"отписаться", "отписка", "отпишите", "отпишите меня", "unsubscribe"}
 STOP_KY = {"токто", "токтот", "токтотуңуз", "жибербеңиз", "керек эмес"}
 STOP_AFTER_BROADCAST = {"стоп", "stop", "хватит", "не присылайте", "не пишите"} | STOP_KY
+NO_THANKS = {"керек эмес"}  # to «Записать вас снова?» it is «не надо», not «больше не пишите»: counts only after a text offering «стоп»
 START = {"подписаться", "subscribe", "возобновить рассылку"}
 _NOT_WORD = re.compile(r"[^\w\s]")
 _SPACES = re.compile(r"\s+")
@@ -70,23 +72,30 @@ def _norm(text: str) -> str:
     return _SPACES.sub(" ", _NOT_WORD.sub(" ", (text or "").lower().replace("ё", "е"))).strip()
 
 
-def opt_change(session: Session, conv: Conversation, text: str) -> bool | None:
+def opt_change(session: Session, conv: Conversation, text: str, said_before: datetime | None) -> bool | None:
     """True: the customer unsubscribes; False: subscribes again; None: the message is about something else.
 
-    A bare "стоп" counts only after this customer got a broadcast: in the middle of a booking it means "wait".
+    A bare «стоп» in the middle of a booking means «wait». It answers the business in two cases:
+    - it is the customer's next word after what they did not ask for: a rating request, an invitation, the one
+      follow-up, «снова в наличии» (`said_before`: when they last wrote before this message);
+    - a text sent to this chat offered that word: a broadcast, a reminder to reorder, «напишем, когда появится»
+      while that promise is open. Then it counts whatever was said in between.
     """
     t = _norm(text)
     if t in START:
         return False
     if t in STOP_ALWAYS:
         return True
-    if t in STOP_AFTER_BROADCAST and conv.id is not None:
-        got = session.exec(select(BroadcastDelivery.id).where(
-            BroadcastDelivery.conversation_id == conv.id, BroadcastDelivery.status == "sent")).first()
-        if got is None:  # a reorder reminder (joop/reorders.py) ends with «напишите «стоп»» too
-            got = session.exec(select(Order.id).where(Order.conversation_id == conv.id, Order.reminder_ok)).first()
-        return True if got is not None else None
-    return None
+    if t not in STOP_AFTER_BROADCAST or conv.id is None:
+        return None
+    if t not in NO_THANKS and conv.unasked_at is not None and (said_before is None or conv.unasked_at >= said_before):
+        return True
+    offered = (
+        select(BroadcastDelivery.id).where(BroadcastDelivery.conversation_id == conv.id, BroadcastDelivery.status == "sent"),
+        select(Order.id).where(Order.conversation_id == conv.id, Order.reminder_ok),  # joop/reorders.py
+        select(StockWatch.id).where(StockWatch.conversation_id == conv.id, StockWatch.notified_at.is_(None)),  # joop/restock.py
+    )
+    return True if any(session.exec(query).first() is not None for query in offered) else None
 
 
 def opt_reply(opted_out: bool, text: str) -> str:

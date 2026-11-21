@@ -372,3 +372,87 @@ def test_a_large_salon_gets_every_persons_times_within_two_syncs(business, fake)
         s.commit()
     second = free_days()
     assert len(second) == 20 and set(second.values()) == {7}  # the rest first, on the very next sync
+
+
+def test_a_customer_answered_during_the_sync_does_not_fail_it(business, fake, rt):
+    """Review of #272: the sync read the staff inside the scheduler's savepoint before asking Altegio, which pinned its
+    transaction to that moment. A customer's message answered meanwhile made every write of the sync fail with
+    «database is locked», the failure was not recorded, and the next tick asked Altegio all over again."""
+    import threading
+
+    from joop.dispatch import process_incoming
+
+    rt.altegio = lambda b: make_client(fake)
+    answered: list = []
+    plain = fake.handler
+
+    def with_a_customer_meanwhile(request):
+        if "book_times" in request.url.path and not answered:
+            t = threading.Thread(target=lambda: answered.append(process_incoming(
+                rt, business.id, IncomingMessage("telegram", "900", "text", "Здравствуйте", "Айбек", "tg:900:1"), NOW_UTC)))
+            t.start()
+            t.join(20)
+        return plain(request)
+
+    fake.handler = with_a_customer_meanwhile
+    with db.new_session() as s:
+        assert run_due_jobs(s, rt, s.get(Business, business.id), NOW_UTC)["altegio"] is True
+    assert answered and answered[0].reply  # both went through
+    asked = len(fake.calls)
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        assert (b.altegio_synced_at, b.altegio_error) == (NOW_UTC, "")
+        assert "altegio" not in run_due_jobs(s, rt, b, NOW_UTC + timedelta(minutes=1))  # not due again a minute later
+        assert len(s.exec(select(Slot).join(Staff, Staff.id == Slot.staff_id).where(Staff.external_id == "7")).all()) == 2
+    assert len(fake.calls) == asked
+
+
+def test_a_sync_that_breaks_waits_its_ten_minutes_too(business, fake, rt, monkeypatch):
+    """Only Altegio's own errors were recorded. Anything else left the sync due at every tick: up to 120 calls a minute."""
+    rt.altegio = lambda b: make_client(fake)
+
+    def broken(*args, **kwargs):
+        raise RuntimeError("bug")
+
+    working = altegio._reconcile
+    monkeypatch.setattr(altegio, "_reconcile", broken)
+    with db.new_session() as s:
+        assert run_due_jobs(s, rt, s.get(Business, business.id), NOW_UTC)["altegio"] is False
+    asked = len(fake.calls)
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        assert b.altegio_synced_at == NOW_UTC and b.altegio_error == "Не удалось сохранить расписание из Altegio. Повторим через 10 минут."
+        assert s.exec(select(Service).where(Service.business_id == business.id, Service.external_id != "")).first() is None  # nothing by halves
+        assert "altegio" not in run_due_jobs(s, rt, b, NOW_UTC + timedelta(minutes=1))
+    assert len(fake.calls) == asked
+    monkeypatch.setattr(altegio, "_reconcile", working)
+    with db.new_session() as s:
+        assert run_due_jobs(s, rt, s.get(Business, business.id), NOW_UTC + timedelta(minutes=10))["altegio"] is True
+        assert s.get(Business, business.id).altegio_error == ""
+
+
+def test_a_slow_model_does_not_leave_the_booking_unprotected(business, fake, monkeypatch):
+    """Review of #268: the «on the way» mark carried the time the message came. After a model call of over two
+    minutes the mark was born older than SETTLE, and a sync landing while Altegio was asked freed the slot."""
+    from joop import timeutil
+
+    synced(business, fake)
+    slot = altegio_slot(business)
+    late = NOW_UTC + timedelta(seconds=150)  # the message came at NOW_UTC; the model answered 150 seconds later
+    monkeypatch.setattr(timeutil, "clock", lambda: late)
+    plain, ran = fake.handler, []
+
+    def with_a_sync_before_the_record(request):
+        if request.url.path.endswith(f"book_record/{LOC}") and not ran:
+            ran.append(True)
+            with db.new_session() as s:  # the scheduler's tick at that moment
+                altegio.sync(s, s.get(Business, business.id), make_client(fake), late)
+                s.commit()
+        return plain(request)
+
+    fake.handler = with_a_sync_before_the_record
+    out = book(business, fake, slot.id)
+    assert ran and out.booking_id is not None
+    with db.new_session() as s:
+        assert (s.get(Slot, slot.id).status, s.get(Slot, slot.id).taken) == ("booked", 1)
+        assert s.get(Booking, out.booking_id).status == "booked"

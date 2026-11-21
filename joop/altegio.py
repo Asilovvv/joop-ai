@@ -35,6 +35,7 @@ from typing import Any
 import httpx
 from sqlmodel import Session, select
 
+from .db import new_session
 from .models import Booking, Business, Service, Slot, Staff
 from .timeutil import get_tz, utc_to_local
 
@@ -229,9 +230,12 @@ def sync(session: Session, business: Business, client: AltegioClient, now_utc: d
     The price list and the team come from Altegio only: entries typed in Joop before (the niche's sample data)
     are switched off, so the AI never offers a service or a specialist the salon's system does not know.
     Altegio is asked everything first (fetch), then the database is written in one go."""
-    with session.no_autoflush:  # a read: pending changes (the panel's new ID and key) are not written before Altegio
-        read_at = {p.external_id: p.altegio_times_at for p in session.exec(select(Staff).where(
-            Staff.business_id == business.id, Staff.external_id != "")).all()}
+    # Read through a session of its own, closed before Altegio is asked. Read through the caller's, inside its open
+    # transaction (the scheduler's savepoint), it pinned that transaction to this moment for the whole fetch, and
+    # SQLite refused the writes below («database is locked») whenever anybody else had written meanwhile.
+    with new_session() as reader:
+        read_at = dict(reader.exec(select(Staff.external_id, Staff.altegio_times_at).where(
+            Staff.business_id == business.id, Staff.external_id != "")).all())
     remote = fetch(business, client, now_utc, days, with_slots, read_at)
     res = SyncResult()
 

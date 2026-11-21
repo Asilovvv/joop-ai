@@ -416,6 +416,14 @@ def sync_altegio(session: Session, rt: Runtime, business: Business, now_utc: dat
         business.altegio_synced_at = now_utc
         session.add(business)
         return False
+    except Exception:
+        # Anything else (the database busy, a bug) is kept for the panel too and waits its ten minutes like a failed
+        # call: left unmarked, the sync was due again at every tick and asked Altegio up to 120 times a minute.
+        log.exception("Altegio sync for %s failed", business.slug)
+        business.altegio_error = "Не удалось сохранить расписание из Altegio. Повторим через 10 минут."
+        business.altegio_synced_at = now_utc
+        session.add(business)
+        return False
 
 
 def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: datetime) -> dict:
