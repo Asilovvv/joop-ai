@@ -11,6 +11,7 @@ from sqlmodel import Session, select
 from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, missed_calls, nudges, offsite, ops, recovery, reorders, restock, samples, trust, unfinished
 from . import gaps as empty_slots
 from .db import free, new_session
+from . import dispatch
 from .dispatch import notify_admins
 from .faq_gaps import SHOWN as GAPS_SHOWN, open_gaps
 from .followups import _kyrgyz, can_write, send_return_invites, send_review_requests
@@ -522,6 +523,10 @@ class Scheduler(threading.Thread):
         self._stop = threading.Event()
 
     def tick(self, now_utc: datetime | None = None) -> None:
+        try:  # chats whose message in work never came back while others wait behind it
+            dispatch.take_over_stuck(self.rt)
+        except Exception:
+            log.exception("Could not look for stuck chats")
         with new_session() as session:
             ids = session.exec(select(Business.id).where(  # the booking page books with the AI off too
                 (Business.bot_enabled == True) | (Business.page_booking == True))).all()  # noqa: E712
