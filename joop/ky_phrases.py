@@ -73,6 +73,7 @@ SECTIONS = (
     ("joop/pitch.py", "Сообщения основателя компаниям"),
     ("joop/case.py", "Сообщения основателя компаниям"),
     ("joop/agent/", "Ответы ИИ: готовые фразы"),
+    ("mobile/", "Приложение для телефона"),
 )
 OTHER_SECTION = "Сообщения клиентам"
 
@@ -380,6 +381,10 @@ def collect(root: Path = ROOT) -> list[Phrase]:
             phrases.extend(_from_python(path, base))
     for path in sorted((root / "web" / "templates").glob("*.html")):
         phrases.extend(_from_template(path, base))
+    if root == ROOT:  # the mobile app's texts, from their snapshot (joop/app_strings.py)
+        from .app_strings import WHERE, snapshot
+
+        phrases.extend(Phrase(f"{WHERE}:{row['line']}", row["ky"], row["ru"]) for row in snapshot())
     order = {label: i for i, label in enumerate(dict.fromkeys([label for _, label in SECTIONS] + [OTHER_SECTION]))}
     lines: dict[tuple[str, str, str], list[int]] = {}  # the same text twice in a file is one phrase: «file:113,121»
     for p in phrases:
