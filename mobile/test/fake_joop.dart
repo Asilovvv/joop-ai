@@ -29,6 +29,9 @@ class FakeJoop {
     },
   ];
 
+  /// Bodies of POST /api/mobile/signup.
+  final signups = <Map>[];
+
   final orders = <Map<String, dynamic>>[
     {
       'id': 41, 'created_at': '2026-11-13T05:10:00Z', 'status': 'new', 'label': 'Новый', 'mode': 'delivery',
@@ -186,6 +189,20 @@ class FakeJoop {
     if (path == '/c/aktish/updates') {
       final after = int.parse(request.url.queryParameters['after'] ?? '0');
       return json({'messages': staffReplies.where((m) => (m['id'] as int) > after).toList()});
+    }
+    if (path == '/api/mobile/niches') {
+      return json({'niches': [{'key': 'beauty', 'label': 'Салон красоты'}, {'key': 'dental', 'label': 'Стоматология'}],
+          'trial_days': 14});
+    }
+    if (path == '/api/mobile/signup') {
+      final body = jsonDecode(request.body) as Map;
+      signups.add(body);
+      if ((body['password'] as String).length < 8) {
+        return json({'error': 'Укажите название, телефон и пароль не короче 8 символов.'}, 422);
+      }
+      return json({'token': token, 'setup_path': '/panel/setup', 'who': 'Владелец', 'role': 'owner',
+          'business': {'id': 9, 'slug': 'salon-aygerim', 'name': body['name'], 'niche': body['niche']},
+          'sections': {'bookings': true, 'orders': false, 'leads': true, 'cash': true}});
     }
     if (path == '/api/mobile/login') {
       final body = jsonDecode(request.body) as Map;
