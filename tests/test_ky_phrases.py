@@ -193,5 +193,7 @@ def test_console_page_and_download(engine, app_client):
     page = app_client.get("/owner/kyrgyz").text
     assert "Кыргызские фразы на проверку" in page and "Жазылдыңыз: {when}, {who}." in page
     assert "Подтверждение записи и напоминание" in page  # the section column
+    # the app's texts joined the list in #273: the page said they were not in it
+    assert "сюда не входят" not in page and "собраны в разделе «Приложение для телефона»" in page and "после знака $" in page
     r = app_client.get("/owner/kyrgyz.csv")
     assert r.status_code == 200 and "attachment" in r.headers["content-disposition"] and "По-кыргызски" in r.text

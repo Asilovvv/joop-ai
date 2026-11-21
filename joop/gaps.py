@@ -155,7 +155,7 @@ def candidates(session: Session, business: Business, now_local: datetime) -> lis
 
 def send(session: Session, rt: "Runtime", business: Business, cand: Candidate, now_utc: datetime) -> bool:
     conv = session.get(Conversation, cand.conversation_id)
-    ok = deliver_to_chat(session, rt, business, conv, cand.text, now_utc)
+    ok = deliver_to_chat(session, rt, business, conv, cand.text, now_utc, unasked=True)
     if ok:
         conv.invited_at = now_utc
         session.add(conv)

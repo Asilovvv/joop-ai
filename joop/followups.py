@@ -62,10 +62,13 @@ def can_write(channel: str, chat_id: str, last_customer_at: datetime | None, now
 
 
 def deliver_to_chat(session: Session, rt: "Runtime", business: Business, conv: Conversation | None, text: str,
-                    now_utc: datetime) -> bool:
+                    now_utc: datetime, *, unasked: bool = False) -> bool:
     """Send a message the business starts, where the channel allows it, and keep it in the dialogue.
 
-    Nothing goes to a chat on the block list: reminders, review requests, offers and job notices alike."""
+    Nothing goes to a chat on the block list: reminders, review requests, offers and job notices alike.
+    `unasked`: the customer did not ask for it and may refuse it (a rating request, an invitation, the one follow-up,
+    «снова в наличии»), unlike a reminder of their own booking: a bare «стоп» as their next word unsubscribes them
+    (joop/broadcasts.py: opt_change)."""
     if conv is None or not conv.chat_id or conv.blocked_at:
         return False
     if not can_write(conv.channel, conv.chat_id, conv.last_customer_at, now_utc):
@@ -78,13 +81,16 @@ def deliver_to_chat(session: Session, rt: "Runtime", business: Business, conv: C
         return False
     session.add(Message(business_id=business.id, conversation_id=conv.id, role="ai", text=text, created_at=now_utc))
     conv.last_message_at = now_utc
+    if unasked:
+        conv.unasked_at = now_utc
     session.add(conv)
     return True
 
 
 def _deliver(session: Session, rt: "Runtime", business: Business, booking: Booking, text: str, now_utc: datetime) -> bool:
+    """A rating request or an invitation to come again: what the customer did not ask for."""
     conv = session.get(Conversation, booking.conversation_id) if booking.conversation_id else None
-    return deliver_to_chat(session, rt, business, conv, text, now_utc)
+    return deliver_to_chat(session, rt, business, conv, text, now_utc, unasked=True)
 
 
 def _said_stop(session: Session, booking: Booking) -> bool:

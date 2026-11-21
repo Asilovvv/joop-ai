@@ -87,7 +87,7 @@ def send_due(session: Session, rt: "Runtime", business: Business, now_utc: datet
         text = _text(session, business, conv, now_local)
         conv.followup_at = now_utc  # tried once, whatever happened: never a second time
         session.add(conv)
-        if text and deliver_to_chat(session, rt, business, conv, text, now_utc):
+        if text and deliver_to_chat(session, rt, business, conv, text, now_utc, unasked=True):
             sent += 1
     return {"sent": sent} if sent else {}
 

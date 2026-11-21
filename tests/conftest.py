@@ -61,17 +61,25 @@ LOCKED_SENDS: list[str] = []  # sends made inside a write transaction: every tes
 
 
 def database_is_free(wait: float = 1.0) -> bool:
-    """Whether another connection could write now. SQLite lets one connection write at a time, from its first write to
-    commit; a caller that talks to a messenger or the model inside that stops every other writer on the server.
-    `wait`: a write of another thread is over in milliseconds, the caller's own lasts as long as this check."""
+    """Whether another connection could write now — and it does write, as another customer's message would.
+
+    SQLite lets one connection write at a time, from its first write to commit; a caller that talks to a messenger or
+    the model inside that stops every other writer on the server. `wait`: a write of another thread is over in
+    milliseconds, the caller's own lasts as long as this check.
+
+    The write is real (a counter in the file's header) because of the second way to break: a caller that READ inside
+    an open transaction (a savepoint) before its network call writes on a stale snapshot afterwards, and SQLite
+    refuses at once with «database is locked» if anybody wrote meanwhile. On a busy server somebody always has."""
     eng = db._engine
     path = eng.url.database if eng is not None and eng.url.get_backend_name() == "sqlite" else None
     if not path or path == ":memory:":
         return True
-    con = sqlite3.connect(path, timeout=wait)
+    con = sqlite3.connect(path, timeout=wait, isolation_level=None)
     try:
         con.execute("BEGIN IMMEDIATE")
-        con.execute("ROLLBACK")
+        (version,) = con.execute("PRAGMA user_version").fetchone()
+        con.execute(f"PRAGMA user_version = {version + 1}")
+        con.execute("COMMIT")
         return True
     except sqlite3.OperationalError:
         return False

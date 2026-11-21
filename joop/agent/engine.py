@@ -217,6 +217,7 @@ def _handle_incoming(
     if incoming.kind == "media":
         stored = f"[{incoming.media_label or 'вложение'}]" + (f" {text}" if text else "")
     _add_message(session, business, conv, "customer", stored, now, off, incoming.external_id)
+    said_before = conv.last_customer_at  # «стоп» as the first word after what we sent unasked (broadcasts.opt_change)
     conv.last_customer_at = now
     if incoming.user_name and not conv.display_name:
         conv.display_name = incoming.user_name[:120]
@@ -227,7 +228,7 @@ def _handle_incoming(
             return handled
 
     # "стоп" after a broadcast: recorded even while staff answer by hand, so nobody gets the next one
-    opt = broadcasts.opt_change(session, conv, text) if incoming.kind in {"text", "command"} else None
+    opt = broadcasts.opt_change(session, conv, text, said_before) if incoming.kind in {"text", "command"} else None
     if opt is not None:
         conv.broadcast_opt_out = opt
         session.add(conv)
@@ -923,8 +924,9 @@ def _try_booking(
         # Joop's checks passed and the slot is claimed here; now the salon's system checks it too, then records it.
         service = (data.get("service") or "").strip()[:200]
         # The claim is saved first, so Altegio's two calls never hold the database's write lock; a sync that lands
-        # before the booking is saved leaves the slot alone (altegio.on_the_way).
-        altegio.on_the_way(slot.id, now)
+        # before the booking is saved leaves the slot alone (altegio.on_the_way). The mark carries the clock's time,
+        # not the message's: `now` is when the message came, and the model may have thought for minutes since.
+        altegio.on_the_way(slot.id, utcnow())
         free(session)
         try:
             record_id = altegio.push_booking(session, business, external, slot, member, service, name, phone,
