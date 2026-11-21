@@ -79,6 +79,25 @@ class JoopRepository {
   Future<SetupInfo> setPageBooking(bool on) async =>
       SetupInfo.fromJson(await _api.post('/api/mobile/setup/page-booking', {'on': on}) as Map<String, dynamic>);
 
+  Future<List<DialogueMessage>> tryChat() async =>
+      _tryMessages(await _api.get('/api/mobile/try') as Map<String, dynamic>);
+
+  /// One message to the AI as a customer; the chat as it stands and what the server said (text, good news).
+  Future<(List<DialogueMessage>, List<(String, bool)>)> trySend(String text) async {
+    final data = await _api.post('/api/mobile/try', {'text': text}) as Map<String, dynamic>;
+    return (
+      _tryMessages(data),
+      [for (final n in (data['notes'] as List? ?? const [])) ((n as Map)['text'] as String, n['ok'] == true)],
+    );
+  }
+
+  /// «Новый диалог»: how many test bookings were cancelled.
+  Future<int> tryReset() async =>
+      ((await _api.post('/api/mobile/try/reset', const {}) as Map<String, dynamic>)['cancelled'] as int?) ?? 0;
+
+  static List<DialogueMessage> _tryMessages(Map<String, dynamic> data) =>
+      [for (final m in (data['messages'] as List? ?? const [])) DialogueMessage.fromJson(m as Map<String, dynamic>)];
+
   Future<void> logout() async {
     _api.token = null;
     final prefs = await SharedPreferences.getInstance();
