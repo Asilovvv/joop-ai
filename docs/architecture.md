@@ -116,8 +116,10 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
    threads however many messages it sends. Measured with 80 messages sent to one chat and a 1-second
    model call: before, the login page did not open for 30 seconds and another customer got no answer
    in that time; after, the page opens in 0.03 s and the other customer is answered in 1.2 s. More
-   than 50 waiting in one chat are not read and staff are told once; a message in work for over five
-   minutes no longer holds its chat.
+   than 50 waiting in one chat are not read: staff are told once and the dialogue keeps a note of how
+   many. A message in work for over five minutes no longer holds its chat: the next message or the
+   scheduler's tick takes the queue over. One POST of Meta carries messages of several chats: the
+   chats are answered side by side, and a chat's own messages join its queue together, in their order.
 5. **No model call inside a database transaction.** SQLite lets one connection write at a time, from
    its first write to commit. The engine commits before each model call (`db.free`),
    so a slow answer to one customer never stops another business's customers, the panel or the
@@ -210,6 +212,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 1087 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 1093 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |

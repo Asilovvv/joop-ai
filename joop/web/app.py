@@ -11,19 +11,22 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 
+import anyio
 from fastapi import APIRouter, BackgroundTasks, FastAPI, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlmodel import Session, select
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.sessions import SessionMiddleware
 
+from ..channels.base import IncomingMessage
 from ..channels.meta import parse_meta_payload, verify_signature
 from ..channels.telegram import bot_id, parse_update
 from ..config import Settings, get_settings
 from ..db import init_db, new_session
-from ..dispatch import admin_chat_ids, admin_link, alert_chats, alerts_other_bot, notify_admins, process_incoming
+from ..dispatch import admin_chat_ids, admin_link, alert_chats, alerts_other_bot, notify_admins, process_chat, process_incoming
 from .. import missed_calls, tgbusiness
 from ..catalog import parse_price
 from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service,
@@ -2189,6 +2192,7 @@ async def meta_events(request: Request, background: BackgroundTasks):
     except ValueError:
         raise HTTPException(status_code=400) from None
     events = parse_meta_payload(payload) if isinstance(payload, dict) else []
+    chats: dict[tuple[int, str, str], list[IncomingMessage]] = {}  # one POST carries messages of several chats and businesses
     if events:
         with new_session() as s:
             for channel, account_id, incoming in events:
@@ -2205,8 +2209,27 @@ async def meta_events(request: Request, background: BackgroundTasks):
                     if daily_count(key, day) >= 1:
                         continue
                     daily_bump(key, day)
-                background.add_task(process_incoming, _rt(request), business.id, incoming)
+                chats.setdefault((business.id, incoming.channel, incoming.chat_id), []).append(incoming)
+    if chats:
+        background.add_task(_answer_side_by_side, _rt(request), chats)
     return PlainTextResponse("EVENT_RECEIVED")
+
+
+async def _answer_side_by_side(rt: Runtime, chats: dict[tuple[int, str, str], list[IncomingMessage]]) -> None:
+    """The chats of one POST each in a thread of its own; a chat's messages in their order (dispatch.process_chat).
+
+    A request's background tasks run one after another. As one task a message, a customer waited for every chat ahead
+    of theirs in the POST: for its whole queue when that chat was being flooded."""
+    async with anyio.create_task_group() as group:
+        for (business_id, _, _), messages in chats.items():
+            group.start_soon(run_in_threadpool, _answer_chat, rt, business_id, messages)
+
+
+def _answer_chat(rt: Runtime, business_id: int, messages: list[IncomingMessage]) -> None:
+    try:
+        process_chat(rt, business_id, messages)
+    except Exception:  # an error here would cancel the other chats of the POST
+        log.exception("Failed to process %d message(s) of business %s", len(messages), business_id)
 
 
 # --- app factory ----------------------------------------------------------------------------------------
