@@ -48,10 +48,20 @@ void main() {
 
     await tester.ensureVisible(find.byKey(const Key('page-booking-switch')));
     expect(find.text('https://joop.test/m/aktish/book'), findsOneWidget);
+    expect(find.byKey(const Key('page-booking-qr')), findsNothing); // off: nothing to scan yet
     await tester.tap(find.byKey(const Key('page-booking-switch')));
     await tester.pumpAndSettle();
     expect(server.setupCalls.last, {'on': true});
     expect(tester.widget<SwitchListTile>(find.byKey(const Key('page-booking-switch'))).value, isTrue);
+
+    await tester.ensureVisible(find.byKey(const Key('page-booking-qr')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('page-booking-qr')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('qr-full')), findsOneWidget); // shown large, for a customer to scan from the phone
+    await tester.tapAt(tester.getCenter(find.byKey(const Key('qr-full'))));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('qr-full')), findsNothing);
   });
 
   testWidgets('staff do not see the launch checklist', (tester) async {

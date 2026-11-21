@@ -38,6 +38,7 @@ from ..stats import TEST_CHANNEL, activity, not_test, real_conversation, test_co
 from ..timeutil import local_now, utcnow
 from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
 from .saas import checklist, unique_slug
+from .menu import qr_rows
 
 router = APIRouter()
 
@@ -219,7 +220,8 @@ def _setup(s: Session, request: Request, b: Business) -> dict:
                   for i in checklist(s, b, now)],
         "telegram": {"connected": bool(b.telegram_bot_token), "username": b.telegram_bot_username},
         "page_booking": {"available": pack.has("booking") and why != "altegio", "on": bool(b.page_booking and b.menu_enabled),
-                         "works": why == "", "why": why, "url": f"{base}/m/{b.slug}/book"},
+                         "works": why == "", "why": why, "url": f"{base}/m/{b.slug}/book",
+                         "qr": qr_rows(f"{base}/m/{b.slug}/book")},
     }
 
 

@@ -6,6 +6,7 @@ import '../core/strings.dart';
 import '../core/api_client.dart';
 import '../data/joop_repository.dart';
 import '../data/models.dart';
+import 'qr_code.dart';
 
 /// The owner's launch checklist, the panel's «Запуск»: the Telegram bot is connected here by its token and booking by
 /// link is switched on with one tap; the other steps (prices, people, hours) name their page in the panel.
@@ -139,6 +140,27 @@ class _SetupScreenState extends State<SetupScreen> {
     );
   }
 
+  /// The QR across the whole screen, for a customer to scan from the owner's phone.
+  void _showQr(BuildContext context, SetupInfo info) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        key: const Key('qr-full'),
+        backgroundColor: Colors.white,
+        insetPadding: const EdgeInsets.all(16),
+        child: InkWell(
+          onTap: () => Navigator.of(context).pop(),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: LayoutBuilder(
+              builder: (context, box) => QrCode(rows: info.pageQr, size: box.maxWidth),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _pageBooking(BuildContext context, SetupInfo info) {
     return Card(
       key: const Key('page-booking'),
@@ -167,6 +189,18 @@ class _SetupScreenState extends State<SetupScreen> {
                     onPressed: () => Clipboard.setData(ClipboardData(text: info.pageUrl)),
                   ),
                 ]),
+                if (info.pageOn && info.pageQr.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(S.current.qrHint),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: InkWell(
+                      key: const Key('page-booking-qr'),
+                      onTap: () => _showQr(context, info),
+                      child: QrCode(rows: info.pageQr, size: 180),
+                    ),
+                  ),
+                ],
                 if (info.pageOn && !info.pageWorks && info.pageWhy == 'unpaid')
                   Text(S.current.pageBookingUnpaid, key: const Key('page-booking-unpaid'),
                       style: TextStyle(color: Theme.of(context).colorScheme.error)),
