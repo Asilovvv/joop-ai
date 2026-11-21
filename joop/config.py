@@ -56,6 +56,7 @@ class Settings:
     meta_verify_token: str
     meta_app_secret: str
     instagram_app_secret: str
+    instagram_app_id: str  # «Подключить Instagram» in one click (joop/ig_login.py)
     graph_api_version: str
     whatsapp_api_base: str
     instagram_api_base: str
@@ -152,6 +153,7 @@ def settings_from_env() -> Settings:
         meta_verify_token=env.get("META_VERIFY_TOKEN", "").strip(),
         meta_app_secret=env.get("META_APP_SECRET", "").strip(),
         instagram_app_secret=env.get("INSTAGRAM_APP_SECRET", "").strip(),
+        instagram_app_id=env.get("INSTAGRAM_APP_ID", "").strip(),
         graph_api_version=env.get("GRAPH_API_VERSION", "v26.0").strip() or "v26.0",
         whatsapp_api_base=env.get("WHATSAPP_API_BASE", "https://graph.facebook.com").rstrip("/"),
         instagram_api_base=env.get("INSTAGRAM_API_BASE", "https://graph.instagram.com").rstrip("/"),

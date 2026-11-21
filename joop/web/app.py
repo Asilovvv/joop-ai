@@ -34,7 +34,7 @@ from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, Convers
 from ..niches import all_packs, get_pack, picker_packs
 from ..lang import plural
 from ..phone import display_phone, normalize_phone
-from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, order_status, quick_replies, samples, schedule, staff_reply, stock, waitlist
+from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, ig_login, order_status, quick_replies, samples, schedule, staff_reply, stock, waitlist
 from ..faq_gaps import open_gaps
 from ..reschedule import blocked as move_blocked, cancel as cancel_core, reschedule
 from ..runtime import Runtime
@@ -1904,6 +1904,7 @@ def channels_page(request: Request):
             telegram_url=f"{base}/webhooks/telegram/{b.slug}" if base else "",
             meta_url=f"{base}/webhooks/meta" if base else "",
             meta_ready=bool(settings.meta_verify_token and (settings.meta_app_secret or settings.instagram_app_secret)),
+            ig_login_ready=ig_login.ready(settings),
             altegio_shared=bool(settings.altegio_partner_token),
             chat_url=f"{base or str(request.base_url).rstrip('/')}/c/{b.slug}",
             chat_qr=_chat_qr(f"{base or str(request.base_url).rstrip('/')}/c/{b.slug}"),
@@ -2047,6 +2048,54 @@ async def channels_save(request: Request):
         s.add(b)
         s.commit()
     _flash(request, "WhatsApp и Instagram сохранены.")
+    return _back("/panel/channels")
+
+
+@router.post("/panel/channels/instagram")
+def instagram_login_start(request: Request, csrf: str = Form("")):
+    """«Подключить Instagram»: off to Instagram's login, with a one-time `state` that the callback must bring back."""
+    _check_csrf(request, csrf)
+    settings = _settings(request)
+    with new_session() as s:
+        _business(s, request)  # logged in as the owner (OWNER_ONLY)
+    if not ig_login.ready(settings):
+        _flash(request, "Подключение Instagram одной кнопкой ещё не настроено на сервере.", "error")
+        return _back("/panel/channels")
+    state = secrets.token_urlsafe(24)
+    request.session["ig_state"] = state
+    return RedirectResponse(ig_login.authorize_url(settings, state), status_code=303)
+
+
+@router.get(ig_login.CALLBACK_PATH)
+def instagram_login_done(request: Request, code: str = "", state: str = "", error: str = "", error_reason: str = ""):
+    """Instagram sends the owner back here: allowed (`code`) or cancelled (`error`)."""
+    with new_session() as s:
+        _business(s, request)  # still logged in as the owner, before anything else
+    expected = request.session.pop("ig_state", "")
+    if not state or not expected or not same_secret(state, expected):
+        _flash(request, "Ссылка устарела. Нажмите «Подключить Instagram» ещё раз.", "error")
+        return _back("/panel/channels")
+    if error or not code:
+        _flash(request, "Подключение Instagram отменено." if error_reason == "user_denied" or error == "access_denied"
+               else "Instagram не дал доступ. Нажмите «Подключить Instagram» ещё раз.", "error")
+        return _back("/panel/channels")
+    settings = _settings(request)
+    try:
+        account = ig_login.connect(_rt(request).http, settings, code)
+    except ig_login.LoginFailed as exc:
+        _flash(request, str(exc), "error")
+        return _back("/panel/channels")
+    with new_session() as s:
+        b = _business(s, request)
+        if s.exec(select(Business).where(Business.ig_account_id == account.account_id, Business.id != b.id)).first():
+            _flash(request, "Этот аккаунт Instagram уже подключён к другой компании.", "error")
+            return _back("/panel/channels")
+        b.ig_account_id, b.ig_access_token, b.ig_username = account.account_id, account.token, account.username
+        b.ig_token_refreshed_at = utcnow()  # 60 days from now; the scheduler refreshes it weekly
+        s.add(b)
+        s.commit()
+    who = f" @{account.username}" if account.username else ""
+    _flash(request, f"Instagram{who} подключён. Напишите в Директ этого аккаунта с другого профиля — ИИ ответит.")
     return _back("/panel/channels")
 
 

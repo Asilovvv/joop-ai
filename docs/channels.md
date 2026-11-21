@@ -85,6 +85,23 @@ Callback URL for both products: `https://<your domain>/webhooks/meta`.
 
 No Facebook Page is needed with this setup.
 
+### One click for the business («Подключить Instagram»)
+
+Set up once on the server, by the founder:
+
+1. In the Meta app (the Instagram product, "API setup with Instagram login"), copy the **Instagram app ID**
+   and **Instagram app secret** into `.env` as `INSTAGRAM_APP_ID` and `INSTAGRAM_APP_SECRET`.
+2. Under "Set up Instagram business login", add the redirect address
+   `https://<your domain>/panel/channels/instagram/callback`, exactly as written.
+3. Set the webhook (callback URL and `META_VERIFY_TOKEN`, see above) and restart.
+
+Then «Каналы» shows «Подключить Instagram». The owner logs in to the business's Instagram and allows
+messages; Joop exchanges the code for a 60-day token, reads the account's Instagram ID and username,
+and subscribes the account to `messages`, `message_echoes` and `comments`
+(`joop/ig_login.py`). Nothing is saved unless every step worked. Until Meta's App Review approves
+`instagram_business_basic` and `instagram_business_manage_messages`, only accounts with a role on the
+app can connect this way. The manual steps below stay for that case.
+
 1. The clinic's Instagram account must be a public professional (Business or Creator) account.
 2. In the Meta app, add the Instagram product and open the Instagram Login API setup.
 3. Add the clinic's account and generate an access token; the clinic logs in to approve.
@@ -118,4 +135,5 @@ No Facebook Page is needed with this setup.
 - Instagram messaging and the 24-hour window: https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/messaging-api
 - HUMAN_AGENT rules: https://developers.facebook.com/docs/messenger-platform/reference/send-api
 - Instagram webhooks: https://developers.facebook.com/documentation/instagram-platform/webhooks/setup
+- Business Login for Instagram: https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/business-login
 - Instagram tokens: https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login/business-login
