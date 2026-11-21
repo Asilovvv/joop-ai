@@ -4,6 +4,7 @@ Before, the list held the server's phrases only: the app's ~250 Kyrgyz texts, no
 were in no list at all."""
 
 import json
+import re
 
 from joop import app_strings, ky_phrases
 
@@ -23,7 +24,8 @@ def test_texts_are_paired_with_their_russian_twin():
     assert rows["$n түн"] == "ночь / ночи / ночей"  # Russian forms after a number: all of them
     months = next(ky for ky in rows if ky.startswith("январь"))
     assert months.endswith("декабрь") and months.count(",") == 11  # one line, not twelve
-    assert not any("'" in ky and "Altegio" not in ky for ky in rows)  # interpolations are {…}, never cut strings
+    # interpolations are {…}, never cut strings; the one apostrophe allowed is a Kyrgyz ending on a Latin name
+    assert not any("'" in re.sub(r"(?<=[A-Za-z])'(?=[а-яөүң])", "", ky) for ky in rows)
     assert rows["адамдарга берилген суроо"] == "{вопрос передан / вопроса передано / вопросов передано} людям"
     assert any("залдарды" in ky for ky in rows)  # words inside ${…} reach the speaker too
 

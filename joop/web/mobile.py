@@ -32,11 +32,12 @@ from ..phone import normalize_phone
 from ..samples import example_staff_ids
 from ..security import verify_password
 from ..signup import Refused, register
+from .. import page_booking, telegram_setup
 from ..slots import CLOSED, claim_slot, free_on_day, release_slot, seats_left, seats_needed
 from ..stats import TEST_CHANNEL, activity, not_test, real_conversation, test_conversations
 from ..timeutil import local_now, utcnow
 from .app import _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
-from .saas import unique_slug
+from .saas import checklist, unique_slug
 
 router = APIRouter()
 
@@ -183,6 +184,84 @@ def mobile_signup(request: Request, body: SignupIn):
         _signups[address] = recent + [now]
         token = _serializer(request).dumps({"b": business.id, "u": 0, "p": _fingerprint(business, None)})
         return {"token": token, **Who(business, None).json(), "setup_path": "/panel/setup"}
+
+
+# --- the launch checklist, from the phone (the owner only) ------------------------------------------------------
+# The panel's «Запуск» list, as it stands; two of its steps the owner can take right here: the Telegram bot by its
+# token, and booking by link without a chat. The rest (prices, people, hours) the app names, with the panel's page.
+
+
+class TokenIn(BaseModel):
+    token: str
+
+
+class PageBookingIn(BaseModel):
+    on: bool
+
+
+def _owner_only(s: Session, request: Request) -> tuple[Who | None, JSONResponse | None]:
+    who = _signed_in(s, request)
+    if who is None:
+        return None, _fail(401, "Войдите заново.")
+    if who.user is not None:
+        return None, _fail(403, "Настройки компании меняет владелец.")
+    return who, None
+
+
+def _setup(s: Session, request: Request, b: Business) -> dict:
+    now = utcnow()
+    pack = get_pack(b.niche)
+    base = (_settings(request).public_base_url or str(request.base_url)).rstrip("/")
+    why = page_booking.unavailable(s, b, now) if pack.has("booking") else "niche"
+    return {
+        "steps": [{"key": i["key"], "done": bool(i["done"]), "title": i["title"], "hint": i["hint"],
+                   "panel": f"{base}{i['href']}" if str(i.get("href", "")).startswith("/") else ""}
+                  for i in checklist(s, b, now)],
+        "telegram": {"connected": bool(b.telegram_bot_token), "username": b.telegram_bot_username},
+        "page_booking": {"available": pack.has("booking") and why != "altegio", "on": bool(b.page_booking and b.menu_enabled),
+                         "works": why == "", "why": why, "url": f"{base}/m/{b.slug}/book"},
+    }
+
+
+@router.get("/api/mobile/setup")
+def mobile_setup(request: Request):
+    with new_session() as s:
+        who, denied = _owner_only(s, request)
+        return denied or _setup(s, request, who.business)
+
+
+@router.post("/api/mobile/setup/telegram")
+def mobile_setup_telegram(request: Request, body: TokenIn):
+    with new_session() as s:
+        who, denied = _owner_only(s, request)
+        if denied:
+            return denied
+        done = telegram_setup.connect(s, _rt(request), _settings(request), who.business, body.token)
+        if not done.ok:
+            return _fail(422, done.notes[0][0])
+        b = s.get(Business, who.business.id)
+        return {"notes": [{"text": text, "ok": kind == "ok"} for text, kind in done.notes], **_setup(s, request, b)}
+
+
+@router.post("/api/mobile/setup/page-booking")
+def mobile_setup_page_booking(request: Request, body: PageBookingIn):
+    """Booking by link without a chat (joop/page_booking.py). Turning it on opens the public page too, which the
+    booking page lives on; turning it off keeps the page."""
+    with new_session() as s:
+        who, denied = _owner_only(s, request)
+        if denied:
+            return denied
+        b = who.business
+        if not get_pack(b.niche).has("booking") or b.altegio_location_id:
+            return _fail(409, "В этой сфере клиенты не записываются на время." if not b.altegio_location_id
+                         else "Ваш график ведётся в Altegio — для записи по ссылке используйте онлайн-запись Altegio.")
+        b.page_booking = body.on
+        if body.on:
+            b.menu_enabled = True
+        s.add(b)
+        s.commit()
+        s.refresh(b)
+        return _setup(s, request, b)
 
 
 @router.get("/api/mobile/me")
