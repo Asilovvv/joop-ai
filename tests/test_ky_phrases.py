@@ -62,7 +62,7 @@ def test_leaves_out_what_no_customer_reads(phrases):
 
 
 def test_sections_tell_the_speaker_where_the_phrase_lives(phrases):
-    sections = {p.ky: p.section for p in phrases}
+    sections = {p.ky: p.section for p in phrases if not p.where.startswith("mobile/")}  # the app says «Жөнөтүү» too
     assert sections["Онлайн жазылуу"] in {"Страница записи без переписки", "Онлайн-страница: меню и прайс"}
     assert sections["Жазылдыңыз: {when}, {who}."] == "Подтверждение записи и напоминание"
     assert sections["Жөнөтүү"] == "Чат на сайте"
