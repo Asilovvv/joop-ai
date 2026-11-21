@@ -271,7 +271,9 @@ class Lead(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     business_id: int = Field(foreign_key="business.id", index=True)
     conversation_id: Optional[int] = Field(default=None, foreign_key="conversation.id")
-    kind: str = "handoff"  # handoff | request (booking without a slot) | lead (qualified) | media | error
+    # handoff | request (booking without a slot) | lead (qualified) | media | error | limit (the AI stopped in a chat that
+    # made it answer too often, joop/agent/engine.py)
+    kind: str = "handoff"
     summary: str = ""
     details: str = ""  # qualification answers for kind="lead", e.g. "Бюджет: 60 000 $; Район: Джал"
     customer_name: str = ""

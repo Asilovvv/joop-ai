@@ -106,6 +106,13 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 3. **Staff can take over.** When a clinic replies by hand from its own Instagram or WhatsApp app,
    the channel sends an "echo". Echoes that match our own replies are ignored; any other echo pauses
    the AI in that conversation for 12 hours. Staff can also pause or resume the AI in the panel.
+   The AI also hands a chat over by itself when the chat makes it answer too often: 60 answers in an
+   hour or 200 in a day (`engine._answers_spent`). That is somebody's auto-reply or bot answering every
+   message of ours, or a person playing, and each answer is a paid model call with no end to it. The
+   customer gets one line («Дальше вам ответит администратор»), staff get one request of kind
+   `limit`, and the AI is silent in that chat for an hour (a day, when it happens again within a day)
+   or until staff turn it back on; the count then starts from the stop. The owner's test chat has no
+   limit.
 4. **At-least-once webhooks, exactly-once replies.** Channels retry deliveries. Every stored message
    keeps its channel message id, and a repeated id is dropped before any work is done. One chat's
    messages take turns (`engine.chat_turn`, a lock in memory: one process serves everything), so a
@@ -212,6 +219,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 1103 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 1112 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |

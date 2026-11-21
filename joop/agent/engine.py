@@ -24,8 +24,8 @@ from ..channels.base import IncomingMessage
 from ..channels.telegram import bot_id, is_personal, split_chat_id
 from ..db import free
 from ..lang import (chat_is_kyrgyz, claims_confirmation, drop_claim_sentences, fix_mixed_script, is_kyrgyz_message, looks_kyrgyz,
-                    adds_no_numbers, same_numbers, use_kyrgyz_names)
-from ..models import Booking, Business, Conversation, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, Stay
+                    adds_no_numbers, plural, same_numbers, use_kyrgyz_names)
+from ..models import Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, Service, Slot, Staff, Stay
 from ..niches import Pack, get_pack
 from ..phone import normalize_phone
 from ..pricing import cost_usd, empty_usage
@@ -61,6 +61,14 @@ ERROR_REPLY = (
     "Кечиресиз, азыр жооп бере албай жатам. Администратор жакында жооп берет.\n"
     "Извините, сейчас не получается ответить. Я передал ваше сообщение администратору, с вами свяжутся."
 )
+# Sent once when the AI stops in a chat that made it answer too often (_answers_spent): a person takes the chat.
+HANDED_OVER_REPLY = (
+    "Мындан ары сизге администратор жооп берет.\n"
+    "Дальше вам ответит администратор."
+)
+ANSWERS_PER_HOUR = 60  # the AI's answers in one chat: a long booking takes about twenty
+ANSWERS_PER_DAY = 200  # one answer every few minutes, to somebody's auto-reply, never makes sixty in an hour
+STOP_FIRST, STOP_AGAIN = timedelta(hours=1), timedelta(hours=24)  # the AI's silence after the limit; again within a day
 # Start of an answer sent after an outage, when the customer already got ERROR_REPLY (joop/recovery.py).
 LATE_PREFIX_RU = "Извините, что отвечаю с задержкой.\n\n"
 LATE_PREFIX_KY = "Кечиресиз, кечигип жооп берип жатам.\n\n"
@@ -242,8 +250,12 @@ def _handle_incoming(
         # a Telegram or web chat customer is seen only by the bot, so staff get it as a note.
         # A chat in the owner's personal Telegram is already in front of them: no note.
         seen_by_bot_only = conv.channel in ("telegram", "web") and not is_personal(conv.chat_id)
-        notes = [_paused_note(conv, stored, base_url)] if seen_by_bot_only and stored else []
-        return Outcome(skipped="paused", admin_notes=notes)
+        told = seen_by_bot_only and bool(stored) and not _waits_after_limit(session, conv, now)
+        return Outcome(skipped="paused", admin_notes=[_paused_note(conv, stored, base_url)] if told else [])
+
+    spent = None if is_test(conv) else _answers_spent(session, conv, now)
+    if spent is not None:  # somebody's auto-reply, a bot, a game: each answer is a paid model call, and it has no end
+        return _hand_over(session, business, conv, spent, now, off)
 
     if opt is not None:
         reply = broadcasts.opt_reply(opt, text)
@@ -667,6 +679,56 @@ def _is_own_text(echo: str, sent: list[str]) -> bool:
         if e == t or (len(e) >= 20 and t.startswith(e)):
             return True
     return False
+
+
+def _last_limit_stop(session: Session, conv: Conversation, now: datetime) -> datetime | None:
+    return session.exec(select(Lead.created_at).where(
+        Lead.conversation_id == conv.id, Lead.kind == "limit", Lead.created_at > now - STOP_AGAIN).order_by(Lead.id.desc())).first()
+
+
+def _answers_spent(session: Session, conv: Conversation, now: datetime) -> tuple[int, bool, bool] | None:
+    """The AI has answered this chat too often: (how many times, by the day's limit, stopped before in this day).
+
+    Counted from the last stop, not from an hour or a day ago: staff who looked and turned the AI back on have
+    decided that this is a customer, and the AI answers them again at once."""
+    stopped_at = _last_limit_stop(session, conv, now)
+    since = max(now - timedelta(hours=24), stopped_at) if stopped_at else now - timedelta(hours=24)
+    times = session.exec(select(Message.created_at).where(
+        Message.conversation_id == conv.id, Message.role == "ai", Message.created_at > since)).all()
+    in_hour = sum(1 for at in times if at > now - timedelta(hours=1))
+    if in_hour >= ANSWERS_PER_HOUR:
+        return in_hour, False, stopped_at is not None
+    if len(times) >= ANSWERS_PER_DAY:
+        return len(times), True, stopped_at is not None
+    return None
+
+
+def _hand_over(session: Session, business: Business, conv: Conversation, spent: tuple[int, bool, bool], now: datetime,
+               off: bool) -> Outcome:
+    """Stop answering this chat: one line to the customer, one request to staff, then silence until the pause ends."""
+    answers, by_day, again = spent
+    pause = STOP_AGAIN if by_day or again else STOP_FIRST
+    conv.ai_paused_until = now + pause
+    session.add(conv)
+    summary = (
+        f"ИИ остановлен в этом чате на {'сутки' if pause == STOP_AGAIN else 'час'}: "
+        f"{'за последние сутки' if by_day else 'за последний час'} он ответил {answers} {plural(answers, 'раз', 'раза', 'раз')}. "
+        "Так бывает, когда с ИИ переписывается чужой бот или автоответчик, либо кто-то пишет ради забавы. "
+        "Клиенту сказано, что дальше ответит администратор. Если это клиент — ответьте ему или снова включите ИИ в диалоге. "
+        "Если бот или спам — добавьте чат в чёрный список.")
+    lead = _add_lead(session, business, conv, "limit", summary, now, off)
+    # ...and the same words in the dialogue itself, where staff ask «почему ИИ молчит?»
+    session.add(ConversationNote(business_id=business.id, conversation_id=conv.id, author="Joop AI", text=summary, created_at=now))
+    _add_message(session, business, conv, "ai", HANDED_OVER_REPLY, now, off)
+    return Outcome(reply=HANDED_OVER_REPLY, admin_notes=[_lead_note(business, conv, lead, off)], lead_id=lead.id)
+
+
+def _waits_after_limit(session: Session, conv: Conversation, now: datetime) -> bool:
+    """The limit stopped this chat and nobody from staff has written in it since. They were told once, by the request;
+    a note for every further message of a bot would bury their alerts chat."""
+    stopped_at = _last_limit_stop(session, conv, now)
+    return stopped_at is not None and session.exec(select(Message.id).where(
+        Message.conversation_id == conv.id, Message.role == "staff", Message.created_at >= stopped_at)).first() is None
 
 
 def _paused_note(conv: Conversation, text: str, base_url: str) -> str:

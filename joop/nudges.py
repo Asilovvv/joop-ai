@@ -23,7 +23,7 @@ from .timeutil import is_off_hours, local_to_utc, parse_hhmm, utc_to_local
 if TYPE_CHECKING:
     from .runtime import Runtime
 
-KINDS = ("handoff", "request", "lead", "media", "error")
+KINDS = ("handoff", "request", "lead", "media", "error", "limit")
 LOOK_BACK = timedelta(days=3)  # older requests are not nudged: the morning summary still counts them
 LISTED = 5
 CHANNELS = {"telegram": "Telegram", "whatsapp": "WhatsApp", "instagram": "Instagram", "web": "чат на сайте"}
