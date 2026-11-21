@@ -22,8 +22,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from .. import annual, billing, free_plan, health, partners, pitch, samples, stories, waitlist
-from ..channels.telegram import bot_id
-from ..dispatch import admin_link, alert_chats, alerts_other_bot
+from ..dispatch import admin_link, alert_chats
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
@@ -34,6 +33,7 @@ from ..models import (
 from ..niches import all_packs, get_pack, picker_packs
 from ..presets import create_business
 from ..signup import Refused, register
+from .. import telegram_setup
 from ..pricing import empty_usage
 from ..slots import release_slot, seats_needed
 from ..stats import real_conversation, test_conversations
@@ -276,45 +276,11 @@ def setup_telegram(request: Request, token: str = Form(""), csrf: str = Form("")
     «Каналы» (back=/panel/channels): the only way a bot token gets saved, so an unchecked token never shows as connected."""
     _check_csrf(request, csrf)
     page = back if back in TELEGRAM_BACK else "/panel/setup"
-    token = token.strip()
-    if not re.fullmatch(r"\d{5,}:[A-Za-z0-9_-]{30,}", token):
-        _flash(request, "Это не похоже на токен бота. Скопируйте его целиком из сообщения @BotFather.", "error")
-        return _back(page + "#telegram")
-    settings = _settings(request)
     with new_session() as s:
-        b = _business(s, request)
-        others = s.exec(select(Business).where(Business.id != b.id, Business.telegram_bot_token != "")).all()
-        if any(o.telegram_bot_token == token for o in others):  # tokens are encrypted: compare after decryption
-            _flash(request, "Этот бот уже подключён к другой компании.", "error")
-            return _back(page + "#telegram")
-        if b.admin_chat_ids and not b.admin_bot and b.telegram_bot_token:
-            b.admin_bot = bot_id(b.telegram_bot_token)  # linked before 0063: they went through the bot being replaced
-        b.telegram_bot_token = token
-        client = _rt(request).telegram(b)
-        me = client.get_me() if client else None
-        if not me:  # checked before saving: a wrong token must not show as "connected" in the panel
-            s.rollback()
-            _flash(request, "Telegram не принял токен — бот не подключён. Проверьте токен у @BotFather и вставьте его целиком.", "error")
-            return _back(page + "#telegram")
-        b.telegram_bot_username = str(me.get("username") or "")
-        s.add(b)
-        s.commit()
-        relink = alerts_other_bot(b)  # the alert chats were linked through the previous bot
-    if not settings.public_base_url.startswith("https://"):
-        _flash(request, f"Токен бота @{me.get('username', '')} сохранён. Чтобы бот отвечал, серверу нужен адрес https (PUBLIC_BASE_URL).", "error")
-        return _back(page)
-    if client.set_webhook(f"{settings.public_base_url}/webhooks/telegram/{b.slug}", b.telegram_secret):
-        _flash(request, f"Бот @{me.get('username', '')} подключён. Напишите ему — ИИ ответит.")
-        if relink:
-            _flash(request, "Чаты для уведомлений были привязаны через прежнего бота — новый писать в них не может. "
-                            "Привяжите их заново в «Настройках» → «Уведомления в Telegram».", "error")
-        with new_session() as s:  # the bot now answers real customers: say what is still the sign-up example
-            found = samples.left(s, s.get(Business, b.id))
-        if found.any:
-            _flash(request, samples.warning(found), "error")
-    else:
-        _flash(request, "Не удалось подключить бота. Попробуйте ещё раз через минуту.", "error")
-    return _back(page)
+        done = telegram_setup.connect(s, _rt(request), _settings(request), _business(s, request), token)
+    for text, kind in done.notes:
+        _flash(request, text, kind)
+    return _back(page if done.ok else page + "#telegram")
 
 
 # --- test chat in the panel ------------------------------------------------------------------------------

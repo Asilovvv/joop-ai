@@ -988,3 +988,80 @@ class CustomerRow extends Equatable {
   @override
   List<Object?> get props => [key, name, phone, channels, visits, spendSom, lastVisit, tags];
 }
+
+
+/// One step of the panel's launch checklist («Запуск»), as /api/mobile/setup gives it.
+class SetupStep extends Equatable {
+  const SetupStep({required this.key, required this.done, required this.title, required this.hint, this.panel = ''});
+
+  factory SetupStep.fromJson(Map<String, dynamic> json) => SetupStep(
+        key: json['key'] as String,
+        done: json['done'] as bool,
+        title: json['title'] as String,
+        hint: (json['hint'] as String?) ?? '',
+        panel: (json['panel'] as String?) ?? '',
+      );
+
+  final String key;
+  final bool done;
+  final String title;
+  final String hint;
+
+  /// The panel's page for this step, for steps the app does not take itself.
+  final String panel;
+
+  @override
+  List<Object?> get props => [key, done, title, hint, panel];
+}
+
+/// The owner's launch checklist, with the two steps the app takes: the Telegram bot and booking by link.
+class SetupInfo extends Equatable {
+  const SetupInfo({
+    required this.steps,
+    required this.botConnected,
+    this.botUsername = '',
+    this.pageAvailable = false,
+    this.pageOn = false,
+    this.pageWorks = false,
+    this.pageWhy = '',
+    this.pageUrl = '',
+    this.notes = const [],
+  });
+
+  factory SetupInfo.fromJson(Map<String, dynamic> json) {
+    final telegram = (json['telegram'] as Map?) ?? const {};
+    final page = (json['page_booking'] as Map?) ?? const {};
+    return SetupInfo(
+      steps: [for (final s in (json['steps'] as List? ?? const [])) SetupStep.fromJson(s as Map<String, dynamic>)],
+      botConnected: (telegram['connected'] as bool?) ?? false,
+      botUsername: (telegram['username'] as String?) ?? '',
+      pageAvailable: (page['available'] as bool?) ?? false,
+      pageOn: (page['on'] as bool?) ?? false,
+      pageWorks: (page['works'] as bool?) ?? false,
+      pageWhy: (page['why'] as String?) ?? '',
+      pageUrl: (page['url'] as String?) ?? '',
+      notes: [for (final n in (json['notes'] as List? ?? const [])) ((n as Map)['text'] as String, n['ok'] == true)],
+    );
+  }
+
+  final List<SetupStep> steps;
+  final bool botConnected;
+  final String botUsername;
+  final bool pageAvailable;
+  final bool pageOn;
+
+  /// On and taking bookings now (an open page, a working subscription).
+  final bool pageWorks;
+
+  /// Why not: page | niche | altegio | off | unpaid (joop/page_booking.py unavailable).
+  final String pageWhy;
+  final String pageUrl;
+
+  /// What the server said about the last change, (text, good news).
+  final List<(String, bool)> notes;
+
+  int get done => steps.where((s) => s.done).length;
+
+  @override
+  List<Object?> get props => [steps, botConnected, botUsername, pageAvailable, pageOn, pageWorks, pageWhy, pageUrl, notes];
+}

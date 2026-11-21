@@ -24,6 +24,16 @@ class S {
     required this.iAmStaff,
     required this.serverAddress,
     required this.signIn,
+    required this.setupTitle,
+    required this.botToken,
+    required this.connectBot,
+    required this.botHowTo,
+    required this.pageBookingSwitch,
+    required this.pageBookingHint,
+    required this.pageBookingUnpaid,
+    required this.inPanel,
+    required this.copy,
+    required this.setupProgress,
     required this.trialNote,
     required this.signUpNext,
     required this.signUp,
@@ -261,6 +271,16 @@ class S {
   final String iAmStaff;
   final String serverAddress;
   final String signIn;
+  final String setupTitle;
+  final String botToken;
+  final String connectBot;
+  final String botHowTo;
+  final String pageBookingSwitch;
+  final String pageBookingHint;
+  final String pageBookingUnpaid;
+  final String inPanel;
+  final String copy;
+  final String Function(int done, int total) setupProgress;
   final String signUp;
   final String signUpTitle;
   final String businessName;
@@ -531,6 +551,16 @@ class S {
     iAmStaff: 'Я сотрудник',
     serverAddress: 'Адрес сервера Joop',
     signIn: 'Войти',
+    setupTitle: 'Запуск',
+    botToken: 'Токен бота от @BotFather',
+    connectBot: 'Подключить бота',
+    botHowTo: 'В Telegram: @BotFather → /newbot → скопируйте токен и вставьте сюда.',
+    pageBookingSwitch: 'Клиенты записываются сами',
+    pageBookingHint: 'Клиент выбирает время на странице, без переписки. Ссылку поставьте в шапку Instagram и в 2ГИС:',
+    pageBookingUnpaid: 'Сейчас не принимает записи: нужна подписка или пробный период.',
+    inPanel: 'В панели:',
+    copy: 'Копировать',
+    setupProgress: _ruSetupProgress,
     signUp: 'Зарегистрировать компанию',
     signUpTitle: 'Новая компания',
     businessName: 'Название компании',
@@ -778,6 +808,16 @@ class S {
     iAmStaff: 'Мен кызматкермин',
     serverAddress: 'Joop серверинин дареги',
     signIn: 'Кирүү',
+    setupTitle: 'Ишке киргизүү', // check with a native speaker
+    botToken: '@BotFather берген бот токени', // check with a native speaker
+    connectBot: 'Ботту туташтыруу', // check with a native speaker
+    botHowTo: "Telegram'да: @BotFather → /newbot → токенди көчүрүп, бул жерге коюңуз.", // check with a native speaker
+    pageBookingSwitch: 'Кардарлар өздөрү жазылышат', // check with a native speaker
+    pageBookingHint: "Кардар убакытты баракта тандайт, жазышпай эле. Шилтемени Instagram'дын башына жана 2ГИСке коюңуз:", // check with a native speaker
+    pageBookingUnpaid: 'Азыр жазылуу кабыл алынбайт: жазылуу же сыноо мөөнөтү керек.', // check with a native speaker
+    inPanel: 'Панелде:', // check with a native speaker
+    copy: 'Көчүрүү', // check with a native speaker
+    setupProgress: _kySetupProgress,
     signUp: 'Компанияны каттоо', // check with a native speaker
     signUpTitle: 'Жаңы компания', // check with a native speaker
     businessName: 'Компаниянын аталышы', // check with a native speaker
@@ -1179,3 +1219,6 @@ String _ruSignUpNext(String login, String setup) =>
 String _kySignUpNext(String login, String setup) => // check with a native speaker
     'Логиниңиз: $login (же телефон), сырсөз — сиз жазгандай. ИИ кардарларга жооп бере башташы үчүн компьютердеги '
     'панелде Telegram-ботту туташтырып, прайсты текшериңиз: $setup';
+
+String _ruSetupProgress(int done, int total) => 'Готово $done из $total';
+String _kySetupProgress(int done, int total) => '$total кадамдан $done даяр'; // check with a native speaker
