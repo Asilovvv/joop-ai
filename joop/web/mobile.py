@@ -34,11 +34,11 @@ from ..samples import example_staff_ids
 from ..security import verify_password
 from ..signup import Refused, register
 from ..catalog import parse_price
-from .. import page_booking, telegram_setup, try_chat
-from ..slots import CLOSED, claim_slot, free_on_day, release_slot, seats_left, seats_needed
+from .. import billing, free_plan, page_booking, telegram_setup, try_chat
+from ..slots import CLOSED, claim_slot, free_on_day, release_slot, resize_group, seats_left, seats_needed
 from ..stats import TEST_CHANNEL, activity, not_test, real_conversation, test_conversations
 from ..timeutil import local_now, parse_days_off, parse_hhmm, utcnow
-from .app import _base_url, _by_phone, _delete_service, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
+from .app import _base_url, _by_phone, _delete_service, _login_fails, _retire_staff, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
 from .saas import checklist, unique_slug
 from .menu import qr_rows
 
@@ -76,7 +76,9 @@ class Who:
                 "sections": {"bookings": pack.has("booking") or pack.has("request"), "cash": pack.has("booking"),
                              "orders": pack.has("order") and not master, "leads": not master,
                              "stays": pack.has("stay") and not master},
-                "stay_kind": _stay_kind(pack) if pack.has("stay") else None}
+                "stay_kind": _stay_kind(pack) if pack.has("stay") else None,
+                # the app's people screen (/api/mobile/staff): its title, "" where the app does not edit them
+                "people_label": "" if master or pack.has("stay") or b.altegio_location_id else pack.resource_label}
 
 
 def _stay_kind(pack) -> str:
@@ -1018,6 +1020,131 @@ def mobile_service_delete(request: Request, item_id: int):
         _delete_service(s, row)
         s.commit()
         return _price_list(s, who.business)
+
+
+# --- the business's people (the panel's «Специалисты»): the sign-up example out, its own people in ---
+
+
+class StaffIn(BaseModel):
+    name: str
+    role: str = ""
+    handles: str = ""
+    capacity: int = 0
+    group_size: int = 0
+
+
+def _people(s: Session, b: Business) -> dict:
+    """`capacity`: seats of a table or a hall (party-size niches); `group`: places in a group class."""
+    pack = get_pack(b.niche)
+    example = example_staff_ids(s, b)
+    rows = s.exec(select(Staff).where(Staff.business_id == b.id, Staff.active == True).order_by(Staff.id)).all()  # noqa: E712
+    return {"label": pack.resource_label, "item": pack.resource_item, "capacity": pack.party_size,
+            "group": pack.offers("group_classes"), "booking": pack.has("booking"),
+            "staff": [{"id": x.id, "name": x.name, "role": x.role, "handles": x.handles, "capacity": x.capacity,
+                       "group_size": x.group_size, "example": x.id in example} for x in rows]}
+
+
+def _people_editor(s: Session, request: Request) -> tuple[Who | None, JSONResponse | None]:
+    """Owner and administrators, as in the panel. Not a master; not a salon whose people come from Altegio; not
+    rooms, halls or cars (their counts mean nights and cars, and are set in the panel)."""
+    who, denied = _staff_only(s, request)
+    if denied:
+        return None, denied
+    b = who.business
+    if b.altegio_location_id:
+        return None, _fail(409, "Сотрудники берутся из Altegio: меняйте их там, Joop подхватит изменения сам.")
+    if get_pack(b.niche).has("stay"):
+        return None, _fail(409, f"Номера, залы и машины меняются в панели, раздел «{get_pack(b.niche).resource_label}».")
+    return who, None
+
+
+def _own_person(s: Session, b: Business, item_id: int) -> Staff | None:
+    row = s.get(Staff, item_id)
+    return row if row is not None and row.business_id == b.id and row.active else None
+
+
+@router.get("/api/mobile/staff")
+def mobile_staff(request: Request):
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        return denied or _people(s, who.business)
+
+
+@router.post("/api/mobile/staff")
+def mobile_staff_add(request: Request, body: StaffIn):
+    with new_session() as s:
+        who, denied = _people_editor(s, request)
+        if denied:
+            return denied
+        b = who.business
+        if not body.name.strip():
+            return _fail(422, "Напишите имя.")
+        if free_plan.is_free(billing.get_subscription(s, b.id)) and len(free_plan.active_staff(s, b.id)) >= free_plan.MAX_STAFF:
+            return _fail(409, free_plan.TOO_MANY)  # the free plan is for one master
+        s.add(Staff(business_id=b.id, name=body.name.strip()[:120], role=body.role.strip()[:120],
+                    handles=body.handles.strip()[:500], capacity=max(0, min(body.capacity, 500)),
+                    group_size=max(0, min(body.group_size, 500))))
+        s.commit()
+        return _people(s, b)
+
+
+@router.post("/api/mobile/staff/example/delete")
+def mobile_staff_example_delete(request: Request):
+    """Every person still exactly the sign-up example retired, with their free times, as the panel's «Удалить пример»."""
+    with new_session() as s:
+        who, denied = _people_editor(s, request)
+        if denied:
+            return denied
+        b = who.business
+        ids = example_staff_ids(s, b)
+        for row in s.exec(select(Staff).where(Staff.business_id == b.id, Staff.id.in_(ids))).all() if ids else []:
+            _retire_staff(s, b.id, row)
+        s.commit()
+        return {"removed": len(ids), **_people(s, b)}
+
+
+@router.post("/api/mobile/staff/{item_id}")
+def mobile_staff_update(request: Request, item_id: int, body: StaffIn):
+    with new_session() as s:
+        who, denied = _people_editor(s, request)
+        if denied:
+            return denied
+        b = who.business
+        row = _own_person(s, b, item_id)
+        if row is None:
+            return _fail(404, "Такого сотрудника нет.")
+        if not body.name.strip():
+            return _fail(422, "Напишите имя.")
+        before = len(free_plan.active_staff(s, b.id))
+        row.name, row.role, row.handles = body.name.strip()[:120], body.role.strip()[:120], body.handles.strip()[:500]
+        s.add(row)
+        s.flush()
+        if free_plan.breaks_plan(s, b.id, before):  # an example master turned into a second real one
+            s.rollback()
+            return _fail(409, free_plan.TOO_MANY)
+        row.capacity = max(0, min(body.capacity, 500))
+        group_size = max(0, min(body.group_size, 500))
+        if group_size != row.group_size:
+            row.group_size = group_size
+            resize_group(s, row.id, group_size, local_now(b.timezone).replace(tzinfo=None))
+        s.add(row)
+        s.commit()
+        return _people(s, b)
+
+
+@router.post("/api/mobile/staff/{item_id}/delete")
+def mobile_staff_delete(request: Request, item_id: int):
+    """Retired, not deleted: bookings keep their person; free times and the person's own login go."""
+    with new_session() as s:
+        who, denied = _people_editor(s, request)
+        if denied:
+            return denied
+        row = _own_person(s, who.business, item_id)
+        if row is None:
+            return _fail(404, "Такого сотрудника нет.")
+        _retire_staff(s, who.business.id, row)
+        s.commit()
+        return _people(s, who.business)
 
 
 # --- orders and requests ---------------------------------------------------------------------------

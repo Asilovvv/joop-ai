@@ -104,6 +104,21 @@ class JoopRepository {
   Future<ContactsInfo> saveContacts(ContactsInfo info) async =>
       ContactsInfo.fromJson(await _api.post('/api/mobile/contacts', info.toJson()) as Map<String, dynamic>);
 
+  Future<PeopleInfo> people() async => PeopleInfo.fromJson(await _api.get('/api/mobile/staff') as Map<String, dynamic>);
+
+  /// A new person when `id` is null; the list as it stands after.
+  Future<PeopleInfo> savePerson(int? id, Person person) async => PeopleInfo.fromJson(
+      await _api.post(id == null ? '/api/mobile/staff' : '/api/mobile/staff/$id', person.toJson()) as Map<String, dynamic>);
+
+  /// Retired: bookings keep their person, free times and the person's login go.
+  Future<PeopleInfo> deletePerson(int id) async =>
+      PeopleInfo.fromJson(await _api.post('/api/mobile/staff/$id/delete') as Map<String, dynamic>);
+
+  Future<(int, PeopleInfo)> deletePeopleExample() async {
+    final data = await _api.post('/api/mobile/staff/example/delete') as Map<String, dynamic>;
+    return ((data['removed'] as int?) ?? 0, PeopleInfo.fromJson(data));
+  }
+
   Future<void> logout() async {
     _api.token = null;
     final prefs = await SharedPreferences.getInstance();

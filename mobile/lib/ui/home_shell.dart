@@ -22,6 +22,7 @@ import 'new_booking_screen.dart';
 import 'new_stay_screen.dart';
 import 'schedule_screen.dart';
 import 'services_screen.dart';
+import 'people_screen.dart';
 import 'setup_screen.dart';
 import 'today_screen.dart';
 import 'work_screens.dart';
@@ -250,6 +251,13 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                       },
                       child: ListTile(
                           leading: const Icon(Icons.event_available_outlined), title: Text(S.current.schedule)),
+                    ),
+                  if (_account.peopleLabel.isNotEmpty)
+                    PopupMenuItem(
+                      key: const Key('menu-people'),
+                      value: () => Navigator.of(context)
+                          .push(MaterialPageRoute(builder: (_) => PeopleScreen(title: _account.peopleLabel))),
+                      child: ListTile(leading: const Icon(Icons.badge_outlined), title: Text(_account.peopleLabel)),
                     ),
                   if (_account.isOwner)
                     PopupMenuItem(

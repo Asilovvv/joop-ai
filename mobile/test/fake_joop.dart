@@ -38,6 +38,16 @@ class FakeJoop {
   Map<String, dynamic> contacts = {'address': '', 'phone': '+996 555 000 001', 'hours_text': 'Пн–Пт 9:00–18:00',
     'work_start': '09:00', 'work_end': '18:00', 'days_off': [6, 7], 'example': ['hours_text']};
 
+  /// The business's people (/api/mobile/staff): one still the sign-up example.
+  final people = <Map<String, dynamic>>[
+    {'id': 1, 'name': 'Айгерим', 'role': 'терапевт', 'handles': 'кариес', 'capacity': 0, 'group_size': 0, 'example': false},
+    {'id': 2, 'name': 'Д-р Пример', 'role': 'хирург', 'handles': 'удаление', 'capacity': 0, 'group_size': 0, 'example': true},
+  ];
+  String? refusePeople;
+
+  Map<String, dynamic> peopleJson() =>
+      {'label': 'Врачи', 'item': 'врач', 'capacity': false, 'group': false, 'booking': true, 'staff': people};
+
   /// The owner's test chat (/api/mobile/try).
   final tryChat = <Map<String, dynamic>>[];
 
@@ -47,6 +57,7 @@ class FakeJoop {
           {'key': 'telegram', 'done': botConnected, 'title': 'Telegram-бот', 'hint': 'Клиенты пишут боту.', 'panel': 'https://joop.test/panel/channels'},
           {'key': 'try', 'done': tryChat.isNotEmpty, 'title': 'Проверьте ИИ', 'hint': 'Напишите как клиент.', 'panel': 'https://joop.test/panel/try'},
           {'key': 'contacts', 'done': contacts['example'].isEmpty && contacts['address'] != '', 'title': 'Контакты и часы работы', 'hint': 'Осталось указать: адрес.', 'panel': 'https://joop.test/panel/settings'},
+          {'key': 'staff', 'done': people.isNotEmpty && people.every((p) => p['example'] != true), 'title': 'Врачи: ${people.length}', 'hint': 'Впишите своих.', 'panel': 'https://joop.test/panel/staff'},
           {'key': 'hours', 'done': false, 'title': 'Часы работы', 'hint': 'Когда вы открыты.', 'panel': 'https://joop.test/panel/settings'},
         ],
         'telegram': {'connected': botConnected, 'username': botConnected ? 'aktish_bot' : ''},
@@ -200,6 +211,7 @@ class FakeJoop {
             'who': role == 'master' ? 'Айгерим' : 'Владелец',
             'role': role,
             'sections': {'bookings': true, 'orders': false, 'leads': role != 'master', 'cash': true},
+            'people_label': role == 'master' ? '' : 'Врачи',
           };
     if (path == '/api/mobile/places/aktish') {
       return json({
@@ -244,6 +256,28 @@ class FakeJoop {
     if (request.headers['Authorization'] != 'Bearer $token') return json({'error': 'Войдите заново.'}, 401);
     if (path == '/api/mobile/me') return json(account);
     if (path == '/api/mobile/setup') return json(setupJson());
+    if (path == '/api/mobile/staff' && request.method == 'GET') return json(peopleJson());
+    if (path.startsWith('/api/mobile/staff')) {
+      if (refusePeople != null) return json({'error': refusePeople}, 409);
+      if (path == '/api/mobile/staff/example/delete') {
+        final before = people.length;
+        people.removeWhere((x) => x['example'] == true);
+        return json({'removed': before - people.length, ...peopleJson()});
+      }
+      final del = RegExp(r'^/api/mobile/staff/(\d+)/delete$').firstMatch(path);
+      if (del != null) {
+        people.removeWhere((x) => x['id'] == int.parse(del.group(1)!));
+        return json(peopleJson());
+      }
+      final body = {...jsonDecode(request.body) as Map<String, dynamic>, 'example': false};
+      final upd = RegExp(r'^/api/mobile/staff/(\d+)$').firstMatch(path);
+      if (upd != null) {
+        people.firstWhere((x) => x['id'] == int.parse(upd.group(1)!)).addAll(body);
+      } else {
+        people.add({'id': 10 + people.length, ...body});
+      }
+      return json(peopleJson());
+    }
     if (path == '/api/mobile/contacts' && request.method == 'GET') return json(contacts);
     if (path == '/api/mobile/contacts') {
       final body = jsonDecode(request.body) as Map<String, dynamic>;

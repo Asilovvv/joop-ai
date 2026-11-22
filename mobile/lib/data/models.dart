@@ -16,6 +16,7 @@ class Account extends Equatable {
     this.cash = false,
     this.stays = false,
     this.stayKind = 'room',
+    this.peopleLabel = '',
   });
 
   factory Account.fromJson(Map<String, dynamic> json) {
@@ -28,6 +29,7 @@ class Account extends Equatable {
       cash: (sections['cash'] as bool?) ?? false,
       stays: (sections['stays'] as bool?) ?? false,
       stayKind: (json['stay_kind'] as String?) ?? 'room',
+      peopleLabel: (json['people_label'] as String?) ?? '',
       businessName: business['name'] as String,
       slug: business['slug'] as String,
       niche: (business['niche'] as String?) ?? '',
@@ -58,10 +60,13 @@ class Account extends Equatable {
   /// room | car | hall
   final String stayKind;
 
+  /// The people screen's title («Специалисты», «Столы»); empty where this login does not edit them.
+  final String peopleLabel;
+
   bool get isOwner => role == 'owner';
 
   @override
-  List<Object?> get props => [businessName, slug, niche, who, role, bookings, orders, leads, cash, stays, stayKind];
+  List<Object?> get props => [businessName, slug, niche, who, role, bookings, orders, leads, cash, stays, stayKind, peopleLabel];
 }
 
 class Booking extends Equatable {
@@ -1140,4 +1145,70 @@ class ContactsInfo extends Equatable {
 
   @override
   List<Object?> get props => [address, phone, hoursText, workStart, workEnd, daysOff, example];
+}
+
+
+/// One of the business's people (or tables, groups), as /api/mobile/staff gives them.
+class Person extends Equatable {
+  const Person({required this.id, required this.name, this.role = '', this.handles = '', this.capacity = 0,
+      this.groupSize = 0, this.example = false});
+
+  factory Person.fromJson(Map<String, dynamic> json) => Person(
+        id: json['id'] as int,
+        name: json['name'] as String,
+        role: (json['role'] as String?) ?? '',
+        handles: (json['handles'] as String?) ?? '',
+        capacity: (json['capacity'] as int?) ?? 0,
+        groupSize: (json['group_size'] as int?) ?? 0,
+        example: (json['example'] as bool?) ?? false,
+      );
+
+  final int id;
+  final String name;
+  final String role;
+
+  /// What this person takes: the AI picks whom to book by it.
+  final String handles;
+
+  /// Seats of a table or hall (party-size niches), 0 = not relevant.
+  final int capacity;
+
+  /// Places in a group class, 0 = one booking a time.
+  final int groupSize;
+
+  /// Still the sign-up example: customers are not booked to them.
+  final bool example;
+
+  Map<String, dynamic> toJson() =>
+      {'name': name, 'role': role, 'handles': handles, 'capacity': capacity, 'group_size': groupSize};
+
+  @override
+  List<Object?> get props => [id, name, role, handles, capacity, groupSize, example];
+}
+
+/// The people screen: its title and item word by niche, which numbers it asks for, and the list.
+class PeopleInfo extends Equatable {
+  const PeopleInfo({required this.label, required this.item, required this.people, this.capacity = false,
+      this.group = false, this.booking = false});
+
+  factory PeopleInfo.fromJson(Map<String, dynamic> json) => PeopleInfo(
+        label: json['label'] as String,
+        item: (json['item'] as String?) ?? '',
+        capacity: (json['capacity'] as bool?) ?? false,
+        group: (json['group'] as bool?) ?? false,
+        booking: (json['booking'] as bool?) ?? false,
+        people: [for (final p in (json['staff'] as List? ?? const [])) Person.fromJson(p as Map<String, dynamic>)],
+      );
+
+  final String label;
+  final String item;
+  final bool capacity;
+  final bool group;
+
+  /// Customers book these people's time (not just ask for them by name).
+  final bool booking;
+  final List<Person> people;
+
+  @override
+  List<Object?> get props => [label, item, capacity, group, booking, people];
 }
