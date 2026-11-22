@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -48,6 +49,9 @@ PER_ADDRESS = 40  # per IP address per day: several people behind one office rou
 MAX_TEXT = 500
 _by_address: dict[str, tuple[int, float]] = {}
 _refreshed: dict[int, float] = {}
+_answering = 0  # demo answers being written now, not yet counted by the database
+_lock = threading.Lock()  # answers run in threads: a check and its count are one step, or a burst passes them all
+_making = threading.Lock()  # the first visitors of a demo would each create it
 
 
 def is_demo(business: Business) -> bool:
@@ -58,14 +62,15 @@ def demo_business(session: Session, key: str) -> Business:
     """The demo business for a page key, created on first use; its free slots are kept a week ahead."""
     niche, name = DEMOS[key]
     slug = DEMO_PREFIX + key
-    business = session.exec(select(Business).where(Business.slug == slug)).first()
-    if business is None:
-        business = create_business(session, slug=slug, name=name, password=secrets.token_urlsafe(24), niche=niche,
-                                   demo=True, now_utc=utcnow())
-        session.commit()
-    elif time.time() - _refreshed.get(business.id, 0) > 3600:
-        _refresh_slots(session, business)
-    _refreshed[business.id] = time.time()
+    with _making:
+        business = session.exec(select(Business).where(Business.slug == slug)).first()
+        if business is None:
+            business = create_business(session, slug=slug, name=name, password=secrets.token_urlsafe(24), niche=niche,
+                                       demo=True, now_utc=utcnow())
+            session.commit()
+        elif time.time() - _refreshed.get(business.id, 0) > 3600:
+            _refresh_slots(session, business)
+        _refreshed[business.id] = time.time()
     return business
 
 
@@ -103,22 +108,46 @@ def _address_used(ip: str, now: float) -> int:
 def _limit(text: str) -> JSONResponse:
     return JSONResponse({"error": text}, status_code=429)
 
+
+def _take_address(ip: str, now: float) -> bool:
+    """Counts one message from this address, if it is under its limit."""
+    with _lock:
+        if _address_used(ip, now) >= PER_ADDRESS:
+            return False
+        count, first = _by_address.get(ip, (0, now))
+        _by_address[ip] = (count + 1, first)
+        return True
+
+
+def _give_back_address(ip: str) -> None:
+    """A message that was not answered (refused, failed) does not count."""
+    with _lock:
+        count, first = _by_address.get(ip, (0, 0.0))
+        if count > 0:
+            _by_address[ip] = (count - 1, first)
+
 def _answer(get_llm, key: str, token: str, text: str, limit: int):
     """The demo's answer, or the response that refuses it. Runs in a worker thread: it waits on the model, which on
     the event loop froze every other request of the server."""
+    global _answering
     with new_session() as s:
-        if _site_messages_today(s) >= limit:
-            return _limit("Демо сегодня очень популярно и лимит исчерпан. Попробуйте завтра или зарегистрируйтесь.")
-        business = demo_business(s, key)
-        chat_id = f"site-{key}-{token}"
-        incoming = IncomingMessage("console", chat_id, "text", text, "Гость", f"console:{chat_id}:{secrets.token_hex(6)}")
+        with _lock:
+            if _site_messages_today(s) + _answering >= limit:
+                return _limit("Демо сегодня очень популярно и лимит исчерпан. Попробуйте завтра или зарегистрируйтесь.")
+            _answering += 1
         try:
+            business = demo_business(s, key)
+            chat_id = f"site-{key}-{token}"
+            incoming = IncomingMessage("console", chat_id, "text", text, "Гость", f"console:{chat_id}:{secrets.token_hex(6)}")
             outcome = handle_incoming(s, business, incoming, get_llm)
             s.commit()
         except Exception:
             s.rollback()
             log.exception("Site demo failed for %s", key)
             return JSONResponse({"error": "ИИ сейчас недоступен. Попробуйте через минуту."}, status_code=503)
+        finally:
+            with _lock:
+                _answering -= 1
     return outcome
 
 
@@ -142,19 +171,22 @@ async def demo_chat(request: Request):
         request.session["demo_day"], request.session["demo_used"] = day, 0
     if int(request.session.get("demo_used", 0)) >= PER_SESSION:
         return _limit("Демо-сообщения на сегодня закончились. Зарегистрируйтесь — в своей панели можно проверить ИИ на ваших ценах.")
-    if _address_used(ip, now_s) >= PER_ADDRESS:
+    if not _take_address(ip, now_s):
         return _limit("С этого адреса сегодня уже много сообщений. Попробуйте завтра или зарегистрируйтесь.")
     token = request.session.get("demo_chat") or secrets.token_hex(8)
     request.session["demo_chat"] = token
 
-    outcome = await workers.run(_answer, _rt(request).get_llm, key, token, text, limit)
+    outcome = None
+    try:
+        outcome = await workers.run(_answer, _rt(request).get_llm, key, token, text, limit)
+    finally:
+        if outcome is None or isinstance(outcome, JSONResponse):
+            _give_back_address(ip)
     if isinstance(outcome, JSONResponse):
         return outcome
 
     request.session["demo_used"] = int(request.session.get("demo_used", 0)) + 1
     request.session["demo_tried"] = True  # a sign-up from this browser counts as one after the demo
-    count, first = _by_address.get(ip, (0, now_s))
-    _by_address[ip] = (count + 1, first)
     notes = [n.splitlines()[0] for n in outcome.admin_notes][:3]
     return JSONResponse({"reply": outcome.reply or "", "notes": notes,
                          "left": PER_SESSION - int(request.session["demo_used"])})

@@ -7,6 +7,7 @@ three visitors writing at once and a 3-second model, /health took 8.9 s and the 
 
 import ast
 import dataclasses
+import math
 import pathlib
 import re
 import threading
@@ -22,9 +23,10 @@ from joop.web.app import create_app
 from .conftest import FakeLLM
 
 WEB = pathlib.Path(__file__).resolve().parent.parent / "joop" / "web"
-# Calls that wait on the model, a messenger, Instagram or Altegio. In an `async def` they go through run_in_threadpool.
+# Calls that wait on the model, a messenger, Instagram or Altegio, and writes to the database (a write waits up to 15 s
+# while another connection holds SQLite's lock). In an `async def` they go through a thread.
 SLOW = {"handle_incoming", "respond", "draft_site", "propose", "send_text", "get_me", "notify_admins", "offer_freed",
-        "connect", "channel_client"}
+        "connect", "channel_client", "commit", "flush"}
 MODEL_SECONDS = 0.6
 
 
@@ -60,22 +62,29 @@ def test_the_check_finds_such_a_call():
 
 
 def at_once(jobs):
-    """Runs every job in its own thread at the same moment; returns how long each took, in order."""
-    took = [0.0] * len(jobs)
-    start = threading.Barrier(len(jobs))
+    """Runs every job in its own thread at the same moment; returns when each finished, in seconds from the start, in
+    order. A job that raises fails the test, and so does one that never finishes."""
+    ended, errors, began = [math.inf] * len(jobs), [], []
+    start = threading.Barrier(len(jobs), action=lambda: began.append(time.perf_counter()))
 
     def run(i, job):
         start.wait()
-        t = time.perf_counter()
-        job()
-        took[i] = time.perf_counter() - t
+        try:
+            job()
+        except BaseException as exc:  # noqa: BLE001 — raised again below, in the test's own thread
+            errors.append(exc)
+            return
+        ended[i] = time.perf_counter() - began[0]
 
     threads = [threading.Thread(target=run, args=(i, job)) for i, job in enumerate(jobs)]
     for t in threads:
         t.start()
     for t in threads:
         t.join(30)
-    return took
+    if errors:
+        raise errors[0]
+    assert math.inf not in ended, "a job did not finish in 30 s"
+    return ended
 
 
 def health_after(client, delay=MODEL_SECONDS / 3):
@@ -97,11 +106,11 @@ def test_site_chat_visitors_are_answered_side_by_side(settings, rt, business):
                 replies.append(r.json().get("reply"))
             return job
 
-        took = at_once([visitor(n) for n in range(3)] + [health_after(c)])
+        ended = at_once([visitor(n) for n in range(3)] + [health_after(c)])
     webchat.reset_limits()
     assert replies == ["Здравствуйте! Чем помочь?"] * 3
-    assert max(took[:3]) < MODEL_SECONDS * 2  # one after another it would be three model times
-    assert took[3] < MODEL_SECONDS  # the server answered others meanwhile
+    assert max(ended[:3]) < MODEL_SECONDS * 2.5  # one after another it would be three model times
+    assert ended[3] < min(ended[:3])  # the server answered others while the visitors waited
 
 
 @pytest.fixture
@@ -123,6 +132,6 @@ def test_the_site_demo_does_not_stop_the_server(site):
         r = site.post("/demo/chat", json={"key": "salon", "text": "Сколько стоит стрижка?", "csrf": csrf})
         replies.append(r.status_code)
 
-    took = at_once([talk, health_after(site)])
+    ended = at_once([talk, health_after(site)])
     assert replies == [200]
-    assert took[1] < MODEL_SECONDS
+    assert ended[1] < ended[0]

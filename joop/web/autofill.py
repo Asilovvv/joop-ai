@@ -67,6 +67,12 @@ async def autofill_preview(request: Request):
 @router.post("/panel/autofill/save")
 async def autofill_save(request: Request):
     form = await request.form()
+    return await run_in_threadpool(_autofill_save, request, form)
+
+
+def _autofill_save(request: Request, form):
+    """In a worker thread: it writes to the database, and a write waits while another holds SQLite's lock. On the event
+    loop that wait froze every request (tests/test_event_loop.py)."""
     _check_csrf(request, str(form.get("csrf", "")))
     back = "/panel/faq" if form.get("back") == "faq" else "/panel/services"
 

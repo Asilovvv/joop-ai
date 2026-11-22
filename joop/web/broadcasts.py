@@ -86,6 +86,12 @@ def _broadcasts_post(request: Request, data):
 @router.post("/panel/broadcasts/{item_id}/stop")
 async def broadcasts_stop(request: Request, item_id: int):
     data = await request.form()
+    return await run_in_threadpool(_broadcasts_stop, request, item_id, data)
+
+
+def _broadcasts_stop(request: Request, item_id: int, data):
+    """In a worker thread: it writes to the database, and a write waits while another holds SQLite's lock. On the event
+    loop that wait froze every request (tests/test_event_loop.py)."""
     _check_csrf(request, str(data.get("csrf", "")))
     with new_session() as s:
         b = _business(s, request)
