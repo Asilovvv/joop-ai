@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy import func
 from sqlmodel import Session, select
 
@@ -102,6 +103,24 @@ def _address_used(ip: str, now: float) -> int:
 def _limit(text: str) -> JSONResponse:
     return JSONResponse({"error": text}, status_code=429)
 
+def _answer(get_llm, key: str, token: str, text: str, limit: int):
+    """The demo's answer, or the response that refuses it. Runs in a worker thread: it waits on the model, which on
+    the event loop froze every other request of the server."""
+    with new_session() as s:
+        if _site_messages_today(s) >= limit:
+            return _limit("Демо сегодня очень популярно и лимит исчерпан. Попробуйте завтра или зарегистрируйтесь.")
+        business = demo_business(s, key)
+        chat_id = f"site-{key}-{token}"
+        incoming = IncomingMessage("console", chat_id, "text", text, "Гость", f"console:{chat_id}:{secrets.token_hex(6)}")
+        try:
+            outcome = handle_incoming(s, business, incoming, get_llm)
+            s.commit()
+        except Exception:
+            s.rollback()
+            log.exception("Site demo failed for %s", key)
+            return JSONResponse({"error": "ИИ сейчас недоступен. Попробуйте через минуту."}, status_code=503)
+    return outcome
+
 
 @router.post("/demo/chat")
 async def demo_chat(request: Request):
@@ -128,19 +147,9 @@ async def demo_chat(request: Request):
     token = request.session.get("demo_chat") or secrets.token_hex(8)
     request.session["demo_chat"] = token
 
-    with new_session() as s:
-        if _site_messages_today(s) >= limit:
-            return _limit("Демо сегодня очень популярно и лимит исчерпан. Попробуйте завтра или зарегистрируйтесь.")
-        business = demo_business(s, key)
-        chat_id = f"site-{key}-{token}"
-        incoming = IncomingMessage("console", chat_id, "text", text, "Гость", f"console:{chat_id}:{secrets.token_hex(6)}")
-        try:
-            outcome = handle_incoming(s, business, incoming, _rt(request).get_llm)
-            s.commit()
-        except Exception:
-            s.rollback()
-            log.exception("Site demo failed for %s", key)
-            return JSONResponse({"error": "ИИ сейчас недоступен. Попробуйте через минуту."}, status_code=503)
+    outcome = await run_in_threadpool(_answer, _rt(request).get_llm, key, token, text, limit)
+    if isinstance(outcome, JSONResponse):
+        return outcome
 
     request.session["demo_used"] = int(request.session.get("demo_used", 0)) + 1
     request.session["demo_tried"] = True  # a sign-up from this browser counts as one after the demo

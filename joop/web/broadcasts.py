@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
+from starlette.concurrency import run_in_threadpool
 from sqlmodel import select
 
 from .. import broadcasts
@@ -40,6 +41,12 @@ def broadcasts_page(request: Request):
 @router.post("/panel/broadcasts")
 async def broadcasts_post(request: Request):
     data = await request.form()
+    return await run_in_threadpool(_broadcasts_post, request, data)
+
+
+def _broadcasts_post(request: Request, data):
+    """In a worker thread: it waits on Telegram (the test message). On the event loop that froze every request
+    (tests/test_event_loop.py)."""
     _check_csrf(request, str(data.get("csrf", "")))
     segment = str(data.get("segment", "all"))
     form = {

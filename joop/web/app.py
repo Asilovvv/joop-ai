@@ -2020,6 +2020,12 @@ def crm_save(request: Request, domain: str = Form(""), token: str = Form(""), pi
 @router.post("/panel/channels")
 async def channels_save(request: Request):
     form = await request.form()
+    return await run_in_threadpool(_channels_save, request, form)
+
+
+def _channels_save(request: Request, form):
+    """In a worker thread: it waits on Instagram (the account's username). On the event loop that froze every request
+    (tests/test_event_loop.py)."""
     _check_csrf(request, str(form.get("csrf", "")))
 
     def value(key: str) -> str:

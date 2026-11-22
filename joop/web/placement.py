@@ -7,6 +7,7 @@ import re
 import time
 
 from fastapi import APIRouter, Form, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from sqlmodel import select
 
 from .. import placement, samples
@@ -247,6 +248,12 @@ def attempt_start(request: Request, token: str, name: str = Form(""), phone: str
 @router.post("/t/{token}")
 async def attempt_submit(request: Request, token: str):
     form = await request.form()
+    return await run_in_threadpool(_attempt_submit, request, token, form)
+
+
+def _attempt_submit(request: Request, token: str, form):
+    """In a worker thread: it waits on the customer's messenger and Telegram. On the event loop that froze every request
+    (tests/test_event_loop.py)."""
     _check_csrf(request, str(form.get("csrf", "")))
     now = utcnow()
     with new_session() as s:

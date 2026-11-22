@@ -21,6 +21,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from sqlalchemy import func
 from sqlmodel import Session, select
+from starlette.concurrency import run_in_threadpool
 
 from .. import staff_reply
 from ..agent.engine import handle_incoming
@@ -121,6 +122,13 @@ async def chat_message(request: Request, slug: str):
     if _count(f"v:{visitor}", day) >= PER_VISITOR or _count(f"ip:{ip}", day) >= PER_ADDRESS:
         return JSONResponse({"error": _t("limit", lang), "visitor": visitor},
                             status_code=429)
+    return await run_in_threadpool(_answer, request, slug, text, visitor, lang, day, ip)
+
+
+def _answer(request: Request, slug: str, text: str, visitor: str, lang: str, day: str, ip: str) -> JSONResponse:
+    """Everything that waits on the model, the database or Telegram. Runs in a worker thread: called straight from
+    the async route, one visitor waiting for the model froze the whole server (three visitors at once: /health
+    answered after 8.9 s, the third visitor after 9.2 s with a 3-second model)."""
     rt = _rt(request)
     with new_session() as s:
         try:
