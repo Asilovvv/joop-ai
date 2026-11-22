@@ -323,7 +323,13 @@ def _now_local(business: Business) -> datetime:
 
 
 @router.get("/health")
-def health():
+def health(request: Request):
+    """For the uptime check (deploy/uptime.py): it alerts on anything but 200 with ok."""
+    from .. import ops
+
+    problem = ops.db_write_problem(_settings(request).database_url)
+    if problem:
+        return JSONResponse({"ok": False, "error": problem}, status_code=503)
     return {"ok": True}
 
 
