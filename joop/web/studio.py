@@ -9,6 +9,7 @@ import secrets
 import time
 
 from fastapi import APIRouter, Form, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 from sqlmodel import select
 
 from .. import studio
@@ -87,6 +88,12 @@ def owner_studio(request: Request, status: str = ""):
 async def owner_studio_action(request: Request, rid: int):
     _owner(request)
     form = await request.form()
+    return await run_in_threadpool(_owner_studio_action, request, rid, form)
+
+
+def _owner_studio_action(request: Request, rid: int, form):
+    """In a worker thread: it waits on the model (a site draft takes seconds). On the event loop that froze every request
+    (tests/test_event_loop.py)."""
     _check_csrf(request, str(form.get("csrf", "")))
     action = str(form.get("action", ""))
     with new_session() as s:

@@ -127,6 +127,13 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
    many. A message in work for over five minutes no longer holds its chat: the next message or the
    scheduler's tick takes the queue over. One POST of Meta carries messages of several chats: the
    chats are answered side by side, and a chat's own messages join its queue together, in their order.
+   A route written `async def` (the site chat, the site demo, a test result, a test broadcast, the
+   saving of «Каналы», a studio draft) reads its form on the event loop and hands everything that
+   waits on the model or a messenger to a worker thread (`run_in_threadpool`); called on the loop
+   itself, one such wait froze every request. Measured with three site-chat visitors at once and a
+   3-second model: before, /health took 8.9 s and the visitors were answered after 3.2, 6.2 and
+   9.2 s; after, /health takes 0.02 s and all three are answered in 3.2 s. `tests/test_event_loop.py`
+   fails on any such call made from an `async def` in `joop/web`.
 5. **No model call inside a database transaction.** SQLite lets one connection write at a time, from
    its first write to commit. The engine commits before each model call (`db.free`),
    so a slow answer to one customer never stops another business's customers, the panel or the
@@ -219,6 +226,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 1131 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 1135 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |
