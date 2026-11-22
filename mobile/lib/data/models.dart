@@ -1092,3 +1092,52 @@ class SetupInfo extends Equatable {
   @override
   List<Object?> get props => [steps, botConnected, botUsername, pageAvailable, pageOn, pageWorks, pageWhy, pageUrl, pageQr, notes];
 }
+
+
+/// The business's contacts and opening hours, as /api/mobile/contacts gives them. `example`: fields still the
+/// sign-up example's (address, phone, hours_text), which customers are not told.
+class ContactsInfo extends Equatable {
+  const ContactsInfo({
+    this.address = '',
+    this.phone = '',
+    this.hoursText = '',
+    this.workStart = '09:00',
+    this.workEnd = '18:00',
+    this.daysOff = const {},
+    this.example = const {},
+  });
+
+  factory ContactsInfo.fromJson(Map<String, dynamic> json) => ContactsInfo(
+        address: (json['address'] as String?) ?? '',
+        phone: (json['phone'] as String?) ?? '',
+        hoursText: (json['hours_text'] as String?) ?? '',
+        workStart: (json['work_start'] as String?) ?? '09:00',
+        workEnd: (json['work_end'] as String?) ?? '18:00',
+        daysOff: {for (final d in (json['days_off'] as List? ?? const [])) d as int},
+        example: {for (final f in (json['example'] as List? ?? const [])) f as String},
+      );
+
+  final String address;
+  final String phone;
+  final String hoursText;
+
+  /// When bookable times start and end, HH:MM.
+  final String workStart;
+  final String workEnd;
+
+  /// ISO weekdays: 1 = Monday ... 7 = Sunday.
+  final Set<int> daysOff;
+  final Set<String> example;
+
+  Map<String, dynamic> toJson() => {
+        'address': address,
+        'phone': phone,
+        'hours_text': hoursText,
+        'work_start': workStart,
+        'work_end': workEnd,
+        'days_off': (daysOff.toList()..sort()),
+      };
+
+  @override
+  List<Object?> get props => [address, phone, hoursText, workStart, workEnd, daysOff, example];
+}

@@ -5,9 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_joop.dart';
 
-Future<FakeJoop> _signIn(WidgetTester tester, {String role = 'owner'}) async {
+Future<FakeJoop> _signIn(WidgetTester tester, {String role = 'owner', double height = 2340}) async {
   SharedPreferences.setMockInitialValues({});
-  tester.view.physicalSize = const Size(1080, 2340);
+  tester.view.physicalSize = Size(1080, height);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
   final server = FakeJoop()..role = role;
@@ -24,14 +24,14 @@ Future<FakeJoop> _signIn(WidgetTester tester, {String role = 'owner'}) async {
 
 void main() {
   testWidgets('the owner connects the Telegram bot and turns on booking by link from the phone', (tester) async {
-    final server = await _signIn(tester);
+    final server = await _signIn(tester, height: 4200); // the whole list on one screen
     await tester.tap(find.byKey(const Key('menu-setup')));
     await tester.pumpAndSettle();
-    expect(find.text('Готово 0 из 4'), findsOneWidget);
+    expect(find.text('Готово 0 из 5'), findsOneWidget);
     expect(find.byKey(const Key('step-telegram-todo')), findsOneWidget);
-    expect(find.textContaining('https://joop.test/panel/settings'), findsOneWidget); // a step the app does not take
     expect(find.byKey(const Key('prices-in-app')), findsOneWidget); // the app's own «Прайс» tab takes this one
     expect(find.textContaining('https://joop.test/panel/services'), findsNothing);
+    expect(find.textContaining('https://joop.test/panel/settings'), findsOneWidget); // a step the app does not take
 
     await tester.enterText(find.byKey(const Key('bot-token')), '123:wrong');
     await tester.tap(find.byKey(const Key('bot-connect')));
@@ -46,7 +46,7 @@ void main() {
     expect(find.text('Бот @aktish_bot подключён.'), findsOneWidget);
     expect(find.byKey(const Key('step-telegram-done')), findsOneWidget);
     expect(find.byKey(const Key('bot-token')), findsNothing);
-    expect(find.text('Готово 1 из 4'), findsOneWidget);
+    expect(find.text('Готово 1 из 5'), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const Key('page-booking-switch')));
     expect(find.text('https://joop.test/m/aktish/book'), findsOneWidget);
@@ -94,6 +94,47 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('step-try-done')), findsOneWidget); // the list is read again on return
+  });
+
+  testWidgets('the owner writes the contacts and hours from the launch checklist', (tester) async {
+    final server = await _signIn(tester);
+    await tester.tap(find.byKey(const Key('menu-setup')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('step-contacts-todo')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('open-contacts')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('open-contacts')));
+    await tester.pumpAndSettle();
+    expect(find.text('из примера — клиентам не говорится, впишите своё'), findsOneWidget); // the hours only
+    expect(tester.widget<FilterChip>(find.byKey(const Key('day-off-7'))).selected, isTrue);
+
+    await tester.enterText(find.byKey(const Key('contacts-start')), '9 утра');
+    await tester.tap(find.byKey(const Key('contacts-save')));
+    await tester.pumpAndSettle();
+    expect(find.text('Время в виде 09:00'), findsOneWidget); // not sent
+
+    await tester.enterText(find.byKey(const Key('contacts-start')), '20:00');
+    await tester.tap(find.byKey(const Key('contacts-save')));
+    await tester.pumpAndSettle();
+    expect(find.text('Конец рабочего дня должен быть позже начала.'), findsOneWidget); // the server's refusal
+
+    await tester.enterText(find.byKey(const Key('contacts-address')), 'Бишкек, Токтогула 100');
+    await tester.enterText(find.byKey(const Key('contacts-hours')), 'Пн–Сб 10:00–20:00');
+    await tester.enterText(find.byKey(const Key('contacts-start')), '10:00');
+    await tester.enterText(find.byKey(const Key('contacts-end')), '20:00');
+    await tester.tap(find.byKey(const Key('day-off-6')));
+    await tester.ensureVisible(find.byKey(const Key('contacts-save')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('contacts-save')));
+    await tester.pumpAndSettle();
+    expect(server.contacts['address'], 'Бишкек, Токтогула 100');
+    expect(server.contacts['days_off'], [7]);
+    expect(find.text('Сохранено.'), findsOneWidget);
+    expect(find.text('из примера — клиентам не говорится, впишите своё'), findsNothing);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('step-contacts-done')), findsOneWidget);
   });
 
   testWidgets('staff do not see the launch checklist', (tester) async {

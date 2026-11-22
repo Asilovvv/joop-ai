@@ -37,7 +37,7 @@ from ..catalog import parse_price
 from .. import page_booking, telegram_setup, try_chat
 from ..slots import CLOSED, claim_slot, free_on_day, release_slot, seats_left, seats_needed
 from ..stats import TEST_CHANNEL, activity, not_test, real_conversation, test_conversations
-from ..timeutil import local_now, utcnow
+from ..timeutil import local_now, parse_days_off, parse_hhmm, utcnow
 from .app import _base_url, _by_phone, _delete_service, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
 from .saas import checklist, unique_slug
 from .menu import qr_rows
@@ -278,6 +278,56 @@ def mobile_setup_page_booking(request: Request, body: PageBookingIn):
         s.commit()
         s.refresh(b)
         return _setup(s, request, b)
+
+
+# --- contacts and opening hours (the panel's «Настройки», the part the launch list asks for) ---
+
+
+class ContactsIn(BaseModel):
+    address: str = ""
+    phone: str = ""
+    hours_text: str = ""
+    work_start: str = "09:00"
+    work_end: str = "18:00"
+    days_off: list[int] = []
+
+
+def _contacts(b: Business) -> dict:
+    """`example`: fields still the sign-up example's, which customers are not told (joop/samples.py)."""
+    from .. import samples
+
+    example = sorted(f for f in samples.example_contacts(b) if f in ("address", "phone"))
+    if samples.hours_are_example(b):
+        example.append("hours_text")
+    return {"address": b.address, "phone": b.phone, "hours_text": b.hours_text, "work_start": b.work_start,
+            "work_end": b.work_end, "days_off": sorted(parse_days_off(b.days_off)), "example": example}
+
+
+@router.get("/api/mobile/contacts")
+def mobile_contacts(request: Request):
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        return denied or _contacts(who.business)
+
+
+@router.post("/api/mobile/contacts")
+def mobile_contacts_save(request: Request, body: ContactsIn):
+    """What the panel's settings save for these fields, with the same limits; the rest of the settings stay."""
+    start, end = parse_hhmm(body.work_start.strip()), parse_hhmm(body.work_end.strip())
+    if not (start and end and end > start):
+        return _fail(422, "Конец рабочего дня должен быть позже начала.")
+    with new_session() as s:
+        who, denied = _staff_only(s, request)
+        if denied:
+            return denied
+        b = s.get(Business, who.business.id)
+        b.address, b.phone, b.hours_text = body.address.strip()[:300], body.phone.strip()[:60], body.hours_text.strip()[:300]
+        b.work_start, b.work_end = f"{start:%H:%M}", f"{end:%H:%M}"
+        b.days_off = ",".join(str(d) for d in range(1, 8) if d in body.days_off)
+        s.add(b)
+        s.commit()
+        s.refresh(b)
+        return _contacts(b)
 
 
 # --- the test chat (the panel's «Тестовый чат», joop/try_chat.py): the owner writes as a customer, nothing counted ---

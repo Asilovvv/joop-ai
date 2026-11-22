@@ -98,6 +98,12 @@ class JoopRepository {
   static List<DialogueMessage> _tryMessages(Map<String, dynamic> data) =>
       [for (final m in (data['messages'] as List? ?? const [])) DialogueMessage.fromJson(m as Map<String, dynamic>)];
 
+  Future<ContactsInfo> contacts() async =>
+      ContactsInfo.fromJson(await _api.get('/api/mobile/contacts') as Map<String, dynamic>);
+
+  Future<ContactsInfo> saveContacts(ContactsInfo info) async =>
+      ContactsInfo.fromJson(await _api.post('/api/mobile/contacts', info.toJson()) as Map<String, dynamic>);
+
   Future<void> logout() async {
     _api.token = null;
     final prefs = await SharedPreferences.getInstance();

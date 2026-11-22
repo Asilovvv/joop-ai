@@ -34,6 +34,10 @@ class FakeJoop {
   bool pageOn = false;
   final setupCalls = <Map>[];
 
+  /// Contacts and opening hours (/api/mobile/contacts): the hours are still the example's.
+  Map<String, dynamic> contacts = {'address': '', 'phone': '+996 555 000 001', 'hours_text': 'Пн–Пт 9:00–18:00',
+    'work_start': '09:00', 'work_end': '18:00', 'days_off': [6, 7], 'example': ['hours_text']};
+
   /// The owner's test chat (/api/mobile/try).
   final tryChat = <Map<String, dynamic>>[];
 
@@ -42,6 +46,7 @@ class FakeJoop {
           {'key': 'prices', 'done': false, 'title': 'Прайс: 3, из них пример: 1', 'hint': 'Услуги и цены.', 'panel': 'https://joop.test/panel/services'},
           {'key': 'telegram', 'done': botConnected, 'title': 'Telegram-бот', 'hint': 'Клиенты пишут боту.', 'panel': 'https://joop.test/panel/channels'},
           {'key': 'try', 'done': tryChat.isNotEmpty, 'title': 'Проверьте ИИ', 'hint': 'Напишите как клиент.', 'panel': 'https://joop.test/panel/try'},
+          {'key': 'contacts', 'done': contacts['example'].isEmpty && contacts['address'] != '', 'title': 'Контакты и часы работы', 'hint': 'Осталось указать: адрес.', 'panel': 'https://joop.test/panel/settings'},
           {'key': 'hours', 'done': false, 'title': 'Часы работы', 'hint': 'Когда вы открыты.', 'panel': 'https://joop.test/panel/settings'},
         ],
         'telegram': {'connected': botConnected, 'username': botConnected ? 'aktish_bot' : ''},
@@ -239,6 +244,15 @@ class FakeJoop {
     if (request.headers['Authorization'] != 'Bearer $token') return json({'error': 'Войдите заново.'}, 401);
     if (path == '/api/mobile/me') return json(account);
     if (path == '/api/mobile/setup') return json(setupJson());
+    if (path == '/api/mobile/contacts' && request.method == 'GET') return json(contacts);
+    if (path == '/api/mobile/contacts') {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      if ((body['work_end'] as String).compareTo(body['work_start'] as String) <= 0) {
+        return json({'error': 'Конец рабочего дня должен быть позже начала.'}, 422);
+      }
+      contacts = {...body, 'example': body['hours_text'] == 'Пн–Пт 9:00–18:00' ? ['hours_text'] : []};
+      return json(contacts);
+    }
     if (path == '/api/mobile/try' && request.method == 'GET') return json({'messages': tryChat});
     if (path == '/api/mobile/try') {
       final text = (jsonDecode(request.body) as Map)['text'] as String;

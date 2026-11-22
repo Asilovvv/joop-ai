@@ -24,6 +24,18 @@ class S {
     required this.deleteService,
     required this.serviceNameEmpty,
     required this.pricesInApp,
+    required this.contactsTitle,
+    required this.address,
+    required this.phone,
+    required this.hoursText,
+    required this.hoursTextHint,
+    required this.workStart,
+    required this.workEnd,
+    required this.daysOffLabel,
+    required this.fromExample,
+    required this.saved,
+    required this.fillHere,
+    required this.timeFormat,
     required this.newService,
     required this.editService,
     required this.stopListEditNote,
@@ -296,6 +308,18 @@ class S {
   final String deleteService;
   final String serviceNameEmpty;
   final String pricesInApp;
+  final String contactsTitle;
+  final String address;
+  final String phone;
+  final String hoursText;
+  final String hoursTextHint;
+  final String workStart;
+  final String workEnd;
+  final String daysOffLabel;
+  final String fromExample;
+  final String saved;
+  final String fillHere;
+  final String timeFormat;
   final String newService;
   final String editService;
   final String stopListEditNote;
@@ -600,6 +624,18 @@ class S {
     deleteService: 'Удалить позицию',
     serviceNameEmpty: 'Напишите название.',
     pricesInApp: 'Это можно сделать прямо в приложении: вкладка «Прайс».',
+    contactsTitle: 'Контакты и часы',
+    address: 'Адрес',
+    phone: 'Телефон для клиентов',
+    hoursText: 'Часы работы, как сказать клиенту',
+    hoursTextHint: 'Например: Пн–Сб 10:00–20:00, вс выходной',
+    workStart: 'Начало записи',
+    workEnd: 'Конец',
+    daysOffLabel: 'Выходные дни',
+    fromExample: 'из примера — клиентам не говорится, впишите своё',
+    saved: 'Сохранено.',
+    fillHere: 'Заполнить здесь',
+    timeFormat: 'Время в виде 09:00',
     newService: 'Новая позиция',
     editService: 'Позиция прайса',
     stopListEditNote: 'Нажмите на позицию, чтобы изменить название и цену. Выключите — ИИ перестанет её предлагать.',
@@ -881,6 +917,18 @@ class S {
     deleteService: 'Позицияны өчүрүү', // check with a native speaker
     serviceNameEmpty: 'Аталышын жазыңыз.', // check with a native speaker
     pricesInApp: 'Муну тиркемеде эле жасаса болот: «Прайс» өтмөгү.', // check with a native speaker
+    contactsTitle: 'Байланыш жана саат', // check with a native speaker
+    address: 'Дарек', // check with a native speaker
+    phone: 'Кардарлар үчүн телефон', // check with a native speaker
+    hoursText: 'Иштөө убактысы, кардарга кантип айтуу', // check with a native speaker
+    hoursTextHint: 'Мисалы: Дш–Иш 10:00–20:00, жк дем алыш', // check with a native speaker
+    workStart: 'Жазылуунун башталышы', // check with a native speaker
+    workEnd: 'Аягы', // check with a native speaker
+    daysOffLabel: 'Дем алыш күндөр', // check with a native speaker
+    fromExample: 'мисалдан — кардарларга айтылбайт, өзүңүздүкүн жазыңыз', // check with a native speaker
+    saved: 'Сакталды.', // check with a native speaker
+    fillHere: 'Ушул жерден толтуруу', // check with a native speaker
+    timeFormat: 'Убакыт 09:00 түрүндө', // check with a native speaker
     newService: 'Жаңы позиция', // check with a native speaker
     editService: 'Прайстын позициясы', // check with a native speaker
     stopListEditNote: 'Атын жана баасын өзгөртүү үчүн позицияны басыңыз. Өчүрсөңүз, ИИ аны сунуштабай калат.', // check with a native speaker
