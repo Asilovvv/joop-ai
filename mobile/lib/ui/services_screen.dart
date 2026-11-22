@@ -122,7 +122,7 @@ class ServicesScreen extends StatelessWidget {
                             : Switch(
                                 key: Key('available-${s.id}'),
                                 value: s.available,
-                                onChanged: s.switchable
+                                onChanged: s.switchable && !state.saving
                                     ? (on) => context.read<ServicesCubit>().setAvailable(s, on)
                                     : null,
                               ),
@@ -177,6 +177,7 @@ class _ServiceSheetState extends State<_ServiceSheet> {
   late final _nameKy = TextEditingController(text: widget.item?.nameKy ?? '');
   late final _note = TextEditingController(text: widget.item?.note ?? '');
   bool _empty = false;
+  String? _refused;
 
   @override
   void dispose() {
@@ -192,13 +193,21 @@ class _ServiceSheetState extends State<_ServiceSheet> {
       return;
     }
     final draft = ServiceDraft(name: _name.text.trim(), price: _price.text.trim(), nameKy: _nameKy.text.trim(), note: _note.text.trim());
-    final navigator = Navigator.of(context);
-    if (await context.read<ServicesCubit>().save(widget.item, draft)) navigator.pop();
+    _done(await context.read<ServicesCubit>().save(widget.item, draft));
   }
 
-  Future<void> _delete() async {
-    final navigator = Navigator.of(context);
-    if (await context.read<ServicesCubit>().delete(widget.item!)) navigator.pop();
+  Future<void> _delete() async => _done(await context.read<ServicesCubit>().delete(widget.item!));
+
+  /// Closes the sheet when the server took the change and shows its refusal here otherwise. The owner may have
+  /// closed the sheet while it was saving: then there is nothing to close (a pop would take the screen under it).
+  void _done(String? refused) {
+    // still on screen and still the top route: a sheet swiped away is mounted for a while, but already popped
+    if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? false)) return;
+    if (refused == null) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() => _refused = refused);
+    }
   }
 
   @override
@@ -222,6 +231,11 @@ class _ServiceSheetState extends State<_ServiceSheet> {
           const SizedBox(height: 12),
           TextField(key: const Key('service-note'), controller: _note, maxLines: 2, decoration: field(s.serviceNote)),
           const SizedBox(height: 16),
+          if (_refused != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(_refused!, key: const Key('service-refused'), style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ),
           FilledButton(key: const Key('service-save'), onPressed: saving ? null : _save, child: Text(s.save)),
           if (widget.item != null)
             TextButton(

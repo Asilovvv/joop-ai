@@ -13,6 +13,7 @@ the owner and ordinary staff see the whole business. Settings, channels and paym
 
 from __future__ import annotations
 
+import threading
 import time as time_module
 from datetime import date, datetime, time, timedelta
 
@@ -153,6 +154,7 @@ class SignupIn(BaseModel):
 
 SIGNUPS_PER_HOUR = 3  # from one address: a real owner signs up once; a script is stopped here
 _signups: dict[str, list[float]] = {}  # address -> times of sign-ups this hour; reset with the process
+_signups_lock = threading.Lock()  # requests run on a thread pool: the check and the reservation are one step
 
 
 @router.get("/api/mobile/niches")
@@ -171,19 +173,30 @@ def mobile_signup(request: Request, body: SignupIn):
     if not settings.signup_enabled:
         return _fail(404, "Регистрация закрыта.")
     address = client_ip(request)
-    recent = [t for t in _signups.get(address, []) if now - t < 3600]
-    if len(recent) >= SIGNUPS_PER_HOUR:
-        return _fail(429, "С этого адреса уже зарегистрировали несколько компаний. Попробуйте через час.")
+    with _signups_lock:  # reserve the place before the slow part, so parallel requests cannot all pass the check
+        recent = [t for t in _signups.get(address, []) if now - t < 3600]
+        if len(recent) >= SIGNUPS_PER_HOUR:
+            return _fail(429, "С этого адреса уже зарегистрировали несколько компаний. Попробуйте через час.")
+        _signups[address] = recent + [now]
+
+    def give_back() -> None:
+        with _signups_lock:
+            if now in _signups.get(address, []):
+                _signups[address].remove(now)
+
     with new_session() as s:
         try:
             business = register(s, slug=unique_slug(s, body.name), name=body.name, niche=body.niche, phone=body.phone,
                                 password=body.password, trial_days=settings.trial_days, now=utcnow(),
                                 contact_name=body.contact_name, source="signup-app")
+            s.commit()
         except Refused as refused:
+            give_back()  # a refused form is not a sign-up
             return _fail(422, str(refused))
-        s.commit()
+        except Exception:
+            give_back()
+            raise
         s.refresh(business)
-        _signups[address] = recent + [now]
         token = _serializer(request).dumps({"b": business.id, "u": 0, "p": _fingerprint(business, None)})
         return {"token": token, **Who(business, None).json(), "setup_path": "/panel/setup"}
 
