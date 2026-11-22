@@ -274,10 +274,26 @@ class JoopRepository {
   Future<Dialogue> reply(int conversationId, String text) async => Dialogue.fromJson(
       await _api.post('/api/mobile/conversations/$conversationId/reply', {'text': text}) as Map<String, dynamic>);
 
-  Future<List<Service>> services() async {
-    final data = await _api.get('/api/mobile/services') as Map<String, dynamic>;
-    return [for (final row in data['services'] as List) Service.fromJson(row as Map<String, dynamic>)];
+  Future<List<Service>> services() async => _services(await _api.get('/api/mobile/services') as Map<String, dynamic>);
+
+  /// A new row of the price list; the list as it stands after.
+  Future<List<Service>> addService(ServiceDraft draft) async =>
+      _services(await _api.post('/api/mobile/services', draft.toJson()) as Map<String, dynamic>);
+
+  Future<List<Service>> updateService(int id, ServiceDraft draft) async =>
+      _services(await _api.post('/api/mobile/services/$id', draft.toJson()) as Map<String, dynamic>);
+
+  Future<List<Service>> deleteService(int id) async =>
+      _services(await _api.post('/api/mobile/services/$id/delete') as Map<String, dynamic>);
+
+  /// Every row still the sign-up example out at once: how many went, and the list after.
+  Future<(int, List<Service>)> deleteExample() async {
+    final data = await _api.post('/api/mobile/services/example/delete') as Map<String, dynamic>;
+    return ((data['removed'] as int?) ?? 0, _services(data));
   }
+
+  static List<Service> _services(Map<String, dynamic> data) =>
+      [for (final row in data['services'] as List) Service.fromJson(row as Map<String, dynamic>)];
 }
 
 String isoDay(DateTime d) =>

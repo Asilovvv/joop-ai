@@ -223,6 +223,8 @@ class Service extends Equatable {
     this.soldOut = false,
     this.fromAltegio = false,
     this.example = false,
+    this.nameKy = '',
+    this.note = '',
   });
 
   factory Service.fromJson(Map<String, dynamic> json) => Service(
@@ -234,6 +236,8 @@ class Service extends Equatable {
         soldOut: (json['sold_out'] as bool?) ?? false,
         fromAltegio: (json['from_altegio'] as bool?) ?? false,
         example: (json['example'] as bool?) ?? false,
+        nameKy: (json['name_ky'] as String?) ?? '',
+        note: (json['note'] as String?) ?? '',
       );
 
   final int id;
@@ -250,14 +254,20 @@ class Service extends Equatable {
   /// The salon's Altegio price list sets it, so it is switched there.
   final bool fromAltegio;
 
-  /// Still the sign-up example: the AI does not name it to real customers until the owner changes it in the panel.
+  /// Still the sign-up example: the AI does not name it to real customers until the owner changes it.
   final bool example;
+
+  /// The Kyrgyz name, if the owner gave one; the AI uses it in Kyrgyz answers.
+  final String nameKy;
+
+  /// What the AI may add about it (duration, what is included).
+  final String note;
 
   /// The owner can put it on the stop list or back from the app.
   bool get switchable => !fromAltegio && !soldOut;
 
   @override
-  List<Object?> get props => [id, name, price, category, available, soldOut, fromAltegio, example];
+  List<Object?> get props => [id, name, price, category, available, soldOut, fromAltegio, example, nameKy, note];
 }
 
 /// A business's public card, for customers.
@@ -607,6 +617,18 @@ class DialogueMessage extends Equatable {
 
   @override
   List<Object?> get props => [id, role, text, at, author];
+}
+
+/// What the owner typed for a price-list row, as /api/mobile/services takes it.
+class ServiceDraft {
+  const ServiceDraft({required this.name, this.price = '', this.nameKy = '', this.note = ''});
+
+  final String name;
+  final String price;
+  final String nameKy;
+  final String note;
+
+  Map<String, dynamic> toJson() => {'name': name, 'price': price, 'name_ky': nameKy, 'note': note};
 }
 
 /// A customer's dialogue with the business: the AI's answers, staff replies, and whether staff can answer now.

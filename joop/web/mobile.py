@@ -32,11 +32,12 @@ from ..phone import normalize_phone
 from ..samples import example_staff_ids
 from ..security import verify_password
 from ..signup import Refused, register
+from ..catalog import parse_price
 from .. import page_booking, telegram_setup, try_chat
 from ..slots import CLOSED, claim_slot, free_on_day, release_slot, seats_left, seats_needed
 from ..stats import TEST_CHANNEL, activity, not_test, real_conversation, test_conversations
 from ..timeutil import local_now, utcnow
-from .app import _base_url, _by_phone, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
+from .app import _base_url, _by_phone, _delete_service, _login_fails, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
 from .saas import checklist, unique_slug
 from .menu import qr_rows
 
@@ -829,7 +830,7 @@ def _service(b: Business, x: Service, example: frozenset[int] = frozenset()) -> 
     """`available`: the AI offers it. `sold_out`: the stock reached zero (joop/stock.py). `from_altegio`: the salon's
     Altegio price list sets it on every sync, so a stop here would not last. `example`: still the sign-up example's."""
     return {"id": x.id, "name": x.name, "name_ky": x.name_ky, "price": x.price, "price_value": x.price_value,
-            "category": x.category, "available": x.available and not x.sold_out, "sold_out": x.sold_out,
+            "note": x.note, "category": x.category, "available": x.available and not x.sold_out, "sold_out": x.sold_out,
             "from_altegio": bool(b.altegio_location_id), "example": x.id in example}
 
 
@@ -857,6 +858,103 @@ def mobile_stop_list(request: Request, item_id: int, body: AvailableIn):
         s.commit()
         s.refresh(row)
         return {"service": _service(who.business, row, _example_services(s, who.business))}
+
+
+# --- editing the price list (the panel's «Прайс»): the sign-up example out, the business's own prices in ---
+
+
+class ServiceIn(BaseModel):
+    name: str
+    price: str = ""
+    name_ky: str = ""
+    note: str = ""
+
+
+def _price_list(s: Session, b: Business) -> dict:
+    rows = s.exec(select(Service).where(Service.business_id == b.id).order_by(Service.sort, Service.id)).all()
+    example = _example_services(s, b)
+    return {"services": [_service(b, x, example) for x in rows]}
+
+
+def _price_editor(s: Session, request: Request) -> tuple[Who | None, JSONResponse | None]:
+    """Owner and administrators, as in the panel; not a master, and not a salon whose price list is Altegio's."""
+    who, denied = _staff_only(s, request)
+    if denied:
+        return None, denied
+    if who.business.altegio_location_id:
+        return None, _fail(409, "Прайс берётся из Altegio: меняйте его там, Joop подхватит изменения сам.")
+    return who, None
+
+
+def _service_row(s: Session, b: Business, item_id: int) -> Service | None:
+    row = s.get(Service, item_id)
+    return row if row is not None and row.business_id == b.id else None
+
+
+@router.post("/api/mobile/services")
+def mobile_service_add(request: Request, body: ServiceIn):
+    with new_session() as s:
+        who, denied = _price_editor(s, request)
+        if denied:
+            return denied
+        if not body.name.strip():
+            return _fail(422, "Напишите название.")
+        b = who.business
+        last = s.exec(select(func.max(Service.sort)).where(Service.business_id == b.id)).one() or 0
+        s.add(Service(business_id=b.id, name=body.name.strip()[:200], name_ky=body.name_ky.strip()[:200],
+                      price=body.price.strip()[:100], price_value=parse_price(body.price), note=body.note.strip()[:500],
+                      sort=last + 1))
+        s.commit()
+        return _price_list(s, b)
+
+
+@router.post("/api/mobile/services/example/delete")
+def mobile_services_example_delete(request: Request):
+    """Every row still exactly the sign-up example out in one go, as the panel's «Удалить пример»."""
+    with new_session() as s:
+        who, denied = _price_editor(s, request)
+        if denied:
+            return denied
+        b = who.business
+        ids = _example_services(s, b)
+        for item in s.exec(select(Service).where(Service.business_id == b.id, Service.id.in_(ids))).all() if ids else []:
+            _delete_service(s, item)
+        s.commit()
+        return {"removed": len(ids), **_price_list(s, b)}
+
+
+@router.post("/api/mobile/services/{item_id}")
+def mobile_service_update(request: Request, item_id: int, body: ServiceIn):
+    """Name, price and note; whether it is on sale stays as it was (the stop list is its own switch)."""
+    with new_session() as s:
+        who, denied = _price_editor(s, request)
+        if denied:
+            return denied
+        row = _service_row(s, who.business, item_id)
+        if row is None:
+            return _fail(404, "Такой позиции нет.")
+        if not body.name.strip():
+            return _fail(422, "Напишите название.")
+        row.name, row.name_ky = body.name.strip()[:200], body.name_ky.strip()[:200]
+        row.price, row.note = body.price.strip()[:100], body.note.strip()[:500]
+        row.price_value = parse_price(row.price)
+        s.add(row)
+        s.commit()
+        return _price_list(s, who.business)
+
+
+@router.post("/api/mobile/services/{item_id}/delete")
+def mobile_service_delete(request: Request, item_id: int):
+    with new_session() as s:
+        who, denied = _price_editor(s, request)
+        if denied:
+            return denied
+        row = _service_row(s, who.business, item_id)
+        if row is None:
+            return _fail(404, "Такой позиции нет.")
+        _delete_service(s, row)
+        s.commit()
+        return _price_list(s, who.business)
 
 
 # --- orders and requests ---------------------------------------------------------------------------

@@ -39,7 +39,7 @@ class FakeJoop {
 
   Map<String, dynamic> setupJson([List<Map> notes = const []]) => {
         'steps': [
-          {'key': 'services', 'done': true, 'title': 'Прайс', 'hint': 'Услуги и цены.', 'panel': 'https://joop.test/panel/services'},
+          {'key': 'prices', 'done': false, 'title': 'Прайс: 3, из них пример: 1', 'hint': 'Услуги и цены.', 'panel': 'https://joop.test/panel/services'},
           {'key': 'telegram', 'done': botConnected, 'title': 'Telegram-бот', 'hint': 'Клиенты пишут боту.', 'panel': 'https://joop.test/panel/channels'},
           {'key': 'try', 'done': tryChat.isNotEmpty, 'title': 'Проверьте ИИ', 'hint': 'Напишите как клиент.', 'panel': 'https://joop.test/panel/try'},
           {'key': 'hours', 'done': false, 'title': 'Часы работы', 'hint': 'Когда вы открыты.', 'panel': 'https://joop.test/panel/settings'},
@@ -511,7 +511,30 @@ class FakeJoop {
       }
       return json(d);
     }
-    if (path == '/api/mobile/services') return json({'services': services});
+    if (path == '/api/mobile/services' && request.method == 'GET') return json({'services': services});
+    Map<String, dynamic> edited(Map body) =>
+        {'name': body['name'], 'price': body['price'], 'name_ky': body['name_ky'], 'note': body['note'], 'example': false};
+    if (path == '/api/mobile/services') {
+      final body = jsonDecode(request.body) as Map;
+      if ((body['name'] as String).trim().isEmpty) return json({'error': 'Напишите название.'}, 422);
+      services.add({'id': 100 + services.length, 'category': '', 'available': true, ...edited(body)});
+      return json({'services': services});
+    }
+    if (path == '/api/mobile/services/example/delete') {
+      final before = services.length;
+      services.removeWhere((x) => x['example'] == true);
+      return json({'removed': before - services.length, 'services': services});
+    }
+    final del = RegExp(r'^/api/mobile/services/(\d+)/delete$').firstMatch(path);
+    if (del != null) {
+      services.removeWhere((x) => x['id'] == int.parse(del.group(1)!));
+      return json({'services': services});
+    }
+    final upd = RegExp(r'^/api/mobile/services/(\d+)$').firstMatch(path);
+    if (upd != null) {
+      services.firstWhere((x) => x['id'] == int.parse(upd.group(1)!)).addAll(edited(jsonDecode(request.body) as Map));
+      return json({'services': services});
+    }
     final stop = RegExp(r'^/api/mobile/services/(\d+)/available$').firstMatch(path);
     if (stop != null) {
       final x = services.firstWhere((x) => x['id'] == int.parse(stop.group(1)!));

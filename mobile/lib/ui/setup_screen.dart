@@ -143,6 +143,12 @@ class _SetupScreenState extends State<SetupScreen> {
                   },
                 ),
               )
+            else if (step.key == 'prices' && !step.done)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(S.current.pricesInApp, key: const Key('prices-in-app'),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+              )
             else if (!step.done && step.panel.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
