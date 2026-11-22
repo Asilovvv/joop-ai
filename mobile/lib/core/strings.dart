@@ -36,6 +36,21 @@ class S {
     required this.saved,
     required this.fillHere,
     required this.timeFormat,
+    required this.peopleExampleBanner,
+    required this.peopleExampleConfirm,
+    required this.personName,
+    required this.personRole,
+    required this.personHandles,
+    required this.personCapacity,
+    required this.personGroup,
+    required this.personDelete,
+    required this.personDeleteNote,
+    required this.peopleEmpty,
+    required this.newPerson,
+    required this.peopleExampleDeleted,
+    required this.exampleChip,
+    required this.personSeats,
+    required this.personGroupUpTo,
     required this.newService,
     required this.editService,
     required this.stopListEditNote,
@@ -320,6 +335,21 @@ class S {
   final String saved;
   final String fillHere;
   final String timeFormat;
+  final String peopleExampleBanner;
+  final String peopleExampleConfirm;
+  final String personName;
+  final String personRole;
+  final String personHandles;
+  final String personCapacity;
+  final String personGroup;
+  final String personDelete;
+  final String personDeleteNote;
+  final String peopleEmpty;
+  final String newPerson;
+  final String Function(int n) peopleExampleDeleted;
+  final String exampleChip;
+  final String Function(int n) personSeats;
+  final String Function(int n) personGroupUpTo;
   final String newService;
   final String editService;
   final String stopListEditNote;
@@ -636,6 +666,21 @@ class S {
     saved: 'Сохранено.',
     fillHere: 'Заполнить здесь',
     timeFormat: 'Время в виде 09:00',
+    peopleExampleBanner: 'Это пример из вашей сферы: клиентов к ним не записывают. Нажмите на строку, чтобы вписать своего, или удалите пример целиком.',
+    peopleExampleConfirm: 'Удалить всех из примера вместе с их свободными окнами? Ваши люди и записи останутся.',
+    personName: 'Имя или название',
+    personRole: 'Должность (по желанию)',
+    personHandles: 'Чем занимается — по этому ИИ выбирает, к кому записать',
+    personCapacity: 'Мест (гостей за столом, в зале)',
+    personGroup: 'Мест в группе (0 — индивидуально)',
+    personDelete: 'Убрать',
+    personDeleteNote: 'Записи к нему останутся, свободные окна удалятся.',
+    peopleEmpty: 'Пока никого нет — добавьте кнопкой «Добавить».',
+    newPerson: 'Добавить',
+    peopleExampleDeleted: _ruPeopleExampleDeleted,
+    exampleChip: 'пример',
+    personSeats: _ruPersonSeats,
+    personGroupUpTo: _ruPersonGroupUpTo,
     newService: 'Новая позиция',
     editService: 'Позиция прайса',
     stopListEditNote: 'Нажмите на позицию, чтобы изменить название и цену. Выключите — ИИ перестанет её предлагать.',
@@ -929,6 +974,21 @@ class S {
     saved: 'Сакталды.', // check with a native speaker
     fillHere: 'Ушул жерден толтуруу', // check with a native speaker
     timeFormat: 'Убакыт 09:00 түрүндө', // check with a native speaker
+    peopleExampleBanner: 'Бул сиздин тармактан мисал: кардарлар аларга жазылбайт. Өзүңүздүкүн жазуу үчүн сапты басыңыз же мисалды толук өчүрүңүз.', // check with a native speaker
+    peopleExampleConfirm: 'Мисалдагылардын баарын бош убактылары менен кошо өчүрөсүзбү? Өзүңүздүн адамдарыңыз жана жазылуулар калат.', // check with a native speaker
+    personName: 'Аты же аталышы', // check with a native speaker
+    personRole: 'Кызматы (каалоо боюнча)', // check with a native speaker
+    personHandles: 'Эмне менен алектенет — ИИ ушуга карап кимге жазууну тандайт', // check with a native speaker
+    personCapacity: 'Орун (столдо, залда канча конок)', // check with a native speaker
+    personGroup: 'Топтогу орун (0 — жекече)', // check with a native speaker
+    personDelete: 'Алып салуу', // check with a native speaker
+    personDeleteNote: 'Ага жазылуулар калат, бош убактылар өчөт.', // check with a native speaker
+    peopleEmpty: 'Азырынча эч ким жок — «Кошуу» баскычы менен кошуңуз.', // check with a native speaker
+    newPerson: 'Кошуу', // check with a native speaker
+    peopleExampleDeleted: _kyPeopleExampleDeleted,
+    exampleChip: 'мисал', // check with a native speaker
+    personSeats: _kyPersonSeats,
+    personGroupUpTo: _kyPersonGroupUpTo,
     newService: 'Жаңы позиция', // check with a native speaker
     editService: 'Прайстын позициясы', // check with a native speaker
     stopListEditNote: 'Атын жана баасын өзгөртүү үчүн позицияны басыңыз. Өчүрсөңүз, ИИ аны сунуштабай калат.', // check with a native speaker
@@ -1372,3 +1432,10 @@ String _kyTestBookingsCancelled(int n) => 'Сынак жазылуулар жо�
 
 String _ruExampleDeleted(int n) => n == 0 ? 'Примера в прайсе нет.' : 'Пример удалён: $n. Добавьте свои позиции с ценами.';
 String _kyExampleDeleted(int n) => n == 0 ? 'Прайста мисал жок.' : 'Мисал өчүрүлдү: $n. Өзүңүздүн позицияларды баалары менен кошуңуз.'; // check with a native speaker
+
+String _ruPeopleExampleDeleted(int n) => n == 0 ? 'Примера здесь нет.' : 'Пример удалён: $n, с их свободными окнами. Добавьте своих.';
+String _kyPeopleExampleDeleted(int n) => n == 0 ? 'Бул жерде мисал жок.' : 'Мисал өчүрүлдү: $n, бош убактылары менен. Өзүңүздүкүн кошуңуз.'; // check with a native speaker
+String _ruPersonSeats(int n) => 'мест: $n';
+String _kyPersonSeats(int n) => 'орун: $n'; // check with a native speaker
+String _ruPersonGroupUpTo(int n) => 'группа до $n';
+String _kyPersonGroupUpTo(int n) => '$n кишиге чейин топ'; // check with a native speaker

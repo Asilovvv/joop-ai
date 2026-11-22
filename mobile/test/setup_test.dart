@@ -27,9 +27,10 @@ void main() {
     final server = await _signIn(tester, height: 4200); // the whole list on one screen
     await tester.tap(find.byKey(const Key('menu-setup')));
     await tester.pumpAndSettle();
-    expect(find.text('Готово 0 из 5'), findsOneWidget);
+    expect(find.text('Готово 0 из 6'), findsOneWidget);
     expect(find.byKey(const Key('step-telegram-todo')), findsOneWidget);
     expect(find.byKey(const Key('prices-in-app')), findsOneWidget); // the app's own «Прайс» tab takes this one
+    expect(find.byKey(const Key('open-people')), findsOneWidget); // and the people step its own screen
     expect(find.textContaining('https://joop.test/panel/services'), findsNothing);
     expect(find.textContaining('https://joop.test/panel/settings'), findsOneWidget); // a step the app does not take
 
@@ -46,7 +47,7 @@ void main() {
     expect(find.text('Бот @aktish_bot подключён.'), findsOneWidget);
     expect(find.byKey(const Key('step-telegram-done')), findsOneWidget);
     expect(find.byKey(const Key('bot-token')), findsNothing);
-    expect(find.text('Готово 1 из 5'), findsOneWidget);
+    expect(find.text('Готово 1 из 6'), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const Key('page-booking-switch')));
     expect(find.text('https://joop.test/m/aktish/book'), findsOneWidget);
