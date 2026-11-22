@@ -137,6 +137,8 @@ def _database_checks(settings: Settings) -> list[Check]:
     head = ScriptDirectory.from_config(_config()).get_current_head()
     checks = [Check("Схема базы данных", current == head, True,
                     f"версия {current}, нужна {head}: выполните python -m joop migrate")]
+    problem = db_write_problem(settings.database_url)
+    checks.append(Check("Запись в базу", problem is None, True, problem or ""))
     path = sqlite_path(settings.database_url)
     if path is not None:
         folder = backup_dir(settings)
@@ -175,6 +177,23 @@ def report(checks: list[Check]) -> tuple[str, bool]:
 
 
 # --- backups -----------------------------------------------------------------------------------------
+
+
+def db_write_problem(url: str) -> str | None:
+    """Why the server cannot write its SQLite database, or None.
+
+    A file copied into the container as root (the restore in docs/deploy.md) opens and reads fine, and every write
+    then fails: the AI answers nobody, and nothing said so (launch rehearsal, 22 November 2026). SQLite also needs the
+    folder, for its -wal and -journal files."""
+    path = sqlite_path(url)
+    if path is None or not path.exists():
+        return None
+    fix = "выполните: docker compose run --rm --user root app chown -R joop /data"
+    if not os.access(path, os.W_OK):
+        return f"нет записи в файл базы {path}; {fix}"
+    if not os.access(path.parent, os.W_OK):
+        return f"нет записи в папку базы {path.parent}; {fix}"
+    return None
 
 
 def sqlite_path(url: str) -> Path | None:

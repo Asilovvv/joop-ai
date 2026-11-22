@@ -129,10 +129,20 @@ Restore (the copy you took home is `joop-2026-11-03.db`, say):
 ```bash
 docker compose stop app
 docker compose cp ./joop-2026-11-03.db app:/data/joop.db
+docker compose run --rm --user root app chown -R joop /data   # the copy arrives as root; the app runs as joop
 docker compose start app
+curl -s https://<your domain>/health                           # {"ok":true}
 ```
 
+Without the `chown` line the panel opens and logins work, but every write fails: the AI answers nobody.
+`/health` and `python -m joop check` say so («нет записи в файл базы»), and the uptime alert (section 8) fires.
+
 Encrypted channel tokens need the same `TOKEN_ENCRYPTION_KEY` as when the copy was made.
+
+On 22 November 2026 the Docker path itself was rehearsed: the image built, `migrate` and `check` on an empty
+database, sign-up through the site, then an upgrade of that data from the 8 November version (schema 0049) to the
+current one (0067) in the same volume with every row kept, a login with the old password, all 25 panel pages,
+`backup`, and a restore of the encrypted Telegram copy. The restore found the missing `chown` above.
 
 This guide was run end to end on a clean machine on 3 November 2026 and again on 8 November 2026 (fresh clone at
 PR #132, a plain Python environment with the same commands — the test machine could not pull images from Docker
