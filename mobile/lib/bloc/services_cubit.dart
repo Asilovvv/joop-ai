@@ -23,6 +23,20 @@ class ServicesState extends Equatable {
   /// An edit of the price list is in flight.
   final bool saving;
 
+  /// The same state with some fields changed. `notice` is one-off, so it is dropped unless given; `switching` and
+  /// `saving` stay as they are, so one call in flight never clears the other's flag.
+  ServicesState copy({LoadStatus? status, List<Service>? services, String? error, Object? switching = _keep, String? notice, bool? saving}) =>
+      ServicesState(
+        status: status ?? this.status,
+        services: services ?? this.services,
+        error: error ?? this.error,
+        switching: identical(switching, _keep) ? this.switching : switching as int?,
+        notice: notice,
+        saving: saving ?? this.saving,
+      );
+
+  static const _keep = Object();
+
   @override
   List<Object?> get props => [status, services, error, switching, notice, saving];
 }
@@ -34,53 +48,54 @@ class ServicesCubit extends Cubit<ServicesState> {
   final JoopRepository _repository;
 
   Future<void> load() async {
-    emit(ServicesState(status: LoadStatus.loading, services: state.services));
+    emit(state.copy(status: LoadStatus.loading));
     try {
-      emit(ServicesState(status: LoadStatus.success, services: await _repository.services()));
+      final services = await _repository.services();
+      emit(ServicesState(status: LoadStatus.success, services: services, switching: state.switching, saving: state.saving));
     } on ApiException catch (e) {
-      emit(ServicesState(status: LoadStatus.failure, services: state.services, error: e.message));
+      emit(state.copy(status: LoadStatus.failure, error: e.message));
     }
   }
 
   Future<void> setAvailable(Service item, bool available) async {
-    if (state.switching != null) return;
-    emit(ServicesState(status: state.status, services: state.services, switching: item.id));
+    if (state.switching != null || state.saving) return;
+    emit(state.copy(switching: item.id));
     try {
       final updated = await _repository.setAvailable(item.id, available);
-      emit(ServicesState(
-          status: state.status, services: [for (final x in state.services) x.id == updated.id ? updated : x]));
+      emit(state.copy(switching: null, services: [for (final x in state.services) x.id == updated.id ? updated : x]));
     } on ApiException catch (e) {
-      emit(ServicesState(status: state.status, services: state.services, notice: e.message));
+      emit(state.copy(switching: null, notice: e.message));
     }
   }
 
-  /// A new row (`item` null) or the row's new name and price. True when the server took it.
-  Future<bool> save(Service? item, ServiceDraft draft) =>
+  /// A new row (`item` null) or the row's new name and price. Null when the server took it, else its refusal, for
+  /// the edit sheet to show (a snackbar would sit behind it).
+  Future<String?> save(Service? item, ServiceDraft draft) =>
       _edit(() => item == null ? _repository.addService(draft) : _repository.updateService(item.id, draft));
 
-  Future<bool> delete(Service item) => _edit(() => _repository.deleteService(item.id));
+  Future<String?> delete(Service item) => _edit(() => _repository.deleteService(item.id));
 
-  /// The sign-up example out in one go; `done(n)` says how many rows went.
-  Future<bool> deleteExample(String Function(int removed) done) => _edit(() async {
-        final (removed, services) = await _repository.deleteExample();
-        _afterNotice = done(removed);
-        return services;
-      });
+  /// The sign-up example out in one go; `done(n)` says how many rows went. Shown as a snackbar, refusal included.
+  Future<void> deleteExample(String Function(int removed) done) async {
+    String? said;
+    final refused = await _edit(() async {
+      final (removed, services) = await _repository.deleteExample();
+      said = done(removed);
+      return services;
+    }, notice: () => said);
+    if (refused != null) emit(state.copy(notice: refused));
+  }
 
-  String? _afterNotice;
-
-  Future<bool> _edit(Future<List<Service>> Function() call) async {
-    if (state.saving) return false;
-    emit(ServicesState(status: state.status, services: state.services, saving: true));
+  Future<String?> _edit(Future<List<Service>> Function() call, {String? Function()? notice}) async {
+    if (state.saving) return null;
+    emit(state.copy(saving: true));
     try {
       final services = await call();
-      emit(ServicesState(status: LoadStatus.success, services: services, notice: _afterNotice));
-      return true;
+      emit(state.copy(status: LoadStatus.success, services: services, saving: false, notice: notice?.call()));
+      return null;
     } on ApiException catch (e) {
-      emit(ServicesState(status: state.status, services: state.services, notice: e.message));
-      return false;
-    } finally {
-      _afterNotice = null;
+      emit(state.copy(saving: false));
+      return e.message;
     }
   }
 }

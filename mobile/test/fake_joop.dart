@@ -137,6 +137,10 @@ class FakeJoop {
     {'id': 3, 'name': 'Зубная щётка', 'price': '300', 'category': '', 'available': false, 'sold_out': true},
   ];
 
+  /// Price-list edits: how long the server takes, and a refusal to answer them with (an Altegio salon).
+  Duration editDelay = Duration.zero;
+  String? refuseEdits;
+
   /// Free times staff can book a customer into; booking one takes it, as on the server.
   final freeSlots = <Map<String, dynamic>>[
     {'id': 31, 'start_local': '2026-11-13T12:00:00', 'staff_id': 1, 'staff': 'Др. Асанова', 'seats_left': 1, 'seats': 1},
@@ -512,6 +516,10 @@ class FakeJoop {
       return json(d);
     }
     if (path == '/api/mobile/services' && request.method == 'GET') return json({'services': services});
+    if (path.startsWith('/api/mobile/services') && request.method == 'POST' && !path.endsWith('/available')) {
+      await Future<void>.delayed(editDelay); // a free server waking up
+      if (refuseEdits != null) return json({'error': refuseEdits}, 409);
+    }
     Map<String, dynamic> edited(Map body) =>
         {'name': body['name'], 'price': body['price'], 'name_ky': body['name_ky'], 'note': body['note'], 'example': false};
     if (path == '/api/mobile/services') {

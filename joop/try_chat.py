@@ -14,7 +14,6 @@ from datetime import timedelta
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from . import waitlist
 from .agent.engine import handle_incoming
 from .channels.base import IncomingMessage
 from .db import new_session
@@ -91,34 +90,35 @@ def send(rt, business_id: int, text: str, base_url: str, limit: int | None = Non
 
 
 def reset(s: Session, rt, b: Business) -> int:
-    """«Новый диалог»: the test's bookings cancelled, a fresh chat; the old dialogue stays in the panel. Commits."""
+    """«Новый диалог»: the test's bookings cancelled, a fresh chat; the old dialogue stays in the panel. Commits
+    first, then offers the freed times to the waiting list: no message goes out while the writes are held."""
     conv = conversation(s, b)
-    cancelled = 0
-    if conv:
-        cancelled = undo_test_bookings(s, rt, b, conv)
-        conv.chat_id = f"{CHAT_ID}-{secrets.token_hex(4)}"  # keep the dialogue in the panel, start a fresh chat
-        s.add(conv)
-        s.commit()
-    return cancelled
+    if conv is None:
+        return 0
+    freed = undo_test_bookings(s, conv)
+    conv.chat_id = f"{CHAT_ID}-{secrets.token_hex(4)}"  # keep the dialogue in the panel, start a fresh chat
+    s.add(conv)
+    s.commit()
+    if freed:
+        from .dispatch import offer_freed
+
+        offer_freed(rt, b, [x for x in freed if x])
+    return len(freed)
 
 
-def undo_test_bookings(s: Session, rt, b: Business, conv: Conversation) -> int:
+def undo_test_bookings(s: Session, conv: Conversation) -> list[int]:
     """A new test dialogue leaves nothing behind on the schedule: the test's bookings are cancelled, their times
-    freed (and offered to customers on the waiting list, as after any cancellation), its waiting-list entries closed."""
-    now = utcnow()
-    count = 0
+    freed and its waiting-list entries closed. Returns one slot id per cancelled booking, for the caller to offer to
+    customers on the waiting list (as after any cancellation) once this is committed."""
+    freed: list[int] = []
     for booking in s.exec(select(Booking).where(Booking.conversation_id == conv.id, Booking.status == "booked")).all():
         booking.status = "cancelled"
         s.add(booking)
         slot = s.get(Slot, booking.slot_id) if booking.slot_id else None
         release_slot(s, booking.slot_id, seats_needed(slot, booking.party_size) if slot else 1)
-        s.flush()
-        if slot is not None:
-            s.refresh(slot)
-            waitlist.offer_freed_slot(s, rt, b, slot, now)
-        count += 1
+        freed.append(booking.slot_id or 0)
     for entry in s.exec(select(WaitlistEntry).where(WaitlistEntry.conversation_id == conv.id,
                                                     WaitlistEntry.status.in_(["waiting", "notified"]))).all():
         entry.status = "cancelled"
         s.add(entry)
-    return count
+    return freed
