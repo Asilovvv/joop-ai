@@ -314,18 +314,27 @@ def mobile_contacts(request: Request):
 
 @router.post("/api/mobile/contacts")
 def mobile_contacts_save(request: Request, body: ContactsIn):
-    """What the panel's settings save for these fields, with the same limits; the rest of the settings stay."""
-    start, end = parse_hhmm(body.work_start.strip()), parse_hhmm(body.work_end.strip())
-    if not (start and end and end > start):
-        return _fail(422, "Конец рабочего дня должен быть позже начала.")
+    """What the panel's settings save for these fields, with the same limits; the rest of the settings stay. Only the
+    owner, as «Настройки» in the panel; a field not sent keeps its value."""
+    sent = body.model_fields_set
     with new_session() as s:
-        who, denied = _staff_only(s, request)
+        who, denied = _owner_only(s, request)
         if denied:
             return denied
         b = s.get(Business, who.business.id)
-        b.address, b.phone, b.hours_text = body.address.strip()[:300], body.phone.strip()[:60], body.hours_text.strip()[:300]
+        start = parse_hhmm((body.work_start if "work_start" in sent else b.work_start).strip())
+        end = parse_hhmm((body.work_end if "work_end" in sent else b.work_end).strip())
+        if not (start and end and end > start):
+            return _fail(422, "Конец рабочего дня должен быть позже начала.")
+        if "address" in sent:
+            b.address = body.address.strip()[:300]
+        if "phone" in sent:
+            b.phone = body.phone.strip()[:60]
+        if "hours_text" in sent:
+            b.hours_text = body.hours_text.strip()[:300]
         b.work_start, b.work_end = f"{start:%H:%M}", f"{end:%H:%M}"
-        b.days_off = ",".join(str(d) for d in range(1, 8) if d in body.days_off)
+        if "days_off" in sent:
+            b.days_off = ",".join(str(d) for d in range(1, 8) if d in body.days_off)
         s.add(b)
         s.commit()
         s.refresh(b)

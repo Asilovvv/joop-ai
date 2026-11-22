@@ -16,6 +16,7 @@ import json
 import logging
 import re
 import secrets
+import threading
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -40,6 +41,8 @@ PER_ADDRESS = 120  # a day from one IP: an office or a café shares one address
 PER_BUSINESS = 600  # web messages a day for one business: a public link must not run up the bill
 _TOKEN = re.compile(r"^[a-f0-9]{16,32}$")
 _used: dict[str, tuple[str, int]] = {}  # key -> (day, count); reset with the process, the DB limit still holds
+_answering: dict[int, int] = {}  # business id -> web messages being answered now, not yet counted by the database
+_lock = threading.Lock()  # the answers run in threads: a check and its count are one step, or a burst passes them all
 PAUSED_REPLY = "Сообщение получено. Администратор ответит вам — оставьте, пожалуйста, номер телефона, если ещё не оставили."
 LANGS = ("ru", "ky", "en", "zh")  # the page's languages; the AI answers in the language the guest writes in
 TEXTS = {
@@ -82,6 +85,25 @@ def _bump(key: str, day: str) -> None:
     _used[key] = (day, _count(key, day) + 1)
 
 
+def _take(limits: dict[str, int], day: str) -> bool:
+    """Counts one message against every key, if none is at its limit."""
+    with _lock:
+        if any(_count(key, day) >= limit for key, limit in limits.items()):
+            return False
+        for key in limits:
+            _bump(key, day)
+        return True
+
+
+def _give_back(keys, day: str) -> None:
+    """A message that was not answered (refused, failed) does not count."""
+    with _lock:
+        for key in keys:
+            d, n = _used.get(key, (day, 0))
+            if d == day and n > 0:
+                _used[key] = (day, n - 1)
+
+
 def _web_messages_today(s: Session, business: Business) -> int:
     start = local_to_utc(local_now(business.timezone).replace(hour=0, minute=0, second=0, microsecond=0), business.timezone)
     return int(s.exec(select(func.count()).select_from(Message).join(Conversation, Conversation.id == Message.conversation_id).where(
@@ -118,10 +140,18 @@ async def chat_message(request: Request, slug: str):
     if not text:
         return JSONResponse({"error": "empty"}, status_code=400)
     day, ip = local_now(None).strftime("%Y-%m-%d"), client_ip(request)  # the day in Bishkek, not on the server clock
-    if _count(f"v:{visitor}", day) >= PER_VISITOR or _count(f"ip:{ip}", day) >= PER_ADDRESS:
+    limits = {f"v:{visitor}": PER_VISITOR, f"ip:{ip}": PER_ADDRESS}
+    if not _take(limits, day):
         return JSONResponse({"error": _t("limit", lang), "visitor": visitor},
                             status_code=429)
-    return await workers.run(_answer, request, slug, text, visitor, lang, day, ip)
+    answered = False
+    try:
+        response = await workers.run(_answer, request, slug, text, visitor, lang, day, ip)
+        answered = response.status_code == 200
+        return response
+    finally:
+        if not answered:
+            _give_back(limits, day)
 
 
 def _answer(request: Request, slug: str, text: str, visitor: str, lang: str, day: str, ip: str) -> JSONResponse:
@@ -134,9 +164,11 @@ def _answer(request: Request, slug: str, text: str, visitor: str, lang: str, day
             business = _business(s, slug)
         except HTTPException:
             return JSONResponse({"error": "not found"}, status_code=404)
-        if _web_messages_today(s, business) >= PER_BUSINESS:
-            return JSONResponse({"error": _t("busy", lang), "visitor": visitor},
-                                status_code=429)
+        with _lock:
+            if _web_messages_today(s, business) + _answering.get(business.id, 0) >= PER_BUSINESS:
+                return JSONResponse({"error": _t("busy", lang), "visitor": visitor},
+                                    status_code=429)
+            _answering[business.id] = _answering.get(business.id, 0) + 1
         chat_id = f"web-{visitor}"
         incoming = IncomingMessage(CHANNEL, chat_id, "text", text, "Посетитель сайта", f"web:{chat_id}:{secrets.token_hex(6)}",
                                    staff_test=_staff(request, business))
@@ -148,8 +180,9 @@ def _answer(request: Request, slug: str, text: str, visitor: str, lang: str, day
             s.rollback()
             log.exception("Web chat failed for %s", slug)
             return JSONResponse({"error": _t("failed", lang), "visitor": visitor}, status_code=503)
-    _bump(f"v:{visitor}", day)
-    _bump(f"ip:{ip}", day)
+        finally:
+            with _lock:
+                _answering[business.id] -= 1
     if outcome.admin_notes:
         from ..dispatch import notify_admins
 
@@ -204,9 +237,8 @@ PER_ADDRESS_POLLS = 20000  # /updates calls a day from one IP: the page asks eve
 def chat_updates(request: Request, slug: str, visitor: str = "", after: int = 0):
     """Replies staff wrote from the panel (joop/staff_reply.py); the page asks while it is open."""
     day, ip = local_now(None).strftime("%Y-%m-%d"), client_ip(request)  # the day in Bishkek, not on the server clock
-    if not _TOKEN.match(visitor) or _count(f"poll:{ip}", day) >= PER_ADDRESS_POLLS:
+    if not _TOKEN.match(visitor) or not _take({f"poll:{ip}": PER_ADDRESS_POLLS}, day):
         return JSONResponse({"messages": []}, headers={"Cache-Control": "no-store"})
-    _bump(f"poll:{ip}", day)
     with new_session() as s:
         try:
             b = _business(s, slug)
@@ -230,3 +262,4 @@ def widget(request: Request, slug: str):
 def reset_limits() -> None:
     """For tests."""
     _used.clear()
+    _answering.clear()

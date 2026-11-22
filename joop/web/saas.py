@@ -18,6 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy import func
 from sqlmodel import Session, select
 
@@ -450,6 +451,12 @@ async def freedompay_result(request: Request):
     if not settings.freedompay_secret_key:
         raise HTTPException(status_code=404)
     params = {k: str(v) for k, v in (await request.form()).items()}
+    return await run_in_threadpool(_freedompay_result, request, settings, params)
+
+
+def _freedompay_result(request: Request, settings, params: dict):
+    """In a worker thread: it writes to the database, and a write waits while another holds SQLite's lock. On the event
+    loop that wait froze every request (tests/test_event_loop.py)."""
     script = "result"
     if not billing.fp_verify(script, params, settings.freedompay_secret_key):
         log.warning("FreedomPay callback with a bad signature")

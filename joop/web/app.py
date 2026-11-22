@@ -710,6 +710,12 @@ def service_add(
 async def services_upsell(request: Request):
     """Per service, the add-on the AI offers right after a booking (joop/upsell.py)."""
     form = await request.form()
+    return await run_in_threadpool(_services_upsell, request, form)
+
+
+def _services_upsell(request: Request, form):
+    """In a worker thread: it writes to the database, and a write waits while another holds SQLite's lock. On the event
+    loop that wait froze every request (tests/test_event_loop.py)."""
     _check_csrf(request, str(form.get("csrf", "")))
     with new_session() as s:
         b = _business(s, request)
@@ -1772,6 +1778,12 @@ def settings_page(request: Request):
 @router.post("/panel/settings")
 async def settings_save(request: Request):
     form = await request.form()
+    return await run_in_threadpool(_settings_save, request, form)
+
+
+def _settings_save(request: Request, form):
+    """In a worker thread: it writes to the database, and a write waits while another holds SQLite's lock. On the event
+    loop that wait froze every request (tests/test_event_loop.py)."""
     _check_csrf(request, str(form.get("csrf", "")))
 
     def text(key: str, limit: int = 300) -> str:
@@ -2047,16 +2059,17 @@ def _channels_save(request: Request, form):
         b.ig_comment_keywords = value("ig_comment_keywords")[:300]
         b.ig_comment_public_reply = value("ig_comment_public_reply")[:200]
         b.wa_template_lang = value("wa_template_lang") or "ru"
-        for field, column in (("wa_phone_number_id", Business.wa_phone_number_id), ("ig_account_id", Business.ig_account_id)):
-            account = getattr(b, field)
-            if account and s.exec(select(Business).where(column == account, Business.id != b.id)).first():
-                _flash(request, "Этот аккаунт уже подключён к другой компании.", "error")
-                return _back("/panel/channels")
-        if not (b.ig_account_id and b.ig_access_token):
-            b.ig_username = ""
-        elif value("ig_access_token") or not b.ig_username:  # a new token, or connected before the username was kept
-            client = _rt(request).instagram(b)
-            b.ig_username = str((client.get_me() if client else {}).get("username") or "")
+        with s.no_autoflush:  # nothing is written before Instagram answers: a write would hold SQLite's lock meanwhile
+            for field, column in (("wa_phone_number_id", Business.wa_phone_number_id), ("ig_account_id", Business.ig_account_id)):
+                account = getattr(b, field)
+                if account and s.exec(select(Business).where(column == account, Business.id != b.id)).first():
+                    _flash(request, "Этот аккаунт уже подключён к другой компании.", "error")
+                    return _back("/panel/channels")
+            if not (b.ig_account_id and b.ig_access_token):
+                b.ig_username = ""
+            elif value("ig_access_token") or not b.ig_username:  # a new token, or connected before the username was kept
+                client = _rt(request).instagram(b)
+                b.ig_username = str((client.get_me() if client else {}).get("username") or "")
         s.add(b)
         s.commit()
     _flash(request, "WhatsApp и Instagram сохранены.")

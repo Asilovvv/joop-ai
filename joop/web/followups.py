@@ -6,6 +6,7 @@ from datetime import timedelta
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Request
+from starlette.concurrency import run_in_threadpool
 from sqlmodel import select
 
 from .. import followups, reorders, restock
@@ -45,6 +46,12 @@ def followups_page(request: Request):
 @router.post("/panel/followups")
 async def followups_save(request: Request):
     form = await request.form()
+    return await run_in_threadpool(_followups_save, request, form)
+
+
+def _followups_save(request: Request, form):
+    """In a worker thread: it writes to the database, and a write waits while another holds SQLite's lock. On the event
+    loop that wait froze every request (tests/test_event_loop.py)."""
     _check_csrf(request, str(form.get("csrf", "")))
     with new_session() as s:
         b = _business(s, request)

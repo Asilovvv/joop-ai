@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Form, Request
 from fastapi.responses import JSONResponse, Response
+from starlette.concurrency import run_in_threadpool
 
 from .. import api, mcp
 from ..db import new_session
@@ -123,6 +124,12 @@ async def api_book(request: Request, background: BackgroundTasks):
         data = None
     if not isinstance(data, dict):
         return _denied(400, "send JSON: {\"slot_id\", \"name\", \"phone\", \"service\"}")
+    return await run_in_threadpool(_api_book, request, background, data)
+
+
+def _api_book(request: Request, background: BackgroundTasks, data: dict):
+    """In a worker thread: it writes to the database, and a write waits while another holds SQLite's lock. On the event
+    loop that wait froze every request (tests/test_event_loop.py)."""
     with new_session() as s:
         b, refused = _key_business(s, request)
         if refused:
@@ -144,6 +151,12 @@ async def mcp_endpoint(request: Request, background: BackgroundTasks):
         message = await request.json()
     except ValueError:
         return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error"}}, status_code=400)
+    return await run_in_threadpool(_mcp_endpoint, request, background, message)
+
+
+def _mcp_endpoint(request: Request, background: BackgroundTasks, message):
+    """In a worker thread: it writes to the database, and a write waits while another holds SQLite's lock. On the event
+    loop that wait froze every request (tests/test_event_loop.py)."""
     with new_session() as s:
         b, refused = _key_business(s, request)
         if refused:

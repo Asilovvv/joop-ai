@@ -4,7 +4,6 @@ Starlette serves every sync page and runs every background task in one pool of 4
 took all of them while the model thought: with 150 chats at once and a 3-second model, the login page took 9 s.
 """
 
-import threading
 import time
 
 import anyio.from_thread
@@ -19,6 +18,7 @@ from joop.web import webchat
 from joop.web.app import create_app
 
 from .conftest import FakeLLM
+from .test_event_loop import at_once
 from .test_web import _signed
 
 MODEL_SECONDS = 0.5
@@ -85,23 +85,6 @@ def test_every_channel_answers_in_the_customers_threads(app_with, business):
     assert llm.seen == [(0, 1)] * 3  # the pages' pool lent nothing; the customers' pool lent the one thread
 
 
-def at_once(jobs):
-    took, start = [0.0] * len(jobs), threading.Barrier(len(jobs))
-
-    def run(i, job):
-        start.wait()
-        t = time.perf_counter()
-        job()
-        took[i] = time.perf_counter() - t
-
-    threads = [threading.Thread(target=run, args=(i, job)) for i, job in enumerate(jobs)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join(30)
-    return took
-
-
 def page_meanwhile(client):
     def job():
         time.sleep(MODEL_SECONDS / 3)  # while the customers wait for the model
@@ -114,15 +97,15 @@ def test_pages_open_while_customers_hold_more_threads_than_pages_have(app_with, 
         async def two_threads_for_pages():
             anyio.to_thread.current_default_thread_limiter().total_tokens = 2
         c.portal.call(two_threads_for_pages)
-        took = at_once([lambda n=n: telegram(c, business, 2000 + n) for n in range(4)] + [page_meanwhile(c)])
-    assert took[4] < MODEL_SECONDS  # before: the page waited for two of the four answers
-    assert max(took[:4]) < MODEL_SECONDS * 2  # four customers, two page threads: all four answered at once
+        ended = at_once([lambda n=n: telegram(c, business, 2000 + n) for n in range(4)] + [page_meanwhile(c)])
+    assert ended[4] < min(ended[:4])  # before: the page waited for two of the four answers
+    assert max(ended[:4]) < MODEL_SECONDS * 2  # four customers, two page threads: all four answered at once
 
 
 def test_the_customers_threads_have_their_own_limit(app_with, business, monkeypatch):
     monkeypatch.setattr(workers, "THREADS", 2)
     llm = Watching(MODEL_SECONDS)
     with app_with(llm) as c:
-        took = at_once([lambda n=n: telegram(c, business, 3000 + n) for n in range(4)] + [page_meanwhile(c)])
-    assert max(took[:4]) >= MODEL_SECONDS * 2  # two at a time: the last two waited for a free thread
-    assert max(n for _, n in llm.seen) == 2 and took[4] < MODEL_SECONDS
+        ended = at_once([lambda n=n: telegram(c, business, 3000 + n) for n in range(4)])
+    assert max(ended) >= MODEL_SECONDS * 2  # two at a time: the last two waited for a free thread
+    assert max(n for _, n in llm.seen) == 2 and {pages for pages, _ in llm.seen} == {0}

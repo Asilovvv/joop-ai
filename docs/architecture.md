@@ -128,9 +128,12 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
    scheduler's tick takes the queue over. One POST of Meta carries messages of several chats: the
    chats are answered side by side, and a chat's own messages join its queue together, in their order.
    A route written `async def` (the site chat, the site demo, a test result, a test broadcast, the
-   saving of «Каналы», a studio draft) reads its form on the event loop and hands everything that
-   waits on the model or a messenger to a worker thread (`run_in_threadpool`); called on the loop
-   itself, one such wait froze every request. Measured with three site-chat visitors at once and a
+   saving of «Каналы», a studio draft, and every one that writes to the database) reads its form
+   on the event loop and hands everything that waits on the model, a messenger or SQLite's write
+   lock to a worker thread (`run_in_threadpool`); called on the loop itself, one such wait froze
+   every request. A limit counted in such a route (the site chat's, the demo's) is checked and
+   counted in one locked step before the answer, and given back if the answer fails: checked on
+   the loop and counted after the model, eight messages sent at once all passed a limit of two. Measured with three site-chat visitors at once and a
    3-second model: before, /health took 8.9 s and the visitors were answered after 3.2, 6.2 and
    9.2 s; after, /health takes 0.02 s and all three are answered in 3.2 s. `tests/test_event_loop.py`
    fails on any such call made from an `async def` in `joop/web`.

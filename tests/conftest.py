@@ -130,6 +130,7 @@ class FakeSender:
         return "refreshed-token" if self.ok else None
 
     def get_me(self):  # Telegram getMe / Instagram /me: tests set `me` when the username matters
+        _sending()
         return dict(getattr(self, "me", {}) or {})
 
 

@@ -19,6 +19,9 @@ from pathlib import Path
 from typing import Callable, Mapping
 from urllib.parse import urlparse
 
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
+
 from .config import Settings
 
 log = logging.getLogger(__name__)
@@ -186,11 +189,17 @@ def db_write_problem(url: str) -> str | None:
     then fails: the AI answers nobody, and nothing said so (launch rehearsal, 22 November 2026). SQLite also needs the
     folder, for its -wal and -journal files."""
     path = sqlite_path(url)
-    if path is None or not path.exists():
+    if path is None:
         return None
     fix = "выполните: docker compose run --rm --user root app chown -R joop /data"
-    if not os.access(path, os.W_OK):
-        return f"нет записи в файл базы {path}; {fix}"
+    try:
+        if not path.exists():
+            return None  # migrate creates it
+    except OSError:  # the folder itself cannot be entered
+        return f"нет доступа к папке базы {path.parent}; {fix}"
+    for part in (path, path.with_name(path.name + "-wal"), path.with_name(path.name + "-shm")):
+        if (part == path or part.exists()) and not os.access(part, os.W_OK):  # the -wal file of a copy made as root
+            return f"нет записи в файл базы {part}; {fix}"
     if not os.access(path.parent, os.W_OK):
         return f"нет записи в папку базы {path.parent}; {fix}"
     return None
@@ -198,9 +207,13 @@ def db_write_problem(url: str) -> str | None:
 
 def sqlite_path(url: str) -> Path | None:
     """File of a SQLite database URL (sqlite:////data/joop.db -> /data/joop.db); None for other databases."""
-    if not url.startswith("sqlite:///") or url in {"sqlite://", "sqlite:///:memory:"}:
+    try:
+        parsed = make_url(url)
+    except ArgumentError:
         return None
-    return Path(url[len("sqlite:///"):])
+    if parsed.get_backend_name() != "sqlite" or not parsed.database or parsed.database == ":memory:":
+        return None
+    return Path(parsed.database)  # without ?options; sqlite+pysqlite:// too
 
 
 def backup_dir(settings: Settings) -> Path:

@@ -10,7 +10,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from sqlmodel import select
 
-from .. import placement, samples
+from .. import placement, samples, workers
 from ..db import new_session
 from ..dispatch import notify_admins
 from ..models import Business, Conversation, Lead, Message, PlacementAttempt, PlacementTest
@@ -107,6 +107,12 @@ async def test_questions(request: Request, tid: int):
         raw = (await upload.read())[:500_000]
         if raw:
             text = raw.decode("utf-8-sig", errors="replace")
+    return await run_in_threadpool(_test_questions, request, tid, text)
+
+
+def _test_questions(request: Request, tid: int, text: str):
+    """In a worker thread: it writes to the database, and a write waits while another holds SQLite's lock. On the event
+    loop that wait froze every request (tests/test_event_loop.py)."""
     questions, errors = placement.parse_questions(text)
     with new_session() as s:
         b = _panel_business(s, request)
@@ -248,7 +254,7 @@ def attempt_start(request: Request, token: str, name: str = Form(""), phone: str
 @router.post("/t/{token}")
 async def attempt_submit(request: Request, token: str):
     form = await request.form()
-    return await run_in_threadpool(_attempt_submit, request, token, form)
+    return await workers.run(_attempt_submit, request, token, form)
 
 
 def _attempt_submit(request: Request, token: str, form):
