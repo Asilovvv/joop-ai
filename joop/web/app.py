@@ -27,7 +27,7 @@ from ..channels.telegram import bot_id, parse_update
 from ..config import Settings, get_settings
 from ..db import init_db, new_session
 from ..dispatch import admin_chat_ids, admin_link, alert_chats, alerts_other_bot, notify_admins, process_chat, process_incoming
-from .. import missed_calls, tgbusiness
+from .. import missed_calls, tgbusiness, workers
 from ..catalog import parse_price
 from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, ConversationNote, Faq, Lead, Message, Order, OrderLine, PanelUser, Service,
                       SignatureClick, Slot, Staff, Stay, StockMove, WaitlistEntry, takeover_words)
@@ -2193,11 +2193,11 @@ async def telegram_webhook(slug: str, request: Request, background: BackgroundTa
     except ValueError:
         raise HTTPException(status_code=400) from None
     if isinstance(update, dict) and "business_connection" in update:  # the owner added the bot to their own Telegram
-        background.add_task(tgbusiness.handle_update, _rt(request), business.id, update)
+        background.add_task(workers.run, tgbusiness.handle_update, _rt(request), business.id, update)
         return {"ok": True}
     incoming = parse_update(update) if isinstance(update, dict) else None
     if incoming is not None:
-        background.add_task(process_incoming, _rt(request), business.id, incoming)
+        background.add_task(workers.run, process_incoming, _rt(request), business.id, incoming)
     return {"ok": True}
 
 
@@ -2224,9 +2224,9 @@ async def missed_call_webhook(slug: str, request: Request, background: Backgroun
         params.update(dict(await request.form()))
     phone = missed_calls.caller(params)
     if phone:
-        background.add_task(missed_calls.process, _rt(request), business.id, phone)
+        background.add_task(workers.run, missed_calls.process, _rt(request), business.id, phone)
     else:  # hidden or unreadable number: the call is still not lost
-        background.add_task(notify_admins, _rt(request), business, [missed_calls.unknown_note(missed_calls.raw_caller(params))])
+        background.add_task(workers.run, notify_admins, _rt(request), business, [missed_calls.unknown_note(missed_calls.raw_caller(params))])
     return {"ok": True, "phone": bool(phone)}
 
 
@@ -2283,7 +2283,7 @@ async def _answer_side_by_side(rt: Runtime, chats: dict[tuple[int, str, str], li
     of theirs in the POST: for its whole queue when that chat was being flooded."""
     async with anyio.create_task_group() as group:
         for (business_id, _, _), messages in chats.items():
-            group.start_soon(run_in_threadpool, _answer_chat, rt, business_id, messages)
+            group.start_soon(workers.run, _answer_chat, rt, business_id, messages)
 
 
 def _answer_chat(rt: Runtime, business_id: int, messages: list[IncomingMessage]) -> None:

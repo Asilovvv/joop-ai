@@ -119,8 +119,8 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
    delivery repeated moments later finds the first already stored, and a second message sent in a row
    is answered with the first reply in its history. A message that arrives while its chat is being
    answered does not wait in a thread: it goes to the chat's queue in memory and the thread that is
-   answering takes it next (`dispatch.process_incoming`). One chat uses one of the server's 40
-   threads however many messages it sends. Measured with 80 messages sent to one chat and a 1-second
+   answering takes it next (`dispatch.process_incoming`). One chat uses one of the 40 threads
+   for customers however many messages it sends. Measured with 80 messages sent to one chat and a 1-second
    model call: before, the login page did not open for 30 seconds and another customer got no answer
    in that time; after, the page opens in 0.03 s and the other customer is answered in 1.2 s. More
    than 50 waiting in one chat are not read: staff are told once and the dialogue keeps a note of how
@@ -134,6 +134,11 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
    3-second model: before, /health took 8.9 s and the visitors were answered after 3.2, 6.2 and
    9.2 s; after, /health takes 0.02 s and all three are answered in 3.2 s. `tests/test_event_loop.py`
    fails on any such call made from an `async def` in `joop/web`.
+   Customers are answered in threads of their own (`joop/workers.py`, 40 at a time): messages from
+   the channels, the site chat and the demo. Pages and the rest of the background work keep
+   Starlette's 40. Measured with 150 chats at once and a 3-second model: before, the login page took
+   up to 9.04 s to open; after, 0.05 s. The 151st customer is still answered after 12.9 s: forty
+   at a time is the limit of how many the model answers at once, not of the pages.
 5. **No model call inside a database transaction.** SQLite lets one connection write at a time, from
    its first write to commit. The engine commits before each model call (`db.free`),
    so a slow answer to one customer never stops another business's customers, the panel or the
@@ -165,6 +170,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/agent/openai_compat.py` | Second model provider: any OpenAI-compatible API (development and evaluation; docs/model-providers.md) |
 | `joop/agent/engine.py` | One message in: commands, media, pause, model call, checks of every booking, order and lead, language and confirmation guards |
 | `joop/dispatch.py` | Keeps one thread per chat (a queue in memory for messages that arrive while the chat is being answered), takes the chat's turn (before a voice message is recognised, until the reply is sent), runs the engine in a DB session, then sends staff notes and waiting-list offers outside the turn |
+| `joop/workers.py` | The 40 threads that answer customers (channel messages, the site chat, the demo), apart from Starlette's 40 that serve pages |
 | `joop/channels/` | Telegram, WhatsApp and Instagram parsing and send clients; Telegram polling |
 | `joop/lang.py`, `joop/kyrgyz.py` | Kyrgyz/Russian heuristics; Kyrgyz drafts of service names and FAQ |
 | `joop/ky_phrases.py` | Every fixed Kyrgyz phrase in the code with its Russian twin, for a native speaker: `python -m joop ky-phrases --csv`, `/owner/kyrgyz` |
@@ -226,6 +232,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 1138 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 1141 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |

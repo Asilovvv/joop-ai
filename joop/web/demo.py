@@ -17,10 +17,10 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
-from starlette.concurrency import run_in_threadpool
 from sqlalchemy import func
 from sqlmodel import Session, select
 
+from .. import workers
 from ..agent.engine import handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
@@ -147,7 +147,7 @@ async def demo_chat(request: Request):
     token = request.session.get("demo_chat") or secrets.token_hex(8)
     request.session["demo_chat"] = token
 
-    outcome = await run_in_threadpool(_answer, _rt(request).get_llm, key, token, text, limit)
+    outcome = await workers.run(_answer, _rt(request).get_llm, key, token, text, limit)
     if isinstance(outcome, JSONResponse):
         return outcome
 
