@@ -32,6 +32,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(server.services[1]['available'], isTrue);
 
+    await tester.scrollUntilVisible(find.text('300 сом · Закончилось на складе'), 200); // below the example banner
     expect(find.text('300 сом · Закончилось на складе'), findsOneWidget);
     expect(tester.widget<Switch>(find.byKey(const Key('available-3'))).onChanged, isNull);
   });

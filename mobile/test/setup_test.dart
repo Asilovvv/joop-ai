@@ -27,9 +27,11 @@ void main() {
     final server = await _signIn(tester);
     await tester.tap(find.byKey(const Key('menu-setup')));
     await tester.pumpAndSettle();
-    expect(find.text('Готово 1 из 4'), findsOneWidget);
+    expect(find.text('Готово 0 из 4'), findsOneWidget);
     expect(find.byKey(const Key('step-telegram-todo')), findsOneWidget);
     expect(find.textContaining('https://joop.test/panel/settings'), findsOneWidget); // a step the app does not take
+    expect(find.byKey(const Key('prices-in-app')), findsOneWidget); // the app's own «Прайс» tab takes this one
+    expect(find.textContaining('https://joop.test/panel/services'), findsNothing);
 
     await tester.enterText(find.byKey(const Key('bot-token')), '123:wrong');
     await tester.tap(find.byKey(const Key('bot-connect')));
@@ -44,7 +46,7 @@ void main() {
     expect(find.text('Бот @aktish_bot подключён.'), findsOneWidget);
     expect(find.byKey(const Key('step-telegram-done')), findsOneWidget);
     expect(find.byKey(const Key('bot-token')), findsNothing);
-    expect(find.text('Готово 2 из 4'), findsOneWidget);
+    expect(find.text('Готово 1 из 4'), findsOneWidget);
 
     await tester.ensureVisible(find.byKey(const Key('page-booking-switch')));
     expect(find.text('https://joop.test/m/aktish/book'), findsOneWidget);

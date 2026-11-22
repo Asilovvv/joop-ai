@@ -11,6 +11,23 @@ class S {
     required this.bookingsCount,
     required this.loadFailed,
     required this.retry,
+    required this.addService,
+    required this.exampleBanner,
+    required this.deleteExample,
+    required this.deleteExampleConfirm,
+    required this.cancel,
+    required this.serviceName,
+    required this.servicePrice,
+    required this.servicePriceHint,
+    required this.serviceNameKy,
+    required this.serviceNote,
+    required this.deleteService,
+    required this.serviceNameEmpty,
+    required this.pricesInApp,
+    required this.newService,
+    required this.editService,
+    required this.stopListEditNote,
+    required this.exampleDeleted,
     required this.no,
     required this.noConnection,
     required this.httpsOnly,
@@ -266,6 +283,23 @@ class S {
   final String Function(int n) bookingsCount;
   final String loadFailed;
   final String retry;
+  final String addService;
+  final String exampleBanner;
+  final String deleteExample;
+  final String deleteExampleConfirm;
+  final String cancel;
+  final String serviceName;
+  final String servicePrice;
+  final String servicePriceHint;
+  final String serviceNameKy;
+  final String serviceNote;
+  final String deleteService;
+  final String serviceNameEmpty;
+  final String pricesInApp;
+  final String newService;
+  final String editService;
+  final String stopListEditNote;
+  final String Function(int n) exampleDeleted;
   final String no;
   final String Function(String server) noConnection;
   final String Function(String server) httpsOnly;
@@ -553,6 +587,23 @@ class S {
     bookingsCount: _ruBookings,
     loadFailed: 'Не удалось загрузить',
     retry: 'Повторить',
+    addService: 'Добавить',
+    exampleBanner: 'Это пример прайса: ИИ не называет его клиентам. Замените названия и цены на свои — нажмите на позицию — или удалите пример целиком и добавьте свои.',
+    deleteExample: 'Удалить пример',
+    deleteExampleConfirm: 'Удалить все позиции примера? Ваши собственные позиции останутся.',
+    cancel: 'Отмена',
+    serviceName: 'Название',
+    servicePrice: 'Цена, сом',
+    servicePriceHint: 'Число — ИИ назовёт его как есть. Можно и «от 900».',
+    serviceNameKy: 'Название по-кыргызски (по желанию)',
+    serviceNote: 'Что добавить клиенту (длительность, что входит)',
+    deleteService: 'Удалить позицию',
+    serviceNameEmpty: 'Напишите название.',
+    pricesInApp: 'Это можно сделать прямо в приложении: вкладка «Прайс».',
+    newService: 'Новая позиция',
+    editService: 'Позиция прайса',
+    stopListEditNote: 'Нажмите на позицию, чтобы изменить название и цену. Выключите — ИИ перестанет её предлагать.',
+    exampleDeleted: _ruExampleDeleted,
     no: 'Нет',
     noConnection: _ruNoConnection,
     httpsOnly: _ruHttpsOnly,
@@ -817,6 +868,23 @@ class S {
     bookingsCount: _kyBookings,
     loadFailed: 'Жүктөлгөн жок',
     retry: 'Кайталоо',
+    addService: 'Кошуу', // check with a native speaker
+    exampleBanner: 'Бул баалардын мисалы: ИИ аны кардарларга айтпайт. Аталыштарын жана бааларын өзүңүздүкүнө алмаштырыңыз — позицияны басыңыз — же мисалды толук өчүрүп, өзүңүздүкүн кошуңуз.', // check with a native speaker
+    deleteExample: 'Мисалды өчүрүү', // check with a native speaker
+    deleteExampleConfirm: 'Мисалдын бардык позицияларын өчүрөсүзбү? Өзүңүздүн позицияларыңыз калат.', // check with a native speaker
+    cancel: 'Жокко чыгаруу', // check with a native speaker
+    serviceName: 'Аталышы', // check with a native speaker
+    servicePrice: 'Баасы, сом', // check with a native speaker
+    servicePriceHint: 'Сан — ИИ аны ошол бойдон айтат. «900дөн» деп да жазса болот.', // check with a native speaker
+    serviceNameKy: 'Кыргызча аталышы (каалоо боюнча)', // check with a native speaker
+    serviceNote: 'Кардарга эмне кошуп айтуу керек (узактыгы, эмне кирет)', // check with a native speaker
+    deleteService: 'Позицияны өчүрүү', // check with a native speaker
+    serviceNameEmpty: 'Аталышын жазыңыз.', // check with a native speaker
+    pricesInApp: 'Муну тиркемеде эле жасаса болот: «Прайс» өтмөгү.', // check with a native speaker
+    newService: 'Жаңы позиция', // check with a native speaker
+    editService: 'Прайстын позициясы', // check with a native speaker
+    stopListEditNote: 'Атын жана баасын өзгөртүү үчүн позицияны басыңыз. Өчүрсөңүз, ИИ аны сунуштабай калат.', // check with a native speaker
+    exampleDeleted: _kyExampleDeleted,
     no: 'Жок',
     noConnection: _kyNoConnection,
     httpsOnly: _kyHttpsOnly,
@@ -1253,3 +1321,6 @@ String _kySetupProgress(int done, int total) => '$total кадамдан $done �
 
 String _ruTestBookingsCancelled(int n) => 'Тестовые записи отменены, время снова свободно: $n.';
 String _kyTestBookingsCancelled(int n) => 'Сынак жазылуулар жокко чыгарылды, убакыт кайра бош: $n.'; // check with a native speaker
+
+String _ruExampleDeleted(int n) => n == 0 ? 'Примера в прайсе нет.' : 'Пример удалён: $n. Добавьте свои позиции с ценами.';
+String _kyExampleDeleted(int n) => n == 0 ? 'Прайста мисал жок.' : 'Мисал өчүрүлдү: $n. Өзүңүздүн позицияларды баалары менен кошуңуз.'; // check with a native speaker
