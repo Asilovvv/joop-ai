@@ -76,6 +76,39 @@ void main() {
     expect(find.byKey(const Key('example-banner')), findsNothing);
   });
 
+  testWidgets('closing the sheet while it saves leaves the screen in place', (tester) async {
+    final server = await _prices(tester);
+    server.editDelay = const Duration(seconds: 5);
+    await tester.tap(find.byKey(const Key('service-1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('service-price')), '600');
+    await tester.tap(find.byKey(const Key('service-save')));
+    await tester.pump();
+    // while it saves, the stop-list switches wait, so two changes never run at once
+    expect(tester.widget<Switch>(find.byKey(const Key('available-1'), skipOffstage: false)).onChanged, isNull);
+    await tester.tapAt(const Offset(180, 40)); // outside the sheet: it closes
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pumpAndSettle();
+    expect(find.text('Позиция прайса'), findsNothing);
+    expect(find.text('600 сом · Терапия'), findsOneWidget); // the list, under the sheet that is gone, is still here
+    expect(find.byKey(const Key('service-add')), findsOneWidget);
+    expect(tester.widget<Switch>(find.byKey(const Key('available-1'))).onChanged, isNotNull);
+  });
+
+  testWidgets('a refused change is said inside the sheet, which stays open', (tester) async {
+    final server = await _prices(tester);
+    server.refuseEdits = 'Прайс берётся из Altegio: меняйте его там.';
+    await tester.tap(find.byKey(const Key('service-1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('service-price')), '600');
+    await tester.tap(find.byKey(const Key('service-save')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('service-refused')), findsOneWidget);
+    expect(find.text('Прайс берётся из Altegio: меняйте его там.'), findsOneWidget);
+    expect(find.text('Позиция прайса'), findsOneWidget);
+    expect(server.services.first['price'], '500');
+  });
+
   testWidgets('a master reads the price list but does not edit it', (tester) async {
     await _prices(tester, role: 'master');
     expect(find.byKey(const Key('service-add')), findsNothing);
