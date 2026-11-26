@@ -38,6 +38,7 @@ class FakeJoop {
   /// The launch checklist's state, changed by the two setup calls.
   bool botConnected = false;
   bool pageOn = false;
+  bool onlineOn = false;
   final setupCalls = <Map>[];
 
   /// Contacts and opening hours (/api/mobile/contacts): the hours are still the example's.
@@ -74,6 +75,8 @@ class FakeJoop {
         'page_booking': {'available': true, 'on': pageOn, 'works': pageOn, 'why': pageOn ? '' : 'off',
             'url': 'https://joop.test/m/aktish/book', 'qr': ['1110111', '1000001', '1011101']},
         if (notes.isNotEmpty) 'notes': notes,
+        'online': {'label': 'Прайс онлайн', 'on': onlineOn, 'tables': false, 'url': 'https://joop.test/m/aktish',
+          'qr': ['1110111', '1000001', '1011101']},
       };
 
   /// Bodies of POST /api/mobile/signup.
@@ -326,6 +329,13 @@ class FakeJoop {
       if (body['token'] != '123456:good-token') return json({'error': 'Telegram не принял токен. Скопируйте его из @BotFather целиком.'}, 422);
       botConnected = true;
       return json(setupJson([{'text': 'Бот @aktish_bot подключён.', 'ok': true}]));
+    }
+    if (path == '/api/mobile/setup/online') {
+      final body = jsonDecode(request.body) as Map;
+      setupCalls.add(body);
+      onlineOn = body['on'] as bool;
+      if (!onlineOn) pageOn = false; // booking by link lives on the page
+      return json(setupJson());
     }
     if (path == '/api/mobile/setup/page-booking') {
       await Future<void>.delayed(setupDelay); // a slow connection

@@ -143,6 +143,8 @@ void main() {
     server.setupDelay = const Duration(seconds: 3);
     await tester.tap(find.byKey(const Key('menu-setup')));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('page-booking-switch')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('page-booking-switch')));
     await tester.pump();
     for (final key in ['open-people', 'open-contacts', 'open-try']) {
@@ -172,6 +174,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('step-staff-todo')), findsOneWidget);
     expect(find.byKey(const Key('open-people')), findsNothing);
+  });
+
+  testWidgets('the owner opens the public page and shows its QR code', (tester) async {
+    final server = await _signIn(tester, height: 4200);
+    await tester.tap(find.byKey(const Key('menu-setup')));
+    await tester.pumpAndSettle();
+    expect(find.text('Прайс онлайн'), findsOneWidget);
+    expect(find.text('https://joop.test/m/aktish'), findsOneWidget);
+    expect(find.byKey(const Key('online-qr')), findsNothing); // off: nothing to scan yet
+    await tester.tap(find.byKey(const Key('online-switch')));
+    await tester.pumpAndSettle();
+    expect(server.setupCalls.last, {'on': true});
+    expect(tester.widget<SwitchListTile>(find.byKey(const Key('online-switch'))).value, isTrue);
+    await tester.ensureVisible(find.byKey(const Key('online-qr')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('online-qr')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('qr-full')), findsOneWidget);
   });
 
   testWidgets('staff do not see the launch checklist', (tester) async {
