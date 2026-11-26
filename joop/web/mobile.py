@@ -34,7 +34,7 @@ from ..samples import example_staff_ids
 from ..security import verify_password
 from ..signup import Refused, register
 from ..catalog import parse_price
-from .. import billing, free_plan, page_booking, telegram_setup, try_chat
+from .. import billing, free_plan, page_booking, period_end, telegram_setup, try_chat
 from ..slots import (CLOSED, MAX_GENERATE_DAYS, claim_slot, free_on_day, generate_slots, release_slot, resize_group,
                      seats_left, seats_needed)
 from ..stats import TEST_CHANNEL, activity, not_test, real_conversation, test_conversations
@@ -451,7 +451,9 @@ def mobile_bookings(request: Request, day: str = "", days: int = 1):
 
 @router.get("/api/mobile/summary")
 def mobile_summary(request: Request):
-    """Counts for the app's home screen: active bookings today, tomorrow and in the next 7 days, and the next visit."""
+    """Counts for the app's home screen: active bookings today, tomorrow and in the next 7 days, and the next visit;
+    and `period`: the panel's line while the AI is about to stop or has stopped for payment (joop/period_end.py), with
+    `pay_url` for the owner to pay in the browser, None otherwise."""
     with new_session() as s:
         who = _signed_in(s, request)
         if who is None:
@@ -469,7 +471,18 @@ def mobile_summary(request: Request):
                 "tomorrow": sum(1 for b in week if b.start.date() == today + timedelta(days=1)),
                 "week": len(week),
                 "next": _booking(s, upcoming[0]) if upcoming else None,
-                "deposits": [_booking(s, b) for b in to_check]}
+                "deposits": [_booking(s, b) for b in to_check],
+                "period": _period_line(s, request, who)}
+
+
+def _period_line(s: Session, request: Request, who: Who) -> dict | None:
+    line = period_end.banner(s, who.business, utcnow())
+    if line is None:
+        return None
+    owner = who.user is None
+    pay_url = f"{_base_url(request).rstrip('/')}/panel/billing" if line.pay and owner else None
+    return {"level": line.level, "text": line.text, "pay_url": pay_url,
+            "ask_owner": line.pay and not owner}  # staff: «Скажите владельцу», as in the panel
 
 
 RESULT_DAYS = 14

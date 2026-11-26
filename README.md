@@ -205,7 +205,7 @@ WhatsApp message fees for reminders.
   (`joop/period_end.py`). A cancelled subscription gets no reminders to pay. Every panel page
   also carries the state on top while it lasts — about to stop, waiting, stopped, a free plan with
   more than one master, suspended — with «Перейти к оплате» for the owner and «Скажите владельцу»
-  for staff.
+  for staff; the app gets the same line in `/api/mobile/summary` (`period`).
   A request to pay by transfer reaches the founder's Telegram at once, and while it waits the
   summary and the panel say it is on its way instead of «оплатите». When a payment lands — a card,
   or a transfer the founder confirms or marks — staff get «Оплата … получена, спасибо!» with the
@@ -502,7 +502,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 1197 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 1200 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
