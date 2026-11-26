@@ -98,7 +98,13 @@ def notice(session: Session, business: Business, now: datetime, base_url: str = 
                 "ответьте им из панели. Оплатите — и ИИ сразу снова отвечает.")
     sub.end_told = f"{key}/{stage}"
     session.add(sub)
-    return head + "\n" + _pay_line(session, business, sub, base_url, price_som)
+    waiting = billing.pending_transfer(session, business.id, now)
+    return head + "\n" + (_waiting_line(waiting) if waiting else _pay_line(session, business, sub, base_url, price_som))
+
+
+def _waiting_line(payment) -> str:
+    return (f"Заявка на оплату №{payment.id} ждёт подтверждения перевода: подписка продлится, как только он придёт. "
+            "Уже перевели — ничего делать не нужно.")
 
 
 def why_stopped(session: Session, business: Business, now: datetime) -> str:
@@ -158,6 +164,14 @@ def banner(session: Session, business: Business, now: datetime) -> Banner | None
     found = _period(sub, now, stopped_long_ago=True)
     if found is None:
         return None
+    shown = _banner_for(found, sub, business)
+    waiting = billing.pending_transfer(session, business.id, now)
+    if waiting:  # already paid by transfer: not «pay», but «it is on its way»
+        return Banner(shown.level, f"{shown.text} {_waiting_line(waiting)}", pay=False)
+    return shown
+
+
+def _banner_for(found, sub: Subscription, business: Business) -> Banner:
     stage, end, st = found
     local_end = utc_to_local(end, business.timezone)
     stop = utc_to_local(end + timedelta(days=billing.GRACE_DAYS), business.timezone)
@@ -170,3 +184,27 @@ def banner(session: Session, business: Business, now: datetime) -> Banner | None
                               "потом остановится.")
     return Banner("error", f"ИИ не отвечает клиентам с {stop:%d.%m}: {what.lower()} закончился. Сообщения из Telegram "
                            "и с сайта приходят вам — отвечайте в «Диалогах».")
+
+
+def paid_note(session: Session, business: Business, payment) -> str:
+    """For staff, once a payment is in: what came and until when the AI works."""
+    sub = billing.get_subscription(session, business.id)
+    until = utc_to_local(sub.paid_until, business.timezone) if sub and sub.paid_until else None
+    som = f"{payment.amount_som:,}".replace(",", " ")
+    tail = f" ИИ-администратор «{business.name}» оплачен до {until:%d.%m.%Y}." if until else ""
+    return f"Оплата {som} сом получена, спасибо!{tail}"
+
+
+def tell_paid(rt, business_id: int, payment_id: int) -> int:
+    """The owner and staff hear that the payment arrived (a card, or a transfer the founder confirmed); before, they
+    learned it only by opening «Оплата». Returns messages sent."""
+    from .db import new_session
+    from .dispatch import notify_admins
+    from .models import Payment
+
+    with new_session() as s:
+        business, payment = s.get(Business, business_id), s.get(Payment, payment_id)
+        if business is None or payment is None or payment.status != "paid":
+            return 0
+        note = paid_note(s, business, payment)
+    return notify_admins(rt, business, [note])

@@ -93,6 +93,16 @@ def resume(sub: Subscription) -> None:
     sub.cancel_reason = ""
 
 
+PENDING_DAYS = 7  # a transfer request older than this is not «on its way» any more
+
+
+def pending_transfer(session: Session, business_id: int, now: datetime) -> Payment | None:
+    """The owner's latest request to pay by transfer that the founder has not confirmed or rejected yet."""
+    return session.exec(select(Payment).where(
+        Payment.business_id == business_id, Payment.method == "manual", Payment.status == "pending",
+        Payment.created_at >= now - timedelta(days=PENDING_DAYS)).order_by(Payment.id.desc())).first()
+
+
 def price_for(sub: Subscription | None, default_price: int) -> int:
     return (sub.price_som if sub and sub.price_som else default_price) or 0
 
