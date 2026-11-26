@@ -11,7 +11,7 @@ permissions:
 jobs:
   pytest:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25  # the suite took 6 min on 21.11 and 9.7 on 26.11, when a 10-minute limit cut a run
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -22,4 +22,4 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - run: pip install -r requirements-dev.txt
-      - run: python -m pytest -q
+      - run: python -m pytest -q --durations=15  # the slowest tests in the log: what to speed up next
