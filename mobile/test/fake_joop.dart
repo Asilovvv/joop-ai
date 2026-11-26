@@ -59,6 +59,9 @@ class FakeJoop {
   /// Bodies of POST /api/mobile/staff/{id}/windows.
   final windowsCalls = <Map>[];
 
+  /// The summary's line about the end of the trial or paid month (null: nothing to say).
+  Map<String, dynamic>? period;
+
   /// The owner's test chat (/api/mobile/try).
   final tryChat = <Map<String, dynamic>>[];
 
@@ -349,7 +352,8 @@ class FakeJoop {
       int on(String day) => active.where((b) => (b['start_local'] as String).startsWith(day)).length;
       return json({'today': on('2026-11-13'), 'tomorrow': on('2026-11-14'), 'week': active.length,
           'next': active.isEmpty ? null : active.first,
-          'deposits': active.where((b) => (b['deposit'] as Map?)?['status'] == 'check').toList()});
+          'deposits': active.where((b) => (b['deposit'] as Map?)?['status'] == 'check').toList(),
+          'period': period});
     }
     final deposit = RegExp(r'^/api/mobile/bookings/(\d+)/deposit$').firstMatch(path);
     if (deposit != null) {

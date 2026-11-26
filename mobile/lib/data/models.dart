@@ -194,7 +194,7 @@ class Booking extends Equatable {
 }
 
 class Summary extends Equatable {
-  const Summary({required this.today, required this.tomorrow, required this.week, this.next, this.deposits = const []});
+  const Summary({required this.today, required this.tomorrow, required this.week, this.next, this.deposits = const [], this.period});
 
   factory Summary.fromJson(Map<String, dynamic> json) => Summary(
         today: json['today'] as int,
@@ -204,6 +204,7 @@ class Summary extends Equatable {
         deposits: [
           for (final b in (json['deposits'] as List? ?? const [])) Booking.fromJson(b as Map<String, dynamic>)
         ],
+        period: json['period'] == null ? null : PeriodLine.fromJson(json['period'] as Map<String, dynamic>),
       );
 
   final int today;
@@ -214,8 +215,38 @@ class Summary extends Equatable {
   /// Upcoming bookings whose prepayment needs a person's look: a receipt was sent, or the deadline passed.
   final List<Booking> deposits;
 
+  /// The panel's line while the AI is about to stop or has stopped for payment; null otherwise.
+  final PeriodLine? period;
+
   @override
-  List<Object?> get props => [today, tomorrow, week, next, deposits];
+  List<Object?> get props => [today, tomorrow, week, next, deposits, period];
+}
+
+/// The end of the trial or the paid month (joop/period_end.py), as the panel shows it on every page.
+class PeriodLine extends Equatable {
+  const PeriodLine({required this.level, required this.text, this.payUrl, this.askOwner = false});
+
+  factory PeriodLine.fromJson(Map<String, dynamic> json) => PeriodLine(
+        level: (json['level'] as String?) ?? 'warn',
+        text: (json['text'] as String?) ?? '',
+        payUrl: json['pay_url'] as String?,
+        askOwner: (json['ask_owner'] as bool?) ?? false,
+      );
+
+  /// warn: about to stop; error: the AI does not answer customers now.
+  final String level;
+  final String text;
+
+  /// The billing page, for the owner only, and only when paying is the way out (not while a transfer waits).
+  final String? payUrl;
+
+  /// Staff: paying is the owner's, so the line asks them to tell the owner.
+  final bool askOwner;
+
+  bool get stopped => level == 'error';
+
+  @override
+  List<Object?> get props => [level, text, payUrl, askOwner];
 }
 
 class Service extends Equatable {
