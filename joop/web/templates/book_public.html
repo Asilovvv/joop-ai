@@ -9,8 +9,9 @@
 {% include "_public_style.html" %}
 <style>
 .chips a.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.days { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
-.days a { white-space: nowrap; }
+.days { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }  /* every day in sight: a row that
+   scrolled sideways showed four days on a phone and no sign of the rest */
+.days a { white-space: nowrap; text-align: center; }
 .times { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; margin-top: 10px; }
 .times a { display: block; text-align: center; padding: 12px 0; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; color: var(--ink); text-decoration: none; font-weight: 600; font-variant-numeric: tabular-nums; }
 .times a:hover, .chips a:hover { border-color: var(--accent); }
