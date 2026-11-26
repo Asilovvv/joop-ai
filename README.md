@@ -198,7 +198,11 @@ WhatsApp message fees for reminders.
 - **Billing** (`/panel/billing`): `PRICE_SOM` a month by card through FreedomPay Kyrgyzstan, or
   by transfer / QR that the founder confirms. When the trial or the paid month ends (plus 3
   days), the AI stops answering; messages still reach the panel. Businesses created from the
-  command line are never blocked.
+  command line are never blocked. The owner is not left to find out: the morning summary says it
+  once at each step — three days left, the last day, the waiting days, the stop — with the link
+  to pay, and the free plan when one master works there; after the stop every message from
+  Telegram or the site chat (read only by the bot) goes to staff with the reason
+  (`joop/period_end.py`). A cancelled subscription gets no reminders to pay.
   At the end of a business's second paid month the console reminds the founder to offer a year
   (`ANNUAL_MONTHS`: a year for that many months' price) with a ready message in the business's
   own numbers (`joop/annual.py`).
@@ -491,7 +495,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 1159 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 1169 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
