@@ -14,6 +14,7 @@ never ends; a suspended business was stopped by the founder on purpose.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from sqlmodel import Session
@@ -28,8 +29,9 @@ WARN_DAYS = 3  # «осталось три дня»: enough to pay by transfer, 
 TOLD_STOP_FOR = timedelta(days=7)  # a business that stopped long ago (before this existed) is not told today
 
 
-def _period(sub: Subscription, now: datetime) -> tuple[str, datetime, billing.State] | None:
-    """The step this subscription is at and the end it is about, or None when there is nothing to say."""
+def _period(sub: Subscription, now: datetime, *, stopped_long_ago: bool = False) -> tuple[str, datetime, billing.State] | None:
+    """The step this subscription is at and the end it is about, or None when there is nothing to say.
+    `stopped_long_ago`: a stop of weeks ago still counts (the panel's line), not only a fresh one (the summary's)."""
     if sub.status == "suspended" or sub.plan == "free" or sub.cancelled_at is not None:
         return None
     st = billing.state(sub, now)
@@ -49,7 +51,7 @@ def _period(sub: Subscription, now: datetime) -> tuple[str, datetime, billing.St
         return ("last" if st.days_left <= 1 else "soon"), end, st
     if st.code == "grace":
         return "waiting", end, st
-    if now - (end + timedelta(days=billing.GRACE_DAYS)) > TOLD_STOP_FOR:
+    if not stopped_long_ago and now - (end + timedelta(days=billing.GRACE_DAYS)) > TOLD_STOP_FOR:
         return None
     return "stopped", end, st
 
@@ -123,3 +125,48 @@ def stopped_note(session: Session, business: Business, conv: Conversation, text:
     answer = f"{base}/panel/conversations/{conv.id}" if base else "панель → «Диалоги»"
     pay = f"{base}/panel/billing" if base else "панель → «Оплата»"
     return f"{who} пишет ({where}): «{body}»\n{why_stopped(session, business, now)}. Ответить: {answer}\nОплатить: {pay}"
+
+
+@dataclass
+class Banner:
+    level: str  # warn: about to stop; error: the AI does not answer customers now
+    text: str
+    pay: bool = True  # the owner gets the link to «Оплата»; staff are asked to tell the owner
+
+
+def banner(session: Session, business: Business, now: datetime) -> Banner | None:
+    """The line on top of every panel page while the AI is about to stop or has stopped for the subscription.
+
+    Unlike the summary, it is a state, not a reminder: a cancelled subscription shows it too once the AI is quiet,
+    since whoever opens «Диалоги» must know nobody answers for them."""
+    sub = billing.get_subscription(session, business.id)
+    if sub is None:
+        return None
+    if sub.status == "suspended":
+        return Banner("error", "ИИ не отвечает клиентам: доступ приостановлен. Напишите нам.", pay=False)
+    if sub.plan == "free":
+        if free_plan.eligible(session, business.id):
+            return None
+        n = len(free_plan.active_staff(session, business.id))
+        return Banner("error", f"ИИ не отвечает клиентам: бесплатный тариф — для одного мастера, а работают {n}. "
+                               "Оплатите подписку или оставьте одного мастера в «Расписании».")
+    if sub.cancelled_at is not None:
+        if billing.state(sub, now).active:
+            return None
+        return Banner("error", "ИИ не отвечает клиентам: подписка отменена. Сообщения из Telegram и с сайта приходят "
+                               "вам — отвечайте в «Диалогах». Возобновить можно в «Оплате».")
+    found = _period(sub, now, stopped_long_ago=True)
+    if found is None:
+        return None
+    stage, end, st = found
+    local_end = utc_to_local(end, business.timezone)
+    stop = utc_to_local(end + timedelta(days=billing.GRACE_DAYS), business.timezone)
+    what = _what(sub)
+    if stage in ("soon", "last"):
+        return Banner("warn", f"{what} заканчивается {local_end:%d.%m} в {local_end:%H:%M} — осталось {st.days_left} "
+                              f"{plural(st.days_left, 'день', 'дня', 'дней')}. Без оплаты ИИ остановится {stop:%d.%m}.")
+    if stage == "waiting":
+        return Banner("warn", f"{what} закончился {local_end:%d.%m}. ИИ отвечает клиентам до {stop:%d.%m} {stop:%H:%M}, "
+                              "потом остановится.")
+    return Banner("error", f"ИИ не отвечает клиентам с {stop:%d.%m}: {what.lower()} закончился. Сообщения из Telegram "
+                           "и с сайта приходят вам — отвечайте в «Диалогах».")
