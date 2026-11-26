@@ -93,13 +93,16 @@ def page_meanwhile(client):
 
 
 def test_pages_open_while_customers_hold_more_threads_than_pages_have(app_with, business):
-    with app_with(Watching(MODEL_SECONDS)) as c:
+    llm = Watching(MODEL_SECONDS)
+    with app_with(llm) as c:
         async def two_threads_for_pages():
             anyio.to_thread.current_default_thread_limiter().total_tokens = 2
         c.portal.call(two_threads_for_pages)
         ended = at_once([lambda n=n: telegram(c, business, 2000 + n) for n in range(4)] + [page_meanwhile(c)])
     assert ended[4] < min(ended[:4])  # before: the page waited for two of the four answers
-    assert max(ended[:4]) < MODEL_SECONDS * 2  # four customers, two page threads: all four answered at once
+    # no customer held a page thread (before: each did). Not timed: on a busy 2-core CI runner the work before each
+    # model call queues on the GIL, and «all four within two model times» failed there though the threads were apart
+    assert len(llm.seen) == 4 and {pages for pages, _ in llm.seen} == {0}
 
 
 def test_the_customers_threads_have_their_own_limit(app_with, business, monkeypatch):
