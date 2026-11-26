@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import os
+import shutil
 import sqlite3
 import traceback
 from datetime import datetime
@@ -210,11 +211,24 @@ def fresh_counters():
     yield
 
 
-@pytest.fixture
-def engine(tmp_path):
-    eng = db.make_engine(f"sqlite:///{tmp_path / 'test.db'}")
+@pytest.fixture(scope="session")
+def migrated_db(tmp_path_factory):
+    """The schema built once through every migration; each test starts from a copy of it. Running the migrations for
+    each test took about half a second of the suite's ~0.6 s per test (26.11: 0.53 s to migrate, 0.003 s to copy)."""
+    path = tmp_path_factory.mktemp("schema") / "migrated.db"
+    eng = db.make_engine(f"sqlite:///{path}")
     db.set_engine(eng)
     db.init_db()
+    eng.dispose()  # the last connection checkpoints the WAL into the file: the copy is complete
+    db.set_engine(None)
+    return path
+
+
+@pytest.fixture
+def engine(tmp_path, migrated_db):
+    shutil.copyfile(migrated_db, tmp_path / "test.db")
+    eng = db.make_engine(f"sqlite:///{tmp_path / 'test.db'}")
+    db.set_engine(eng)
     yield eng
     eng.dispose()
     db.set_engine(None)
