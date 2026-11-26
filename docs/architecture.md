@@ -213,6 +213,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/web/app.py` | FastAPI app: the owner's panel and the channel webhooks |
 | `joop/samples.py` | Which rows are still the sign-up example (fictional prices, staff, answers): flagged on the dashboard, not counted as done |
 | `joop/web/saas.py`, `joop/billing.py`, `joop/partners.py` | Sign-up, test chat, billing (FreedomPay, transfers, cancel/resume), founder console, referrals |
+| `joop/period_end.py` | The owner told in the morning summary before the trial or paid month ends and the AI stops; staff notes for customers who write after the stop |
 | `joop/web/demo.py`, `joop/web/studio.py`, `joop/web/menu.py` | Live demo on the site, AI-drafted business sites, online menu with QR codes |
 | `joop/altegio.py` | Altegio integration: prices, team and free times in, bookings out |
 | `joop/crm.py` | amoCRM / Kommo: bookings, requests and orders sent as deals with contact and note |
@@ -235,6 +236,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 1161 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 1171 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |

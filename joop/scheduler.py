@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, missed_calls, nudges, offsite, ops, recovery, reorders, restock, samples, trust, unfinished
+from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, missed_calls, nudges, offsite, ops, period_end, recovery, reorders, restock, samples, trust, unfinished
 from . import gaps as empty_slots
 from .db import free, new_session
 from . import dispatch
@@ -474,6 +474,10 @@ def run_due_jobs(session: Session, rt: Runtime, business: Business, now_utc: dat
         if week:
             texts.append(week)
             report["first_week"] = True
+        ending = period_end.notice(session, business, now_utc, rt.settings.public_base_url, rt.settings.price_som)
+        if ending:  # first, before the rest of the morning: the AI is about to stop, or has
+            texts.insert(0, ending)
+            report["period_end"] = True
         if now_local.day == 1:  # the 1st: last month and what it brought
             monthly = monthly_report_text(session, business, now_utc)
             if monthly:
