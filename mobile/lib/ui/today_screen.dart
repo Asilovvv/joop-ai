@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/ai_results_cubit.dart';
@@ -6,6 +7,7 @@ import '../bloc/auth_bloc.dart';
 import '../bloc/cash_cubit.dart';
 import '../bloc/load_status.dart';
 import '../bloc/summary_cubit.dart';
+import '../core/browser.dart';
 import '../core/format.dart';
 import '../core/strings.dart';
 import '../data/models.dart';
@@ -38,6 +40,7 @@ class TodayScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96), // room under the «Записать» button
             children: [
+              if (summary?.period != null) ...[PeriodBanner(line: summary!.period!), const SizedBox(height: 12)],
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(gradient: brandGradient, borderRadius: BorderRadius.circular(24)),
@@ -254,4 +257,52 @@ class _Message extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// The panel's line about the end of the trial or paid month: yellow while the AI is about to stop, red once it has.
+/// The owner gets the way to pay (the billing page in the browser); staff are asked to tell the owner.
+class PeriodBanner extends StatelessWidget {
+  const PeriodBanner({super.key, required this.line, this.browser = const Browser()});
+
+  final PeriodLine line;
+  final Browser browser;
+
+  Future<void> _pay(BuildContext context) async {
+    final url = line.payUrl!;
+    final messenger = ScaffoldMessenger.of(context);
+    if (await browser.open(url)) return;
+    await Clipboard.setData(ClipboardData(text: url)); // no browser to hand it to: the owner pastes it themselves
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(S.current.payLinkCopied)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final background = line.stopped ? scheme.errorContainer : const Color(0xFFFFF1C2);
+    final foreground = line.stopped ? scheme.onErrorContainer : const Color(0xFF5C4400);
+    return Container(
+      key: Key('period-${line.level}'),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(16)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(line.stopped ? Icons.error_outline : Icons.schedule, color: foreground),
+          const SizedBox(width: 10),
+          Expanded(child: Text(line.text, style: TextStyle(color: foreground, fontWeight: FontWeight.w600))),
+        ]),
+        if (line.payUrl != null)
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(key: const Key('period-pay'), onPressed: () => _pay(context), child: Text(S.current.goToPay)),
+          )
+        else if (line.askOwner)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 34),
+            child: Text(S.current.tellOwner, key: const Key('period-ask-owner'), style: TextStyle(color: foreground)),
+          ),
+      ]),
+    );
+  }
 }

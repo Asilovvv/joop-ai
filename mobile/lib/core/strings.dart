@@ -86,6 +86,9 @@ class S {
     required this.inPanel,
     required this.copy,
     required this.qrHint,
+    required this.goToPay,
+    required this.tellOwner,
+    required this.payLinkCopied,
     required this.onlineHint,
     required this.onlineTablesHint,
     required this.tryTitle,
@@ -394,6 +397,9 @@ class S {
   final String inPanel;
   final String copy;
   final String qrHint;
+  final String goToPay;
+  final String tellOwner;
+  final String payLinkCopied;
   final String onlineHint;
   final String onlineTablesHint;
   final String tryTitle;
@@ -735,6 +741,9 @@ class S {
     inPanel: 'В панели:',
     copy: 'Копировать',
     qrHint: 'QR-код этой страницы: покажите клиенту с экрана (нажмите, чтобы увеличить) или распечатайте на стойку.',
+    goToPay: 'Перейти к оплате',
+    tellOwner: 'Оплачивает владелец — скажите ему.',
+    payLinkCopied: 'Ссылка на оплату скопирована — откройте её в браузере.',
     onlineHint: 'Страница с ценами, адресом и кнопками в ваши чаты. Ссылку — в шапку Instagram и в 2ГИС:',
     onlineTablesHint: 'Гости открывают меню по QR-коду и заказывают в чат. QR-коды для каждого стола (с номером) печатаются в панели: «QR-меню» → «Печать QR-кодов».',
     tryTitle: 'Тестовый чат',
@@ -1053,6 +1062,9 @@ class S {
     inPanel: 'Панелде:', // check with a native speaker
     copy: 'Көчүрүү', // check with a native speaker
     qrHint: 'Бул барактын QR-коду: кардарга экрандан көрсөтүңүз (чоңойтуу үчүн басыңыз) же басып чыгарып, стойкага коюңуз.', // check with a native speaker
+    goToPay: 'Төлөмгө өтүү', // check with a native speaker
+    tellOwner: 'Ээси төлөйт — ага айтып коюңуз.', // check with a native speaker
+    payLinkCopied: 'Төлөм шилтемеси көчүрүлдү — аны браузерде ачыңыз.', // check with a native speaker
     onlineHint: "Бааларыңыз, дарегиңиз жана чаттарыңызга баскычтар бар барак. Шилтемени Instagram'дын башына жана 2ГИСке коюңуз:", // check with a native speaker
     onlineTablesHint: "Коноктор менюну QR-код аркылуу ачып, чатка буйрутма беришет. Ар бир үстөлдүн QR-коддору (номери менен) панелде басылат: «QR-меню» → «QR-коддорду басуу».", // check with a native speaker
     tryTitle: 'Сынак чат', // check with a native speaker
