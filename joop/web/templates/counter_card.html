@@ -39,10 +39,17 @@ h1 { font-size: 26px; line-height: 1.15; margin: 6mm 0 2mm; }
 {% if note %}<p class="note">{{ note }}</p>{% endif %}
 <div class="sheet">
   <div class="brand">{{ label }} · {{ url.replace('https://', '') }}</div>
+  {% if chosen == 'book' %}
+  <h1>Запишитесь сами — 24/7</h1>
+  <p class="ky">Өзүңүз жазылыңыз — 24/7</p>
+  {{ qr }}
+  <p class="how">Наведите камеру на код: выберите свободное время и запишитесь за минуту, без звонка и переписки.</p>
+  {% else %}
   <h1>Запись 24/7 — напишите нам</h1>
   <p class="ky">Жазылуу 24/7 — бизге жазыңыз</p>
   {{ qr }}
   <p class="how">Наведите камеру на код: ответим в ту же минуту, ночью и в выходные тоже, и запишем на свободное время.</p>
+  {% endif %}
   <div class="name">{{ b.name }}</div>
   <div class="joop">Отвечает <b>Joop AI</b>, ИИ-администратор для бизнеса</div>
 </div>

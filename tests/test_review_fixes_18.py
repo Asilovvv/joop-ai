@@ -24,7 +24,12 @@ from .test_web import csrf_of, login
 
 
 class SlowLLM(FakeLLM):
+    def __init__(self, replies):
+        super().__init__(replies)
+        self.answering = threading.Event()  # set once a model call is under way
+
     def respond(self, system, messages, schema=None):
+        self.answering.set()
         time.sleep(1.0)
         return super().respond(system, messages, schema)
 
@@ -53,7 +58,9 @@ def test_a_late_answer_after_an_outage_waits_for_the_chats_turn(business, rt):
 
     worker = threading.Thread(target=tick)
     worker.start()
-    time.sleep(0.3)
+    # the live message arrives while the late answer's model call runs, holding the chat's turn; waiting for that call
+    # instead of a fixed pause keeps the order on a slow machine (a 0.3 s pause let the live message go first on CI)
+    assert slow.answering.wait(10)
     process_incoming(rt, business.id, IncomingMessage("telegram", "1001", "text", "Алло, вы тут?", "Айбек", "e2"), later)
     worker.join()
     # one after the other: the live message's model call already sees the late answer and its booking in the history

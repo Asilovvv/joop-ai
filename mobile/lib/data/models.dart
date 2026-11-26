@@ -1151,7 +1151,7 @@ class ContactsInfo extends Equatable {
 /// One of the business's people (or tables, groups), as /api/mobile/staff gives them.
 class Person extends Equatable {
   const Person({required this.id, required this.name, this.role = '', this.handles = '', this.capacity = 0,
-      this.groupSize = 0, this.example = false});
+      this.groupSize = 0, this.example = false, this.free = 0});
 
   factory Person.fromJson(Map<String, dynamic> json) => Person(
         id: json['id'] as int,
@@ -1161,6 +1161,7 @@ class Person extends Equatable {
         capacity: (json['capacity'] as int?) ?? 0,
         groupSize: (json['group_size'] as int?) ?? 0,
         example: (json['example'] as bool?) ?? false,
+        free: (json['free'] as int?) ?? 0,
       );
 
   final int id;
@@ -1179,17 +1180,20 @@ class Person extends Equatable {
   /// Still the sign-up example: customers are not booked to them.
   final bool example;
 
+  /// Free times ahead: 0 means the AI cannot book anyone to this person.
+  final int free;
+
   Map<String, dynamic> toJson() =>
       {'name': name, 'role': role, 'handles': handles, 'capacity': capacity, 'group_size': groupSize};
 
   @override
-  List<Object?> get props => [id, name, role, handles, capacity, groupSize, example];
+  List<Object?> get props => [id, name, role, handles, capacity, groupSize, example, free];
 }
 
 /// The people screen: its title and item word by niche, which numbers it asks for, and the list.
 class PeopleInfo extends Equatable {
   const PeopleInfo({required this.label, required this.item, required this.people, this.capacity = false,
-      this.group = false, this.booking = false});
+      this.group = false, this.booking = false, this.workStart = '09:00', this.workEnd = '18:00'});
 
   factory PeopleInfo.fromJson(Map<String, dynamic> json) => PeopleInfo(
         label: json['label'] as String,
@@ -1197,6 +1201,8 @@ class PeopleInfo extends Equatable {
         capacity: (json['capacity'] as bool?) ?? false,
         group: (json['group'] as bool?) ?? false,
         booking: (json['booking'] as bool?) ?? false,
+        workStart: (json['work_start'] as String?) ?? '09:00',
+        workEnd: (json['work_end'] as String?) ?? '18:00',
         people: [for (final p in (json['staff'] as List? ?? const [])) Person.fromJson(p as Map<String, dynamic>)],
       );
 
@@ -1207,8 +1213,12 @@ class PeopleInfo extends Equatable {
 
   /// Customers book these people's time (not just ask for them by name).
   final bool booking;
+
+  /// The business's hours: the default for opening free times.
+  final String workStart;
+  final String workEnd;
   final List<Person> people;
 
   @override
-  List<Object?> get props => [label, item, capacity, group, booking, people];
+  List<Object?> get props => [label, item, capacity, group, booking, workStart, workEnd, people];
 }

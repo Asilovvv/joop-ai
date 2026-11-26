@@ -138,6 +138,42 @@ void main() {
     expect(find.byKey(const Key('step-contacts-done')), findsOneWidget);
   });
 
+  testWidgets('the buttons that open another screen wait while a change is under way', (tester) async {
+    final server = await _signIn(tester, height: 4200);
+    server.setupDelay = const Duration(seconds: 3);
+    await tester.tap(find.byKey(const Key('menu-setup')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('page-booking-switch')));
+    await tester.pump();
+    for (final key in ['open-people', 'open-contacts', 'open-try']) {
+      expect(tester.widget<OutlinedButton>(find.byKey(Key(key))).onPressed, isNull, reason: key);
+    }
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+    expect(tester.widget<OutlinedButton>(find.byKey(const Key('open-people'))).onPressed, isNotNull);
+  });
+
+  testWidgets('an Altegio salon gets no buttons for people and times: they live in Altegio', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final server = FakeJoop()..altegio = true;
+    tester.view.physicalSize = const Size(1080, 4200);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(JoopApp(repository: server.repository(), customers: server.customers(), today: DateTime(2026, 11, 13)));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('company')), 'aktish');
+    await tester.enterText(find.byKey(const Key('password')), 'secret-pass');
+    await tester.tap(find.byKey(const Key('login')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('app-menu')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('menu-people')), findsNothing);
+    await tester.tap(find.byKey(const Key('menu-setup')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('step-staff-todo')), findsOneWidget);
+    expect(find.byKey(const Key('open-people')), findsNothing);
+  });
+
   testWidgets('staff do not see the launch checklist', (tester) async {
     await _signIn(tester, role: 'staff');
     expect(find.byKey(const Key('menu-customers')), findsOneWidget);

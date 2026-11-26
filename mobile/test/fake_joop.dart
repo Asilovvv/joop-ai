@@ -29,6 +29,12 @@ class FakeJoop {
     },
   ];
 
+  /// A salon whose people live in Altegio: the app does not edit them.
+  bool altegio = false;
+
+  /// How long the booking-by-link switch takes to answer.
+  Duration setupDelay = Duration.zero;
+
   /// The launch checklist's state, changed by the two setup calls.
   bool botConnected = false;
   bool pageOn = false;
@@ -40,13 +46,17 @@ class FakeJoop {
 
   /// The business's people (/api/mobile/staff): one still the sign-up example.
   final people = <Map<String, dynamic>>[
-    {'id': 1, 'name': 'Айгерим', 'role': 'терапевт', 'handles': 'кариес', 'capacity': 0, 'group_size': 0, 'example': false},
+    {'id': 1, 'name': 'Айгерим', 'role': 'терапевт', 'handles': 'кариес', 'capacity': 0, 'group_size': 0, 'example': false, 'free': 0},
     {'id': 2, 'name': 'Д-р Пример', 'role': 'хирург', 'handles': 'удаление', 'capacity': 0, 'group_size': 0, 'example': true},
   ];
   String? refusePeople;
 
   Map<String, dynamic> peopleJson() =>
-      {'label': 'Врачи', 'item': 'врач', 'capacity': false, 'group': false, 'booking': true, 'staff': people};
+      {'label': 'Врачи', 'item': 'врач', 'capacity': false, 'group': false, 'booking': true,
+        'work_start': '10:00', 'work_end': '18:00', 'staff': people};
+
+  /// Bodies of POST /api/mobile/staff/{id}/windows.
+  final windowsCalls = <Map>[];
 
   /// The owner's test chat (/api/mobile/try).
   final tryChat = <Map<String, dynamic>>[];
@@ -211,7 +221,7 @@ class FakeJoop {
             'who': role == 'master' ? 'Айгерим' : 'Владелец',
             'role': role,
             'sections': {'bookings': true, 'orders': false, 'leads': role != 'master', 'cash': true},
-            'people_label': role == 'master' ? '' : 'Врачи',
+            'people_label': role == 'master' || altegio ? '' : 'Врачи',
           };
     if (path == '/api/mobile/places/aktish') {
       return json({
@@ -264,6 +274,15 @@ class FakeJoop {
         people.removeWhere((x) => x['example'] == true);
         return json({'removed': before - people.length, ...peopleJson()});
       }
+      final win = RegExp(r'^/api/mobile/staff/(\d+)/windows$').firstMatch(path);
+      if (win != null) {
+        final body = jsonDecode(request.body) as Map;
+        windowsCalls.add(body);
+        final person = people.firstWhere((x) => x['id'] == int.parse(win.group(1)!));
+        final created = person['free'] == 0 ? (body['days'] as int) * 8 : 0; // times already open are kept
+        person['free'] = (person['free'] as int) + created;
+        return json({'created': created, ...peopleJson()});
+      }
       final del = RegExp(r'^/api/mobile/staff/(\d+)/delete$').firstMatch(path);
       if (del != null) {
         people.removeWhere((x) => x['id'] == int.parse(del.group(1)!));
@@ -309,6 +328,7 @@ class FakeJoop {
       return json(setupJson([{'text': 'Бот @aktish_bot подключён.', 'ok': true}]));
     }
     if (path == '/api/mobile/setup/page-booking') {
+      await Future<void>.delayed(setupDelay); // a slow connection
       final body = jsonDecode(request.body) as Map;
       setupCalls.add(body);
       pageOn = body['on'] as bool;

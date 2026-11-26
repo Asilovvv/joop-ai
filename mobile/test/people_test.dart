@@ -71,6 +71,36 @@ void main() {
     expect(server.people.map((x) => x['name']), ['Айгерим']);
   });
 
+  testWidgets('the owner opens free times for a master in one tap', (tester) async {
+    final server = await _people(tester);
+    await tester.tap(find.byKey(const Key('menu-people')));
+    await tester.pumpAndSettle();
+    expect(find.text('терапевт · кариес · свободных окон нет'), findsOneWidget);
+    expect(find.byKey(const Key('windows-2')), findsNothing); // the example gets no times
+    await tester.tap(find.byKey(const Key('windows-1')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(find.byKey(const Key('windows-start'))).controller!.text, '10:00'); // the business's hours
+    await tester.enterText(find.byKey(const Key('windows-end')), '7 вечера');
+    await tester.tap(find.byKey(const Key('windows-open')));
+    await tester.pumpAndSettle();
+    expect(find.text('Время в виде 09:00'), findsOneWidget);
+    expect(server.windowsCalls, isEmpty);
+    await tester.enterText(find.byKey(const Key('windows-end')), '19:00');
+    await tester.tap(find.byKey(const Key('days-30')));
+    await tester.tap(find.byKey(const Key('step-30')));
+    await tester.tap(find.byKey(const Key('windows-open')));
+    await tester.pumpAndSettle();
+    expect(server.windowsCalls.single, {'days': 30, 'step': 30, 'start': '10:00', 'end': '19:00'});
+    expect(find.text('Открыто окон: 240. ИИ уже может записывать в них клиентов.'), findsOneWidget);
+    expect(find.text('терапевт · кариес · свободных окон: 240'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('windows-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('windows-open')));
+    await tester.pumpAndSettle();
+    expect(find.text('Новых окон нет: это время уже открыто.'), findsOneWidget);
+  });
+
   testWidgets('a refusal is said on the screen and changes nothing', (tester) async {
     final server = await _people(tester);
     server.refusePeople = 'На бесплатном тарифе один мастер.';
