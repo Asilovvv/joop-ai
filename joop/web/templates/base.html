@@ -42,6 +42,7 @@
 </aside>
 {% endif %}
 <main class="wrap">
+  {% if period %}<div class="flash {{ period.level }}" role="status">{{ period.text }}{% if period.pay and owner and active != 'billing' %} <a href="/panel/billing">Перейти к оплате</a>{% elif period.pay and not owner %} Скажите владельцу.{% endif %}</div>{% endif %}
   {% for kind, text in flashes %}<div class="flash {{ kind }}" role="status">{{ text }}</div>{% endfor %}
   {% block content %}{% endblock %}
 </main>

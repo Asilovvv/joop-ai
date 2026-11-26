@@ -202,7 +202,10 @@ WhatsApp message fees for reminders.
   once at each step — three days left, the last day, the waiting days, the stop — with the link
   to pay, and the free plan when one master works there; after the stop every message from
   Telegram or the site chat (read only by the bot) goes to staff with the reason
-  (`joop/period_end.py`). A cancelled subscription gets no reminders to pay.
+  (`joop/period_end.py`). A cancelled subscription gets no reminders to pay. Every panel page
+  also carries the state on top while it lasts — about to stop, waiting, stopped, a free plan with
+  more than one master, suspended — with «Перейти к оплате» for the owner and «Скажите владельцу»
+  for staff.
   At the end of a business's second paid month the console reminds the founder to offer a year
   (`ANNUAL_MONTHS`: a year for that many months' price) with a ready message in the business's
   own numbers (`joop/annual.py`).
@@ -495,7 +498,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 1171 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 1177 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
