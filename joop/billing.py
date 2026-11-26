@@ -65,6 +65,13 @@ def _days(left: timedelta) -> int:
     return max(0, -(-int(left.total_seconds()) // 86400))
 
 
+def last_end(sub: Subscription) -> tuple[datetime | None, bool]:
+    """The end of the latest period, paid or trial, and whether it was paid. The later of the two: a trial the founder
+    gives after a lapsed paid month ends after it, and its end is what counts (before: the old paid date did)."""
+    ends = [(d, paid) for d, paid in ((sub.paid_until, True), (sub.trial_ends_at, False)) if d]
+    return max(ends, key=lambda e: e[0]) if ends else (None, False)
+
+
 def state(sub: Subscription, now: datetime) -> State:
     if sub.status == "suspended":
         return State("suspended", False, 0, "Приостановлено")
@@ -75,7 +82,7 @@ def state(sub: Subscription, now: datetime) -> State:
         return State("active", True, _days(sub.paid_until - now), "Отменена, работает до конца оплаты" if cancelled else "Оплачено")
     if sub.status == "trial" and sub.trial_ends_at and now <= sub.trial_ends_at:
         return State("trial", True, _days(sub.trial_ends_at - now), "Отменена, пробный период" if cancelled else "Пробный период")
-    end = sub.paid_until or sub.trial_ends_at
+    end, _ = last_end(sub)
     if not cancelled and end and now <= end + timedelta(days=GRACE_DAYS):
         return State("grace", True, _days(end + timedelta(days=GRACE_DAYS) - now), "Ожидает оплаты")
     return State("expired", False, 0, "Отменена" if cancelled else "Не оплачено")
@@ -108,13 +115,15 @@ def price_for(sub: Subscription | None, default_price: int) -> int:
 
 
 def mark_paid(session: Session, payment: Payment, now: datetime) -> Subscription:
-    """Extend the paid period by the payment's days. Paying early adds to the current period."""
+    """Extend the paid period by the payment's days. Paying early adds to the current period, the trial included:
+    the reminder asks to pay three days before the trial ends, and those days are not lost by paying then."""
     if payment.status == "paid":
         return get_subscription(session, payment.business_id)  # already applied (callbacks repeat)
     payment.status = "paid"
     payment.paid_at = now
     sub = get_subscription(session, payment.business_id) or Subscription(business_id=payment.business_id, source="owner")
-    start = sub.paid_until if sub.paid_until and sub.paid_until > now else now
+    running = [d for d in (sub.paid_until, sub.trial_ends_at if sub.status == "trial" else None) if d and d > now]
+    start = max(running) if running else now
     sub.paid_until = start + timedelta(days=payment.period_days)
     sub.status = "active"
     sub.plan = "pro"  # a payment ends the free plan: no signature, any number of masters

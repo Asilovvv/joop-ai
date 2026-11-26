@@ -131,10 +131,10 @@ def test_payment_extends_period_once(engine, business):
         pay = Payment(business_id=business.id, amount_som=3000)
         s.add(pay)
         s.flush()
-        sub = billing.mark_paid(s, pay, now)
-        assert sub.status == "active" and sub.paid_until == now + timedelta(days=30)
+        sub = billing.mark_paid(s, pay, now)  # paid on the trial's first day: the trial's days are not lost
+        assert sub.status == "active" and sub.paid_until == now + timedelta(days=14 + 30)
         billing.mark_paid(s, pay, now)  # a repeated callback does not add a second month
-        assert sub.paid_until == now + timedelta(days=30)
+        assert sub.paid_until == now + timedelta(days=14 + 30)
         assert billing.mrr(s, now, 3000) == 3000
 
 
