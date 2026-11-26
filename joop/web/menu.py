@@ -35,6 +35,30 @@ TEXT = {
 }
 
 
+# The niche's word for whom or what customers book, in Kyrgyz (pack.resource_label is Russian). проверить носителем
+PEOPLE_KY = {
+    "Агенты": "Агенттер", "Боксы": "Бокстор", "Боксы и мастера": "Бокстор жана усталар", "Бригады": "Бригадалар",
+    "Водители": "Айдоочулар", "Врачи": "Дарыгерлер", "Врачи и грумеры": "Дарыгерлер жана грумерлер",
+    "Врачи и кабинеты": "Дарыгерлер жана кабинеттер", "Гиды": "Гиддер", "Группы и преподаватели": "Топтор жана мугалимдер",
+    "Группы и репетиторы": "Топтор жана репетиторлор", "Забор крови": "Кан алуу", "Залы": "Залдар",
+    "Залы и фотографы": "Залдар жана фотографтар", "Замерщики": "Өлчөөчүлөр", "Инструкторы": "Инструкторлор",
+    "Комнаты и дорожки": "Бөлмөлөр жана жолчолор", "Кондитеры": "Кондитерлер", "Мастера": "Усталар",
+    "Машины": "Унаалар", "Менеджеры": "Менеджерлер", "Номера": "Бөлмөлөр", "Оптометристы": "Оптометристтер",
+    "Педагоги и группы": "Педагогдор жана топтор", "Сотрудники": "Кызматкерлер", "Специалисты": "Адистер",
+    "Столы": "Үстөлдөр", "Тренеры и залы": "Машыктыруучулар жана залдар", "Фармацевты": "Фармацевттер",
+    "Флористы": "Флористтер", "Экскурсии": "Экскурсиялар",
+}
+
+
+def people_title(pack, lang: str) -> str:
+    """The heading over the people (tables, rooms) on the public pages, in the page's language."""
+    if lang == "ru":
+        return pack.resource_label
+    if lang == "ky":
+        return PEOPLE_KY.get(pack.resource_label, TEXT["ky"]["masters"])
+    return TEXT[lang]["masters"]
+
+
 def menu_url(base: str, slug: str, table: int | None = None) -> str:
     return f"{base}/m/{slug}" + (f"?t={table}" if table else "")
 
@@ -210,7 +234,7 @@ def public_menu(request: Request, slug: str, t: int = 0, lang: str = "ru"):
         "request": request, "b": b, "groups": _groups(list(items), lang), "lang": lang, "tx": TEXT[lang], "table": table,
         "order_url": url, "order_label": label, "price": price_label, "title": get_pack(b.niche).catalog_label,
         "has_ky": any(i.name_ky for i in items), "booking": get_pack(b.niche).has("booking"),
-        "resources": pack.resource_label if lang == "ru" else TEXT[lang]["masters"], **extras,
+        "resources": people_title(pack, lang), **extras,
         # the sign-up example's address and phone are fictional: not shown to customers (joop/samples.py)
         "address": samples.customer_contact(b, "address"), "phone": samples.customer_contact(b, "phone"),
         "hours": samples.customer_hours(b),
