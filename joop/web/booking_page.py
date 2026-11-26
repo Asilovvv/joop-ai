@@ -25,7 +25,7 @@ from ..niches import get_pack
 from ..phone import display_phone, normalize_phone
 from ..timeutil import WEEKDAYS_FULL, WEEKDAYS_SHORT, local_now, utcnow
 from .app import _rt, _settings, client_ip, templates
-from .menu import _enabled_business, book_url, channel_links, price_label
+from .menu import _enabled_business, book_url, channel_links, people_title, price_label
 
 router = APIRouter()
 _by_address: dict[str, tuple[str, int]] = {}  # "<business id>|<address>" -> (day, page bookings); reset with the process
@@ -118,7 +118,7 @@ def _page(request: Request, b: Business, lang: str, step: str, status: int = 200
     pack = get_pack(b.niche)
     base = _base_url(request)
     return templates.TemplateResponse(request, "book_public.html", {
-        "request": request, "b": b, "lang": lang, "tx": TEXT[lang], "step": step, "resources": pack.resource_label,
+        "request": request, "b": b, "lang": lang, "tx": TEXT[lang], "step": step, "resources": people_title(pack, lang),
         "menu_url": f"/m/{b.slug}" + ("?lang=ky" if lang == "ky" else ""), "book_url": book_url("", b, lang),
         "staff_view": request.scope.get("session", {}).get("bid") == b.id,  # read only: a visitor never gets a cookie
         "phone": samples.customer_contact(b, "phone"), "address": samples.customer_contact(b, "address"),

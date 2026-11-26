@@ -22,7 +22,7 @@ from starlette.concurrency import run_in_threadpool
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .. import annual, billing, free_plan, health, partners, pitch, samples, stories
+from .. import annual, billing, free_plan, health, partners, period_end, pitch, samples, stories
 from ..dispatch import admin_link, alert_chats
 from ..db import new_session
 from ..models import (
@@ -32,7 +32,7 @@ from ..models import (
 from ..niches import all_packs, get_pack, picker_packs
 from ..presets import create_business
 from ..signup import Refused, register
-from .. import telegram_setup, try_chat
+from .. import page_booking, telegram_setup, try_chat
 from ..pricing import empty_usage
 from ..stats import real_conversation, test_conversations
 from ..timeutil import utc_to_local, utcnow
@@ -147,6 +147,8 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     ).one()
     real = s.exec(
         select(func.count()).select_from(Conversation).where(Conversation.business_id == b.id, real_conversation())
+    ).one() + s.exec(  # a customer who booked on the page, without a chat, is a real one too
+        select(func.count()).select_from(Booking).where(Booking.business_id == b.id, Booking.source == page_booking.SOURCE)
     ).one()
     channel = bool(b.telegram_bot_token or (b.wa_phone_number_id and b.wa_access_token) or (b.ig_account_id and b.ig_access_token))
     sub = billing.get_subscription(s, b.id)
@@ -417,16 +419,23 @@ def billing_pay(request: Request, method: str = Form("card"), csrf: str = Form("
         payment = Payment(business_id=b.id, amount_som=price, method="freedompay" if card else "manual")
         s.add(payment)
         s.commit()
-        if not card:
+        transfer = None if card else (payment.id, b.name, b.slug)
+        if transfer:
             _flash(request, f"Заявка на оплату №{payment.id} создана. Оплатите по реквизитам ниже — подписка продлится после подтверждения.")
-            return _back("/panel/billing")
-        base = settings.public_base_url
-        params = billing.fp_init_params(
-            merchant_id=settings.freedompay_merchant_id, secret_key=settings.freedompay_secret_key, payment=payment,
-            description=f"Joop AI, подписка 30 дней: {b.name}"[:250], currency=settings.freedompay_currency,
-            result_url=f"{base}/billing/freedompay/result", success_url=f"{base}/panel/billing?paid=1",
-            failure_url=f"{base}/panel/billing?failed=1", testing=settings.freedompay_testing,
-        )
+        else:
+            base = settings.public_base_url
+            params = billing.fp_init_params(
+                merchant_id=settings.freedompay_merchant_id, secret_key=settings.freedompay_secret_key, payment=payment,
+                description=f"Joop AI, подписка 30 дней: {b.name}"[:250], currency=settings.freedompay_currency,
+                result_url=f"{base}/billing/freedompay/result", success_url=f"{base}/panel/billing?paid=1",
+                failure_url=f"{base}/panel/billing?failed=1", testing=settings.freedompay_testing,
+            )
+    if transfer:  # the founder confirms transfers by hand: he hears of one now, not when he next opens the console
+        pid, name, slug = transfer
+        console = f"{settings.public_base_url.rstrip('/')}/owner" if settings.public_base_url else "консоль /owner"
+        health.tell_founder(_rt(request), f"Joop AI: заявка на оплату переводом №{pid} — «{name}» ({slug}), {price} сом. "
+                                          f"Проверьте поступление и подтвердите: {console}")
+        return _back("/panel/billing")
     try:
         r = _rt(request).http.post(f"{settings.freedompay_api_base}/init_payment.php", data=params)
         data = billing.fp_parse_response(r.text)
@@ -461,7 +470,7 @@ def _freedompay_result(request: Request, settings, params: dict):
     if not billing.fp_verify(script, params, settings.freedompay_secret_key):
         log.warning("FreedomPay callback with a bad signature")
         raise HTTPException(status_code=403)
-    status, text = "ok", "Принято"
+    status, text, paid = "ok", "Принято", None
     with new_session() as s:
         payment = s.get(Payment, int(params.get("pg_order_id", "0") or 0)) if params.get("pg_order_id", "").isdigit() else None
         if payment is None:
@@ -471,12 +480,16 @@ def _freedompay_result(request: Request, settings, params: dict):
                 status, text = "error", "Сумма не совпадает"
             else:
                 payment.provider_payment_id = params.get("pg_payment_id", payment.provider_payment_id)
+                if payment.status != "paid":  # FreedomPay repeats its callbacks: the owner hears of a payment once
+                    paid = (payment.business_id, payment.id)
                 billing.mark_paid(s, payment, utcnow())
         else:
             if payment.status == "pending":
                 payment.status = "failed"
                 s.add(payment)
         s.commit()
+    if paid:
+        period_end.tell_paid(_rt(request), *paid)
     body = billing.fp_reply(script, status, text, settings.freedompay_secret_key)
     return Response(body, media_type="application/xml")
 
@@ -594,6 +607,7 @@ def owner_business_action(
     _check_csrf(request, csrf)
     settings = _settings(request)
     now = utcnow()
+    paid = None
     with new_session() as s:
         b = s.get(Business, bid)
         if b is None:
@@ -620,6 +634,7 @@ def owner_business_action(
             s.add(pay)
             s.flush()
             billing.mark_paid(s, pay, now)
+            paid = (bid, pay.id)
             msg = f"{b.name}: оплата {amount} сом отмечена, оплачено до {sub.paid_until:%d.%m.%Y}."
         elif action == "year_offered":
             sub.year_offered_at = now
@@ -643,6 +658,8 @@ def owner_business_action(
             raise HTTPException(status_code=400)
         s.add(sub)
         s.commit()
+    if paid:
+        period_end.tell_paid(_rt(request), *paid)
     _flash(request, msg)
     return _back("/owner")
 
@@ -655,6 +672,7 @@ def owner_payment_action(request: Request, pid: int, action: str = Form(""), csr
         p = s.get(Payment, pid)
         if p is None:
             raise HTTPException(status_code=404)
+        confirmed = action == "confirm" and p.status != "paid"
         if action == "confirm":
             billing.mark_paid(s, p, utcnow())
             _flash(request, f"Оплата №{p.id} подтверждена.")
@@ -663,6 +681,9 @@ def owner_payment_action(request: Request, pid: int, action: str = Form(""), csr
             s.add(p)
             _flash(request, f"Оплата №{p.id} отклонена.")
         s.commit()
+        who = p.business_id
+    if confirmed:
+        period_end.tell_paid(_rt(request), who, pid)
     return _back("/owner")
 
 
