@@ -66,3 +66,27 @@ def test_printable_pages_fit_a_phone_screen_and_keep_their_print_size(business, 
             phone = re.search(r"@media screen and \(max-width: \d+px\) \{(.*?)\n\s*\}", page, re.S)
             assert phone, url
             assert "width: auto" in phone.group(1) and "height: auto" in phone.group(1), url
+
+
+def test_card_can_point_to_the_page_where_customers_book_themselves(business, rt, settings):
+    """Booking without chat (#255) gets its counter card: a QR straight to the free times, a heading that says so."""
+    from .test_booking_page import _open
+
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        login(c)
+        page = c.get("/panel/card?via=book").text  # still off: the chat's card and a note how to switch it on
+        assert 'href="/panel/card?via=book"' in page and "Запись по ссылке выключена" in page
+        assert "https://joop.test/m/aktish/book" not in page and "Запись 24/7 — напишите нам" in page
+        _open(business.id)
+        page = c.get("/panel/card?via=book").text
+        assert "https://joop.test/m/aktish/book" in page and "Запишитесь сами — 24/7" in page and "Өзүңүз жазылыңыз" in page
+        assert "Запись по ссылке выключена" not in page and "Отвечает <b>Joop AI</b>" in page
+        assert "Запишитесь сами" not in c.get("/panel/card").text  # the chat stays the default
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.niche = "repair"  # requests, not bookings: no such choice
+        s.add(b)
+        s.commit()
+    with TestClient(create_app(settings, rt, init=False)) as c:
+        login(c)
+        assert 'href="/panel/card?via=book"' not in c.get("/panel/card").text

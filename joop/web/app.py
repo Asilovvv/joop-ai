@@ -1535,8 +1535,11 @@ def conversations_page(request: Request):
 
 @router.get("/panel/card")
 def counter_card(request: Request, via: str = ""):
-    """A printable card for the counter: a QR to the chat the owner picks, with Joop's name on it."""
+    """A printable card for the counter: a QR to the chat the owner picks, or to the page where customers book
+    themselves (joop/page_booking.py), with Joop's name on it."""
     from markupsafe import Markup
+
+    from .. import page_booking
 
     from ..studio import phone_digits
     from .menu import qr_svg
@@ -1544,6 +1547,7 @@ def counter_card(request: Request, via: str = ""):
     base = _base_url(request)
     with new_session() as s:
         b = _business(s, request)
+        booking_why = page_booking.unavailable(s, b, utcnow())
     if b.telegram_bot_token and not b.telegram_bot_username:  # connected before the username was kept: ask Telegram once
         client = _rt(request).telegram(b)
         me = client.get_me() if client else None
@@ -1556,19 +1560,24 @@ def counter_card(request: Request, via: str = ""):
     options = {"web": (f"{base}/c/{b.slug}", "Чат на сайте")}
     if b.telegram_bot_token and b.telegram_bot_username:  # only where Joop actually answers
         options["telegram"] = (f"https://t.me/{b.telegram_bot_username}", "Telegram")
+    if booking_why == "":  # customers can book on the page right now
+        options["book"] = (f"{base}/m/{b.slug}/book", "Запись онлайн")
     whatsapp_on = bool(b.wa_phone_number_id and b.wa_access_token)
     phone = phone_digits(samples.customer_contact(b, "phone"))  # the link goes to customers: never the example's number
     if whatsapp_on and phone:
         options["whatsapp"] = (f"https://wa.me/{phone}", "WhatsApp")
     notes = {"telegram": "Telegram-бот ещё не подключён — подключите его в «Каналах», и ссылка появится.",
              "whatsapp": ("Укажите телефон для клиентов в «Настройках» — тот, что подключён к WhatsApp: на него поведёт ссылка."
-                          if whatsapp_on else "WhatsApp ещё не подключён — подключите его в «Каналах», и ссылка появится.")}
+                          if whatsapp_on else "WhatsApp ещё не подключён — подключите его в «Каналах», и ссылка появится."),
+             "book": ("Запись по ссылке сейчас не принимает записи: нужна подписка или пробный период." if booking_why == "unpaid"
+                      else "Запись по ссылке выключена — включите её на «Запуске» или в приложении, и код появится.")}
     note = "" if via in options or via not in notes else notes[via]
     chosen = via if via in options else ("telegram" if "telegram" in options else "whatsapp" if "whatsapp" in options else "web")
     url, label = options[chosen]
     return templates.TemplateResponse(request, "counter_card.html", {
         "request": request, "b": b, "url": url, "label": label, "chosen": chosen, "qr": Markup(qr_svg(url)), "note": note,
-        "choices": [("telegram", "Telegram"), ("whatsapp", "WhatsApp"), ("web", "Чат на сайте")],
+        "choices": [("telegram", "Telegram"), ("whatsapp", "WhatsApp"), ("web", "Чат на сайте")]
+                   + ([("book", "Запись онлайн")] if booking_why not in ("niche", "altegio") else []),
     })
 
 
