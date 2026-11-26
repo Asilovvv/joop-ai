@@ -102,6 +102,7 @@ class _SetupScreenState extends State<SetupScreen> {
                   ),
                 const SizedBox(height: 8),
                 for (final step in info.steps) _step(context, info, step),
+                if (info.onlineLabel.isNotEmpty) _online(context, info),
                 if (info.pageAvailable) _pageBooking(context, info),
               ],
             ),
@@ -212,7 +213,7 @@ class _SetupScreenState extends State<SetupScreen> {
   }
 
   /// The QR across the whole screen, for a customer to scan from the owner's phone.
-  void _showQr(BuildContext context, SetupInfo info) {
+  void _showQr(BuildContext context, List<String> rows) {
     showDialog<void>(
       context: context,
       builder: (context) => Dialog(
@@ -224,9 +225,54 @@ class _SetupScreenState extends State<SetupScreen> {
           child: Padding(
             padding: const EdgeInsets.all(8),
             child: LayoutBuilder(
-              builder: (context, box) => QrCode(rows: info.pageQr, size: box.maxWidth),
+              builder: (context, box) => QrCode(rows: rows, size: box.maxWidth),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// The public page: prices, contacts and buttons into the chats; a cafe's guests order from it by table.
+  Widget _online(BuildContext context, SetupInfo info) {
+    return Card(
+      key: const Key('online'),
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 4, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SwitchListTile(
+              key: const Key('online-switch'),
+              title: Text(info.onlineLabel, style: const TextStyle(fontWeight: FontWeight.w700)),
+              value: info.onlineOn,
+              onChanged: _busy ? null : (on) => _run(() => context.read<JoopRepository>().setOnline(on)),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(info.onlineTables ? S.current.onlineTablesHint : S.current.onlineHint),
+                const SizedBox(height: 4),
+                Row(children: [
+                  Expanded(child: SelectableText(info.onlineUrl, key: const Key('online-url'))),
+                  IconButton(
+                    tooltip: S.current.copy,
+                    icon: const Icon(Icons.copy),
+                    onPressed: () => Clipboard.setData(ClipboardData(text: info.onlineUrl)),
+                  ),
+                ]),
+                if (info.onlineOn && info.onlineQr.isNotEmpty)
+                  Center(
+                    child: InkWell(
+                      key: const Key('online-qr'),
+                      onTap: () => _showQr(context, info.onlineQr),
+                      child: QrCode(rows: info.onlineQr, size: 160),
+                    ),
+                  ),
+              ]),
+            ),
+          ],
         ),
       ),
     );
@@ -267,7 +313,7 @@ class _SetupScreenState extends State<SetupScreen> {
                   Center(
                     child: InkWell(
                       key: const Key('page-booking-qr'),
-                      onTap: () => _showQr(context, info),
+                      onTap: () => _showQr(context, info.pageQr),
                       child: QrCode(rows: info.pageQr, size: 180),
                     ),
                   ),

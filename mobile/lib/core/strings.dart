@@ -86,6 +86,8 @@ class S {
     required this.inPanel,
     required this.copy,
     required this.qrHint,
+    required this.onlineHint,
+    required this.onlineTablesHint,
     required this.tryTitle,
     required this.newDialogue,
     required this.tryHint,
@@ -392,6 +394,8 @@ class S {
   final String inPanel;
   final String copy;
   final String qrHint;
+  final String onlineHint;
+  final String onlineTablesHint;
   final String tryTitle;
   final String newDialogue;
   final String tryHint;
@@ -731,6 +735,8 @@ class S {
     inPanel: 'В панели:',
     copy: 'Копировать',
     qrHint: 'QR-код этой страницы: покажите клиенту с экрана (нажмите, чтобы увеличить) или распечатайте на стойку.',
+    onlineHint: 'Страница с ценами, адресом и кнопками в ваши чаты. Ссылку — в шапку Instagram и в 2ГИС:',
+    onlineTablesHint: 'Гости открывают меню по QR-коду и заказывают в чат. QR-коды для каждого стола (с номером) печатаются в панели: «QR-меню» → «Печать QR-кодов».',
     tryTitle: 'Тестовый чат',
     newDialogue: 'Новый диалог',
     tryHint: 'Напишите как клиент: по-русски и по-кыргызски, спросите цену, попробуйте записаться. Эти сообщения нигде не считаются.',
@@ -1047,6 +1053,8 @@ class S {
     inPanel: 'Панелде:', // check with a native speaker
     copy: 'Көчүрүү', // check with a native speaker
     qrHint: 'Бул барактын QR-коду: кардарга экрандан көрсөтүңүз (чоңойтуу үчүн басыңыз) же басып чыгарып, стойкага коюңуз.', // check with a native speaker
+    onlineHint: "Бааларыңыз, дарегиңиз жана чаттарыңызга баскычтар бар барак. Шилтемени Instagram'дын башына жана 2ГИСке коюңуз:", // check with a native speaker
+    onlineTablesHint: "Коноктор менюну QR-код аркылуу ачып, чатка буйрутма беришет. Ар бир үстөлдүн QR-коддору (номери менен) панелде басылат: «QR-меню» → «QR-коддорду басуу».", // check with a native speaker
     tryTitle: 'Сынак чат', // check with a native speaker
     newDialogue: 'Жаңы диалог', // check with a native speaker
     tryHint: 'Кардар катары жазыңыз: орусча жана кыргызча, баасын сураңыз, жазылып көрүңүз. Бул билдирүүлөр эч жерде эсептелбейт.', // check with a native speaker

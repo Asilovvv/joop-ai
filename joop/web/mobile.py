@@ -239,6 +239,10 @@ def _setup(s: Session, request: Request, b: Business) -> dict:
         "page_booking": {"available": pack.has("booking") and why != "altegio", "on": bool(b.page_booking and b.menu_enabled),
                          "works": why == "", "why": why, "url": f"{base}/m/{b.slug}/book",
                          "qr": qr_rows(f"{base}/m/{b.slug}/book")},
+        # the public page (the panel's «Прайс онлайн» / «Каталог онлайн» / «QR-меню»): prices, contacts and the buttons
+        # into the chats; a cafe's guests order from it by table
+        "online": {"label": pack.online_label, "on": b.menu_enabled, "tables": pack.serves_tables,
+                   "url": f"{base}/m/{b.slug}", "qr": qr_rows(f"{base}/m/{b.slug}")},
     }
 
 
@@ -277,6 +281,22 @@ def mobile_setup_page_booking(request: Request, body: PageBookingIn):
         b.page_booking = body.on
         if body.on:
             b.menu_enabled = True
+        s.add(b)
+        s.commit()
+        s.refresh(b)
+        return _setup(s, request, b)
+
+
+@router.post("/api/mobile/setup/online")
+def mobile_setup_online(request: Request, body: PageBookingIn):
+    """The public page on or off, as the panel's switch on «Прайс онлайн». Off also stops booking by link, which
+    lives on that page; its own switch is kept for when the page is back."""
+    with new_session() as s:
+        who, denied = _owner_only(s, request)
+        if denied:
+            return denied
+        b = who.business
+        b.menu_enabled = body.on
         s.add(b)
         s.commit()
         s.refresh(b)

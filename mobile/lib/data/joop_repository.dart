@@ -127,6 +127,10 @@ class JoopRepository {
     return ((data['removed'] as int?) ?? 0, PeopleInfo.fromJson(data));
   }
 
+  /// The public page on or off (a cafe's QR menu, a price page); off also stops booking by link, which lives on it.
+  Future<SetupInfo> setOnline(bool on) async =>
+      SetupInfo.fromJson(await _api.post('/api/mobile/setup/online', {'on': on}) as Map<String, dynamic>);
+
   Future<void> logout() async {
     _api.token = null;
     final prefs = await SharedPreferences.getInstance();

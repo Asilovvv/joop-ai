@@ -1054,11 +1054,17 @@ class SetupInfo extends Equatable {
     this.pageUrl = '',
     this.pageQr = const [],
     this.notes = const [],
+    this.onlineLabel = '',
+    this.onlineOn = false,
+    this.onlineTables = false,
+    this.onlineUrl = '',
+    this.onlineQr = const [],
   });
 
   factory SetupInfo.fromJson(Map<String, dynamic> json) {
     final telegram = (json['telegram'] as Map?) ?? const {};
     final page = (json['page_booking'] as Map?) ?? const {};
+    final online = (json['online'] as Map?) ?? const {};
     return SetupInfo(
       steps: [for (final s in (json['steps'] as List? ?? const [])) SetupStep.fromJson(s as Map<String, dynamic>)],
       botConnected: (telegram['connected'] as bool?) ?? false,
@@ -1070,6 +1076,11 @@ class SetupInfo extends Equatable {
       pageUrl: (page['url'] as String?) ?? '',
       pageQr: [for (final r in (page['qr'] as List? ?? const [])) r as String],
       notes: [for (final n in (json['notes'] as List? ?? const [])) ((n as Map)['text'] as String, n['ok'] == true)],
+      onlineLabel: (online['label'] as String?) ?? '',
+      onlineOn: (online['on'] as bool?) ?? false,
+      onlineTables: (online['tables'] as bool?) ?? false,
+      onlineUrl: (online['url'] as String?) ?? '',
+      onlineQr: [for (final r in (online['qr'] as List? ?? const [])) r as String],
     );
   }
 
@@ -1089,13 +1100,21 @@ class SetupInfo extends Equatable {
   /// The page's QR code: one string of 0/1 a row, without the quiet zone (the app draws it).
   final List<String> pageQr;
 
+  /// The public page (prices, contacts, buttons into the chats; a cafe's QR menu): its name as the panel says it,
+  /// whether it is open, whether guests order from it by table, its address and QR code.
+  final String onlineLabel;
+  final bool onlineOn;
+  final bool onlineTables;
+  final String onlineUrl;
+  final List<String> onlineQr;
+
   /// What the server said about the last change, (text, good news).
   final List<(String, bool)> notes;
 
   int get done => steps.where((s) => s.done).length;
 
   @override
-  List<Object?> get props => [steps, botConnected, botUsername, pageAvailable, pageOn, pageWorks, pageWhy, pageUrl, pageQr, notes];
+  List<Object?> get props => [steps, botConnected, botUsername, pageAvailable, pageOn, pageWorks, pageWhy, pageUrl, pageQr, notes, onlineLabel, onlineOn, onlineTables, onlineUrl, onlineQr];
 }
 
 
