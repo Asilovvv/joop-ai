@@ -78,11 +78,12 @@ def test_a_payment_starts_the_count_again(business, rt):
         payment = Payment(business_id=business.id, amount_som=1500, period_days=30, method="manual", status="pending")
         s.add(payment)
         s.commit()
-        billing.mark_paid(s, payment, morning(15))  # paid early: 30 days on top of the trial
+        billing.mark_paid(s, payment, morning(15))  # paid when asked, a day early: 30 days on top of the trial
         s.commit()
         paid_until = billing.get_subscription(s, business.id).paid_until
+    assert paid_until == TRIAL_ENDS + timedelta(days=30)  # before: 30 days from the payment, the trial's day lost
     assert summary(business.id, rt, 16) is None  # the trial's end no longer matters
-    end_day = (paid_until - timedelta(days=3)).day
+    end_day = (paid_until - timedelta(days=2)).day  # 08:30 two days before the 12:00 end: three days left, rounded up
     with db.new_session() as s:
         b = s.get(Business, business.id)
         b.last_digest_date = ""

@@ -18,6 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
+from starlette.background import BackgroundTask
 from starlette.concurrency import run_in_threadpool
 from sqlalchemy import func
 from sqlmodel import Session, select
@@ -416,6 +417,12 @@ def billing_pay(request: Request, method: str = Form("card"), csrf: str = Form("
             _flash(request, "Цена ещё не назначена. Напишите нам — подключим вручную.", "error")
             return _back("/panel/billing")
         card = method == "card" and settings.freedompay_merchant_id and settings.freedompay_secret_key
+        if not card:
+            waiting = billing.pending_transfer(s, b.id, utcnow())
+            if waiting:  # a second click: the same request, and the founder is not told twice
+                _flash(request, f"Заявка на оплату №{waiting.id} уже создана. Оплатите по реквизитам ниже — подписка "
+                                "продлится после подтверждения.")
+                return _back("/panel/billing")
         payment = Payment(business_id=b.id, amount_som=price, method="freedompay" if card else "manual")
         s.add(payment)
         s.commit()
@@ -488,10 +495,10 @@ def _freedompay_result(request: Request, settings, params: dict):
                 payment.status = "failed"
                 s.add(payment)
         s.commit()
-    if paid:
-        period_end.tell_paid(_rt(request), *paid)
     body = billing.fp_reply(script, status, text, settings.freedompay_secret_key)
-    return Response(body, media_type="application/xml")
+    # the owner's note goes after FreedomPay has its answer: a slow Telegram must not hold the bank's callback
+    told = BackgroundTask(period_end.tell_paid, _rt(request), *paid) if paid else None
+    return Response(body, media_type="application/xml", background=told)
 
 
 # --- founder console ----------------------------------------------------------------------------------
@@ -616,7 +623,8 @@ def owner_business_action(
         if action == "extend":
             base = sub.trial_ends_at if sub.trial_ends_at and sub.trial_ends_at > now else now
             sub.trial_ends_at = base + timedelta(days=max(1, min(days or 7, 90)))
-            sub.status = "trial" if sub.status != "active" else sub.status
+            if not (sub.status == "active" and sub.paid_until and sub.paid_until > now):
+                sub.status = "trial"  # a lapsed paid business too: an «active» one never reads its trial date
             msg = f"{b.name}: пробный период до {sub.trial_ends_at:%d.%m.%Y}."
         elif action in ("paid", "paid_year"):
             amount = billing.price_for(sub, settings.price_som)

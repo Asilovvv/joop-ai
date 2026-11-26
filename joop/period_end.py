@@ -14,6 +14,7 @@ never ends; a suspended business was stopped by the founder on purpose.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -23,6 +24,8 @@ from . import billing, free_plan
 from .lang import plural
 from .models import Business, Conversation, Subscription
 from .timeutil import utc_to_local
+
+log = logging.getLogger(__name__)
 
 STAGES = ("soon", "last", "waiting", "stopped")
 WARN_DAYS = 3  # «осталось три дня»: enough to pay by transfer, which the founder confirms by hand
@@ -40,7 +43,7 @@ def _period(sub: Subscription, now: datetime, *, stopped_long_ago: bool = False)
     elif st.code == "trial":
         end = sub.trial_ends_at
     elif st.code in ("grace", "expired"):
-        end = sub.paid_until or sub.trial_ends_at
+        end, _ = billing.last_end(sub)
     else:
         return None
     if end is None:
@@ -66,8 +69,13 @@ def _pay_line(session: Session, business: Business, sub: Subscription, base_url:
     return line
 
 
-def _what(sub: Subscription) -> str:
-    return "Оплаченный период" if sub.paid_until else "Пробный период"
+def _what(sub: Subscription, now: datetime | None = None) -> str:
+    """The period that is running or last ran: a trial given after a paid month is a trial."""
+    if now is not None:
+        code = billing.state(sub, now).code
+        if code in ("active", "trial"):
+            return "Оплаченный период" if code == "active" else "Пробный период"
+    return "Оплаченный период" if billing.last_end(sub)[1] else "Пробный период"
 
 
 def notice(session: Session, business: Business, now: datetime, base_url: str = "", price_som: int = 0) -> str | None:
@@ -83,7 +91,7 @@ def notice(session: Session, business: Business, now: datetime, base_url: str = 
         return None
     local_end = utc_to_local(end, business.timezone)
     stop = utc_to_local(end + timedelta(days=billing.GRACE_DAYS), business.timezone)
-    what = _what(sub)
+    what = _what(sub, now)
     if stage in ("soon", "last"):
         head = (f"{what} «{business.name}» заканчивается {local_end:%d.%m} в {local_end:%H:%M} — "
                 f"осталось {st.days_left} {plural(st.days_left, 'день', 'дня', 'дней')}. "
@@ -129,8 +137,15 @@ def stopped_note(session: Session, business: Business, conv: Conversation, text:
     body = text if len(text) <= 300 else text[:299] + "…"
     base = base_url.rstrip("/")
     answer = f"{base}/panel/conversations/{conv.id}" if base else "панель → «Диалоги»"
-    pay = f"{base}/panel/billing" if base else "панель → «Оплата»"
-    return f"{who} пишет ({where}): «{body}»\n{why_stopped(session, business, now)}. Ответить: {answer}\nОплатить: {pay}"
+    sub = billing.get_subscription(session, business.id)
+    waiting = billing.pending_transfer(session, business.id, now)
+    if sub is not None and sub.status == "suspended":
+        tail = ""  # paying does not lift it: the banner has no link either
+    elif waiting:
+        tail = "\n" + _waiting_line(waiting)
+    else:
+        tail = "\nОплатить: " + (f"{base}/panel/billing" if base else "панель → «Оплата»")
+    return f"{who} пишет ({where}): «{body}»\n{why_stopped(session, business, now)}. Ответить: {answer}{tail}"
 
 
 @dataclass
@@ -164,18 +179,18 @@ def banner(session: Session, business: Business, now: datetime) -> Banner | None
     found = _period(sub, now, stopped_long_ago=True)
     if found is None:
         return None
-    shown = _banner_for(found, sub, business)
+    shown = _banner_for(found, sub, business, now)
     waiting = billing.pending_transfer(session, business.id, now)
     if waiting:  # already paid by transfer: not «pay», but «it is on its way»
         return Banner(shown.level, f"{shown.text} {_waiting_line(waiting)}", pay=False)
     return shown
 
 
-def _banner_for(found, sub: Subscription, business: Business) -> Banner:
+def _banner_for(found, sub: Subscription, business: Business, now: datetime) -> Banner:
     stage, end, st = found
     local_end = utc_to_local(end, business.timezone)
     stop = utc_to_local(end + timedelta(days=billing.GRACE_DAYS), business.timezone)
-    what = _what(sub)
+    what = _what(sub, now)
     if stage in ("soon", "last"):
         return Banner("warn", f"{what} заканчивается {local_end:%d.%m} в {local_end:%H:%M} — осталось {st.days_left} "
                               f"{plural(st.days_left, 'день', 'дня', 'дней')}. Без оплаты ИИ остановится {stop:%d.%m}.")
@@ -202,9 +217,13 @@ def tell_paid(rt, business_id: int, payment_id: int) -> int:
     from .dispatch import notify_admins
     from .models import Payment
 
-    with new_session() as s:
-        business, payment = s.get(Business, business_id), s.get(Payment, payment_id)
-        if business is None or payment is None or payment.status != "paid":
-            return 0
-        note = paid_note(s, business, payment)
-    return notify_admins(rt, business, [note])
+    try:
+        with new_session() as s:
+            business, payment = s.get(Business, business_id), s.get(Payment, payment_id)
+            if business is None or payment is None or payment.status != "paid":
+                return 0
+            note = paid_note(s, business, payment)
+        return notify_admins(rt, business, [note])
+    except Exception:  # the payment is saved; a failed note must not fail the request that saved it
+        log.exception("Could not tell business %s about payment %s", business_id, payment_id)
+        return 0
