@@ -345,6 +345,7 @@ class Subscription(SQLModel, table=True):
     cancelled_at: Optional[NaiveDatetime] = None  # the owner cancelled: the AI works to the end of the paid period, no grace
     cancel_reason: str = ""
     year_offered_at: Optional[NaiveDatetime] = None  # the founder sent the year offer (joop/annual.py)
+    end_told: str = ""  # "<end of the period>/<step>" last said to the owner about it (joop/period_end.py)
     created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 

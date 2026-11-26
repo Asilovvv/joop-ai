@@ -17,7 +17,7 @@ from typing import Callable
 
 from sqlmodel import Session, select
 
-from .. import altegio, broadcasts, confirm, confirmations, deposits, free_plan, health, owner_commands, page_booking, regulars, samples, selfservice, stock, trust, upsell, voice
+from .. import altegio, broadcasts, confirm, confirmations, deposits, free_plan, health, owner_commands, page_booking, period_end, regulars, samples, selfservice, stock, trust, upsell, voice
 from ..billing import access_ok, get_subscription
 from ..catalog import CATALOG_PROMPT_LIMIT, select_relevant
 from ..channels.base import IncomingMessage
@@ -243,8 +243,12 @@ def _handle_incoming(
 
     if not business.bot_enabled:
         return Outcome(skipped="bot_disabled")
-    if not access_ok(session, business.id, now):
-        return Outcome(skipped="subscription")  # trial over or not paid: staff answer by hand
+    if not access_ok(session, business.id, now):  # trial over or not paid: staff answer by hand
+        # In WhatsApp and Instagram staff see the message in their own app; a Telegram or site chat is read only by
+        # the bot, so staff get it as a note, with why the AI is quiet (joop/period_end.py).
+        seen_by_bot_only = conv.channel in ("telegram", "web") and not is_personal(conv.chat_id) and not is_test(conv)
+        told = [period_end.stopped_note(session, business, conv, stored, now, base_url)] if seen_by_bot_only and stored else []
+        return Outcome(skipped="subscription", admin_notes=told)
     if conv.ai_paused_until and conv.ai_paused_until > now:
         # Staff answer this chat themselves. In WhatsApp and Instagram they see the message in their own app;
         # a Telegram or web chat customer is seen only by the bot, so staff get it as a note.
