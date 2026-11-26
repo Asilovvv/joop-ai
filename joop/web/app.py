@@ -34,7 +34,7 @@ from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, Convers
 from ..niches import all_packs, get_pack, picker_packs
 from ..lang import plural
 from ..phone import display_phone, normalize_phone
-from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, ig_login, order_status, quick_replies, samples, schedule, staff_reply, stock, waitlist
+from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, ig_login, order_status, period_end, quick_replies, samples, schedule, staff_reply, stock, waitlist
 from ..faq_gaps import open_gaps
 from ..reschedule import blocked as move_blocked, cancel as cancel_core, reschedule
 from ..runtime import Runtime
@@ -295,8 +295,17 @@ def _render(request: Request, template: str, active: str, business: Business | N
         pack=get_pack(business.niche if business else None),
         active=active,
         alerts_on=bool(business and alert_chats(business)),  # «…и придёт вам в Telegram» only when it will
+        period=_period_banner(business),
     )
     return templates.TemplateResponse(request, template, ctx)
+
+
+def _period_banner(business: Business | None):
+    """The AI is about to stop, or has, for the subscription: a line on top of every page (joop/period_end.py)."""
+    if business is None or business.id is None:
+        return None
+    with new_session() as s:
+        return period_end.banner(s, business, utcnow())
 
 
 def _base_url(request: Request) -> str:
