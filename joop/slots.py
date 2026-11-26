@@ -27,15 +27,20 @@ def parse_times(text: str) -> list[time]:
 
 
 def _existing_starts(session: Session, business_id: int, staff_id: int, day_from: date, day_to: date) -> set[datetime]:
+    return {start for start, _ in _existing(session, business_id, staff_id, day_from, day_to)}
+
+
+def _existing(session: Session, business_id: int, staff_id: int, day_from: date, day_to: date) -> list[tuple[datetime, datetime]]:
+    """(start, end) of the person's times on those days, whatever their status."""
     rows = session.exec(
-        select(Slot.start).where(
+        select(Slot.start, Slot.duration_min).where(
             Slot.business_id == business_id,
             Slot.staff_id == staff_id,
-            Slot.start >= datetime.combine(day_from, time.min),
+            Slot.start >= datetime.combine(day_from, time.min) - timedelta(days=1),  # a long one from the day before
             Slot.start <= datetime.combine(day_to, time.max),
         )
     ).all()
-    return set(rows)
+    return [(start, start + timedelta(minutes=minutes or 60)) for start, minutes in rows]
 
 
 def seats_for(session: Session, staff_id: int) -> int:
@@ -68,12 +73,13 @@ def generate_slots(
     step_min: int = 60,
     skip_days_off: bool = True,
 ) -> int:
-    """Create slots every `step_min` minutes between `start` and `end` for each day in the range."""
+    """Create slots every `step_min` minutes between `start` and `end` for each day in the range. A time that would
+    overlap one the person already has is skipped: opening again with another length never double-books them."""
     if step_min < 10 or date_to < date_from:
         return 0
     date_to = min(date_to, date_from + timedelta(days=MAX_GENERATE_DAYS))
     days_off = parse_days_off(business.days_off) if skip_days_off else set()
-    existing = _existing_starts(session, business.id, staff_id, date_from, date_to)
+    existing = _existing(session, business.id, staff_id, date_from, date_to)
     seats = seats_for(session, staff_id)
     created = 0
     day = date_from
@@ -82,7 +88,8 @@ def generate_slots(
             current = datetime.combine(day, start)
             day_end = datetime.combine(day, end)
             while current + timedelta(minutes=step_min) <= day_end:
-                if current not in existing:
+                finish = current + timedelta(minutes=step_min)
+                if not any(s < finish and current < e for s, e in existing):
                     session.add(Slot(business_id=business.id, staff_id=staff_id, start=current, duration_min=step_min, seats=seats))
                     created += 1
                 current += timedelta(minutes=step_min)

@@ -1131,17 +1131,17 @@ def mobile_staff_update(request: Request, item_id: int, body: StaffIn):
             return _fail(422, "Напишите имя.")
         before = len(free_plan.active_staff(s, b.id))
         row.name, row.role, row.handles = body.name.strip()[:120], body.role.strip()[:120], body.handles.strip()[:500]
-        s.add(row)
-        s.flush()
-        if free_plan.breaks_plan(s, b.id, before):  # an example master turned into a second real one
-            s.rollback()
-            return _fail(409, free_plan.TOO_MANY)
         row.capacity = max(0, min(body.capacity, 500))
         group_size = max(0, min(body.group_size, 500))
         if group_size != row.group_size:
             row.group_size = group_size
             resize_group(s, row.id, group_size, local_now(b.timezone).replace(tzinfo=None))
         s.add(row)
+        s.flush()
+        # an example person turned into a second real one, by any field: seats and group size count too
+        if free_plan.breaks_plan(s, b.id, before):
+            s.rollback()
+            return _fail(409, free_plan.TOO_MANY)
         s.commit()
         return _people(s, b)
 

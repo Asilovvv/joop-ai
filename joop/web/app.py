@@ -844,18 +844,18 @@ def staff_update(
         if name.strip():
             before = len(free_plan.active_staff(s, b.id))
             row.name, row.role, row.handles = name.strip(), role.strip(), handles.strip()
-            s.add(row)
-            s.flush()
-            if free_plan.breaks_plan(s, b.id, before):  # an example master turned into a second real one
-                s.rollback()
-                _flash(request, free_plan.TOO_MANY, "error")
-                return _back("/panel/staff")
             row.capacity = max(0, capacity)
             group_size = max(0, min(group_size, 500))
             if group_size != row.group_size:
                 row.group_size = group_size
                 resize_group(s, row.id, group_size, _now_local(b))
             s.add(row)
+            s.flush()
+            # an example person turned into a second real one, by any field: seats and group size count too
+            if free_plan.breaks_plan(s, b.id, before):
+                s.rollback()
+                _flash(request, free_plan.TOO_MANY, "error")
+                return _back("/panel/staff")
             s.commit()
             _flash(request, "Сохранено.")
     return _back("/panel/staff")
@@ -1570,7 +1570,8 @@ def counter_card(request: Request, via: str = ""):
              "whatsapp": ("Укажите телефон для клиентов в «Настройках» — тот, что подключён к WhatsApp: на него поведёт ссылка."
                           if whatsapp_on else "WhatsApp ещё не подключён — подключите его в «Каналах», и ссылка появится."),
              "book": ("Запись по ссылке сейчас не принимает записи: нужна подписка или пробный период." if booking_why == "unpaid"
-                      else "Запись по ссылке выключена — включите её на «Запуске» или в приложении, и код появится.")}
+                      else f"Запись по ссылке выключена — включите её в разделе «{get_pack(b.niche).online_label}» "
+                           "(«Клиенты записываются сами») или в приложении, и код появится.")}
     note = "" if via in options or via not in notes else notes[via]
     chosen = via if via in options else ("telegram" if "telegram" in options else "whatsapp" if "whatsapp" in options else "web")
     url, label = options[chosen]

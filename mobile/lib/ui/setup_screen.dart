@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../core/strings.dart';
+import '../bloc/auth_bloc.dart';
 import '../core/api_client.dart';
 import '../data/joop_repository.dart';
 import '../data/models.dart';
@@ -61,6 +62,14 @@ class _SetupScreenState extends State<SetupScreen> {
       _token.clear();
       return info;
     });
+  }
+
+  /// Whether this login edits the business's people here: not an Altegio salon, whose people live in Altegio (the
+  /// server would refuse every change). The buttons that open another screen wait while a request runs, so a
+  /// return's reread never overlaps a change still under way.
+  bool get _editsPeople {
+    final auth = context.read<AuthBloc>().state;
+    return auth is AuthSignedIn && auth.account.peopleLabel.isNotEmpty;
   }
 
   @override
@@ -139,7 +148,7 @@ class _SetupScreenState extends State<SetupScreen> {
                   key: const Key('open-try'),
                   icon: const Icon(Icons.chat_outlined),
                   label: Text(S.current.openTry),
-                  onPressed: () async {
+                  onPressed: _busy ? null : () async {
                     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TryScreen()));
                     if (mounted) _run(() => context.read<JoopRepository>().setup()); // the step may be done now
                   },
@@ -152,33 +161,33 @@ class _SetupScreenState extends State<SetupScreen> {
                   key: const Key('open-contacts'),
                   icon: const Icon(Icons.edit_location_alt_outlined),
                   label: Text(S.current.fillHere),
-                  onPressed: () async {
+                  onPressed: _busy ? null : () async {
                     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ContactsScreen()));
                     if (mounted) _run(() => context.read<JoopRepository>().setup()); // the step may be done now
                   },
                 ),
               )
-            else if (step.key == 'slots' && !step.done)
+            else if (step.key == 'slots' && !step.done && _editsPeople)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: OutlinedButton.icon(
                   key: const Key('open-windows'),
                   icon: const Icon(Icons.event_available_outlined),
                   label: Text(S.current.openWindows),
-                  onPressed: () async {
+                  onPressed: _busy ? null : () async {
                     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => PeopleScreen(title: step.title)));
                     if (mounted) _run(() => context.read<JoopRepository>().setup()); // the step may be done now
                   },
                 ),
               )
-            else if (step.key == 'staff')
+            else if (step.key == 'staff' && _editsPeople)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: OutlinedButton.icon(
                   key: const Key('open-people'),
                   icon: const Icon(Icons.badge_outlined),
                   label: Text(S.current.fillHere),
-                  onPressed: () async {
+                  onPressed: _busy ? null : () async {
                     await Navigator.of(context)
                         .push(MaterialPageRoute(builder: (_) => PeopleScreen(title: step.title.split(':').first)));
                     if (mounted) _run(() => context.read<JoopRepository>().setup()); // the step may be done now
