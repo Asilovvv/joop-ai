@@ -51,6 +51,14 @@ class S {
     required this.exampleChip,
     required this.personSeats,
     required this.personGroupUpTo,
+    required this.openWindows,
+    required this.windowsTitle,
+    required this.windowsHint,
+    required this.windowsDays,
+    required this.windowsStep,
+    required this.windowsNone,
+    required this.windowsOpened,
+    required this.freeAhead,
     required this.newService,
     required this.editService,
     required this.stopListEditNote,
@@ -350,6 +358,14 @@ class S {
   final String exampleChip;
   final String Function(int n) personSeats;
   final String Function(int n) personGroupUpTo;
+  final String openWindows;
+  final String windowsTitle;
+  final String windowsHint;
+  final String windowsDays;
+  final String windowsStep;
+  final String windowsNone;
+  final String Function(int n) windowsOpened;
+  final String Function(int n) freeAhead;
   final String newService;
   final String editService;
   final String stopListEditNote;
@@ -681,6 +697,14 @@ class S {
     exampleChip: 'пример',
     personSeats: _ruPersonSeats,
     personGroupUpTo: _ruPersonGroupUpTo,
+    openWindows: 'Открыть окна',
+    windowsTitle: 'Свободные окна для записи',
+    windowsHint: 'С завтрашнего дня, выходные пропускаются, уже открытое время не дублируется.',
+    windowsDays: 'На сколько дней',
+    windowsStep: 'Одна запись, минут',
+    windowsNone: 'Новых окон нет: это время уже открыто.',
+    windowsOpened: _ruWindowsOpened,
+    freeAhead: _ruFreeAhead,
     newService: 'Новая позиция',
     editService: 'Позиция прайса',
     stopListEditNote: 'Нажмите на позицию, чтобы изменить название и цену. Выключите — ИИ перестанет её предлагать.',
@@ -989,6 +1013,14 @@ class S {
     exampleChip: 'мисал', // check with a native speaker
     personSeats: _kyPersonSeats,
     personGroupUpTo: _kyPersonGroupUpTo,
+    openWindows: 'Убакыт ачуу', // check with a native speaker
+    windowsTitle: 'Жазылуу үчүн бош убакыт', // check with a native speaker
+    windowsHint: 'Эртеңден баштап, дем алыш күндөр өткөрүлөт, ачык убакыт кайталанбайт.', // check with a native speaker
+    windowsDays: 'Канча күнгө', // check with a native speaker
+    windowsStep: 'Бир жазылуу, мүнөт', // check with a native speaker
+    windowsNone: 'Жаңы убакыт жок: бул убакыт буга чейин ачык.', // check with a native speaker
+    windowsOpened: _kyWindowsOpened,
+    freeAhead: _kyFreeAhead,
     newService: 'Жаңы позиция', // check with a native speaker
     editService: 'Прайстын позициясы', // check with a native speaker
     stopListEditNote: 'Атын жана баасын өзгөртүү үчүн позицияны басыңыз. Өчүрсөңүз, ИИ аны сунуштабай калат.', // check with a native speaker
@@ -1439,3 +1471,7 @@ String _ruPersonSeats(int n) => 'мест: $n';
 String _kyPersonSeats(int n) => 'орун: $n'; // check with a native speaker
 String _ruPersonGroupUpTo(int n) => 'группа до $n';
 String _kyPersonGroupUpTo(int n) => '$n кишиге чейин топ'; // check with a native speaker
+String _ruWindowsOpened(int n) => 'Открыто окон: $n. ИИ уже может записывать в них клиентов.';
+String _kyWindowsOpened(int n) => 'Ачылган убакыт: $n. ИИ аларга кардарларды жаза алат.'; // check with a native speaker
+String _ruFreeAhead(int n) => n == 0 ? 'свободных окон нет' : 'свободных окон: $n';
+String _kyFreeAhead(int n) => n == 0 ? 'бош убакыт жок' : 'бош убакыт: $n'; // check with a native speaker
