@@ -29,6 +29,12 @@ class FakeJoop {
     },
   ];
 
+  /// A salon whose people live in Altegio: the app does not edit them.
+  bool altegio = false;
+
+  /// How long the booking-by-link switch takes to answer.
+  Duration setupDelay = Duration.zero;
+
   /// The launch checklist's state, changed by the two setup calls.
   bool botConnected = false;
   bool pageOn = false;
@@ -215,7 +221,7 @@ class FakeJoop {
             'who': role == 'master' ? 'Айгерим' : 'Владелец',
             'role': role,
             'sections': {'bookings': true, 'orders': false, 'leads': role != 'master', 'cash': true},
-            'people_label': role == 'master' ? '' : 'Врачи',
+            'people_label': role == 'master' || altegio ? '' : 'Врачи',
           };
     if (path == '/api/mobile/places/aktish') {
       return json({
@@ -322,6 +328,7 @@ class FakeJoop {
       return json(setupJson([{'text': 'Бот @aktish_bot подключён.', 'ok': true}]));
     }
     if (path == '/api/mobile/setup/page-booking') {
+      await Future<void>.delayed(setupDelay); // a slow connection
       final body = jsonDecode(request.body) as Map;
       setupCalls.add(body);
       pageOn = body['on'] as bool;
