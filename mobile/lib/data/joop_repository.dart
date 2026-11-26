@@ -114,6 +114,14 @@ class JoopRepository {
   Future<PeopleInfo> deletePerson(int id) async =>
       PeopleInfo.fromJson(await _api.post('/api/mobile/staff/$id/delete') as Map<String, dynamic>);
 
+  /// Free times for one person from tomorrow: how many were added (times already there are kept), and the list.
+  Future<(int, PeopleInfo)> openWindows(int id, {required int days, required int step, required String start,
+      required String end}) async {
+    final data = await _api.post('/api/mobile/staff/$id/windows', {'days': days, 'step': step, 'start': start, 'end': end})
+        as Map<String, dynamic>;
+    return ((data['created'] as int?) ?? 0, PeopleInfo.fromJson(data));
+  }
+
   Future<(int, PeopleInfo)> deletePeopleExample() async {
     final data = await _api.post('/api/mobile/staff/example/delete') as Map<String, dynamic>;
     return ((data['removed'] as int?) ?? 0, PeopleInfo.fromJson(data));

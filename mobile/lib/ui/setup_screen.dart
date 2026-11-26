@@ -158,6 +158,19 @@ class _SetupScreenState extends State<SetupScreen> {
                   },
                 ),
               )
+            else if (step.key == 'slots' && !step.done)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: OutlinedButton.icon(
+                  key: const Key('open-windows'),
+                  icon: const Icon(Icons.event_available_outlined),
+                  label: Text(S.current.openWindows),
+                  onPressed: () async {
+                    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => PeopleScreen(title: step.title)));
+                    if (mounted) _run(() => context.read<JoopRepository>().setup()); // the step may be done now
+                  },
+                ),
+              )
             else if (step.key == 'staff')
               Padding(
                 padding: const EdgeInsets.only(top: 8),

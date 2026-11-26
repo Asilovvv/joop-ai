@@ -40,13 +40,19 @@ class _PeopleScreenState extends State<PeopleScreen> {
       if (!mounted) return;
       setState(() => _info = info);
       final said = done?.call();
-      if (said != null) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(said)));
+      if (said != null) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(said)));
+      }
     } on ApiException catch (e) {
       if (!mounted) return;
       if (_info == null) {
         setState(() => _error = e.message);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -64,6 +70,26 @@ class _PeopleScreenState extends State<PeopleScreen> {
     if (result == null || !mounted) return;
     final repository = context.read<JoopRepository>();
     _run(() => result.delete ? repository.deletePerson(person!.id) : repository.savePerson(person?.id, result.person!));
+  }
+
+  /// Free times for one person: the sheet collects days, step and hours; the screen sends them.
+  Future<void> _windows(Person person) async {
+    final info = _info!;
+    final asked = await showModalBottomSheet<_Windows>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _WindowsSheet(person: person, info: info),
+    );
+    if (asked == null || !mounted) return;
+    final repository = context.read<JoopRepository>();
+    var created = 0;
+    _run(() async {
+      final (n, info) = await repository.openWindows(person.id,
+          days: asked.days, step: asked.step, start: asked.start, end: asked.end);
+      created = n;
+      return info;
+    }, done: () => created > 0 ? S.current.windowsOpened(created) : S.current.windowsNone);
   }
 
   Future<void> _deleteExample() async {
@@ -148,8 +174,19 @@ class _PeopleScreenState extends State<PeopleScreen> {
                         if (p.handles.isNotEmpty) p.handles,
                         if (info.capacity && p.capacity > 0) s.personSeats(p.capacity),
                         if (info.group && p.groupSize > 1) s.personGroupUpTo(p.groupSize),
+                        if (info.booking && !p.example) s.freeAhead(p.free),
                       ].join(' · ')),
-                      trailing: p.example ? Chip(label: Text(s.exampleChip)) : const Icon(Icons.chevron_right),
+                      trailing: p.example
+                          ? Chip(label: Text(s.exampleChip))
+                          : info.booking
+                              ? IconButton(
+                                  key: Key('windows-${p.id}'),
+                                  tooltip: s.openWindows,
+                                  icon: Icon(Icons.event_available_outlined,
+                                      color: p.free == 0 ? theme.colorScheme.error : null),
+                                  onPressed: _busy ? null : () => _windows(p),
+                                )
+                              : const Icon(Icons.chevron_right),
                     ),
                   ),
               ],
@@ -221,20 +258,30 @@ class _PersonSheetState extends State<_PersonSheet> {
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(widget.person?.name ?? widget.info.label, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
-          TextField(key: const Key('person-name'), controller: _name, textCapitalization: TextCapitalization.words,
+          TextField(
+              key: const Key('person-name'),
+              controller: _name,
+              textCapitalization: TextCapitalization.words,
               decoration: field(s.personName, error: _empty ? s.serviceNameEmpty : null)),
           const SizedBox(height: 12),
           TextField(key: const Key('person-role'), controller: _role, decoration: field(s.personRole)),
           const SizedBox(height: 12),
-          TextField(key: const Key('person-handles'), controller: _handles, maxLines: 2, decoration: field(s.personHandles)),
+          TextField(
+              key: const Key('person-handles'), controller: _handles, maxLines: 2, decoration: field(s.personHandles)),
           if (widget.info.capacity) ...[
             const SizedBox(height: 12),
-            TextField(key: const Key('person-capacity'), controller: _capacity, keyboardType: TextInputType.number,
+            TextField(
+                key: const Key('person-capacity'),
+                controller: _capacity,
+                keyboardType: TextInputType.number,
                 decoration: field(s.personCapacity)),
           ],
           if (widget.info.group) ...[
             const SizedBox(height: 12),
-            TextField(key: const Key('person-group'), controller: _group, keyboardType: TextInputType.number,
+            TextField(
+                key: const Key('person-group'),
+                controller: _group,
+                keyboardType: TextInputType.number,
                 decoration: field(s.personGroup)),
           ],
           const SizedBox(height: 16),
@@ -248,6 +295,108 @@ class _PersonSheetState extends State<_PersonSheet> {
             ),
             Text(s.personDeleteNote, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
           ],
+        ]),
+      ),
+    );
+  }
+}
+
+/// What the windows sheet hands back.
+class _Windows {
+  const _Windows(this.days, this.step, this.start, this.end);
+
+  final int days;
+  final int step;
+  final String start;
+  final String end;
+}
+
+class _WindowsSheet extends StatefulWidget {
+  const _WindowsSheet({required this.person, required this.info});
+
+  final Person person;
+  final PeopleInfo info;
+
+  @override
+  State<_WindowsSheet> createState() => _WindowsSheetState();
+}
+
+class _WindowsSheetState extends State<_WindowsSheet> {
+  late final _start = TextEditingController(text: widget.info.workStart);
+  late final _end = TextEditingController(text: widget.info.workEnd);
+  int _days = 14;
+  int _step = 60;
+  bool _badTime = false;
+
+  static final _time = RegExp(r'^([01]?\d|2[0-3]):[0-5]\d$');
+
+  @override
+  void dispose() {
+    _start.dispose();
+    _end.dispose();
+    super.dispose();
+  }
+
+  void _open() {
+    final start = _start.text.trim(), end = _end.text.trim();
+    if (!_time.hasMatch(start) || !_time.hasMatch(end)) {
+      setState(() => _badTime = true);
+      return;
+    }
+    Navigator.of(context).pop(_Windows(_days, _step, start, end));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = S.current;
+    Widget choice<T>(
+            String label, List<T> values, T current, void Function(T) pick, String Function(T) text, String key) =>
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 6),
+          Wrap(spacing: 6, children: [
+            for (final v in values)
+              ChoiceChip(
+                  key: Key('$key-$v'),
+                  label: Text(text(v)),
+                  selected: v == current,
+                  onSelected: (_) => setState(() => pick(v))),
+          ]),
+        ]);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
+      child: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('${s.windowsTitle}: ${widget.person.name}', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 4),
+          Text(s.windowsHint, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 12),
+          choice(s.windowsDays, const [7, 14, 30], _days, (v) => _days = v, (v) => '$v', 'days'),
+          const SizedBox(height: 12),
+          choice(s.windowsStep, const [30, 45, 60, 90], _step, (v) => _step = v, (v) => '$v', 'step'),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                  key: const Key('windows-start'),
+                  controller: _start,
+                  keyboardType: TextInputType.datetime,
+                  decoration: InputDecoration(
+                      labelText: s.workStart,
+                      border: const OutlineInputBorder(),
+                      errorText: _badTime ? s.timeFormat : null)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                  key: const Key('windows-end'),
+                  controller: _end,
+                  keyboardType: TextInputType.datetime,
+                  decoration: InputDecoration(labelText: s.workEnd, border: const OutlineInputBorder())),
+            ),
+          ]),
+          const SizedBox(height: 16),
+          FilledButton(key: const Key('windows-open'), onPressed: _open, child: Text(s.openWindows)),
         ]),
       ),
     );

@@ -35,7 +35,8 @@ from ..security import verify_password
 from ..signup import Refused, register
 from ..catalog import parse_price
 from .. import billing, free_plan, page_booking, telegram_setup, try_chat
-from ..slots import CLOSED, claim_slot, free_on_day, release_slot, resize_group, seats_left, seats_needed
+from ..slots import (CLOSED, MAX_GENERATE_DAYS, claim_slot, free_on_day, generate_slots, release_slot, resize_group,
+                     seats_left, seats_needed)
 from ..stats import TEST_CHANNEL, activity, not_test, real_conversation, test_conversations
 from ..timeutil import local_now, parse_days_off, parse_hhmm, utcnow
 from .app import _base_url, _by_phone, _delete_service, _login_fails, _retire_staff, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
@@ -1047,10 +1048,14 @@ def _people(s: Session, b: Business) -> dict:
     pack = get_pack(b.niche)
     example = example_staff_ids(s, b)
     rows = s.exec(select(Staff).where(Staff.business_id == b.id, Staff.active == True).order_by(Staff.id)).all()  # noqa: E712
+    now_local = local_now(b.timezone).replace(tzinfo=None)
+    free = dict(s.exec(select(Slot.staff_id, func.count()).where(Slot.business_id == b.id, Slot.status == "free",
+                                                                 Slot.start > now_local).group_by(Slot.staff_id)).all())
     return {"label": pack.resource_label, "item": pack.resource_item, "capacity": pack.party_size,
             "group": pack.offers("group_classes"), "booking": pack.has("booking"),
+            "work_start": b.work_start, "work_end": b.work_end,
             "staff": [{"id": x.id, "name": x.name, "role": x.role, "handles": x.handles, "capacity": x.capacity,
-                       "group_size": x.group_size, "example": x.id in example} for x in rows]}
+                       "group_size": x.group_size, "example": x.id in example, "free": free.get(x.id, 0)} for x in rows]}
 
 
 def _people_editor(s: Session, request: Request) -> tuple[Who | None, JSONResponse | None]:
@@ -1139,6 +1144,40 @@ def mobile_staff_update(request: Request, item_id: int, body: StaffIn):
         s.add(row)
         s.commit()
         return _people(s, b)
+
+
+class WindowsIn(BaseModel):
+    days: int = 14
+    step: int = 60
+    start: str = ""
+    end: str = ""
+
+
+@router.post("/api/mobile/staff/{item_id}/windows")
+def mobile_staff_windows(request: Request, item_id: int, body: WindowsIn):
+    """Free times for one person from tomorrow, every `step` minutes between the hours (the business's by default),
+    days off skipped, times already there kept: the panel's «Окна для записи» → «Создать», in one tap."""
+    with new_session() as s:
+        who, denied = _people_editor(s, request)
+        if denied:
+            return denied
+        b = who.business
+        if not get_pack(b.niche).has("booking"):
+            return _fail(409, "В этой сфере клиенты не записываются на время.")
+        row = _own_person(s, b, item_id)
+        if row is None:
+            return _fail(404, "Такого сотрудника нет.")
+        if row.id in example_staff_ids(s, b):
+            return _fail(409, "Это пример: к нему клиентов не записывают. Впишите своего человека и откройте окна ему.")
+        start, end = parse_hhmm((body.start or b.work_start).strip()), parse_hhmm((body.end or b.work_end).strip())
+        if not (start and end and end > start):
+            return _fail(422, "Проверьте часы: конец должен быть позже начала.")
+        days = max(1, min(body.days, MAX_GENERATE_DAYS))
+        tomorrow = local_now(b.timezone).date() + timedelta(days=1)
+        created = generate_slots(s, b, row.id, tomorrow, tomorrow + timedelta(days=days - 1), start, end,
+                                 max(10, min(body.step, 480)))
+        s.commit()
+        return {"created": created, **_people(s, b)}
 
 
 @router.post("/api/mobile/staff/{item_id}/delete")

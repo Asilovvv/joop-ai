@@ -498,7 +498,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 1175 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 1177 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
