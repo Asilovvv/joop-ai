@@ -70,7 +70,8 @@ def _example(niche: str) -> tuple[frozenset, frozenset, frozenset]:
         return frozenset(), frozenset(), frozenset()
     # a row is the example only while every field the sign-up copied is unchanged: name, price, Kyrgyz name and note
     # (joop/profile.py builds the note the same way). An owner who deletes the example and types «Плов, 350» of their
-    # own has no example note: their plov is theirs, not hidden from customers as the example's.
+    # own has no example note: their plov is theirs, not hidden from customers as the example's. A Kyrgyz name the
+    # example never had does not count (_is_example_service): «Заполнить по-кыргызски» writes one into every row.
     services = frozenset((_t(x.get("name")), _t(x.get("price")), _t(x.get("name_ky")), _service_note(x))
                          for x in data.get("services") or [])
     staff = frozenset(_staff_key(_t(name), _t(x.get("role")), _t(x.get("handles")), x.get("capacity"), x.get("group_size"))
@@ -78,6 +79,14 @@ def _example(niche: str) -> tuple[frozenset, frozenset, frozenset]:
                       for name in [x.get("name"), *(x.get("was") or [])])  # «was»: names an older demo used, still example
     faq = frozenset((_t(x.get("q")), _t(x.get("a"))) for x in data.get("faq") or [])
     return services, staff, faq
+
+
+def _is_example_service(row: Service, services: frozenset) -> bool:
+    """Still the example's price row. Where the example had no Kyrgyz name, the row's own does not make it the owner's:
+    the bulk Kyrgyz fill (joop/kyrgyz.py) writes one into every empty row, the example's fictional prices included,
+    and those prices must stay hidden from customers. A changed name, price or note still makes the row the owner's."""
+    name, price, note = _t(row.name), _t(row.price), _t(row.note)
+    return (name, price, _t(row.name_ky), note) in services or (name, price, "", note) in services
 
 
 def _service_note(item: dict) -> str:
@@ -226,7 +235,7 @@ def _rows(session: Session, business: Business) -> tuple[list[Service], list[Sta
     services, staff, faq = _example(_niche(business))
     return (
         [r for r in session.exec(select(Service).where(Service.business_id == business.id).order_by(Service.sort, Service.id)).all()
-         if (_t(r.name), _t(r.price), _t(r.name_ky), _t(r.note)) in services],
+         if _is_example_service(r, services)],
         [r for r in session.exec(select(Staff).where(Staff.business_id == business.id, Staff.active == True)  # noqa: E712
                                  .order_by(Staff.id)).all()
          if _staff_key(_t(r.name), _t(r.role), _t(r.handles), r.capacity, r.group_size) in staff],
