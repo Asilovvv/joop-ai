@@ -50,6 +50,23 @@ def test_times_are_read_from_a_reply_and_dates_are_not():
     assert record_demo.named_times("Консультация — 500 сом.") == set()
 
 
+def test_a_failed_run_says_what_the_server_logged():
+    log = """INFO:     Uvicorn running on http://127.0.0.1:4321
+ERROR joop.agent.engine: Model call failed for business demo-stomatologiya
+Traceback (most recent call last):
+  File "joop/agent/llm.py", line 290, in respond
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'message': 'Your credit balance is too low to access the Anthropic API.'}}
+joop.agent.llm.LLMError: Claude API call failed: BadRequestError
+INFO:     127.0.0.1:5 - "POST /panel/try HTTP/1.1" 303 See Other
+"""
+    said = record_demo.errors_in(log)
+    assert "Your credit balance is too low" in said and said.endswith("joop.agent.llm.LLMError: Claude API call failed: BadRequestError")
+    assert "Uvicorn" not in said and "303" not in said
+    assert record_demo.errors_in("INFO:     Application startup complete.") == ""
+    assert len(record_demo.errors_in("ValueError: " + "x" * 900)) == 300
+    assert record_demo.errors_in("KeyError: 'a'\nKeyError: 'a'\nKeyError: 'a'") == "KeyError: 'a'"
+
+
 def test_the_server_gets_only_the_models_settings(tmp_path):
     machine = {"PATH": "/usr/bin", "HOME": "/home/x", "ANTHROPIC_API_KEY": "key-for-the-model", "JOOP_MODEL": "",
                "DATABASE_URL": "postgresql://real/base", "FOUNDER_BOT_TOKEN": "1:founder", "FOUNDER_CHAT_ID": "42",

@@ -8,14 +8,14 @@ Diploma project (category: Full-Stack Project) of Bektur Asilov, COMSE-23, Ala-T
 University, 2026; supervisor Erustan Erkebulanov. Individual work: the repository's history, pull
 requests and CI runs document its progress.
 
-| At a glance (3 November 2026) | |
+| At a glance (27 November 2026) | |
 | --- | --- |
-| Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`), Docker + Caddy |
-| Channels | Telegram (a bot, or the owner's personal account through Telegram Business), WhatsApp Cloud API, Instagram Direct, web chat; Altegio for salons that book there; amoCRM / Kommo for deals |
-| Size | about 12,300 lines of Python in `joop/` (without migrations), 52 page templates, 51 database migrations, 35 niche packs and a generic one |
-| Tests | 843 automated tests (about 10,500 lines), run by [GitHub Actions](.github/workflows/tests.yml) on Python 3.11 and 3.12 for every pull request |
-| Evaluation | scripted dialogues in Kyrgyz, Russian and mixed language on the real model ([eval.yml](.github/workflows/eval.yml)); 276 of 277 passed in run 33 |
-| History | 67 merged pull requests; changes go through pull requests checked by CI |
+| Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`) or any OpenAI-compatible model API, Docker + Caddy; the owner's app in Flutter (`mobile/`) |
+| Channels | Telegram (a bot, or the owner's personal account through Telegram Business), WhatsApp Cloud API, Instagram Direct, web chat, a booking page with a QR sign; Altegio for salons that book there; amoCRM / Kommo for deals |
+| Size | about 25,500 lines of Python in `joop/` (without migrations), 75 templates, 69 database migrations, 35 niche packs and a generic one; about 10,600 lines of Dart in the app |
+| Tests | more than 1,200 automated server tests (about 23,400 lines) and more than 90 tests of the app, run by GitHub Actions ([tests.yml](.github/workflows/tests.yml), [mobile.yml](.github/workflows/mobile.yml)) for every pull request |
+| Evaluation | 565 scripted dialogues, 196 of them in Kyrgyz, for the real model ([eval.yml](.github/workflows/eval.yml)). The last full runs, 31 October 2026 on `claude-haiku-5-5`: 276 of 277 passed in run 33 (19 niche packs and the base set), 404 of 406 in run 35 (14 packs, each twice). The 16 packs added since then are not measured yet |
+| History | more than 300 merged pull requests since 28 October 2026; every change goes through a pull request checked by CI, with an independent review every five |
 
 | Public site with the live demo | Owner's panel: when customers write |
 | --- | --- |
@@ -506,7 +506,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 1231 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 1232 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.

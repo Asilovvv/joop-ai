@@ -180,6 +180,13 @@ def named_times(reply: str) -> set[str]:
     return {f"{int(hour):02d}:{minute}" for hour, minute in re.findall(r"\b(\d{1,2}):(\d{2})\b", reply)}
 
 
+def errors_in(log: str, last: int = 3) -> str:
+    """The server's own words about what went wrong: the last lines of its log that name an error (the model
+    provider's answer among them: «Your credit balance is too low», an invalid key), each cut to 300 characters."""
+    lines = [line.strip()[:300] for line in log.splitlines() if re.search(r"Error|error code|credit balance", line)]
+    return "\n".join(dict.fromkeys(lines[-last:]))  # a retry repeats the same line
+
+
 def windows(marks: list[tuple[float, str]], start: float, end: float) -> list[tuple[float, float, str]]:
     """Captions said at these moments, as (from, to, key) in seconds of a clip that runs from `start` to `end`:
     each one stays until the next is said."""
@@ -559,7 +566,11 @@ def record(out: Path, lang: str) -> Path:
         try:
             with sync_playwright() as p:
                 browser = p.chromium.launch()
-                clips, talk = walk(browser, base, folder)
+                try:
+                    clips, talk = walk(browser, base, folder)
+                except Broken as problem:  # the server knows why the model did not answer
+                    said = errors_in((folder / "server.log").read_text(errors="replace"))
+                    raise Broken(f"{problem}\nThe server's log says:\n{said}" if said else str(problem)) from None
                 pages = {key: (strip_html(step, text, "" if real else cards["test_short"]), BAND) for key, (step, text) in words.items()}
                 facts = cards["facts"].format(day=day, model=model)
                 pages["title"] = (card_html(cards["eyebrow"], cards["lead"], facts, mark), FRAME[1])
