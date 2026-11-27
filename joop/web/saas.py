@@ -35,7 +35,7 @@ from ..presets import create_business
 from ..signup import Refused, register
 from .. import page_booking, telegram_setup, try_chat
 from ..pricing import empty_usage
-from ..stats import real_conversation, test_conversations
+from ..stats import not_test, real_conversation, test_conversations
 from ..timeutil import utc_to_local, utcnow
 from .app import _back, _base_url, _business, _check_csrf, _csrf, _flash, _render, _rt, _settings, templates
 
@@ -148,8 +148,9 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
     ).one()
     real = s.exec(
         select(func.count()).select_from(Conversation).where(Conversation.business_id == b.id, real_conversation())
-    ).one() + s.exec(  # a customer who booked on the page, without a chat, is a real one too
-        select(func.count()).select_from(Booking).where(Booking.business_id == b.id, Booking.source == page_booking.SOURCE)
+    ).one() + s.exec(  # a customer who booked on the page, without a chat, is a real one too; the owner's check is not
+        select(func.count()).select_from(Booking).where(Booking.business_id == b.id, Booking.source == page_booking.SOURCE,
+                                                        not_test(Booking, b.id))
     ).one()
     channel = bool(b.telegram_bot_token or (b.wa_phone_number_id and b.wa_access_token) or (b.ig_account_id and b.ig_access_token))
     sub = billing.get_subscription(s, b.id)

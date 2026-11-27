@@ -16,6 +16,7 @@ from fastapi.responses import RedirectResponse, Response
 from sqlmodel import select
 
 from .. import page_booking as pb, samples
+from ..stats import TEST_CHANNEL
 from ..api import book
 from ..confirm import WEEKDAYS_KY
 from ..db import new_session
@@ -112,6 +113,11 @@ def _switch(request: Request, lang: str) -> str:
     return request.url.path + (f"?{urlencode(params)}" if params else "")
 
 
+def _staff_view(request: Request, b: Business) -> bool:
+    """A browser logged in to this business's panel. Read only: a visitor never gets a cookie."""
+    return request.scope.get("session", {}).get("bid") == b.id
+
+
 def _page(request: Request, b: Business, lang: str, step: str, status: int = 200, **context) -> Response:
     from .app import _base_url
 
@@ -120,7 +126,7 @@ def _page(request: Request, b: Business, lang: str, step: str, status: int = 200
     return templates.TemplateResponse(request, "book_public.html", {
         "request": request, "b": b, "lang": lang, "tx": TEXT[lang], "step": step, "resources": people_title(pack, lang),
         "menu_url": f"/m/{b.slug}" + ("?lang=ky" if lang == "ky" else ""), "book_url": book_url("", b, lang),
-        "staff_view": request.scope.get("session", {}).get("bid") == b.id,  # read only: a visitor never gets a cookie
+        "staff_view": _staff_view(request, b),
         "phone": samples.customer_contact(b, "phone"), "address": samples.customer_contact(b, "address"),
         "links": channel_links(b, base, lang), "switch_ru": _switch(request, "ru"), "switch_ky": _switch(request, "ky"),
         **context,
@@ -217,6 +223,9 @@ def book_submit(request: Request, background: BackgroundTasks, slug: str, slot: 
             if done.reason in ("contact", "party"):
                 return _form(request, s, b, lang, the_slot, member, done.reason, 422, values)
             return RedirectResponse(to_list % "taken", status_code=303)
+        if _staff_view(request, b):  # the owner or staff trying their own page: a check, as their web chat is a test chat
+            done.booking.channel = TEST_CHANNEL
+            s.add(done.booking)
         s.commit()
         s.refresh(done.booking)
         _by_address[key] = (today, used + 1)
