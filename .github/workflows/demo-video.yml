@@ -1,0 +1,77 @@
+# Records the demo walk-through as a video on the real model (scripts/record_demo.py), started by hand:
+# Actions -> demo-video -> Run workflow. Needs the repository secret ANTHROPIC_API_KEY; one recording is a handful
+# of model calls (well under a cent on claude-haiku-5-5).
+# The MP4 files and the dialogue as text are kept as an artifact of the run for 30 days. The run fails, and keeps no
+# video, when the model does not answer (an empty balance) or the walk breaks: see the script's header.
+name: demo-video
+
+on:
+  workflow_dispatch:
+    inputs:
+      captions:
+        description: "Captions and cards: en, ru or both (two recordings)"
+        required: false
+        default: "both"
+      model:
+        description: "Model for this recording (empty = JOOP_MODEL default, claude-haiku-5-5)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-video
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt playwright
+      - run: python -m playwright install --with-deps chromium
+      - name: ffmpeg
+        run: command -v ffmpeg ffprobe || (sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg)
+
+      - name: Record
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          JOOP_MODEL: ${{ inputs.model }}
+          CAPTIONS: ${{ inputs.captions }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::Add the repository secret ANTHROPIC_API_KEY (Settings -> Secrets and variables -> Actions)"
+            exit 1
+          fi
+          case "$CAPTIONS" in
+            both) langs="en ru" ;;
+            en|ru) langs="$CAPTIONS" ;;
+            *) echo "::error::captions must be en, ru or both"; exit 1 ;;
+          esac
+          for lang in $langs; do
+            python scripts/record_demo.py demo-video --captions "$lang"
+          done
+          {
+            echo "### Demo video"
+            echo ""
+            echo "Download **joop-demo-video** under Artifacts on this page. The dialogue the model wrote:"
+            echo ""
+            echo '```'
+            cat demo-video/*.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: joop-demo-video
+          path: |
+            demo-video/*.mp4
+            demo-video/*.txt
+          retention-days: 30
+          if-no-files-found: error
