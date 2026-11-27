@@ -315,17 +315,28 @@ class ContactsIn(BaseModel):
     work_start: str = "09:00"
     work_end: str = "18:00"
     days_off: list[int] = []
+    # the panel's «Заказы» card, for niches that take orders: som, 0 = not applied
+    min_order: int = 0
+    delivery_fee: int = 0
+    free_delivery_from: int = 0
+
+
+TERMS_MAX = 10_000_000  # som: a typo of extra zeros is refused rather than held against every order
 
 
 def _contacts(b: Business) -> dict:
-    """`example`: fields still the sign-up example's, which customers are not told (joop/samples.py)."""
+    """`example`: fields still the sign-up example's, which customers are not told (joop/samples.py). `orders`: the
+    panel's «Заказы» card (minimum order, delivery fee, free delivery from) for a niche that takes orders, else null;
+    its `example` says the sums are the example's, not applied to real customers' orders until changed."""
     from .. import samples
 
     example = sorted(f for f in samples.example_contacts(b) if f in ("address", "phone"))
     if samples.hours_are_example(b):
         example.append("hours_text")
+    orders = {"min_order": b.min_order, "delivery_fee": b.delivery_fee, "free_delivery_from": b.free_delivery_from,
+              "example": "order" in samples.example_terms(b)} if get_pack(b.niche).has("order") else None
     return {"address": b.address, "phone": b.phone, "hours_text": b.hours_text, "work_start": b.work_start,
-            "work_end": b.work_end, "days_off": sorted(parse_days_off(b.days_off)), "example": example}
+            "work_end": b.work_end, "days_off": sorted(parse_days_off(b.days_off)), "example": example, "orders": orders}
 
 
 @router.get("/api/mobile/contacts")
@@ -358,6 +369,12 @@ def mobile_contacts_save(request: Request, body: ContactsIn):
         b.work_start, b.work_end = f"{start:%H:%M}", f"{end:%H:%M}"
         if "days_off" in sent:
             b.days_off = ",".join(str(d) for d in range(1, 8) if d in body.days_off)
+        terms = [key for key in ("min_order", "delivery_fee", "free_delivery_from") if key in sent]
+        if terms and get_pack(b.niche).has("order"):  # as the panel: below zero is 0, «не применять»
+            if any(getattr(body, key) > TERMS_MAX for key in terms):
+                return _fail(422, "Слишком большая сумма: проверьте нули.")
+            for key in terms:
+                setattr(b, key, max(0, getattr(body, key)))
         s.add(b)
         s.commit()
         s.refresh(b)

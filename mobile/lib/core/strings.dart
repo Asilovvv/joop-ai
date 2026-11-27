@@ -33,6 +33,12 @@ class S {
     required this.workEnd,
     required this.daysOffLabel,
     required this.fromExample,
+    required this.orderTerms,
+    required this.orderTermsHint,
+    required this.minOrder,
+    required this.deliveryFee,
+    required this.freeDeliveryFrom,
+    required this.orderTermsExample,
     required this.saved,
     required this.fillHere,
     required this.timeFormat,
@@ -370,6 +376,14 @@ class S {
   final String workEnd;
   final String daysOffLabel;
   final String fromExample;
+
+  // the «Заказы» card of «Контакты и часы»: the order terms of a business that takes orders
+  final String orderTerms;
+  final String orderTermsHint;
+  final String minOrder;
+  final String deliveryFee;
+  final String freeDeliveryFrom;
+  final String orderTermsExample;
   final String saved;
   final String fillHere;
   final String timeFormat;
@@ -741,6 +755,12 @@ class S {
     workEnd: 'Конец',
     daysOffLabel: 'Выходные дни',
     fromExample: 'из примера — клиентам не говорится, впишите своё',
+    orderTerms: 'Заказы',
+    orderTermsHint: 'Система проверяет минимальную сумму и добавляет доставку к сумме заказа. 0 — не применять.',
+    minOrder: 'Минимальный заказ, сом',
+    deliveryFee: 'Доставка, сом',
+    freeDeliveryFrom: 'Бесплатная доставка от, сом',
+    orderTermsExample: 'Эти суммы — из примера: к заказам настоящих клиентов они не применяются, пока вы не впишете свои.',
     saved: 'Сохранено.',
     fillHere: 'Заполнить здесь',
     timeFormat: 'Время в виде 09:00',
@@ -1087,6 +1107,12 @@ class S {
     workEnd: 'Аягы', // check with a native speaker
     daysOffLabel: 'Дем алыш күндөр', // check with a native speaker
     fromExample: 'мисалдан — кардарларга айтылбайт, өзүңүздүкүн жазыңыз', // check with a native speaker
+    orderTerms: 'Буйрутмалар', // check with a native speaker
+    orderTermsHint: 'Система минималдуу сумманы текшерип, жеткирүүнү буйрутманын суммасына кошот. 0 — колдонулбайт.', // check with a native speaker
+    minOrder: 'Минималдуу буйрутма, сом', // check with a native speaker
+    deliveryFee: 'Жеткирүү, сом', // check with a native speaker
+    freeDeliveryFrom: 'Акысыз жеткирүү, сомдон баштап', // check with a native speaker
+    orderTermsExample: 'Бул суммалар мисалдан: өзүңүздүкүн жазмайынча чыныгы кардарлардын буйрутмаларына колдонулбайт.', // check with a native speaker
     saved: 'Сакталды.', // check with a native speaker
     fillHere: 'Ушул жерден толтуруу', // check with a native speaker
     timeFormat: 'Убакыт 09:00 түрүндө', // check with a native speaker

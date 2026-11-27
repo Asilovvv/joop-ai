@@ -7,7 +7,7 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | --- | --- |
 | `POST /api/mobile/login` | `{"company", "password", "user"?}` → a token and who signed in (`owner`, `staff` or `master`) |
 | `GET /api/mobile/me` | the business and the person behind the token |
-| `GET /api/mobile/summary` | active bookings today, tomorrow and in 7 days, and the next visit |
+| `GET /api/mobile/summary` | active bookings today, tomorrow and in 7 days, the next visit, and `period`: the line about the end of the trial or paid month (shown above every tab) |
 | `GET /api/mobile/bookings?day=YYYY-MM-DD&days=N` | bookings of `N` days (1–31) from `day`, the business's local date |
 | `POST /api/mobile/bookings/{id}/cancel` | cancels a booking and frees its time, the same code as the panel's button |
 | `GET /api/mobile/orders` | open orders, newest first, then the last 30 closed; each with its next steps |
@@ -37,6 +37,27 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | `POST /api/mobile/conversations/{id}/ai` | `{on, hours?}` → staff take the chat over (the AI quiet for `hours`, 1 h – 30 days, 24 by default) or give it back; the panel's «Выключить ИИ» / «Включить ИИ»; returns the dialogue |
 | `POST /api/mobile/conversations/{id}/reply` | `{text}` → staff reply through the customer's channel, same code as the panel: pauses the AI, closes the open requests; 422 with the reason when the channel no longer allows it (WhatsApp/Instagram 24 h) |
 | `GET /api/mobile/services` | the price list |
+| `GET /api/mobile/jobs?q=` | repair, car service, optics, furniture: the panel's «Заказы в работе» — `open` (accepted, in work, ready) and the last 50 issued or cancelled of 120 days, the niche's field `words`, `statuses`, a free `next_number`; `q` finds by receipt number, phone, item or name; masters 403, other niches 404 |
+| `POST /api/mobile/jobs` | a receipt taken at the counter: `item` and `customer_phone` required (400), `number` (empty: a free one; 409 when used), `customer_name`, `price`, `ready_by` (YYYY-MM-DD), `note`; returns the list and `job` |
+| `POST /api/mobile/jobs/{id}` | `{status, note, price, ready_by}`; becoming «готов» sends the customer the panel's message once, after the change is stored: `customer_told` true / false (staff call) / null (nothing to send) |
+| `POST /api/mobile/jobs/example/delete` | the sign-up example's receipts out; `removed` |
+
+### Sign-up and «Запуск» from the phone
+
+| Method and path | What it does |
+| --- | --- |
+| `GET /api/mobile/niches` | what a business can be, as the site's /signup lists it, and the trial days; 404 while sign-up is closed |
+| `POST /api/mobile/signup` | `{name, niche, phone, password, contact_name}` → the business with its trial (`joop/signup.py`) and a token; a few per address an hour (429) |
+| `GET /api/mobile/setup` | the panel's launch list (`saas.checklist`): `steps` with `done`, plus the Telegram bot, booking by link and the public page (`online`: label, on, url, QR rows) |
+| `POST /api/mobile/setup/telegram` | `{token}` → the bot connected once Telegram accepts the token (`joop/telegram_setup.py`); owner only |
+| `POST /api/mobile/setup/page-booking` | `{on}` → booking by link (turning it on opens the public page too); owner only |
+| `POST /api/mobile/setup/online` | `{on}` → the public page (price list, catalogue, QR menu); off also stops booking by link; owner only |
+| `GET /api/mobile/contacts` | address, phone, hours for customers, working hours, days off, `example` (fields still the sign-up example's); `orders`: the minimum order, delivery fee and free delivery from (som) for a niche that takes orders, with `example`, else null |
+| `POST /api/mobile/contacts` | the same fields; a field not sent keeps its value; 422 when the day ends before it starts or a sum is over 10 000 000; order terms are stored only where orders are taken (below 0 → 0, «не применять»); owner only |
+| `GET`/`POST /api/mobile/try`, `POST /api/mobile/try/reset` | the test chat (`joop/try_chat.py`): the owner writes as a customer; counted nowhere; reset cancels its test bookings |
+| `POST /api/mobile/services`, `/services/{id}`, `/services/{id}/delete`, `/services/example/delete` | add, change (name, price, Kyrgyz name, note) or delete a price row, or the sign-up example's rows at once; masters and Altegio price lists refused |
+| `GET`/`POST /api/mobile/staff`, `/staff/{id}`, `/staff/{id}/delete`, `/staff/example/delete` | the business's people (tables, groups) with the free plan's one-master limit; `example` rows marked |
+| `POST /api/mobile/staff/{id}/windows` | `{days, step, start, end}` → free times for 7–30 days from tomorrow in the working hours, days off skipped, nothing twice; not for the example |
 
 Every call after sign-in sends `Authorization: Bearer <token>`.
 
@@ -46,8 +67,9 @@ Every call after sign-in sends `Authorization: Bearer <token>`.
   the password hash, so a new password, or switching a staff login off, ends it at once.
 - **Rights** follow the panel: a master's login sees and cancels only her own bookings and has no orders or requests
   (403). Settings, channels and payment stay in the panel.
-- **Sections**: `login` and `me` return `sections` (`bookings`, `orders`, `leads`, `cash`, `stays`) and `stay_kind` from the
-  niche, so the app shows the tabs the panel's menu would: a cafe gets orders, a shop has no bookings, a hotel has «Брони».
+- **Sections**: `login` and `me` return `sections` (`bookings`, `orders`, `leads`, `cash`, `stays`, `jobs`) and `stay_kind` from
+  the niche, so the app shows the tabs the panel's menu would: a cafe gets orders, a shop has no bookings, a hotel has
+  «Брони», a repair shop «В работе».
 - Test chats (the panel's and the owner's own test chats in real channels) are left out of bookings, orders, requests and stays.
 
 ## Customers

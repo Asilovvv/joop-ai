@@ -1166,6 +1166,7 @@ class ContactsInfo extends Equatable {
     this.workEnd = '18:00',
     this.daysOff = const {},
     this.example = const {},
+    this.orders,
   });
 
   factory ContactsInfo.fromJson(Map<String, dynamic> json) => ContactsInfo(
@@ -1176,6 +1177,7 @@ class ContactsInfo extends Equatable {
         workEnd: (json['work_end'] as String?) ?? '18:00',
         daysOff: {for (final d in (json['days_off'] as List? ?? const [])) d as int},
         example: {for (final f in (json['example'] as List? ?? const [])) f as String},
+        orders: json['orders'] == null ? null : OrderTerms.fromJson(json['orders'] as Map<String, dynamic>),
       );
 
   final String address;
@@ -1190,6 +1192,9 @@ class ContactsInfo extends Equatable {
   final Set<int> daysOff;
   final Set<String> example;
 
+  /// The panel's «Заказы» card for a business that takes orders; null for others.
+  final OrderTerms? orders;
+
   Map<String, dynamic> toJson() => {
         'address': address,
         'phone': phone,
@@ -1197,10 +1202,37 @@ class ContactsInfo extends Equatable {
         'work_start': workStart,
         'work_end': workEnd,
         'days_off': (daysOff.toList()..sort()),
+        if (orders != null) ...{
+          'min_order': orders!.minOrder,
+          'delivery_fee': orders!.deliveryFee,
+          'free_delivery_from': orders!.freeDeliveryFrom,
+        },
       };
 
   @override
-  List<Object?> get props => [address, phone, hoursText, workStart, workEnd, daysOff, example];
+  List<Object?> get props => [address, phone, hoursText, workStart, workEnd, daysOff, example, orders];
+}
+
+/// What the system holds every order to, in som; 0 = not applied.
+class OrderTerms extends Equatable {
+  const OrderTerms({this.minOrder = 0, this.deliveryFee = 0, this.freeDeliveryFrom = 0, this.example = false});
+
+  factory OrderTerms.fromJson(Map<String, dynamic> json) => OrderTerms(
+        minOrder: (json['min_order'] as int?) ?? 0,
+        deliveryFee: (json['delivery_fee'] as int?) ?? 0,
+        freeDeliveryFrom: (json['free_delivery_from'] as int?) ?? 0,
+        example: (json['example'] as bool?) ?? false,
+      );
+
+  final int minOrder;
+  final int deliveryFee;
+  final int freeDeliveryFrom;
+
+  /// Still the sign-up example's sums: not applied to real customers' orders until changed.
+  final bool example;
+
+  @override
+  List<Object?> get props => [minOrder, deliveryFee, freeDeliveryFrom, example];
 }
 
 

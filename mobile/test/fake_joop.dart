@@ -8,7 +8,9 @@ import 'package:joop_mobile/data/joop_repository.dart';
 
 /// A tiny stand-in for the Joop server's /api/mobile, enough for the app's tests.
 class FakeJoop {
-  FakeJoop({this.cafe = false, this.hotel = false, this.repair = false});
+  FakeJoop({this.cafe = false, this.hotel = false, this.repair = false}) {
+    if (cafe) contacts['orders'] = {'min_order': 500, 'delivery_fee': 150, 'free_delivery_from': 3000, 'example': true};
+  }
 
   /// A repair shop: receipts in work («В работе»), requests, no cash.
   final bool repair;
@@ -399,7 +401,12 @@ class FakeJoop {
       if ((body['work_end'] as String).compareTo(body['work_start'] as String) <= 0) {
         return json({'error': 'Конец рабочего дня должен быть позже начала.'}, 422);
       }
-      contacts = {...body, 'example': body['hours_text'] == 'Пн–Пт 9:00–18:00' ? ['hours_text'] : []};
+      const terms = ['min_order', 'delivery_fee', 'free_delivery_from'];
+      contacts = {
+        for (final e in body.entries) if (!terms.contains(e.key)) e.key: e.value,
+        'example': body['hours_text'] == 'Пн–Пт 9:00–18:00' ? ['hours_text'] : [],
+        'orders': contacts['orders'] == null ? null : {for (final t in terms) t: body[t], 'example': false},
+      };
       return json(contacts);
     }
     if (path == '/api/mobile/try' && request.method == 'GET') return json({'messages': tryChat});
