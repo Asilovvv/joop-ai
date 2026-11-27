@@ -96,7 +96,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        content: Text(S.current.peopleExampleConfirm),
+        content: Text(_info!.stayKind.isEmpty ? S.current.peopleExampleConfirm : S.current.roomsExampleConfirm),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: Text(S.current.cancel)),
           FilledButton(
@@ -149,7 +149,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(s.peopleExampleBanner),
+                        Text(info.stayKind.isEmpty ? s.peopleExampleBanner : s.roomsExampleBanner),
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
@@ -172,6 +172,7 @@ class _PeopleScreenState extends State<PeopleScreen> {
                       subtitle: Text([
                         if (p.role.isNotEmpty) p.role,
                         if (p.handles.isNotEmpty) p.handles,
+                        if (info.units) s.roomUnitsCount(info.stayKind, p.groupSize),
                         if (info.capacity && p.capacity > 0) s.personSeats(p.capacity),
                         if (info.group && p.groupSize > 1) s.personGroupUpTo(p.groupSize),
                         if (info.booking && !p.example) s.freeAhead(p.free),
@@ -221,7 +222,8 @@ class _PersonSheetState extends State<_PersonSheet> {
   late final _role = TextEditingController(text: widget.person?.role ?? '');
   late final _handles = TextEditingController(text: widget.person?.handles ?? '');
   late final _capacity = TextEditingController(text: '${widget.person?.capacity ?? 0}');
-  late final _group = TextEditingController(text: '${widget.person?.groupSize ?? 0}');
+  late final _group = TextEditingController(
+      text: '${widget.info.units ? (widget.person?.groupSize ?? 1).clamp(1, 500) : widget.person?.groupSize ?? 0}');
   bool _empty = false;
 
   @override
@@ -250,6 +252,7 @@ class _PersonSheetState extends State<_PersonSheet> {
   @override
   Widget build(BuildContext context) {
     final s = S.current;
+    final room = widget.info.stayKind.isNotEmpty;
     InputDecoration field(String label, {String? error}) =>
         InputDecoration(labelText: label, errorText: error, border: const OutlineInputBorder());
     return Padding(
@@ -262,19 +265,29 @@ class _PersonSheetState extends State<_PersonSheet> {
               key: const Key('person-name'),
               controller: _name,
               textCapitalization: TextCapitalization.words,
-              decoration: field(s.personName, error: _empty ? s.serviceNameEmpty : null)),
+              decoration: field(room ? s.roomName : s.personName, error: _empty ? s.serviceNameEmpty : null)),
           const SizedBox(height: 12),
-          TextField(key: const Key('person-role'), controller: _role, decoration: field(s.personRole)),
-          const SizedBox(height: 12),
-          TextField(
-              key: const Key('person-handles'), controller: _handles, maxLines: 2, decoration: field(s.personHandles)),
+          TextField(key: const Key('person-role'), controller: _role, decoration: field(room ? s.roomRole : s.personRole)),
+          if (!room) ...[ // a room, a car or a hall is not picked by what it «handles»: the field keeps its value
+            const SizedBox(height: 12),
+            TextField(
+                key: const Key('person-handles'), controller: _handles, maxLines: 2, decoration: field(s.personHandles)),
+          ],
+          if (widget.info.units) ...[
+            const SizedBox(height: 12),
+            TextField(
+                key: const Key('person-units'),
+                controller: _group,
+                keyboardType: TextInputType.number,
+                decoration: field(s.roomUnits(widget.info.stayKind))),
+          ],
           if (widget.info.capacity) ...[
             const SizedBox(height: 12),
             TextField(
                 key: const Key('person-capacity'),
                 controller: _capacity,
                 keyboardType: TextInputType.number,
-                decoration: field(s.personCapacity)),
+                decoration: field(room ? s.roomGuests(widget.info.stayKind) : s.personCapacity)),
           ],
           if (widget.info.group) ...[
             const SizedBox(height: 12),
@@ -293,7 +306,8 @@ class _PersonSheetState extends State<_PersonSheet> {
               style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
               child: Text(s.personDelete),
             ),
-            Text(s.personDeleteNote, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
+            Text(room ? s.roomDeleteNote : s.personDeleteNote,
+                textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodySmall),
           ],
         ]),
       ),

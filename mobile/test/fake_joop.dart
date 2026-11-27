@@ -10,6 +10,16 @@ import 'package:joop_mobile/data/joop_repository.dart';
 class FakeJoop {
   FakeJoop({this.cafe = false, this.hotel = false, this.repair = false}) {
     if (cafe) contacts['orders'] = {'min_order': 500, 'delivery_fee': 150, 'free_delivery_from': 3000, 'example': true};
+    if (hotel) {
+      people
+        ..clear()
+        ..addAll([
+          {'id': 1, 'name': 'Стандартный номер', 'role': 'номер на двоих', 'handles': '', 'capacity': 2, 'group_size': 6,
+            'example': true, 'free': 0},
+          {'id': 2, 'name': 'Коттедж', 'role': 'до 6 гостей', 'handles': '', 'capacity': 6, 'group_size': 1,
+            'example': true, 'free': 0},
+        ]);
+    }
   }
 
   /// A repair shop: receipts in work («В работе»), requests, no cash.
@@ -99,9 +109,11 @@ class FakeJoop {
   ];
   String? refusePeople;
 
-  Map<String, dynamic> peopleJson() =>
-      {'label': 'Врачи', 'item': 'врач', 'capacity': false, 'group': false, 'booking': true,
-        'work_start': '10:00', 'work_end': '18:00', 'staff': people};
+  Map<String, dynamic> peopleJson() => hotel
+      ? {'label': 'Номера', 'item': 'номер', 'capacity': true, 'group': false, 'booking': false, 'units': true,
+          'stay_kind': 'room', 'work_start': '08:00', 'work_end': '22:00', 'staff': people}
+      : {'label': 'Врачи', 'item': 'врач', 'capacity': false, 'group': false, 'booking': true,
+          'work_start': '10:00', 'work_end': '18:00', 'staff': people};
 
   /// Bodies of POST /api/mobile/staff/{id}/windows.
   final windowsCalls = <Map>[];
@@ -118,7 +130,7 @@ class FakeJoop {
           {'key': 'telegram', 'done': botConnected, 'title': 'Telegram-бот', 'hint': 'Клиенты пишут боту.', 'panel': 'https://joop.test/panel/channels'},
           {'key': 'try', 'done': tryChat.isNotEmpty, 'title': 'Проверьте ИИ', 'hint': 'Напишите как клиент.', 'panel': 'https://joop.test/panel/try'},
           {'key': 'contacts', 'done': contacts['example'].isEmpty && contacts['address'] != '', 'title': 'Контакты и часы работы', 'hint': 'Осталось указать: адрес.', 'panel': 'https://joop.test/panel/settings'},
-          {'key': 'staff', 'done': people.isNotEmpty && people.every((p) => p['example'] != true), 'title': 'Врачи: ${people.length}', 'hint': 'Впишите своих.', 'panel': 'https://joop.test/panel/staff'},
+          {'key': hotel ? 'rooms' : 'staff', 'done': people.isNotEmpty && people.every((p) => p['example'] != true), 'title': '${hotel ? 'Номера' : 'Врачи'}: ${people.length}', 'hint': 'Впишите своих.', 'panel': 'https://joop.test/panel/staff'},
           {'key': 'hours', 'done': false, 'title': 'Часы работы', 'hint': 'Когда вы открыты.', 'panel': 'https://joop.test/panel/settings'},
         ],
         'telegram': {'connected': botConnected, 'username': botConnected ? 'aktish_bot' : ''},
@@ -269,6 +281,7 @@ class FakeJoop {
             'role': 'owner',
             'sections': {'bookings': false, 'orders': false, 'leads': true, 'cash': false, 'stays': true},
             'stay_kind': 'room',
+            'people_label': 'Номера',
           }
         : cafe
         ? {

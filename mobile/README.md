@@ -34,7 +34,8 @@ every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
   it) and back; sold-out items return through the panel's «Склад», Altegio price lists are switched in Altegio.
 
 «Запуск» in the menu takes a new business through the panel's launch list from the phone: contacts and hours (and,
-where orders are taken, the minimum order, delivery fee and free delivery from), prices, people and free times, the
+where orders are taken, the minimum order, delivery fee and free delivery from), prices, people and free times (or a
+hotel's rooms, a rental's cars, a banquet's halls), the
 test chat, the Telegram bot, booking by link and the public page with its QR.
 
 The tabs follow the niche, as the panel's menu does: a clinic has no «Заказы», a shop has no «Сегодня» and «Записи».

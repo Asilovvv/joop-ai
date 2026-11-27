@@ -96,5 +96,5 @@ def test_another_business_a_master_altegio_and_rooms_are_refused(client, busines
         b.altegio_location_id, b.niche = 0, "hotel"
         s.add(b)
         s.commit()
-    r = client.post("/api/mobile/staff", headers=h, json={"name": "Люкс"})
-    assert r.status_code == 409 and "в панели" in r.json()["error"]
+    r = client.post("/api/mobile/staff", headers=h, json={"name": "Люкс"})  # rooms too, since #315
+    assert r.status_code == 200 and [(x["name"], x["group_size"]) for x in r.json()["staff"] if x["name"] == "Люкс"] == [("Люкс", 1)]

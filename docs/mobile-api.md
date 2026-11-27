@@ -56,7 +56,7 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | `POST /api/mobile/contacts` | the same fields; a field not sent keeps its value; 422 when the day ends before it starts or a sum is over 10 000 000; order terms are stored only where orders are taken (below 0 → 0, «не применять»); owner only |
 | `GET`/`POST /api/mobile/try`, `POST /api/mobile/try/reset` | the test chat (`joop/try_chat.py`): the owner writes as a customer; counted nowhere; reset cancels its test bookings |
 | `POST /api/mobile/services`, `/services/{id}`, `/services/{id}/delete`, `/services/example/delete` | add, change (name, price, Kyrgyz name, note) or delete a price row, or the sign-up example's rows at once; masters and Altegio price lists refused |
-| `GET`/`POST /api/mobile/staff`, `/staff/{id}`, `/staff/{id}/delete`, `/staff/example/delete` | the business's people (tables, groups) with the free plan's one-master limit; `example` rows marked |
+| `GET`/`POST /api/mobile/staff`, `/staff/{id}`, `/staff/{id}/delete`, `/staff/example/delete` | the business's people (tables, groups), or a hotel's room types, a rental's car models, a banquet's halls (`stay_kind`; `units`: how many such rooms or cars, `group_size` from 1; a hall is one), with the free plan's one-master limit; `example` rows marked |
 | `POST /api/mobile/staff/{id}/windows` | `{days, step, start, end}` → free times for 7–30 days from tomorrow in the working hours, days off skipped, nothing twice; not for the example |
 
 Every call after sign-in sends `Authorization: Bearer <token>`.

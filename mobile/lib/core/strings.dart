@@ -51,6 +51,14 @@ class S {
     required this.personGroup,
     required this.personDelete,
     required this.personDeleteNote,
+    required this.roomsExampleBanner,
+    required this.roomsExampleConfirm,
+    required this.roomName,
+    required this.roomRole,
+    required this.roomDeleteNote,
+    required this.roomUnits,
+    required this.roomGuests,
+    required this.roomUnitsCount,
     required this.peopleEmpty,
     required this.newPerson,
     required this.peopleExampleDeleted,
@@ -396,6 +404,16 @@ class S {
   final String personGroup;
   final String personDelete;
   final String personDeleteNote;
+
+  // rooms, cars and halls on the same screen
+  final String roomsExampleBanner;
+  final String roomsExampleConfirm;
+  final String roomName;
+  final String roomRole;
+  final String roomDeleteNote;
+  final String Function(String kind) roomUnits;
+  final String Function(String kind) roomGuests;
+  final String Function(String kind, int n) roomUnitsCount;
   final String peopleEmpty;
   final String newPerson;
   final String Function(int n) peopleExampleDeleted;
@@ -773,6 +791,14 @@ class S {
     personGroup: 'Мест в группе (0 — индивидуально)',
     personDelete: 'Убрать',
     personDeleteNote: 'Записи к нему останутся, свободные окна удалятся.',
+    roomsExampleBanner: 'Это пример из вашей сферы: настоящим клиентам ИИ его не предлагает и не бронирует. Нажмите на строку, чтобы вписать своё, или удалите пример целиком.',
+    roomsExampleConfirm: 'Удалить весь пример? Ваши строки и брони останутся.',
+    roomName: 'Название',
+    roomRole: 'Коротко для клиентов (например, «номер на двоих»)',
+    roomDeleteNote: 'Брони останутся, новых ИИ на это не примет.',
+    roomUnits: _ruRoomUnits,
+    roomGuests: _ruRoomGuests,
+    roomUnitsCount: _ruRoomUnitsCount,
     peopleEmpty: 'Пока никого нет — добавьте кнопкой «Добавить».',
     newPerson: 'Добавить',
     peopleExampleDeleted: _ruPeopleExampleDeleted,
@@ -1125,6 +1151,14 @@ class S {
     personGroup: 'Топтогу орун (0 — жекече)', // check with a native speaker
     personDelete: 'Алып салуу', // check with a native speaker
     personDeleteNote: 'Ага жазылуулар калат, бош убактылар өчөт.', // check with a native speaker
+    roomsExampleBanner: 'Бул сиздин тармактан мисал: ИИ аны чыныгы кардарларга сунуштабайт жана брондобойт. Өзүңүздүкүн жазуу үчүн сапты басыңыз же мисалды толук өчүрүңүз.', // check with a native speaker
+    roomsExampleConfirm: 'Мисалды толук өчүрөсүзбү? Өзүңүздүн саптарыңыз жана брондоолор калат.', // check with a native speaker
+    roomName: 'Аталышы', // check with a native speaker
+    roomRole: 'Кардарлар үчүн кыскача (мисалы, «эки кишилик бөлмө»)', // check with a native speaker
+    roomDeleteNote: 'Брондоолор калат, ИИ буга жаңысын кабыл албайт.', // check with a native speaker
+    roomUnits: _kyRoomUnits,
+    roomGuests: _kyRoomGuests,
+    roomUnitsCount: _kyRoomUnitsCount,
     peopleEmpty: 'Азырынча эч ким жок — «Кошуу» баскычы менен кошуңуз.', // check with a native speaker
     newPerson: 'Кошуу', // check with a native speaker
     peopleExampleDeleted: _kyPeopleExampleDeleted,
@@ -1659,3 +1693,11 @@ String _kyJobReadyCall(String number, String phone) =>
     '№$number буйрутма даяр. Кардарга жазуу мүмкүн болгон жок: аны менен чат жок же WhatsApp аркылуу бир суткадан ашык жазышкан жок. Чалыңыз: $phone';
 String _ruJobSaved(String number, String status) => 'Заказ №$number: $status.';
 String _kyJobSaved(String number, String status) => '№$number буйрутма: $status.';
+
+// Rooms, cars and halls. The Kyrgyz texts: check with a native speaker.
+String _ruRoomUnits(String kind) => kind == 'car' ? 'Машин этой модели' : 'Номеров этого типа';
+String _kyRoomUnits(String kind) => kind == 'car' ? 'Ушул моделдеги машиналардын саны' : 'Ушундай бөлмөлөрдүн саны';
+String _ruRoomGuests(String kind) => kind == 'hall' ? 'Гостей в зале' : 'Гостей в номере';
+String _kyRoomGuests(String kind) => kind == 'hall' ? 'Залдагы конок саны' : 'Бөлмөдөгү конок саны';
+String _ruRoomUnitsCount(String kind, int n) => kind == 'car' ? 'машин: $n' : 'номеров: $n';
+String _kyRoomUnitsCount(String kind, int n) => kind == 'car' ? 'машина: $n' : 'бөлмө: $n';
