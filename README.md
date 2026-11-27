@@ -506,7 +506,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 1220 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 1229 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
@@ -566,6 +566,23 @@ meaning, 5 = no errors); naturalness 1–5 (5 = a real administrator would say i
 wording; a comment. `score` reports the mean grades, the share of 4–5, and how often the automatic check
 agrees with the reviewer, listing the cases where it passed a reply the reviewer says is not Kyrgyz.
 How the parts fit together: [docs/architecture.md](docs/architecture.md).
+
+## Demo video
+
+`scripts/record_demo.py` records the demo walk-through as one MP4 with captions (English or Russian): a clinic
+signs up, the owner asks the AI in Kyrgyz and Russian in the test chat and books a visit, a customer books from a
+phone on the booking page, the owner sees both bookings. It starts a server of its own with an empty database and
+drives a real browser; every answer in the video is the model's own.
+
+```bash
+pip install playwright && playwright install chromium     # ffmpeg is needed too
+python scripts/record_demo.py out/demo --captions en      # needs ANTHROPIC_API_KEY
+```
+
+On GitHub: Actions → demo-video → Run workflow; the MP4 files and the dialogue as text are an artifact of the run.
+The run fails and keeps no video when the model does not answer, names another price, names a time that is not in
+the schedule or does not make the booking. A run against a stand-in model (the recorder's own test) is marked
+«TEST RUN» on every frame and in the file's name.
 
 ## Known limitations
 
