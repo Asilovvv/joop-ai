@@ -1281,7 +1281,8 @@ class Person extends Equatable {
 /// The people screen: its title and item word by niche, which numbers it asks for, and the list.
 class PeopleInfo extends Equatable {
   const PeopleInfo({required this.label, required this.item, required this.people, this.capacity = false,
-      this.group = false, this.booking = false, this.workStart = '09:00', this.workEnd = '18:00'});
+      this.group = false, this.booking = false, this.workStart = '09:00', this.workEnd = '18:00', this.units = false,
+      this.stayKind = ''});
 
   factory PeopleInfo.fromJson(Map<String, dynamic> json) => PeopleInfo(
         label: json['label'] as String,
@@ -1291,6 +1292,8 @@ class PeopleInfo extends Equatable {
         booking: (json['booking'] as bool?) ?? false,
         workStart: (json['work_start'] as String?) ?? '09:00',
         workEnd: (json['work_end'] as String?) ?? '18:00',
+        units: (json['units'] as bool?) ?? false,
+        stayKind: (json['stay_kind'] as String?) ?? '',
         people: [for (final p in (json['staff'] as List? ?? const [])) Person.fromJson(p as Map<String, dynamic>)],
       );
 
@@ -1307,8 +1310,14 @@ class PeopleInfo extends Equatable {
   final String workEnd;
   final List<Person> people;
 
+  /// Rooms of a type or cars of a model: how many there are is asked (`Person.groupSize`, from 1).
+  final bool units;
+
+  /// room | car | hall for a hotel, a car rental or a banquet hall; '' for people.
+  final String stayKind;
+
   @override
-  List<Object?> get props => [label, item, capacity, group, booking, workStart, workEnd, people];
+  List<Object?> get props => [label, item, capacity, group, booking, workStart, workEnd, units, stayKind, people];
 }
 
 /// A receipt: what was left for work (or is made to order), for whom, and its status.

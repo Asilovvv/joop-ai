@@ -181,7 +181,7 @@ class _SetupScreenState extends State<SetupScreen> {
                   },
                 ),
               )
-            else if (step.key == 'staff' && _editsPeople)
+            else if ((step.key == 'staff' || step.key == 'rooms') && _editsPeople)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: OutlinedButton.icon(

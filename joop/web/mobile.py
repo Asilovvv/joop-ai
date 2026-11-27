@@ -81,7 +81,7 @@ class Who:
                              "jobs": pack.offers("jobs") and not master},  # «Заказы в работе»: receipts at the counter
                 "stay_kind": _stay_kind(pack) if pack.has("stay") else None,
                 # the app's people screen (/api/mobile/staff): its title, "" where the app does not edit them
-                "people_label": "" if master or pack.has("stay") or b.altegio_location_id else pack.resource_label}
+                "people_label": "" if master or b.altegio_location_id else pack.resource_label}
 
 
 def _stay_kind(pack) -> str:
@@ -1096,7 +1096,9 @@ class StaffIn(BaseModel):
 
 
 def _people(s: Session, b: Business) -> dict:
-    """`capacity`: seats of a table or a hall (party-size niches); `group`: places in a group class."""
+    """`capacity`: seats of a table or a hall, guests of a room (party-size niches); `group`: places in a group class;
+    `units`: how many rooms of the type or cars of the model (`group_size`, from 1; joop/stays.py), `stay_kind` room,
+    car or hall for a hotel, a car rental or a banquet hall, else ""."""
     pack = get_pack(b.niche)
     example = example_staff_ids(s, b)
     rows = s.exec(select(Staff).where(Staff.business_id == b.id, Staff.active == True).order_by(Staff.id)).all()  # noqa: E712
@@ -1105,23 +1107,31 @@ def _people(s: Session, b: Business) -> dict:
                                                                  Slot.start > now_local).group_by(Slot.staff_id)).all())
     return {"label": pack.resource_label, "item": pack.resource_item, "capacity": pack.party_size,
             "group": pack.offers("group_classes"), "booking": pack.has("booking"),
+            "units": pack.has("stay") and not pack.by_day, "stay_kind": _stay_kind(pack) if pack.has("stay") else "",
             "work_start": b.work_start, "work_end": b.work_end,
             "staff": [{"id": x.id, "name": x.name, "role": x.role, "handles": x.handles, "capacity": x.capacity,
                        "group_size": x.group_size, "example": x.id in example, "free": free.get(x.id, 0)} for x in rows]}
 
 
 def _people_editor(s: Session, request: Request) -> tuple[Who | None, JSONResponse | None]:
-    """Owner and administrators, as in the panel. Not a master; not a salon whose people come from Altegio; not
-    rooms, halls or cars (their counts mean nights and cars, and are set in the panel)."""
+    """Owner and administrators, as in the panel. Not a master; not a salon whose people come from Altegio. Rooms,
+    halls and cars are edited the same way: the panel's «Номера» / «Залы» / «Машины» is the same page."""
     who, denied = _staff_only(s, request)
     if denied:
         return None, denied
     b = who.business
     if b.altegio_location_id:
         return None, _fail(409, "Сотрудники берутся из Altegio: меняйте их там, Joop подхватит изменения сам.")
-    if get_pack(b.niche).has("stay"):
-        return None, _fail(409, f"Номера, залы и машины меняются в панели, раздел «{get_pack(b.niche).resource_label}».")
     return who, None
+
+
+def _group_size(b: Business, sent: int) -> int:
+    """As the panel's field: rooms of the type or cars of the model from 1 (a stay needs one to be booked); a hall is
+    one, its field not shown; a group class 0 (one booking a time) to 500."""
+    pack = get_pack(b.niche)
+    if pack.has("stay"):
+        return 0 if pack.by_day else max(1, min(sent, 500))
+    return max(0, min(sent, 500))
 
 
 def _own_person(s: Session, b: Business, item_id: int) -> Staff | None:
@@ -1149,7 +1159,7 @@ def mobile_staff_add(request: Request, body: StaffIn):
             return _fail(409, free_plan.TOO_MANY)  # the free plan is for one master
         s.add(Staff(business_id=b.id, name=body.name.strip()[:120], role=body.role.strip()[:120],
                     handles=body.handles.strip()[:500], capacity=max(0, min(body.capacity, 500)),
-                    group_size=max(0, min(body.group_size, 500))))
+                    group_size=_group_size(b, body.group_size)))
         s.commit()
         return _people(s, b)
 
@@ -1184,7 +1194,7 @@ def mobile_staff_update(request: Request, item_id: int, body: StaffIn):
         before = len(free_plan.active_staff(s, b.id))
         row.name, row.role, row.handles = body.name.strip()[:120], body.role.strip()[:120], body.handles.strip()[:500]
         row.capacity = max(0, min(body.capacity, 500))
-        group_size = max(0, min(body.group_size, 500))
+        group_size = _group_size(b, body.group_size)
         if group_size != row.group_size:
             row.group_size = group_size
             resize_group(s, row.id, group_size, local_now(b.timezone).replace(tzinfo=None))
