@@ -275,3 +275,4 @@ form.row.chat-input > span:empty { display: none; }
   .item:has(.actions form) { flex-wrap: wrap; }
   .item:has(.actions form) .actions { width: 100%; justify-content: flex-start; align-items: center; }
 }
+.calls { margin: 8px 0 12px; padding-left: 22px; display: grid; gap: 10px; }
