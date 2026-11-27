@@ -207,7 +207,7 @@ def _cafe_with_order_and_request():
 def test_a_cafe_owner_moves_orders_and_closes_requests(client, business, rt):
     order_id = _cafe_with_order_and_request()
     r = sign_in(client, company="navat", password="cafe-pass-1").json()
-    assert r["sections"] == {"bookings": True, "orders": True, "leads": True, "cash": True, "stays": False}
+    assert r["sections"] == {"bookings": True, "orders": True, "leads": True, "cash": True, "stays": False, "jobs": False}
     token = r["token"]
 
     orders = client.get("/api/mobile/orders", headers=auth(token)).json()["orders"]
@@ -239,7 +239,8 @@ def test_orders_and_requests_are_not_a_masters_or_another_business(client, busin
                         staff_id=member.id))
         s.commit()
     master = sign_in(client, user="aigerim", password="staff-pass-1").json()
-    assert master["sections"] == {"bookings": True, "orders": False, "leads": False, "cash": True, "stays": False}
+    assert master["sections"] == {"bookings": True, "orders": False, "leads": False, "cash": True, "stays": False,
+                                  "jobs": False}
     assert client.get("/api/mobile/leads", headers=auth(master["token"])).status_code == 403
     assert client.get("/api/mobile/orders", headers=auth(master["token"])).status_code == 403
 

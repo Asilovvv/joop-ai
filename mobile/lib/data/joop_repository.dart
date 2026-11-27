@@ -127,6 +127,30 @@ class JoopRepository {
     return ((data['removed'] as int?) ?? 0, PeopleInfo.fromJson(data));
   }
 
+  /// Receipts in work; `query` finds by number, phone, item or name.
+  Future<JobsInfo> jobs({String query = ''}) async => JobsInfo.fromJson(
+      await _api.get('/api/mobile/jobs', query: query.isEmpty ? null : {'q': query}) as Map<String, dynamic>);
+
+  /// A receipt taken at the counter (its number given by the server when left empty), and the list after.
+  Future<(Job, JobsInfo)> addJob(Job job) async {
+    final data = await _api.post('/api/mobile/jobs', job.toJson()) as Map<String, dynamic>;
+    return (Job.fromJson(data['job'] as Map<String, dynamic>), JobsInfo.fromJson(data));
+  }
+
+  /// A status, note, price or date changed; whether the customer was told it is ready (null: nothing to tell).
+  Future<(bool?, JobsInfo)> changeJob(int id,
+      {required String status, String note = '', String price = '', String readyBy = '', String query = ''}) async {
+    final path = query.isEmpty ? '/api/mobile/jobs/$id' : '/api/mobile/jobs/$id?q=${Uri.encodeQueryComponent(query)}';
+    final data = await _api.post(path, {'status': status, 'note': note, 'price': price, 'ready_by': readyBy})
+        as Map<String, dynamic>;
+    return (data['customer_told'] as bool?, JobsInfo.fromJson(data));
+  }
+
+  Future<(int, JobsInfo)> deleteJobsExample() async {
+    final data = await _api.post('/api/mobile/jobs/example/delete') as Map<String, dynamic>;
+    return ((data['removed'] as int?) ?? 0, JobsInfo.fromJson(data));
+  }
+
   /// The public page on or off (a cafe's QR menu, a price page); off also stops booking by link, which lives on it.
   Future<SetupInfo> setOnline(bool on) async =>
       SetupInfo.fromJson(await _api.post('/api/mobile/setup/online', {'on': on}) as Map<String, dynamic>);

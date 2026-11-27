@@ -15,6 +15,7 @@ class Account extends Equatable {
     this.leads = true,
     this.cash = false,
     this.stays = false,
+    this.jobs = false,
     this.stayKind = 'room',
     this.peopleLabel = '',
   });
@@ -28,6 +29,7 @@ class Account extends Equatable {
       leads: (sections['leads'] as bool?) ?? true,
       cash: (sections['cash'] as bool?) ?? false,
       stays: (sections['stays'] as bool?) ?? false,
+      jobs: (sections['jobs'] as bool?) ?? false,
       stayKind: (json['stay_kind'] as String?) ?? 'room',
       peopleLabel: (json['people_label'] as String?) ?? '',
       businessName: business['name'] as String,
@@ -60,13 +62,17 @@ class Account extends Equatable {
   /// room | car | hall
   final String stayKind;
 
+  /// Items left for work and their receipts (the panel's «Заказы в работе»): a repair shop, an optician.
+  final bool jobs;
+
   /// The people screen's title («Специалисты», «Столы»); empty where this login does not edit them.
   final String peopleLabel;
 
   bool get isOwner => role == 'owner';
 
   @override
-  List<Object?> get props => [businessName, slug, niche, who, role, bookings, orders, leads, cash, stays, stayKind, peopleLabel];
+  List<Object?> get props =>
+      [businessName, slug, niche, who, role, bookings, orders, leads, cash, stays, jobs, stayKind, peopleLabel];
 }
 
 class Booking extends Equatable {
@@ -1271,4 +1277,115 @@ class PeopleInfo extends Equatable {
 
   @override
   List<Object?> get props => [label, item, capacity, group, booking, workStart, workEnd, people];
+}
+
+/// A receipt: what was left for work (or is made to order), for whom, and its status.
+class Job extends Equatable {
+  const Job({
+    required this.id,
+    required this.number,
+    required this.item,
+    required this.status,
+    this.customerName = '',
+    this.customerPhone = '',
+    this.price = '',
+    this.readyBy = '',
+    this.note = '',
+    this.readyNotified = false,
+    this.example = false,
+  });
+
+  factory Job.fromJson(Map<String, dynamic> json) => Job(
+        id: json['id'] as int,
+        number: json['number'] as String,
+        item: json['item'] as String,
+        status: json['status'] as String,
+        customerName: (json['customer_name'] as String?) ?? '',
+        customerPhone: (json['customer_phone'] as String?) ?? '',
+        price: (json['price'] as String?) ?? '',
+        readyBy: (json['ready_by'] as String?) ?? '',
+        note: (json['note'] as String?) ?? '',
+        readyNotified: (json['ready_notified'] as bool?) ?? false,
+        example: (json['example'] as bool?) ?? false,
+      );
+
+  final int id;
+  final String number;
+  final String item;
+
+  /// accepted | in_progress | ready | issued | cancelled
+  final String status;
+  final String customerName;
+  final String customerPhone;
+  final String price;
+
+  /// YYYY-MM-DD, or empty.
+  final String readyBy;
+
+  /// Shown to the customer, e.g. «ждём запчасть».
+  final String note;
+
+  /// The customer got the «готов» message.
+  final bool readyNotified;
+
+  /// A receipt of the sign-up example: the test chat knows it, real customers do not.
+  final bool example;
+
+  Map<String, dynamic> toJson() => {
+        'number': number,
+        'item': item,
+        'customer_name': customerName,
+        'customer_phone': customerPhone,
+        'price': price,
+        'ready_by': readyBy,
+        'note': note,
+      };
+
+  @override
+  List<Object?> get props => [id, number, item, status, customerName, customerPhone, price, readyBy, note, readyNotified, example];
+}
+
+/// The «Заказы в работе» list as /api/mobile/jobs returns it, with the niche's own field words.
+class JobsInfo extends Equatable {
+  const JobsInfo({
+    required this.open,
+    required this.done,
+    this.delivered = false,
+    this.nextNumber = '',
+    this.itemLabel = '',
+    this.itemHint = '',
+    this.priceHint = '',
+    this.noteHint = '',
+  });
+
+  factory JobsInfo.fromJson(Map<String, dynamic> json) {
+    final words = (json['words'] as Map?) ?? const {};
+    return JobsInfo(
+      delivered: (json['delivered'] as bool?) ?? false,
+      nextNumber: (json['next_number'] as String?) ?? '',
+      itemLabel: (words['item_label'] as String?) ?? '',
+      itemHint: (words['item_placeholder'] as String?) ?? '',
+      priceHint: (words['price_placeholder'] as String?) ?? '',
+      noteHint: (words['note_placeholder'] as String?) ?? '',
+      open: [for (final j in (json['open'] as List? ?? const [])) Job.fromJson(j as Map<String, dynamic>)],
+      done: [for (final j in (json['done'] as List? ?? const [])) Job.fromJson(j as Map<String, dynamic>)],
+    );
+  }
+
+  /// Made to order and delivered (furniture): «готов» means the delivery day is agreed, not «можно забирать».
+  final bool delivered;
+
+  /// A free receipt number to offer for a new job.
+  final String nextNumber;
+  final String itemLabel;
+  final String itemHint;
+  final String priceHint;
+  final String noteHint;
+
+  /// Accepted, in work and ready; then issued and cancelled ones.
+  final List<Job> open;
+  final List<Job> done;
+
+  @override
+  List<Object?> get props => [delivered, nextNumber, itemLabel, itemHint, priceHint, noteHint, open, done];
 }
