@@ -127,6 +127,21 @@ class JoopRepository {
     return ((data['removed'] as int?) ?? 0, PeopleInfo.fromJson(data));
   }
 
+  /// Staff logins (owner only).
+  Future<LoginsInfo> logins() async =>
+      LoginsInfo.fromJson(await _api.get('/api/mobile/accounts') as Map<String, dynamic>);
+
+  /// A new login with the panel's rules; the server's refusal comes back as an ApiException.
+  Future<LoginsInfo> addLogin({required String name, required String login, required String password, int? staffId}) async =>
+      LoginsInfo.fromJson(await _api.post('/api/mobile/accounts',
+          {'name': name, 'login': login, 'password': password, 'staff_id': staffId}) as Map<String, dynamic>);
+
+  Future<LoginsInfo> setLoginActive(int id, bool active) async => LoginsInfo.fromJson(
+      await _api.post('/api/mobile/accounts/$id/active', {'active': active}) as Map<String, dynamic>);
+
+  Future<LoginsInfo> setLoginPassword(int id, String password) async => LoginsInfo.fromJson(
+      await _api.post('/api/mobile/accounts/$id/password', {'password': password}) as Map<String, dynamic>);
+
   /// Receipts in work; `query` finds by number, phone, item or name.
   Future<JobsInfo> jobs({String query = ''}) async => JobsInfo.fromJson(
       await _api.get('/api/mobile/jobs', query: query.isEmpty ? null : {'q': query}) as Map<String, dynamic>);

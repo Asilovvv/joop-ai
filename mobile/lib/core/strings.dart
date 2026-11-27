@@ -328,6 +328,26 @@ class S {
     required this.aiLabel,
     required this.customerLabel,
     required this.callInstead,
+    required this.accountsTitle,
+    required this.accountsIntro,
+    required this.accountAdd,
+    required this.accountName,
+    required this.accountLogin,
+    required this.accountMaster,
+    required this.accountNotMaster,
+    required this.accountAdmin,
+    required this.accountOff,
+    required this.accountNeverIn,
+    required this.accountActive,
+    required this.accountNewPassword,
+    required this.accountChangePassword,
+    required this.accountPasswordChanged,
+    required this.accountsEmpty,
+    required this.accountsHowToSignIn,
+    required this.accountPassword,
+    required this.accountMasterOf,
+    required this.accountLastLogin,
+    required this.accountCreated,
     required this.tabJobs,
     required this.navJobs,
     required this.jobsHint,
@@ -710,6 +730,28 @@ class S {
   final String customerLabel;
   final String Function(String phone) callInstead;
 
+  // «Доступ сотрудников»: each master or administrator her own login
+  final String accountsTitle;
+  final String accountsIntro;
+  final String accountAdd;
+  final String accountName;
+  final String accountLogin;
+  final String accountMaster;
+  final String accountNotMaster;
+  final String accountAdmin;
+  final String accountOff;
+  final String accountNeverIn;
+  final String accountActive;
+  final String accountNewPassword;
+  final String accountChangePassword;
+  final String accountPasswordChanged;
+  final String accountsEmpty;
+  final String Function(String company) accountsHowToSignIn;
+  final String Function(int n) accountPassword;
+  final String Function(String name) accountMasterOf;
+  final String Function(String when) accountLastLogin;
+  final String Function(String login, String company) accountCreated;
+
   // «Заказы в работе»: receipts at the counter (a repair shop, an optician, a car service, a furniture maker)
   final String tabJobs;
   final String navJobs;
@@ -1073,6 +1115,26 @@ class S {
     aiLabel: 'ИИ',
     customerLabel: 'Клиент',
     callInstead: _ruCallInstead,
+    accountsTitle: 'Доступ сотрудников',
+    accountsIntro: 'У каждого мастера и администратора свой вход: мастер видит только свои записи, клиентов и кассу, администратор — всё, кроме настроек и оплаты. Уволенному достаточно выключить вход.',
+    accountAdd: 'Добавить сотрудника',
+    accountName: 'Имя',
+    accountLogin: 'Логин латиницей',
+    accountMaster: 'Это мастер',
+    accountNotMaster: 'Нет — видит всё, как администратор',
+    accountAdmin: 'администратор',
+    accountOff: 'выключен',
+    accountNeverIn: 'ещё не входил(а)',
+    accountActive: 'Вход включён',
+    accountNewPassword: 'Новый пароль',
+    accountChangePassword: 'Сменить пароль',
+    accountPasswordChanged: 'Пароль изменён: прежний вход сотрудника закончится, войдите с новым.',
+    accountsEmpty: 'Пока входят только паролем компании.',
+    accountsHowToSignIn: _ruAccountsHowToSignIn,
+    accountPassword: _ruAccountPassword,
+    accountMasterOf: _ruAccountMasterOf,
+    accountLastLogin: _ruAccountLastLogin,
+    accountCreated: _ruAccountCreated,
     tabJobs: 'Заказы в работе',
     navJobs: 'В работе',
     jobsHint: 'Клиент спрашивает в чате, готов ли заказ, — ИИ отвечает по статусу. Ставите «готов» — клиенту сразу приходит сообщение.',
@@ -1433,6 +1495,26 @@ class S {
     aiLabel: 'ИИ',
     customerLabel: 'Кардар',
     callInstead: _kyCallInstead,
+    accountsTitle: 'Кызматкерлердин кирүүсү', // check with a native speaker
+    accountsIntro: 'Ар бир чебердин жана администратордун өз кирүүсү бар: чебер өзүнүн жазылууларын, кардарларын жана кассасын гана көрөт, администратор — жөндөөлөр менен төлөмдөн башканын баарын. Иштен кеткен кызматкердин кирүүсүн өчүрүү жетиштүү.', // check with a native speaker
+    accountAdd: 'Кызматкер кошуу', // check with a native speaker
+    accountName: 'Аты', // check with a native speaker
+    accountLogin: 'Логин латын тамгалары менен', // check with a native speaker
+    accountMaster: 'Бул чебер', // check with a native speaker
+    accountNotMaster: 'Жок — администратордой баарын көрөт', // check with a native speaker
+    accountAdmin: 'администратор', // check with a native speaker
+    accountOff: 'өчүрүлгөн', // check with a native speaker
+    accountNeverIn: 'азырынча кире элек', // check with a native speaker
+    accountActive: 'Кирүү күйгүзүлгөн', // check with a native speaker
+    accountNewPassword: 'Жаңы сырсөз', // check with a native speaker
+    accountChangePassword: 'Сырсөздү алмаштыруу', // check with a native speaker
+    accountPasswordChanged: 'Сырсөз алмашты: кызматкердин мурунку кирүүсү бүтөт, жаңысы менен кирсин.', // check with a native speaker
+    accountsEmpty: 'Азырынча компаниянын сырсөзү менен гана киришет.', // check with a native speaker
+    accountsHowToSignIn: _kyAccountsHowToSignIn,
+    accountPassword: _kyAccountPassword,
+    accountMasterOf: _kyAccountMasterOf,
+    accountLastLogin: _kyAccountLastLogin,
+    accountCreated: _kyAccountCreated,
     tabJobs: 'Иштеги буйрутмалар', // check with a native speaker
     navJobs: 'Иште', // check with a native speaker
     jobsHint: 'Кардар чатта буйрутмасы даярбы деп сураса, ИИ статус боюнча жооп берет. «Даяр» деп белгилесеңиз, кардарга дароо билдирүү барат.', // check with a native speaker
@@ -1701,3 +1783,19 @@ String _ruRoomGuests(String kind) => kind == 'hall' ? 'Гостей в зале'
 String _kyRoomGuests(String kind) => kind == 'hall' ? 'Залдагы конок саны' : 'Бөлмөдөгү конок саны';
 String _ruRoomUnitsCount(String kind, int n) => kind == 'car' ? 'машин: $n' : 'номеров: $n';
 String _kyRoomUnitsCount(String kind, int n) => kind == 'car' ? 'машина: $n' : 'бөлмө: $n';
+
+// «Доступ сотрудников». The Kyrgyz texts: check with a native speaker.
+String _ruAccountsHowToSignIn(String company) =>
+    'Сотрудник входит в приложении («Я сотрудник») или в панели: логин компании «$company», свой логин и пароль.';
+String _kyAccountsHowToSignIn(String company) =>
+    'Кызматкер колдонмого («Мен кызматкермин») же панелге кирет: компаниянын логини «$company», өз логини жана сырсөзү.';
+String _ruAccountPassword(int n) => 'Пароль, не короче $n символов';
+String _kyAccountPassword(int n) => 'Сырсөз, кеминде $n белги';
+String _ruAccountMasterOf(String name) => 'мастер: $name';
+String _kyAccountMasterOf(String name) => 'чебер: $name';
+String _ruAccountLastLogin(String when) => 'последний вход $when';
+String _kyAccountLastLogin(String when) => 'акыркы кирүү $when';
+String _ruAccountCreated(String login, String company) =>
+    'Вход «$login» создан. Скажите сотруднику: логин компании «$company», логин «$login» и пароль, который вы задали.';
+String _kyAccountCreated(String login, String company) =>
+    '«$login» кирүүсү түзүлдү. Кызматкерге айтыңыз: компаниянын логини «$company», логини «$login» жана сиз койгон сырсөз.';

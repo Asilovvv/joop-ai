@@ -57,6 +57,9 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | `GET`/`POST /api/mobile/try`, `POST /api/mobile/try/reset` | the test chat (`joop/try_chat.py`): the owner writes as a customer; counted nowhere; reset cancels its test bookings |
 | `POST /api/mobile/services`, `/services/{id}`, `/services/{id}/delete`, `/services/example/delete` | add, change (name, price, Kyrgyz name, note) or delete a price row, or the sign-up example's rows at once; masters and Altegio price lists refused |
 | `GET`/`POST /api/mobile/staff`, `/staff/{id}`, `/staff/{id}/delete`, `/staff/example/delete` | the business's people (tables, groups), or a hotel's room types, a rental's car models, a banquet's halls (`stay_kind`; `units`: how many such rooms or cars, `group_size` from 1; a hall is one), with the free plan's one-master limit; `example` rows marked |
+| `GET /api/mobile/accounts` | the panel's «Доступ сотрудников» (owner only): `company` (the company login staff type), `min_password`, `masters` (a login can be a master's), `people` (the business's own people, not the example's), `users` with `active`, `staff_name`, `last_login_local` (business time; set by the panel's and the app's sign-in) |
+| `POST /api/mobile/accounts` | `{name, login, password, staff_id?}` → a staff login with the panel's rules (`accounts.add_login`: name, 3–32 Latin letters or digits, unique, password from 8, up to 20 logins); 422 with the reason; `added` |
+| `POST /api/mobile/accounts/{id}/active`, `/accounts/{id}/password` | `{active}` turns a login off or on; `{password}` sets a new one (from 8): either ends the login's open sessions |
 | `POST /api/mobile/staff/{id}/windows` | `{days, step, start, end}` → free times for 7–30 days from tomorrow in the working hours, days off skipped, nothing twice; not for the example |
 
 Every call after sign-in sends `Authorization: Bearer <token>`.

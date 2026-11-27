@@ -39,6 +39,18 @@ class FakeJoop {
     },
   ];
 
+  /// Staff logins (/api/mobile/accounts), and the bodies sent to change them.
+  final logins = <Map<String, dynamic>>[];
+  final loginCalls = <Map>[];
+
+  Map<String, dynamic> loginsJson() => {
+        'company': 'aktish',
+        'min_password': 8,
+        'masters': true,
+        'people': [for (final p in people) if (p['example'] != true) {'id': p['id'], 'name': p['name']}],
+        'users': logins,
+      };
+
   /// Phones (last 9 digits) of customers who wrote in a chat: «готов» reaches them.
   final chatPhones = {'555404404'};
 
@@ -341,6 +353,26 @@ class FakeJoop {
     if (request.headers['Authorization'] != 'Bearer $token') return json({'error': 'Войдите заново.'}, 401);
     if (path == '/api/mobile/me') return json(account);
     if (path == '/api/mobile/setup') return json(setupJson());
+    if (path == '/api/mobile/accounts' && request.method == 'GET') return json(loginsJson());
+    if (path.startsWith('/api/mobile/accounts')) {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      loginCalls.add({'path': path, ...body});
+      if (body.containsKey('password') && (body['password'] as String).length < 8) {
+        return json({'error': 'Пароль должен быть не короче 8 символов.'}, 422);
+      }
+      final one = RegExp(r'^/api/mobile/accounts/(\d+)/(active|password)$').firstMatch(path);
+      if (one != null) {
+        final user = logins.firstWhere((u) => u['id'] == int.parse(one.group(1)!));
+        if (one.group(2) == 'active') user['active'] = body['active'];
+        return json(loginsJson());
+      }
+      final login = (body['login'] as String).toLowerCase();
+      if (logins.any((u) => u['login'] == login)) return json({'error': 'Такой логин уже есть.'}, 422);
+      final master = people.where((p) => p['id'] == body['staff_id']).firstOrNull;
+      logins.add({'id': 1 + logins.length, 'name': body['name'], 'login': login, 'active': true,
+        'staff_id': master?['id'], 'staff_name': master?['name'] ?? '', 'last_login_local': null});
+      return json({...loginsJson(), 'added': login});
+    }
     if (path == '/api/mobile/jobs' && request.method == 'GET') return json(jobsJson(request.url.queryParameters['q'] ?? ''));
     if (path == '/api/mobile/jobs/example/delete') {
       final before = jobs.length;

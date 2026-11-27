@@ -32,14 +32,14 @@ from ..models import Booking, Business, Conversation, Job, Lead, Message, Order,
 from ..niches import get_pack, picker_packs
 from ..phone import normalize_phone
 from ..samples import example_staff_ids
-from ..security import verify_password
+from ..security import hash_password, verify_password
 from ..signup import Refused, register
 from ..catalog import parse_price
 from .. import billing, free_plan, page_booking, period_end, telegram_setup, try_chat
 from ..slots import (CLOSED, MAX_GENERATE_DAYS, claim_slot, free_on_day, generate_slots, release_slot, resize_group,
                      seats_left, seats_needed)
 from ..stats import TEST_CHANNEL, activity, not_test, real_conversation, test_conversations
-from ..timeutil import local_now, parse_days_off, parse_hhmm, utcnow
+from ..timeutil import local_now, parse_days_off, parse_hhmm, utc_to_local, utcnow
 from .app import _base_url, _by_phone, _delete_service, _login_fails, _retire_staff, _rt, _settings, cancel_booking, client_ip, move_order, record_failure, throttled
 from .saas import checklist, unique_slug
 from .menu import qr_rows
@@ -145,6 +145,11 @@ def mobile_login(request: Request, body: LoginIn):
             record_failure(key, request, now)
             return _fail(401, "Неверный логин или пароль.")
         _login_fails.pop(f"{key}|{client_ip(request)}", None)
+        if user is not None:  # «последний вход» on the panel's and the app's staff list, from the app too
+            user.last_login_at = utcnow()
+            s.add(user)
+            s.commit()
+            s.refresh(user)
         token = _serializer(request).dumps({"b": business.id, "u": user.id if user else 0, "p": _fingerprint(business, user)})
         return {"token": token, **Who(business, user).json()}
 
@@ -1590,6 +1595,107 @@ def mobile_ai_switch(request: Request, item_id: int, body: AiSwitchIn):
         s.commit()
         s.refresh(conv)
         return _dialogue(s, conv)
+
+
+# --- staff logins (the panel's «Доступ сотрудников», joop/web/accounts.py): each master or administrator her own ---
+
+
+def _logins(s: Session, b: Business) -> dict:
+    """The business's staff logins and the people a login can be linked to. Not the sign-up example's people: a
+    master's login is for a real master. `company` is what staff type as the company login."""
+    from .accounts import MIN_PASSWORD
+
+    users = s.exec(select(PanelUser).where(PanelUser.business_id == b.id).order_by(PanelUser.id)).all()
+    people = s.exec(select(Staff).where(Staff.business_id == b.id, Staff.active == True).order_by(Staff.name)).all()  # noqa: E712
+    names = {x.id: x.name for x in people}
+    example = example_staff_ids(s, b)
+    return {"company": b.slug, "min_password": MIN_PASSWORD,
+            "masters": get_pack(b.niche).has("booking") and not get_pack(b.niche).has("stay"),
+            "people": [{"id": x.id, "name": x.name} for x in people if x.id not in example],
+            "users": [{"id": u.id, "name": u.name, "login": u.login, "active": u.active, "staff_id": u.staff_id,
+                       "staff_name": names.get(u.staff_id, "") if u.staff_id else "",
+                       "last_login_local": utc_to_local(u.last_login_at, b.timezone).isoformat(timespec="minutes")
+                       if u.last_login_at else None} for u in users]}
+
+
+@router.get("/api/mobile/accounts")
+def mobile_accounts(request: Request):
+    with new_session() as s:
+        who, denied = _owner_only(s, request)
+        return denied or _logins(s, who.business)
+
+
+class StaffLoginIn(BaseModel):
+    name: str = ""
+    login: str = ""
+    password: str = ""
+    staff_id: int | None = None  # a master: only her bookings, customers and cash
+
+
+@router.post("/api/mobile/accounts")
+def mobile_accounts_add(request: Request, body: StaffLoginIn):
+    """A staff login with the panel's rules (joop/web/accounts.add_login). Only the owner, as the panel's page."""
+    from .accounts import add_login
+
+    with new_session() as s:
+        who, denied = _owner_only(s, request)
+        if denied:
+            return denied
+        b = who.business
+        user, problem = add_login(s, b, body.name, body.login, body.password, str(body.staff_id or ""))
+        if user is None:
+            return _fail(422, problem)
+        s.commit()
+        return {**_logins(s, b), "added": user.login}
+
+
+def _own_login(s: Session, b: Business, item_id: int) -> PanelUser | None:
+    user = s.get(PanelUser, item_id)
+    return user if user is not None and user.business_id == b.id else None
+
+
+class LoginActiveIn(BaseModel):
+    active: bool
+
+
+@router.post("/api/mobile/accounts/{item_id}/active")
+def mobile_accounts_active(request: Request, item_id: int, body: LoginActiveIn):
+    """On or off; off ends the login's sessions at its next request (panel and app), as the panel's button."""
+    with new_session() as s:
+        who, denied = _owner_only(s, request)
+        if denied:
+            return denied
+        user = _own_login(s, who.business, item_id)
+        if user is None:
+            return _fail(404, "Такого входа нет.")
+        user.active = body.active
+        s.add(user)
+        s.commit()
+        return _logins(s, who.business)
+
+
+class LoginPasswordIn(BaseModel):
+    password: str
+
+
+@router.post("/api/mobile/accounts/{item_id}/password")
+def mobile_accounts_password(request: Request, item_id: int, body: LoginPasswordIn):
+    """A new password: the login's open sessions end, as a token carries the hash's last characters."""
+    from .accounts import MIN_PASSWORD
+
+    with new_session() as s:
+        who, denied = _owner_only(s, request)
+        if denied:
+            return denied
+        user = _own_login(s, who.business, item_id)
+        if user is None:
+            return _fail(404, "Такого входа нет.")
+        if len(body.password) < MIN_PASSWORD:
+            return _fail(422, f"Пароль должен быть не короче {MIN_PASSWORD} символов.")
+        user.password_hash = hash_password(body.password)
+        s.add(user)
+        s.commit()
+        return _logins(s, who.business)
 
 
 # --- jobs in work ----------------------------------------------------------------------------------
