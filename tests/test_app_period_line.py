@@ -69,3 +69,20 @@ def test_a_waiting_transfer_is_not_a_reason_to_pay_again(client, business, at):
     at(25)
     line = period(client, token)
     assert "ждёт подтверждения перевода" in line["text"] and line["pay_url"] is None and line["ask_owner"] is False
+
+
+def test_a_shop_or_a_hotel_gets_it_too(client, business, at):
+    """Independent review of #308: shops, hotels and rentals have no «Сегодня»; the app shows the line above every tab,
+    so the summary answers for them too, with no bookings to count."""
+    with db.new_session() as s:
+        b = s.get(Business, business.id)
+        b.niche = "hotel"
+        s.add(b)
+        s.commit()
+    trial(business.id)
+    token = sign_in(client).json()["token"]
+    assert client.get("/api/mobile/me", headers=auth(token)).json()["sections"]["bookings"] is False
+    at(25)
+    data = client.get("/api/mobile/summary", headers=auth(token)).json()
+    assert data["today"] == 0 and data["next"] is None
+    assert data["period"]["level"] == "error" and data["period"]["pay_url"] == "https://joop.test/panel/billing"

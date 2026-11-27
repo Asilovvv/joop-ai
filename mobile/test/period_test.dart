@@ -6,14 +6,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_joop.dart';
 
-Future<void> _home(WidgetTester tester, FakeJoop server) async {
+Future<void> _home(WidgetTester tester, FakeJoop server, {String company = 'aktish'}) async {
   SharedPreferences.setMockInitialValues({});
   tester.view.physicalSize = const Size(1080, 2340);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(JoopApp(repository: server.repository(), customers: server.customers(), today: DateTime(2026, 11, 13)));
   await tester.pumpAndSettle();
-  await tester.enterText(find.byKey(const Key('company')), 'aktish');
+  await tester.enterText(find.byKey(const Key('company')), company);
   await tester.enterText(find.byKey(const Key('password')), 'secret-pass');
   await tester.tap(find.byKey(const Key('login')));
   await tester.pumpAndSettle();
@@ -77,5 +77,36 @@ void main() {
     await _home(tester, server);
     expect(find.byKey(const Key('period-ask-owner')), findsOneWidget);
     expect(find.byKey(const Key('period-pay')), findsNothing);
+  });
+
+  // Independent review of #308: shops, hotels and rentals have no «Сегодня», and the owner may work in «Заявки».
+  const stopped = {
+    'level': 'error',
+    'text': 'ИИ не отвечает клиентам с 19.11: пробный период закончился. Оплатите подписку.',
+    'pay_url': 'https://joop.test/panel/billing',
+    'ask_owner': false,
+  };
+
+  testWidgets('a hotel and a cafe see the line too, on every tab', (tester) async {
+    for (final (server, company) in [(FakeJoop(hotel: true), 'uyut'), (FakeJoop(cafe: true), 'navat')]) {
+      server.period = stopped;
+      await _home(tester, server, company: company);
+      expect(find.text('Сегодня'), findsNothing); // no such tab here
+      expect(find.byKey(const Key('period-error')), findsOneWidget);
+      await tester.tap(find.text('Заявки'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('period-error')), findsOneWidget);
+      expect(find.byKey(const Key('period-pay')), findsOneWidget);
+      await tester.pumpWidget(const SizedBox()); // the next business signs in from scratch
+    }
+  });
+
+  testWidgets('a clinic keeps it above «Записи» as well', (tester) async {
+    final server = FakeJoop()..period = stopped;
+    await _home(tester, server);
+    expect(find.byKey(const Key('period-error')), findsOneWidget);
+    await tester.tap(find.text('Записи'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('period-error')), findsOneWidget);
   });
 }
