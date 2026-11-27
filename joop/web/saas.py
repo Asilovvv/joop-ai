@@ -23,7 +23,7 @@ from starlette.concurrency import run_in_threadpool
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from .. import annual, billing, free_plan, health, partners, period_end, pitch, samples, stories
+from .. import annual, billing, founder_calls, free_plan, health, partners, period_end, pitch, samples, stories
 from ..dispatch import admin_link, alert_chats
 from ..db import new_session
 from ..models import (
@@ -598,7 +598,9 @@ def owner_home(request: Request):
         asked = recent_questions(s, since)
         ai = health.status(s, now)
         year = [(c, annual.offer_text(s, c, now)) for c in annual.candidates(s, now, settings.price_som, settings.annual_months)]
+        calls = founder_calls.calls(s, now)
     return _owner_render(request, "owner.html", rows=rows, counts=counts, mrr=mrr, paid30=paid30, pending=pending, year=year,
+                         calls=calls,
                          annual_months=settings.annual_months,
                          names=names, price=settings.price_som, trial_days=settings.trial_days,
                          total_cost=sum(cost.values()), site=site, asked=asked, ai=ai, check_hint=health.check_hint(),

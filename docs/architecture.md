@@ -228,6 +228,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/stories.py` | Instagram stories for Joop's own account: slide texts, rendered by `story.html` at 1080 × 1920, exported by `scripts/export_stories.py` |
 | `joop/annual.py` | The year offer at the end of the second paid month: who is due, the text in their numbers, the console reminder |
 | `joop/founder_digest.py` | The founder's Monday line: the week in numbers, stored as a journal and sent to Telegram |
+| `joop/founder_calls.py` | «Позвонить сегодня»: whom the founder should call and why, on /owner and in Telegram every morning |
 | `joop/health.py` | Alerts for the founder when model calls keep failing; `tell_founder` for other notes (a cancelled subscription) |
 | `joop/recovery.py` | Answers the customers an outage left waiting, once the model works again |
 | `joop/ops.py` | Pre-launch check (`python -m joop check`) and database backups |
@@ -236,6 +237,6 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 1203 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 1211 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `eval/prompt_hashes.py` | What the model would receive in every evaluation dialogue, without the model: compare main and a branch to see whether a change can affect the evaluation at all |

@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 
 from sqlmodel import Session, select
 
-from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_digest, funnel, health, holds, missed_calls, nudges, offsite, ops, period_end, recovery, reorders, restock, samples, trust, unfinished
+from . import altegio, api, billing, broadcasts, cash, confirm, crm, deposits, founder_calls, founder_digest, funnel, health, holds, missed_calls, nudges, offsite, ops, period_end, recovery, reorders, restock, samples, trust, unfinished
 from . import gaps as empty_slots
 from .db import free, new_session
 from . import dispatch
@@ -554,6 +554,12 @@ class Scheduler(threading.Thread):
             except Exception:
                 session.rollback()
                 log.exception("Founder digest failed")
+        with new_session() as session:  # every morning: whom the founder should call today
+            try:
+                founder_calls.maybe_send(session, self.rt, now_utc or utcnow())
+            except Exception:
+                session.rollback()
+                log.exception("Founder call list failed")
         try:  # one consistent copy of the database a day (joop/ops.py)
             if ops.backup_due(self.rt.settings, now_utc or utcnow()):
                 path = ops.make_backup(self.rt.settings, now_utc or utcnow())

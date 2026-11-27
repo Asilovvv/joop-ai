@@ -243,6 +243,10 @@ WhatsApp message fees for reminders.
 - **Founder console** (`/owner`, password `OWNER_PASSWORD`): every business with status, usage,
   AI cost and price; monthly revenue; payments waiting for confirmation; actions: open the
   business's panel, +7 days, mark paid, pause, resume, set an individual price.
+- **Позвонить сегодня** (on top of `/owner`, and in the founder's Telegram every morning at 10:00):
+  trials and paid months ending in three days (with what the AI did), owners stuck in the setup
+  1–10 days after sign-up (with the step they stopped at), AIs stopped for payment in the last two
+  weeks — each with the owner's name, phone and what to offer (`joop/founder_calls.py`).
 - **Sales pipeline** (`/owner/prospects`): add businesses or paste a CSV list, let the AI draft a
   personal first message in Russian or Kyrgyz, create a demo account for a prospect in one
   click, and move it through new → contacted → replied → demo → trial → paid. Messages are
@@ -502,7 +506,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 1203 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 1211 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
