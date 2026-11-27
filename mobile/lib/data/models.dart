@@ -1430,3 +1430,63 @@ class JobsInfo extends Equatable {
   @override
   List<Object?> get props => [delivered, nextNumber, itemLabel, itemHint, priceHint, noteHint, open, done];
 }
+
+/// A staff member's own login (the panel's «Доступ сотрудников»).
+class StaffLogin extends Equatable {
+  const StaffLogin({required this.id, required this.name, required this.login, this.active = true, this.staffId,
+      this.staffName = '', this.lastLogin});
+
+  factory StaffLogin.fromJson(Map<String, dynamic> json) => StaffLogin(
+        id: json['id'] as int,
+        name: json['name'] as String,
+        login: json['login'] as String,
+        active: (json['active'] as bool?) ?? true,
+        staffId: json['staff_id'] as int?,
+        staffName: (json['staff_name'] as String?) ?? '',
+        lastLogin: DateTime.tryParse((json['last_login_local'] as String?) ?? ''),
+      );
+
+  final int id;
+  final String name;
+  final String login;
+  final bool active;
+
+  /// A master's login: only her bookings, customers and cash. Null: an administrator, who sees everything.
+  final int? staffId;
+  final String staffName;
+
+  /// The business's local time of the last sign-in (panel or app), null when never.
+  final DateTime? lastLogin;
+
+  @override
+  List<Object?> get props => [id, name, login, active, staffId, staffName, lastLogin];
+}
+
+/// The staff logins and what a new one can be linked to, as /api/mobile/accounts gives them.
+class LoginsInfo extends Equatable {
+  const LoginsInfo({required this.company, required this.users, this.minPassword = 8, this.masters = false,
+      this.people = const []});
+
+  factory LoginsInfo.fromJson(Map<String, dynamic> json) => LoginsInfo(
+        company: json['company'] as String,
+        minPassword: (json['min_password'] as int?) ?? 8,
+        masters: (json['masters'] as bool?) ?? false,
+        people: [
+          for (final p in (json['people'] as List? ?? const []))
+            (id: (p as Map)['id'] as int, name: p['name'] as String),
+        ],
+        users: [for (final u in (json['users'] as List? ?? const [])) StaffLogin.fromJson(u as Map<String, dynamic>)],
+      );
+
+  /// What staff type as the company login.
+  final String company;
+  final int minPassword;
+
+  /// A login can be a master's (businesses whose customers book people's time).
+  final bool masters;
+  final List<({int id, String name})> people;
+  final List<StaffLogin> users;
+
+  @override
+  List<Object?> get props => [company, minPassword, masters, people, users];
+}

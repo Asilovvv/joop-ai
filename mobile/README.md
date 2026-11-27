@@ -37,6 +37,9 @@ every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
 where orders are taken, the minimum order, delivery fee and free delivery from), prices, people and free times (or a
 hotel's rooms, a rental's cars, a banquet's halls), the
 test chat, the Telegram bot, booking by link and the public page with its QR.
+«Доступ сотрудников» (the owner only) gives each master or administrator her own login, as the panel's page: a master
+then signs in with «Я сотрудник» and sees only her bookings, customers and cash; a login is turned off or given a new
+password there too.
 
 The tabs follow the niche, as the panel's menu does: a clinic has no «Заказы», a shop has no «Сегодня» and «Записи».
 Above every tab, as on top of every panel page, the line about the end of the trial or paid month while the AI is

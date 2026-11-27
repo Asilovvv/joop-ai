@@ -16,6 +16,7 @@ import '../data/joop_repository.dart';
 import '../data/models.dart';
 import 'bookings_screen.dart';
 import 'chats_screen.dart';
+import 'accounts_screen.dart';
 import 'customers_screen.dart';
 import 'jobs_screen.dart';
 import 'language_button.dart';
@@ -261,6 +262,12 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                       value: () => Navigator.of(context)
                           .push(MaterialPageRoute(builder: (_) => PeopleScreen(title: _account.peopleLabel))),
                       child: ListTile(leading: const Icon(Icons.badge_outlined), title: Text(_account.peopleLabel)),
+                    ),
+                  if (_account.isOwner)
+                    PopupMenuItem(
+                      key: const Key('menu-accounts'),
+                      value: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AccountsScreen())),
+                      child: ListTile(leading: const Icon(Icons.key_outlined), title: Text(S.current.accountsTitle)),
                     ),
                   if (_account.isOwner)
                     PopupMenuItem(

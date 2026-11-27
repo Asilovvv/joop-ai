@@ -11,10 +11,10 @@ from __future__ import annotations
 import re
 
 from fastapi import APIRouter, Form, Request
-from sqlmodel import select
+from sqlmodel import Session, select
 
 from ..db import new_session
-from ..models import PanelUser, Staff
+from ..models import Business, PanelUser, Staff
 from ..security import hash_password
 from .app import _back, _business, _check_csrf, _flash, _own, _render
 
@@ -34,30 +34,41 @@ def accounts_page(request: Request):
         return _render(request, "accounts.html", "accounts", b, users=users, min_password=MIN_PASSWORD, staff=staff, staff_names=names)
 
 
+def add_login(s: Session, b: Business, name: str, login: str, password: str, staff_id: str) -> tuple[PanelUser | None, str]:
+    """A staff member's own login, or why not: the panel's page and the owner's app share these rules. `staff_id`
+    links the login to one of the business's people (a master: only her bookings, customers and cash). The caller
+    commits."""
+    name, login = " ".join(name.split())[:60], login.strip().lower()
+    users = s.exec(select(PanelUser).where(PanelUser.business_id == b.id)).all()
+    if not name:
+        return None, "Напишите имя сотрудника."
+    if not LOGIN.match(login):
+        return None, "Логин: 3–32 латинские буквы или цифры, можно точку, дефис и подчёркивание."
+    if any(u.login == login for u in users):
+        return None, "Такой логин уже есть."
+    if len(password) < MIN_PASSWORD:
+        return None, f"Пароль должен быть не короче {MIN_PASSWORD} символов."
+    if len(users) >= MAX_USERS:
+        return None, f"Не больше {MAX_USERS} входов на компанию."
+    master = s.get(Staff, int(staff_id)) if staff_id.isascii() and staff_id.isdigit() else None
+    linked = master.id if master and master.business_id == b.id else None
+    user = PanelUser(business_id=b.id, name=name, login=login, password_hash=hash_password(password), staff_id=linked)
+    s.add(user)
+    return user, ""
+
+
 @router.post("/panel/accounts")
 def accounts_add(request: Request, name: str = Form(""), login: str = Form(""), password: str = Form(""), staff_id: str = Form(""),
                  csrf: str = Form("")):
     _check_csrf(request, csrf)
-    name, login = " ".join(name.split())[:60], login.strip().lower()
     with new_session() as s:
         b = _business(s, request)
-        users = s.exec(select(PanelUser).where(PanelUser.business_id == b.id)).all()
-        if not name:
-            _flash(request, "Напишите имя сотрудника.", "error")
-        elif not LOGIN.match(login):
-            _flash(request, "Логин: 3–32 латинские буквы или цифры, можно точку, дефис и подчёркивание.", "error")
-        elif any(u.login == login for u in users):
-            _flash(request, "Такой логин уже есть.", "error")
-        elif len(password) < MIN_PASSWORD:
-            _flash(request, f"Пароль должен быть не короче {MIN_PASSWORD} символов.", "error")
-        elif len(users) >= MAX_USERS:
-            _flash(request, f"Не больше {MAX_USERS} входов на компанию.", "error")
+        user, problem = add_login(s, b, name, login, password, staff_id)
+        if user is None:
+            _flash(request, problem, "error")
         else:
-            master = s.get(Staff, int(staff_id)) if staff_id.isascii() and staff_id.isdigit() else None
-            linked = master.id if master and master.business_id == b.id else None
-            s.add(PanelUser(business_id=b.id, name=name, login=login, password_hash=hash_password(password), staff_id=linked))
             s.commit()
-            _flash(request, f"Вход для «{name}» создан. Сотрудник входит с логином компании «{b.slug}», своим логином «{login}» и паролем.")
+            _flash(request, f"Вход для «{user.name}» создан. Сотрудник входит с логином компании «{b.slug}», своим логином «{user.login}» и паролем.")
     return _back("/panel/accounts")
 
 
