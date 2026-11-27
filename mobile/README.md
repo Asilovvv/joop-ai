@@ -33,6 +33,10 @@ every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
 - **Прайс** — the price list the AI quotes, with the stop list: a switch takes an item off sale (the AI stops offering
   it) and back; sold-out items return through the panel's «Склад», Altegio price lists are switched in Altegio.
 
+«Запуск» in the menu takes a new business through the panel's launch list from the phone: contacts and hours (and,
+where orders are taken, the minimum order, delivery fee and free delivery from), prices, people and free times, the
+test chat, the Telegram bot, booking by link and the public page with its QR.
+
 The tabs follow the niche, as the panel's menu does: a clinic has no «Заказы», a shop has no «Сегодня» and «Записи».
 Above every tab, as on top of every panel page, the line about the end of the trial or paid month while the AI is
 about to stop (yellow) or has stopped (red): the owner gets «Перейти к оплате» (the billing page in the browser), staff
