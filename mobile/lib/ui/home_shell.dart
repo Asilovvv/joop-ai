@@ -17,6 +17,7 @@ import '../data/models.dart';
 import 'bookings_screen.dart';
 import 'chats_screen.dart';
 import 'customers_screen.dart';
+import 'jobs_screen.dart';
 import 'language_button.dart';
 import 'new_booking_screen.dart';
 import 'new_stay_screen.dart';
@@ -28,7 +29,8 @@ import 'today_screen.dart';
 import 'work_screens.dart';
 
 /// The signed-in app. Its tabs follow the business's niche, as the panel's menu does: a clinic has «Сегодня» and
-/// «Записи», a cafe adds «Заказы», a shop has «Заказы» without bookings; everyone but a master has «Заявки».
+/// «Записи», a cafe adds «Заказы», a shop has «Заказы» without bookings, a repair shop «В работе» (its receipts);
+/// everyone but a master has «Заявки».
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key, required this.account, required this.today, this.poll = const Duration(seconds: 30)});
 
@@ -44,7 +46,7 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-enum _Tab { today, bookings, stays, orders, leads, prices }
+enum _Tab { today, bookings, stays, orders, jobs, leads, prices }
 
 class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
@@ -120,6 +122,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         if (_account.bookings) ...[_Tab.today, _Tab.bookings],
         if (_account.stays) _Tab.stays,
         if (_account.orders) _Tab.orders,
+        if (_account.jobs) _Tab.jobs,
         if (_account.leads) _Tab.leads,
         _Tab.prices,
       ];
@@ -129,6 +132,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         _Tab.bookings: S.current.tabBookings,
         _Tab.stays: S.current.stayTitle(_account.stayKind),
         _Tab.orders: S.current.tabOrders,
+        _Tab.jobs: S.current.tabJobs,
         _Tab.leads: S.current.tabLeads,
         _Tab.prices: S.current.tabPrices,
       };
@@ -138,6 +142,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     _Tab.bookings: (Icons.event_note_outlined, Icons.event_note),
     _Tab.stays: (Icons.hotel_outlined, Icons.hotel),
     _Tab.orders: (Icons.shopping_bag_outlined, Icons.shopping_bag),
+    _Tab.jobs: (Icons.receipt_long_outlined, Icons.receipt_long),
     _Tab.leads: (Icons.inbox_outlined, Icons.inbox),
     _Tab.prices: (Icons.sell_outlined, Icons.sell),
   };
@@ -150,6 +155,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         _Tab.bookings => const BookingsScreen(),
         _Tab.stays => StaysScreen(kind: _account.stayKind),
         _Tab.orders => const OrdersScreen(),
+        _Tab.jobs => const JobsScreen(),
         _Tab.leads => const LeadsScreen(),
         _Tab.prices => const ServicesScreen(),
       };
@@ -158,6 +164,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         _Tab.bookings => S.current.navBookings,
         _Tab.stays => S.current.navStays,
         _Tab.orders => S.current.navOrders,
+        _Tab.jobs => S.current.navJobs,
         _Tab.leads => S.current.navLeads,
         _ => _titles[tab]!,
       };

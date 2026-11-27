@@ -8,7 +8,52 @@ import 'package:joop_mobile/data/joop_repository.dart';
 
 /// A tiny stand-in for the Joop server's /api/mobile, enough for the app's tests.
 class FakeJoop {
-  FakeJoop({this.cafe = false, this.hotel = false});
+  FakeJoop({this.cafe = false, this.hotel = false, this.repair = false});
+
+  /// A repair shop: receipts in work («В работе»), requests, no cash.
+  final bool repair;
+
+  /// Receipts (/api/mobile/jobs): the sign-up example's two, one of them ready.
+  final jobs = <Map<String, dynamic>>[
+    {
+      'id': 1, 'number': '1042', 'item': 'Пальто, химчистка', 'status': 'ready', 'customer_name': 'Айпери',
+      'customer_phone': '0555 121 212', 'price': '600 сом', 'ready_by': '', 'note': '', 'ready_notified': false,
+      'example': true,
+    },
+    {
+      'id': 2, 'number': '1043', 'item': 'iPhone 12, замена экрана', 'status': 'in_progress', 'customer_name': 'Тимур',
+      'customer_phone': '0700 343 434', 'price': '4 500 сом', 'ready_by': '2026-11-16', 'note': 'ждём запчасть',
+      'ready_notified': false, 'example': true,
+    },
+  ];
+
+  /// Phones (last 9 digits) of customers who wrote in a chat: «готов» reaches them.
+  final chatPhones = {'555404404'};
+
+  /// Bodies of POST /api/mobile/jobs/{id}.
+  final jobChanges = <Map>[];
+
+  static String _last9(Object? phone) {
+    final digits = '$phone'.replaceAll(RegExp(r'\D'), '');
+    return digits.length < 9 ? '' : digits.substring(digits.length - 9);
+  }
+
+  String get _nextNumber => '${50001 + jobs.where((j) => j['example'] != true).length}';
+
+  Map<String, dynamic> jobsJson([String q = '']) {
+    final needle = q.trim().toLowerCase();
+    final rows = jobs.where((j) => needle.isEmpty || j['number'] == needle ||
+        (j['item'] as String).toLowerCase().contains(needle) || (j['customer_name'] as String).toLowerCase().contains(needle));
+    const open = {'accepted', 'in_progress', 'ready'};
+    return {
+      'delivered': false,
+      'words': {'item_label': 'Что сдали и что сделать', 'item_placeholder': 'Пальто, химчистка',
+        'price_placeholder': '600 сом', 'note_placeholder': 'например: ждём запчасть'},
+      'next_number': _nextNumber,
+      'open': [for (final j in rows) if (open.contains(j['status'])) j],
+      'done': [for (final j in rows) if (!open.contains(j['status'])) j],
+    };
+  }
 
   /// A cafe: orders and requests, no bookings.
   final bool cafe;
@@ -207,7 +252,15 @@ class FakeJoop {
     calls.add('${request.method} $path');
     http.Response json(Object body, [int status = 200]) =>
         http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json; charset=utf-8'});
-    final account = hotel
+    final account = repair
+        ? {
+            'business': {'id': 4, 'slug': 'remont', 'name': 'Мастер Ремонт', 'niche': 'repair'},
+            'who': 'Владелец',
+            'role': 'owner',
+            'sections': {'bookings': true, 'orders': false, 'leads': true, 'cash': false, 'stays': false, 'jobs': true},
+            'people_label': 'Мастера',
+          }
+        : hotel
         ? {
             'business': {'id': 3, 'slug': 'uyut', 'name': 'Гостевой дом Уют', 'niche': 'hotel'},
             'who': 'Владелец',
@@ -264,7 +317,8 @@ class FakeJoop {
     }
     if (path == '/api/mobile/login') {
       final body = jsonDecode(request.body) as Map;
-      if (body['company'] == (hotel ? 'uyut' : cafe ? 'navat' : 'aktish') && body['password'] == 'secret-pass') {
+      if (body['company'] == (repair ? 'remont' : hotel ? 'uyut' : cafe ? 'navat' : 'aktish') &&
+          body['password'] == 'secret-pass') {
         return json({'token': token, ...account});
       }
       return json({'error': 'Неверный логин или пароль.'}, 401);
@@ -272,6 +326,42 @@ class FakeJoop {
     if (request.headers['Authorization'] != 'Bearer $token') return json({'error': 'Войдите заново.'}, 401);
     if (path == '/api/mobile/me') return json(account);
     if (path == '/api/mobile/setup') return json(setupJson());
+    if (path == '/api/mobile/jobs' && request.method == 'GET') return json(jobsJson(request.url.queryParameters['q'] ?? ''));
+    if (path == '/api/mobile/jobs/example/delete') {
+      final before = jobs.length;
+      jobs.removeWhere((j) => j['example'] == true);
+      return json({'removed': before - jobs.length, ...jobsJson()});
+    }
+    final jobMatch = RegExp(r'^/api/mobile/jobs/(\d+)$').firstMatch(path);
+    if (jobMatch != null) {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      jobChanges.add(body);
+      final job = jobs.firstWhere((j) => j['id'] == int.parse(jobMatch.group(1)!));
+      final becameReady = body['status'] == 'ready' && job['status'] != 'ready' && job['ready_notified'] != true;
+      job
+        ..['status'] = body['status']
+        ..['note'] = body['note']
+        ..['price'] = body['price'];
+      if ((body['ready_by'] as String).isNotEmpty) job['ready_by'] = body['ready_by'];
+      bool? told;
+      if (becameReady) {
+        told = chatPhones.contains(_last9(job['customer_phone']));
+        job['ready_notified'] = told;
+      }
+      return json({...jobsJson(request.url.queryParameters['q'] ?? ''), 'job': job, 'customer_told': told});
+    }
+    if (path == '/api/mobile/jobs') {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      if ((body['item'] as String).trim().isEmpty || _last9(body['customer_phone']).isEmpty) {
+        return json({'error': 'Укажите, что сдали, и телефон клиента — по ним ИИ найдёт заказ.'}, 400);
+      }
+      final number = (body['number'] as String).isEmpty ? _nextNumber : body['number'] as String;
+      if (jobs.any((j) => j['number'] == number)) return json({'error': 'Квитанция №$number уже есть.'}, 409);
+      final job = {...body, 'id': 10 + jobs.length, 'number': number, 'status': 'accepted', 'ready_notified': false,
+        'example': false};
+      jobs.insert(0, job);
+      return json({...jobsJson(), 'job': job});
+    }
     if (path == '/api/mobile/staff' && request.method == 'GET') return json(peopleJson());
     if (path.startsWith('/api/mobile/staff')) {
       if (refusePeople != null) return json({'error': refusePeople}, 409);

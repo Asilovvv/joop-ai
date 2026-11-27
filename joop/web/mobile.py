@@ -25,9 +25,10 @@ from sqlmodel import Session, func, select
 
 from .. import altegio, cash, customers, deposits, order_status, quick_replies, schedule, staff_reply, stays
 from ..reschedule import blocked as move_blocked, reschedule
-from ..api import booking_json, customer_json, lead_json, order_json
+from ..api import _iso, booking_json, customer_json, lead_json, order_json
 from ..db import free, new_session
-from ..models import Booking, Business, Conversation, Lead, Message, Order, PanelUser, Service, Slot, Staff, Stay
+from ..memberships import phone_key
+from ..models import Booking, Business, Conversation, Job, Lead, Message, Order, PanelUser, Service, Slot, Staff, Stay
 from ..niches import get_pack, picker_packs
 from ..phone import normalize_phone
 from ..samples import example_staff_ids
@@ -76,7 +77,8 @@ class Who:
                 "who": self.user.name if self.user else "Владелец", "role": role,
                 "sections": {"bookings": pack.has("booking") or pack.has("request"), "cash": pack.has("booking"),
                              "orders": pack.has("order") and not master, "leads": not master,
-                             "stays": pack.has("stay") and not master},
+                             "stays": pack.has("stay") and not master,
+                             "jobs": pack.offers("jobs") and not master},  # «Заказы в работе»: receipts at the counter
                 "stay_kind": _stay_kind(pack) if pack.has("stay") else None,
                 # the app's people screen (/api/mobile/staff): its title, "" where the app does not edit them
                 "people_label": "" if master or pack.has("stay") or b.altegio_location_id else pack.resource_label}
@@ -1561,6 +1563,151 @@ def mobile_ai_switch(request: Request, item_id: int, body: AiSwitchIn):
         s.commit()
         s.refresh(conv)
         return _dialogue(s, conv)
+
+
+# --- jobs in work ----------------------------------------------------------------------------------
+# The panel's «Заказы в работе» (joop/web/jobs.py) on the phone, for a repair shop, a car service, an optician or a
+# furniture maker: a receipt taken at the counter, its status, and «готов» sending the customer the panel's message.
+
+JOBS_KEEP = timedelta(days=120)  # as the panel's page: older receipts are not listed
+JOBS_DONE = 50
+JOBS_OPEN = ("accepted", "in_progress", "ready")
+
+
+def _jobs_business(s: Session, request: Request) -> tuple[Who | None, JSONResponse | None]:
+    who, denied = _staff_only(s, request)
+    if denied:
+        return None, denied
+    if not get_pack(who.business.niche).offers("jobs"):
+        return None, _fail(404, "В этой сфере нет заказов в работе.")
+    return who, None
+
+
+def _job(j: Job, labels: dict[str, str], example: frozenset[int]) -> dict:
+    return {"id": j.id, "number": j.number, "customer_name": j.customer_name, "customer_phone": j.customer_phone,
+            "item": j.item, "status": j.status, "status_label": labels.get(j.status, j.status), "price": j.price,
+            "ready_by": j.ready_by.isoformat() if j.ready_by else "", "note": j.note, "ready_notified": j.ready_notified,
+            "conversation_id": j.conversation_id, "created_at": _iso(j.created_at), "example": j.id in example}
+
+
+def _jobs(s: Session, b: Business, q: str = "") -> dict:
+    from .. import jobs, samples
+
+    rows = s.exec(select(Job).where(Job.business_id == b.id, Job.created_at >= utcnow() - JOBS_KEEP)
+                  .order_by(Job.created_at.desc(), Job.id.desc())).all()
+    if q.strip():  # the panel's search: a receipt number, a phone, words of the item or the name
+        key, needle = phone_key(q), q.strip().lower()
+        rows = [j for j in rows if (key and j.phone_key == key) or j.number == q.strip() or needle in j.item.lower()
+                or needle in j.customer_name.lower()]
+    pack, labels = get_pack(b.niche), jobs.statuses(b)
+    example = samples.hidden_from_customers(s, b, "panel").jobs
+    return {"delivered": pack.jobs_delivered, "words": pack.job_words,
+            "statuses": [{"key": k, "label": v} for k, v in labels.items()], "next_number": jobs.next_number(s, b.id),
+            "open": [_job(j, labels, example) for j in rows if j.status in JOBS_OPEN],
+            "done": [_job(j, labels, example) for j in rows if j.status not in JOBS_OPEN][:JOBS_DONE]}
+
+
+@router.get("/api/mobile/jobs")
+def mobile_jobs(request: Request, q: str = ""):
+    with new_session() as s:
+        who, denied = _jobs_business(s, request)
+        if denied:
+            return denied
+        return _jobs(s, who.business, q)
+
+
+class JobIn(BaseModel):
+    number: str = ""
+    customer_name: str = ""
+    customer_phone: str = ""
+    item: str = ""
+    price: str = ""
+    ready_by: str = ""  # YYYY-MM-DD or empty
+    note: str = ""
+
+
+@router.post("/api/mobile/jobs")
+def mobile_job_add(request: Request, body: JobIn, q: str = ""):
+    """A receipt taken at the counter, with the panel's checks: what was left and the customer's phone, by which
+    the AI finds the job, and a receipt number not used yet."""
+    from .. import jobs
+    from .jobs import _date
+
+    with new_session() as s:
+        who, denied = _jobs_business(s, request)
+        if denied:
+            return denied
+        b = who.business
+        if not body.item.strip() or not phone_key(body.customer_phone):
+            what = "что изготавливаем" if get_pack(b.niche).jobs_delivered else "что сдали"
+            return _fail(400, f"Укажите, {what}, и телефон клиента — по ним ИИ найдёт заказ.")
+        number = body.number.strip()[:20] or jobs.next_number(s, b.id)
+        if s.exec(select(Job.id).where(Job.business_id == b.id, Job.number == number)).first():
+            return _fail(409, f"Квитанция №{number} уже есть.")
+        job = Job(business_id=b.id, number=number, customer_name=body.customer_name.strip()[:120],
+                  customer_phone=body.customer_phone.strip()[:40], phone_key=phone_key(body.customer_phone),
+                  item=body.item.strip()[:300], price=body.price.strip()[:60], ready_by=_date(body.ready_by),
+                  note=body.note.strip()[:300])
+        s.add(job)
+        s.commit()
+        s.refresh(job)
+        return {**_jobs(s, b, q), "job": _job(job, jobs.statuses(b), frozenset())}
+
+
+class JobChangeIn(BaseModel):
+    status: str
+    note: str = ""
+    price: str = ""
+    ready_by: str = ""  # empty keeps the date, as the panel's form
+
+
+@router.post("/api/mobile/jobs/{item_id}")
+def mobile_job_change(request: Request, item_id: int, body: JobChangeIn, q: str = ""):
+    """A status, note, price or date changed. Becoming «готов» sends the customer the panel's message, once, after
+    the change is stored; `customer_told` says whether it went (null: nothing to send)."""
+    from .. import jobs, samples
+    from .jobs import _date
+
+    if body.status not in jobs.STATUSES:
+        return _fail(400, "Нет такого статуса.")
+    with new_session() as s:
+        who, denied = _jobs_business(s, request)
+        if denied:
+            return denied
+        b = who.business
+        job = s.get(Job, item_id)
+        if job is None or job.business_id != b.id:
+            return _fail(404, "Заказ не найден.")
+        became_ready = body.status == "ready" and job.status != "ready"
+        job.status, job.note, job.price = body.status, body.note.strip()[:300], body.price.strip()[:60]
+        job.ready_by = _date(body.ready_by) if body.ready_by.strip() else job.ready_by
+        job.updated_at = utcnow()
+        s.add(job)
+        s.commit()
+        told = None
+        if became_ready and not job.ready_notified:
+            told = jobs.notify_ready(s, _rt(request), b, job, utcnow())  # the messenger is called outside the write
+            s.commit()
+        s.refresh(job)
+        example = samples.hidden_from_customers(s, b, "panel").jobs
+        return {**_jobs(s, b, q), "job": _job(job, jobs.statuses(b), example), "customer_told": told}
+
+
+@router.post("/api/mobile/jobs/example/delete")
+def mobile_jobs_example_delete(request: Request, q: str = ""):
+    """The sign-up example's receipts out in one go: fictional customers, known to the test chat only."""
+    from .. import samples
+
+    with new_session() as s:
+        who, denied = _jobs_business(s, request)
+        if denied:
+            return denied
+        b = who.business
+        ids = samples.hidden_from_customers(s, b, "panel").jobs
+        for job in s.exec(select(Job).where(Job.business_id == b.id, Job.id.in_(ids))).all() if ids else []:
+            s.delete(job)
+        s.commit()
+        return {**_jobs(s, b, q), "removed": len(ids)}
 
 
 # --- customers -------------------------------------------------------------------------------------

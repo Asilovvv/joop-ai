@@ -314,6 +314,31 @@ class S {
     required this.aiLabel,
     required this.customerLabel,
     required this.callInstead,
+    required this.tabJobs,
+    required this.navJobs,
+    required this.jobsHint,
+    required this.newJob,
+    required this.jobNumber,
+    required this.jobPhone,
+    required this.jobCustomer,
+    required this.jobPrice,
+    required this.jobNote,
+    required this.jobReadyBy,
+    required this.jobPickDate,
+    required this.jobFill,
+    required this.jobsSearch,
+    required this.jobsEmpty,
+    required this.jobsExampleBanner,
+    required this.jobsExampleConfirm,
+    required this.jobTold,
+    required this.jobsDone,
+    required this.jobsExampleDeleted,
+    required this.jobStatus,
+    required this.jobDue,
+    required this.jobAccepted,
+    required this.jobReadyTold,
+    required this.jobReadyCall,
+    required this.jobSaved,
   });
 
   final String code;
@@ -653,6 +678,33 @@ class S {
   final String customerLabel;
   final String Function(String phone) callInstead;
 
+  // «Заказы в работе»: receipts at the counter (a repair shop, an optician, a car service, a furniture maker)
+  final String tabJobs;
+  final String navJobs;
+  final String jobsHint;
+  final String newJob;
+  final String jobNumber;
+  final String jobPhone;
+  final String jobCustomer;
+  final String jobPrice;
+  final String jobNote;
+  final String jobReadyBy;
+  final String jobPickDate;
+  final String jobFill;
+  final String jobsSearch;
+  final String jobsEmpty;
+  final String jobsExampleBanner;
+  final String jobsExampleConfirm;
+  final String jobTold;
+  final String Function(bool delivered) jobsDone;
+  final String Function(int n) jobsExampleDeleted;
+  final String Function(String status, bool delivered) jobStatus;
+  final String Function(String day) jobDue;
+  final String Function(String number) jobAccepted;
+  final String Function(String number) jobReadyTold;
+  final String Function(String number, String phone) jobReadyCall;
+  final String Function(String number, String status) jobSaved;
+
   static S current = ru;
 
   static const languages = [ru, ky];
@@ -975,6 +1027,31 @@ class S {
     aiLabel: 'ИИ',
     customerLabel: 'Клиент',
     callInstead: _ruCallInstead,
+    tabJobs: 'Заказы в работе',
+    navJobs: 'В работе',
+    jobsHint: 'Клиент спрашивает в чате, готов ли заказ, — ИИ отвечает по статусу. Ставите «готов» — клиенту сразу приходит сообщение.',
+    newJob: 'Принять заказ',
+    jobNumber: 'Номер квитанции',
+    jobPhone: 'Телефон клиента',
+    jobCustomer: 'Имя клиента',
+    jobPrice: 'Стоимость',
+    jobNote: 'Заметка для клиента',
+    jobReadyBy: 'Срок готовности',
+    jobPickDate: 'Выбрать дату',
+    jobFill: 'Заполните: по этому ИИ найдёт заказ',
+    jobsSearch: 'Номер, телефон или имя',
+    jobsEmpty: 'Нет заказов в работе.',
+    jobsExampleBanner: 'Квитанции из примера: в тестовом чате ИИ их знает, настоящим клиентам — нет. Удалите их, когда начнёте принимать свои заказы.',
+    jobsExampleConfirm: 'Удалить квитанции из примера?',
+    jobTold: 'клиенту написали',
+    jobsDone: _ruJobsDone,
+    jobsExampleDeleted: _ruJobsExampleDeleted,
+    jobStatus: _ruJobStatus,
+    jobDue: _ruJobDue,
+    jobAccepted: _ruJobAccepted,
+    jobReadyTold: _ruJobReadyTold,
+    jobReadyCall: _ruJobReadyCall,
+    jobSaved: _ruJobSaved,
   );
 
   static const ky = S._(
@@ -1296,6 +1373,31 @@ class S {
     aiLabel: 'ИИ',
     customerLabel: 'Кардар',
     callInstead: _kyCallInstead,
+    tabJobs: 'Иштеги буйрутмалар', // check with a native speaker
+    navJobs: 'Иште', // check with a native speaker
+    jobsHint: 'Кардар чатта буйрутмасы даярбы деп сураса, ИИ статус боюнча жооп берет. «Даяр» деп белгилесеңиз, кардарга дароо билдирүү барат.', // check with a native speaker
+    newJob: 'Буйрутма кабыл алуу', // check with a native speaker
+    jobNumber: 'Квитанциянын номери', // check with a native speaker
+    jobPhone: 'Кардардын телефону', // check with a native speaker
+    jobCustomer: 'Кардардын аты', // check with a native speaker
+    jobPrice: 'Баасы', // check with a native speaker
+    jobNote: 'Кардар үчүн эскертме', // check with a native speaker
+    jobReadyBy: 'Даяр болуу мөөнөтү', // check with a native speaker
+    jobPickDate: 'Күндү тандоо', // check with a native speaker
+    jobFill: 'Толтуруңуз: ИИ буйрутманы ушул боюнча табат', // check with a native speaker
+    jobsSearch: 'Номер, телефон же аты', // check with a native speaker
+    jobsEmpty: 'Иште буйрутма жок.', // check with a native speaker
+    jobsExampleBanner: 'Мисалдагы квитанциялар: тесттик чатта ИИ аларды билет, чыныгы кардарларга — жок. Өз буйрутмаларыңызды кабыл ала баштаганда өчүрүңүз.', // check with a native speaker
+    jobsExampleConfirm: 'Мисалдагы квитанцияларды өчүрөсүзбү?', // check with a native speaker
+    jobTold: 'кардарга жазылды', // check with a native speaker
+    jobsDone: _kyJobsDone,
+    jobsExampleDeleted: _kyJobsExampleDeleted,
+    jobStatus: _kyJobStatus,
+    jobDue: _kyJobDue,
+    jobAccepted: _kyJobAccepted,
+    jobReadyTold: _kyJobReadyTold,
+    jobReadyCall: _kyJobReadyCall,
+    jobSaved: _kyJobSaved,
   );
 }
 
@@ -1495,3 +1597,39 @@ String _ruWindowsOpened(int n) => 'Открыто окон: $n. ИИ уже мо
 String _kyWindowsOpened(int n) => 'Ачылган убакыт: $n. ИИ аларга кардарларды жаза алат.'; // check with a native speaker
 String _ruFreeAhead(int n) => n == 0 ? 'свободных окон нет' : 'свободных окон: $n';
 String _kyFreeAhead(int n) => n == 0 ? 'бош убакыт жок' : 'бош убакыт: $n'; // check with a native speaker
+
+// «Заказы в работе». The Kyrgyz texts: check with a native speaker.
+String _ruJobsDone(bool delivered) => delivered ? 'Доставленные и отменённые' : 'Выданные и отменённые';
+String _kyJobsDone(bool delivered) => delivered ? 'Жеткирилгендер жана жокко чыгарылгандар' : 'Берилгендер жана жокко чыгарылгандар';
+String _ruJobsExampleDeleted(int n) => n == 0 ? 'Примера здесь нет.' : 'Удалено квитанций из примера: $n.';
+String _kyJobsExampleDeleted(int n) => n == 0 ? 'Бул жерде мисал жок.' : 'Мисалдагы квитанциялар өчүрүлдү: $n.';
+String _ruJobStatus(String status, bool delivered) => switch (status) {
+      'accepted' => 'принят',
+      'in_progress' => 'в работе',
+      'ready' => delivered ? 'готов, согласуем доставку' : 'готов, можно забирать',
+      'issued' => delivered ? 'доставлен' : 'выдан',
+      'cancelled' => 'отменён',
+      _ => status,
+    };
+String _kyJobStatus(String status, bool delivered) => switch (status) {
+      'accepted' => 'кабыл алынды',
+      'in_progress' => 'иштелүүдө',
+      'ready' => delivered ? 'даяр, жеткирүүнү макулдашабыз' : 'даяр, алып кетсе болот',
+      'issued' => delivered ? 'жеткирилди' : 'берилди',
+      'cancelled' => 'жокко чыгарылды',
+      _ => status,
+    };
+String _ruJobDue(String day) => 'срок $day';
+String _kyJobDue(String day) => 'мөөнөтү $day';
+String _ruJobAccepted(String number) =>
+    'Заказ №$number принят. Назовите клиенту номер квитанции: по нему и телефону ИИ ответит, готово ли.';
+String _kyJobAccepted(String number) =>
+    '№$number буйрутма кабыл алынды. Кардарга квитанциянын номерин айтыңыз: ал жана телефон боюнча ИИ даярбы деп жооп берет.';
+String _ruJobReadyTold(String number) => 'Заказ №$number готов. Клиенту отправлено сообщение.';
+String _kyJobReadyTold(String number) => '№$number буйрутма даяр. Кардарга билдирүү жөнөтүлдү.';
+String _ruJobReadyCall(String number, String phone) =>
+    'Заказ №$number готов. Написать клиенту не получилось: нет чата с ним или в WhatsApp прошло больше суток. Позвоните: $phone';
+String _kyJobReadyCall(String number, String phone) =>
+    '№$number буйрутма даяр. Кардарга жазуу мүмкүн болгон жок: аны менен чат жок же WhatsApp аркылуу бир суткадан ашык жазышкан жок. Чалыңыз: $phone';
+String _ruJobSaved(String number, String status) => 'Заказ №$number: $status.';
+String _kyJobSaved(String number, String status) => '№$number буйрутма: $status.';
