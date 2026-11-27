@@ -34,6 +34,9 @@ every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
   it) and back; sold-out items return through the panel's «Склад», Altegio price lists are switched in Altegio.
 
 The tabs follow the niche, as the panel's menu does: a clinic has no «Заказы», a shop has no «Сегодня» and «Записи».
+Above every tab, as on top of every panel page, the line about the end of the trial or paid month while the AI is
+about to stop (yellow) or has stopped (red): the owner gets «Перейти к оплате» (the billing page in the browser), staff
+are asked to tell the owner.
 
 While the app is open it checks the server every 30 seconds: a new order or request shows a notice, and the tabs
 carry counters of orders nobody accepted and requests nobody closed. Checks stop in the background and run at once when

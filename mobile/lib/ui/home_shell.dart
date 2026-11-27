@@ -67,10 +67,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    if (_account.bookings) {
-      _summary.load();
-      _bookings.add(BookingsDayChanged(widget.today));
-    }
+    _summary.load(); // also the line about the end of the trial or paid month, shown above every tab
+    if (_account.bookings) _bookings.add(BookingsDayChanged(widget.today));
     if (_account.cash) _cash.load();
     if (_account.role != 'master') _aiResults.load();
     if (_account.stays) _stays.load();
@@ -87,10 +85,8 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   /// Asks the server what changed: new orders and requests show a notice and the tabs' counters.
   void _check() {
-    if (_account.bookings) {
-      _summary.refresh();
-      _bookings.add(const BookingsPolled());
-    }
+    _summary.refresh();
+    if (_account.bookings) _bookings.add(const BookingsPolled());
     if (_account.cash) _cash.load();
     if (_account.stays) _stays.refresh();
     if (_account.orders) _orders.refresh();
@@ -281,7 +277,20 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
               ),
             ],
           ),
-          body: IndexedStack(index: _index, children: [for (final t in tabs) _screen(t)]),
+          body: Column(children: [
+            // The panel's line on top of every page: the AI is about to stop, or has stopped, for payment. Above every
+            // tab, as a shop, a hotel or a rental has no «Сегодня» and the owner may live in «Заявки».
+            BlocBuilder<SummaryCubit, SummaryState>(
+              buildWhen: (a, b) => a.summary?.period != b.summary?.period,
+              builder: (context, state) {
+                final line = state.summary?.period;
+                return line == null
+                    ? const SizedBox.shrink()
+                    : Padding(padding: const EdgeInsets.fromLTRB(12, 8, 12, 0), child: PeriodBanner(line: line));
+              },
+            ),
+            Expanded(child: IndexedStack(index: _index, children: [for (final t in tabs) _screen(t)])),
+          ]),
           floatingActionButton: tabs[_index] == _Tab.today || tabs[_index] == _Tab.bookings
               ? FloatingActionButton.extended(
                   key: const Key('new-booking'),

@@ -40,7 +40,6 @@ class TodayScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96), // room under the «Записать» button
             children: [
-              if (summary?.period != null) ...[PeriodBanner(line: summary!.period!), const SizedBox(height: 12)],
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(gradient: brandGradient, borderRadius: BorderRadius.circular(24)),
