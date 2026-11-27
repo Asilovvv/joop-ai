@@ -15,6 +15,10 @@ every channel the AI answers (Telegram, WhatsApp, Instagram, the web chat):
   date with the guests and the customer; «Отменить бронь» frees the dates, as the panel's «Брони» page; the chat opens from
   the booking; «Забронировать» books a guest who phoned or walked in: dates, then a room (car, hall) with the number still
   free for all the nights, guests, name and phone (marked «вручную», not counted as the AI's work);
+- **В работе** (repair shops, car services, opticians, furniture makers; not for masters) — the panel's «Заказы в
+  работе»: «Принять заказ» takes a receipt at the counter (what was left, the customer's phone, a free receipt number,
+  price, due date), a tap changes its status; «готов» sends the customer the panel's message once, or says whom to call;
+  the sign-up example's receipts go with one button;
 - **Заявки** — questions the AI handed to staff, bookings without a free slot, qualified leads; «Ответить» opens the
   customer's dialogue and sends the owner's answer through their channel (or says why WhatsApp/Instagram no longer allow it);
 - **Диалоги** (the button in the top bar, not for masters) — every real chat the AI is having, newest first, with search
