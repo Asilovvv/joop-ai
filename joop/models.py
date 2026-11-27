@@ -688,6 +688,17 @@ class FounderDigest(SQLModel, table=True):
     created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
+class FounderCallList(SQLModel, table=True):
+    """The founder's «позвонить сегодня» of one day (joop/founder_calls.py): the lock that sends it once."""
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    day: date_type = Field(index=True, unique=True)  # Bishkek date
+    count: int = 0
+    text: str = ""
+    sent: bool = False
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+
+
 class PanelUser(SQLModel, table=True):
     """A staff member's own login to the panel. The company password stays the owner's login.
 

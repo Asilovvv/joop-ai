@@ -21,6 +21,19 @@
   <div class="stat"><b>${{ '%.2f' | format(total_cost) }}</b><span>расход на ИИ за 30 дней</span></div>
 </div>
 <section class="card">
+  <h2>Позвонить сегодня ({{ calls | length }})</h2>
+  {% if calls %}
+  <ol class="calls">
+    {% for c in calls %}
+    <li><b>{{ c.name }}</b> — {{ c.who }}<br>{{ c.reason }} <b>{{ c.offer }}</b></li>
+    {% endfor %}
+  </ol>
+  <p class="muted small">Тот же список приходит вам в Telegram каждое утро в 10:00{% if not alerts_on %} — когда заданы FOUNDER_BOT_TOKEN и FOUNDER_CHAT_ID{% endif %}.</p>
+  {% else %}
+  <p class="muted">Сегодня звонить некому: ни у кого не заканчивается период в ближайшие 3 дня, никто не застрял в настройке, ИИ ни у кого не остановлен за неоплату.</p>
+  {% endif %}
+</section>
+<section class="card">
   <h2>Сайт: живое демо за 30 дней</h2>
   <div class="stats">
     <div class="stat"><b>{{ site.visitors }}</b><span>посетителей написали ИИ</span></div>
