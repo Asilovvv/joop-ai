@@ -11,9 +11,10 @@ file name, and the right number was 255.
 
 A dialogue is a set and an id. The sets are every niche pack (joop/niches/<pack>/cases.yaml), "base" (eval/cases.yaml)
 and "dental_base" (eval/cases_dental.yaml). A result file's name says its run and its set: …_run33_results_auto.json is
-the auto pack, …_results.json the base set, …_results_dental_profile.json the base dental set; …_r2.json is a repeat.
-Before the dental pack existed, …_results_dental.json held the base dental set: a case of such a file belongs to the
-one of the two sets that has its id (they share none).
+the auto pack, …_results.json the base set, …_results_dental_profile.json the base dental set; …_r2.json is a repeat
+(…_results_r2.json: of the base set). Before the dental pack existed, …_results_dental.json held the base dental set:
+the file's `business_file` says which of the two it holds (the pack's demo.yaml or business.dental.example.yaml).
+A file of a set that does not exist today (…_results_kyfill.json: another tool's) is left out.
 
 A dialogue has run when a result file of a real run (not a dry run) holds a case of its set with its id and an answer
 that is not the fallback reply. A dialogue edited since still counts: a result keeps the answer, not the question. Its
@@ -36,7 +37,8 @@ import yaml
 from joop.agent.engine import ERROR_REPLY
 
 ROOT = Path(__file__).resolve().parents[1]
-NAME = re.compile(r"^(?P<day>\d{4}-\d{2}-\d{2})T\d{4}Z_run(?P<run>\d+)_results(?:_(?P<tail>.+?))?(?:_r(?P<repeat>\d+))?\.json$")
+NAME = re.compile(r"^(?P<day>\d{4}-\d{2}-\d{2})T\d{4}Z_run(?P<run>\d+)_results"
+                  r"(?:_(?!r\d+\.json$)(?P<tail>.+?))?(?:_r(?P<repeat>\d+))?\.json$")  # …_results_r2.json: the base set
 DENTAL = ("dental", "dental_base")  # the two sets a file named …_results_dental.json may hold
 
 
@@ -67,10 +69,22 @@ class Result:
     tail: str  # "" for the base set, else what follows _results_ in the file's name
     data: dict
 
+    def names(self) -> tuple[str, ...]:
+        """The sets this file's cases may belong to."""
+        if self.tail == "dental_profile":
+            return ("dental_base",)
+        if self.tail == "dental":
+            source = str(self.data.get("business_file", ""))
+            if "niches/dental/" in source:
+                return ("dental",)
+            if "business.dental" in source:
+                return ("dental_base",)
+            return DENTAL  # no word of it in the file: the set that has the case's id
+        return (self.tail or "base",)
+
     def set_of(self, case_id: str, today: dict[tuple[str, str], str]) -> str | None:
         """The set this file's case belongs to, or None when today has no such dialogue."""
-        names = ("dental_base",) if self.tail == "dental_profile" else DENTAL if self.tail == "dental" else (self.tail or "base",)
-        return next((name for name in names if (name, case_id) in today), None)
+        return next((name for name in self.names() if (name, case_id) in today), None)
 
 
 def read_runs(folder: Path) -> list[Result]:
@@ -147,9 +161,10 @@ def run_rows(today: dict[tuple[str, str], str], results: list[Result], wanted: s
     """A row for each wanted run that has results, in order, and one more for all of them together when there are
     several."""
     rows: dict[int, Row] = {}
+    sets = {name for name, _id in today}
     for result in results:
-        if result.run not in wanted:
-            continue
+        if result.run not in wanted or not any(name in sets for name in result.names()):
+            continue  # another run, or a file of no set of today's (another tool's)
         row = rows.setdefault(result.run, Row(str(result.run), result.day))
         row.cost += float(result.data.get("summary", {}).get("total_cost_usd") or 0)
         for case in result.data["cases"]:

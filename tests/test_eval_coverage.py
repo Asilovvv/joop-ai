@@ -56,7 +56,8 @@ def test_a_dialogue_has_run_when_the_model_itself_answered_it(root, tmp_path):
     # before the dental pack existed this name held the base dental set
     store(runs, "2026-10-29T0919Z_run2_results_dental.json", [case("old_price"), case("old_price_ky")])
     store(runs, "2026-10-31T1032Z_run33_results_dental.json", [case("price"), case("price_ky"), case("removed_since")])
-    store(runs, "2026-10-31T1303Z_run35_results_water_r1.json", [case("order", reply=ERROR_REPLY, fallback=True)])  # the fallback is not an answer
+    store(runs, "2026-10-31T1303Z_run35_results_water_r1.json", [case("order", reply=ERROR_REPLY)])  # the fallback is not an answer
+    store(runs, "2026-10-31T1310Z_run36_results_water.json", [case("order", reply="Сейчас не могу", fallback=True)])  # nor one marked so
     store(runs, "2026-10-31T1303Z_run35_results_water_r2.json", [case("order_ky", reply="")])
     store(runs, "2026-11-20T0900Z_run41_results_water.json", [case("order"), case("order_ky")], dry_run=True)  # scripted replies
     store(runs, "2026-10-30T0400Z_run20_results_kyfill.json", [case("order")])  # another tool's file
@@ -123,3 +124,37 @@ def test_the_products_own_dialogues_have_one_id_each():
     packs = {path.parent.name for path in (coverage.ROOT / "joop" / "niches").glob("*/cases.yaml")}
     assert {name for name, _id in today} == packs | {"base", "dental_base"}
     assert all(lang in ("", "ky") for lang in today.values()) and sum(1 for lang in today.values() if lang == "ky") > 100
+
+
+def test_a_repeat_of_the_base_set(root, tmp_path):
+    """Review of #321–#327: …_results_r2.json was read as a set named "r2" and left out."""
+    runs = tmp_path / "runs"
+    store(runs, "2026-10-31T1303Z_run35_results_r2.json", [case("hello")])
+    store(runs, "2026-10-31T1303Z_run35_results_water_r2.json", [case("order")])
+    found = coverage.coverage(coverage.dialogues(root), coverage.read_runs(runs))
+    assert found.ran == {("base", "hello"), ("water", "order")}
+
+
+def test_the_file_says_which_dental_set_it_holds(root, tmp_path):
+    """Review of #321–#327: with an id in both dental sets, a result of the base dental set was the pack's."""
+    for name in ("joop/niches/dental/cases.yaml", "eval/cases_dental.yaml"):
+        path = root / name
+        path.write_text(yaml.safe_dump(yaml.safe_load(path.read_text(encoding="utf-8")) + [{"id": "shared"}]), encoding="utf-8")
+    runs = tmp_path / "runs"
+    store(runs, "2026-10-29T0919Z_run2_results_dental.json", [case("shared")], business_file="business.dental.example.yaml")
+    found = coverage.coverage(coverage.dialogues(root), coverage.read_runs(runs))
+    assert found.ran == {("dental_base", "shared")}
+    store(runs, "2026-10-31T1032Z_run33_results_dental.json", [case("shared")],
+          business_file="/home/runner/work/joop-ai/joop-ai/joop/niches/dental/demo.yaml")
+    found = coverage.coverage(coverage.dialogues(root), coverage.read_runs(runs))
+    assert found.ran == {("dental_base", "shared"), ("dental", "shared")}
+
+
+def test_another_tools_files_are_not_runs(root, tmp_path):
+    """Review of #321–#327: the Kyrgyz-phrase tool's files entered the rows as dialogues that no longer exist."""
+    runs = tmp_path / "runs"
+    store(runs, "2026-11-01T0400Z_run37_results_kyfill.json", [case("auto:0"), case("auto:1")], business_file="kyrgyz_fill")
+    store(runs, "2026-11-01T0400Z_run37_results_water.json", [case("order")])
+    rows = coverage.run_rows(coverage.dialogues(root), coverage.read_runs(runs), coverage.runs_wanted("37"))
+    assert len(rows) == 1 and rows[0].all == [1, 1] and rows[0].gone == [0, 0] and round(rows[0].cost, 2) == 0.01
+
