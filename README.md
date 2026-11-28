@@ -506,7 +506,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 1234 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 1263 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
@@ -572,7 +572,9 @@ How the parts fit together: [docs/architecture.md](docs/architecture.md).
 `scripts/record_demo.py` records the demo walk-through as one MP4 with captions (English or Russian): a clinic
 signs up, the owner asks the AI in Kyrgyz and Russian in the test chat and books a visit, a customer books from a
 phone on the booking page, the owner sees both bookings. It starts a server of its own with an empty database and
-drives a real browser; every answer in the video is the model's own.
+drives a real browser. In the test chat every answer is written by the model while the recording runs; after a
+booking the code adds the line with the saved time and doctor, as it does for every customer. The chat on the
+site's first page is an illustration, not the model.
 
 ```bash
 pip install playwright && playwright install chromium     # ffmpeg is needed too
@@ -580,8 +582,11 @@ python scripts/record_demo.py out/demo --captions en      # needs ANTHROPIC_API_
 ```
 
 On GitHub: Actions → demo-video → Run workflow; the MP4 files and the dialogue as text are an artifact of the run.
-The run fails and keeps no video when the model does not answer, names another price, names a time that is not in
-the schedule or does not make the booking. A run against a stand-in model (the recorder's own test) is marked
+The run fails and keeps no video when, in the test chat, the model does not answer or the code answers in its
+place; the Kyrgyz answer does not name the price list's price as a number of its own («1 500» is not «500») or is in
+Russian; the answer about free time names a time «Окна» does not show free or leaves out the earliest one; no booking
+stands among «Предстоящие» at that earliest time (the waiting list and cancelled rows do not count); or an answer is
+not on the screen while its caption is. A run against a stand-in model (the recorder's own test) is marked
 «TEST RUN» on every frame and in the file's name.
 
 ## Known limitations
