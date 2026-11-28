@@ -15,10 +15,12 @@ from __future__ import annotations
 
 import threading
 import time as time_module
+from contextvars import ContextVar
 from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
 from sqlmodel import Session, func, select
@@ -44,7 +46,27 @@ from .app import _base_url, _by_phone, _delete_service, _login_fails, _retire_st
 from .saas import checklist, unique_slug
 from .menu import qr_rows
 
-router = APIRouter()
+_LANGUAGE: ContextVar[str] = ContextVar("mobile_language", default="ru")
+
+
+class _InAppLanguage(APIRoute):
+    """Each request runs in the app's language (its Accept-Language header, `_lang`): `_fail` says a refusal in it.
+    Set before the endpoint, which a sync endpoint's thread sees as it runs in a copy of this context."""
+
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+
+        async def in_language(request: Request):
+            token = _LANGUAGE.set(_lang(request))
+            try:
+                return await handler(request)
+            finally:
+                _LANGUAGE.reset(token)
+
+        return in_language
+
+
+router = APIRouter(route_class=_InAppLanguage)
 
 TOKEN_DAYS = 30
 SALT = "joop-mobile-v1"
@@ -94,6 +116,11 @@ def _serializer(request: Request) -> URLSafeTimedSerializer:
 
 
 def _fail(status: int, text: str) -> JSONResponse:
+    """A refusal, in Kyrgyz for an app in Kyrgyz (joop/errors_ky.py; an unknown sentence stays Russian)."""
+    if _LANGUAGE.get() == "ky":
+        from ..errors_ky import kyrgyz
+
+        text = kyrgyz(text)
     return JSONResponse({"error": text}, status_code=status, headers={"WWW-Authenticate": "Bearer"} if status == 401 else None)
 
 
