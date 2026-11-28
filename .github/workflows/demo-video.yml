@@ -1,8 +1,9 @@
 # Records the demo walk-through as a video on the real model (scripts/record_demo.py), started by hand:
 # Actions -> demo-video -> Run workflow. Needs the repository secret ANTHROPIC_API_KEY; one recording is a handful
 # of model calls (well under a cent on claude-haiku-5-5).
-# The MP4 files and the dialogue as text are kept as an artifact of the run for 30 days. The run fails, and keeps no
-# video, when the model does not answer (an empty balance) or the walk breaks: see the script's header.
+# The MP4 files and the dialogue as text are kept as an artifact of the run for 30 days. A recording fails, and keeps
+# no video, when the model does not answer (an empty balance) or the walk breaks: see the script's header. With
+# "both", a language that failed does not take the other one's video with it: what was made is kept, the run is red.
 name: demo-video
 
 on:
@@ -37,7 +38,11 @@ jobs:
       - run: pip install -r requirements.txt playwright
       - run: python -m playwright install --with-deps chromium
       - name: ffmpeg
-        run: command -v ffmpeg ffprobe || (sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg)
+        run: |
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
+          ffmpeg -version | head -1 && ffprobe -version | head -1
 
       - name: Record
         env:
@@ -54,24 +59,32 @@ jobs:
             en|ru) langs="$CAPTIONS" ;;
             *) echo "::error::captions must be en, ru or both"; exit 1 ;;
           esac
+          failed=""
           for lang in $langs; do
-            python scripts/record_demo.py demo-video --captions "$lang"
+            python scripts/record_demo.py demo-video --captions "$lang" || failed="$failed $lang"
           done
-          {
-            echo "### Demo video"
-            echo ""
-            echo "Download **joop-demo-video** under Artifacts on this page. The dialogue the model wrote:"
-            echo ""
-            echo '```'
-            cat demo-video/*.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          if ls demo-video/*.txt >/dev/null 2>&1; then
+            {
+              echo "### Demo video"
+              echo ""
+              echo "Download **joop-demo-video** under Artifacts on this page. The dialogue the model wrote:"
+              echo ""
+              echo '```'
+              cat demo-video/*.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -n "$failed" ]; then
+            echo "::error::No video for:$failed. The reason is in this step's log, after «No video:»"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
         with:
           name: joop-demo-video
           path: |
             demo-video/*.mp4
             demo-video/*.txt
           retention-days: 30
-          if-no-files-found: error
+          if-no-files-found: ignore
