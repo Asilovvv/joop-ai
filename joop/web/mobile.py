@@ -1130,6 +1130,9 @@ def _people_editor(s: Session, request: Request) -> tuple[Who | None, JSONRespon
     return who, None
 
 
+CAPACITY_MAX = 100_000  # seats of a table or a hall, guests of a room: the panel takes any number; a wedding hall seats 800
+
+
 def _group_size(b: Business, sent: int) -> int:
     """As the panel's field: rooms of the type or cars of the model from 1 (a stay needs one to be booked); a hall is
     one, its field not shown; a group class 0 (one booking a time) to 500."""
@@ -1163,7 +1166,7 @@ def mobile_staff_add(request: Request, body: StaffIn):
         if free_plan.is_free(billing.get_subscription(s, b.id)) and len(free_plan.active_staff(s, b.id)) >= free_plan.MAX_STAFF:
             return _fail(409, free_plan.TOO_MANY)  # the free plan is for one master
         s.add(Staff(business_id=b.id, name=body.name.strip()[:120], role=body.role.strip()[:120],
-                    handles=body.handles.strip()[:500], capacity=max(0, min(body.capacity, 500)),
+                    handles=body.handles.strip()[:500], capacity=max(0, min(body.capacity, CAPACITY_MAX)),
                     group_size=_group_size(b, body.group_size)))
         s.commit()
         return _people(s, b)
@@ -1198,7 +1201,7 @@ def mobile_staff_update(request: Request, item_id: int, body: StaffIn):
             return _fail(422, "Напишите имя.")
         before = len(free_plan.active_staff(s, b.id))
         row.name, row.role, row.handles = body.name.strip()[:120], body.role.strip()[:120], body.handles.strip()[:500]
-        row.capacity = max(0, min(body.capacity, 500))
+        row.capacity = max(0, min(body.capacity, CAPACITY_MAX))
         group_size = _group_size(b, body.group_size)
         if group_size != row.group_size:
             row.group_size = group_size

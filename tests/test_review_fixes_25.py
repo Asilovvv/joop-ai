@@ -1,14 +1,14 @@
-"""Independent review of #301–#310: a booking the owner makes on their own booking page, from a browser logged in to
-the panel, is a check — the page itself says so and asks to cancel it in «Записи». It must not tick «Первый
-настоящий клиент» in the launch steps (panel, app, the founder's call list), as the web chat from such a browser is
-a test chat (joop/stats.py). A customer booking from their own browser still does."""
+"""Independent review of #301–#310: a booking made on the business's own booking page from a browser logged in to the
+panel (the owner trying it, staff booking a caller) must not tick «Первый настоящий клиент» in the launch steps
+(panel, app, the founder's call list). Since the review of #311–#319 it stays a real booking (`by_staff`), not a test
+one: a caller booked there is a real customer for reminders, «Касса» and the lists (test_review_fixes_26.py). A
+customer booking from their own browser still ticks the step."""
 
 from fastapi.testclient import TestClient
 from sqlmodel import select
 
 from joop import db
 from joop.models import Booking, Business
-from joop.stats import TEST_CHANNEL
 from joop.web.app import create_app
 from joop.web.saas import checklist
 
@@ -32,7 +32,7 @@ def test_the_owners_own_page_booking_is_a_check_not_the_first_customer(business,
         assert done.status_code == 303 and "Вы записаны" in c.get(done.headers["location"]).text
         with db.new_session() as s:
             own = s.exec(select(Booking).where(Booking.business_id == business.id, Booking.source == "page")).one()
-            assert own.channel == TEST_CHANNEL and own.status == "booked"  # it holds the time until cancelled
+            assert (own.by_staff, own.channel, own.status) == (True, "", "booked")  # real: it holds the time
         assert _first_customer(business.id) is False
         setup = c.get("/panel/setup").text
         assert "Первый настоящий клиент" in setup
@@ -41,5 +41,5 @@ def test_the_owners_own_page_booking_is_a_check_not_the_first_customer(business,
         assert done.status_code == 303
     with db.new_session() as s:
         theirs = s.exec(select(Booking).where(Booking.business_id == business.id, Booking.customer_name == "Айгуль")).one()
-        assert theirs.channel == ""
+        assert (theirs.by_staff, theirs.channel) == (False, "")
     assert _first_customer(business.id) is True
