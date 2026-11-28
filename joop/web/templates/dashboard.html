@@ -4,11 +4,12 @@
 <section class="head">
   <h1>Сводка</h1>
   <div class="chips">
-    <span class="chip {{ 'ok' if business.bot_enabled else 'warn' }}">ИИ {{ 'отвечает' if business.bot_enabled else 'выключен' }}</span>
+    <span class="chip {{ ai[0] }}">{{ ai[1] }}</span>
     {% for name, on in channels %}<span class="chip {{ 'ok' if on else '' }}">{{ name }}: {{ 'подключён' if on else 'нет' }}</span>{% endfor %}
     <span class="chip {{ 'ok' if admins else 'warn' }}">Уведомления: {{ admins or 'нет' }}</span>
   </div>
 </section>
+{% if ai[2] %}<section class="card warn" id="ai-down"><p>{{ ai[2] }}</p></section>{% endif %}
 
 <section class="card install" id="install" hidden>
   <b>Поставьте Joop на телефон</b> — панель откроется как приложение, с иконкой на экране.
