@@ -103,7 +103,16 @@ class Who:
                              "jobs": pack.offers("jobs") and not master},  # «Заказы в работе»: receipts at the counter
                 "stay_kind": _stay_kind(pack) if pack.has("stay") else None,
                 # the app's people screen (/api/mobile/staff): its title, "" where the app does not edit them
-                "people_label": "" if master or b.altegio_location_id else pack.resource_label}
+                "people_label": "" if master or b.altegio_location_id else _people_word(pack)}
+
+
+def _people_word(pack) -> str:
+    """«Врачи», «Мастера», «Номера»: in Kyrgyz for an app in Kyrgyz (joop/web/menu.PEOPLE_KY, the public pages' words)."""
+    if _LANGUAGE.get() == "ky":
+        from .menu import PEOPLE_KY
+
+        return PEOPLE_KY.get(pack.resource_label, pack.resource_label)
+    return pack.resource_label
 
 
 def _stay_kind(pack) -> str:
@@ -564,6 +573,10 @@ def _period_line(s: Session, request: Request, who: Who) -> dict | None:
         return None
     owner = who.user is None
     pay_url = f"{_base_url(request).rstrip('/')}/panel/billing" if line.pay and owner else None
+    if _lang(request) == "ky":  # the line that says the AI stops must be read: in the app's Kyrgyz (joop/period_ky.py)
+        from ..period_ky import kyrgyz
+
+        line = period_end.Banner(line.level, kyrgyz(line.text), line.pay)
     return {"level": line.level, "text": line.text, "pay_url": pay_url,
             "ask_owner": line.pay and not owner}  # staff: «Скажите владельцу», as in the panel
 
@@ -1149,7 +1162,7 @@ def _people(s: Session, b: Business) -> dict:
     now_local = local_now(b.timezone).replace(tzinfo=None)
     free = dict(s.exec(select(Slot.staff_id, func.count()).where(Slot.business_id == b.id, Slot.status == "free",
                                                                  Slot.start > now_local).group_by(Slot.staff_id)).all())
-    return {"label": pack.resource_label, "item": pack.resource_item, "capacity": pack.party_size,
+    return {"label": _people_word(pack), "item": pack.resource_item, "capacity": pack.party_size,
             "group": pack.offers("group_classes"), "booking": pack.has("booking"),
             "units": pack.has("stay") and not pack.by_day, "stay_kind": _stay_kind(pack) if pack.has("stay") else "",
             "work_start": b.work_start, "work_end": b.work_end,

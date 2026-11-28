@@ -72,7 +72,8 @@ Every call after sign-in sends `Authorization: Bearer <token>`.
   (403). Settings, channels and payment stay in the panel.
 - **Language**: the app sends `Accept-Language: ky` or `ru`, its own language. The server writes in it what it words
   itself: the launch steps of `GET /api/mobile/setup` (joop/checklist_ky.py; the panel's are Russian) and every
-  refusal's `error` (joop/errors_ky.py; a sentence it does not know stays Russian).
+  refusal's `error` (joop/errors_ky.py; a sentence it does not know stays Russian), the summary's `period` line
+  (joop/period_ky.py) and the people screen's word (`people_label`, `label`).
 - **Sections**: `login` and `me` return `sections` (`bookings`, `orders`, `leads`, `cash`, `stays`, `jobs`) and `stay_kind` from
   the niche, so the app shows the tabs the panel's menu would: a cafe gets orders, a shop has no bookings, a hotel has
   «Брони», a repair shop «В работе».
