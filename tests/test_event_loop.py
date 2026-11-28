@@ -48,11 +48,17 @@ class Held(FakeLLM):
         self.inside = threading.Event()  # every visitor is with the model now
         self.together = threading.Barrier(visitors, action=self.inside.set)
         self.go = threading.Event()
+        self.stuck = ""  # why it gave up waiting; a route may turn the error into a polite reply, this stays
 
     def respond(self, system, messages, schema=None):
-        self.together.wait(PATIENCE)  # one after another they would never meet here: BrokenBarrierError
+        try:
+            self.together.wait(PATIENCE)  # one after another they would never meet here
+        except threading.BrokenBarrierError:
+            self.stuck = "the visitors came to the model one after another"
+            raise
         if not self.go.wait(PATIENCE):
-            raise AssertionError("nobody else was answered while the model was thinking")
+            self.stuck = "nobody else was answered while the model was thinking"
+            raise AssertionError(self.stuck)
         return AgentReply("Здравствуйте! Чем помочь?")
 
 
@@ -136,7 +142,7 @@ def test_site_chat_visitors_are_answered_side_by_side(settings, rt, business):
 
         at_once([visitor(n) for n in range(3)] + [somebody_else(c, model, health)])
     webchat.reset_limits()
-    assert health == [200]
+    assert model.stuck == "" and health == [200]
     assert replies == ["Здравствуйте! Чем помочь?"] * 3
 
 
@@ -162,5 +168,5 @@ def test_the_site_demo_does_not_stop_the_server(site, rt):
         replies.append(r.status_code)
 
     at_once([talk, somebody_else(site, model, health)])
-    assert health == [200]  # answered while the demo's question was still with the model
+    assert model.stuck == "" and health == [200]  # answered while the demo's question was still with the model
     assert replies == [200]
