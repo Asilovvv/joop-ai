@@ -45,8 +45,9 @@ def _contacts(step: dict, b: Business) -> tuple[str, str]:
     if "policy" in example:
         left.append(f"жазылуу тартиби (азыр мисалдан: {b.booking_policy})")
     if "order" in example:
-        terms = [f"{word} {value} сом" for word, value in (("минималдуу буйрутма", b.min_order), ("жеткирүү", b.delivery_fee),
-                                                          ("акысыз жеткирүү, сомдон баштап", b.free_delivery_from)) if value]
+        terms = [form.format(value) for form, value in (("минималдуу буйрутма {} сом", b.min_order),
+                                                         ("жеткирүү {} сом", b.delivery_fee),
+                                                         ("{} сомдон баштап акысыз жеткирүү", b.free_delivery_from)) if value]
         left.append(f"буйрутма шарттары (азыр мисалдан: {', '.join(terms)})")
     hint = ("Дагы көрсөтүңүз: " + ", ".join(left) + ". " if left else "") + "ИИ бул жерде жазылгандар менен гана жооп берет."
     return TITLES_KY["contacts"], hint

@@ -200,10 +200,11 @@ def book_submit(request: Request, background: BackgroundTasks, slug: str, slot: 
             return RedirectResponse(to_list % "stale", status_code=303)
         if hp_note.strip() or age is None or age < pb.MIN_FILL:  # a script: the hidden field, a forged or instant form
             return _form(request, s, b, lang, the_slot, member, "again", 400, values)
+        staff = _staff_view(request, b)  # a receptionist booking callers all day from one office address
         key, today = f"{b.id}|{client_ip(request)}", now_local.date().isoformat()
         day_seen, used = _by_address.get(key, (today, 0))
         used = used if day_seen == today else 0
-        if used >= pb.PER_ADDRESS_DAY:
+        if used >= pb.PER_ADDRESS_DAY and not staff:
             return _form(request, s, b, lang, the_slot, member, "address", 429, values)
         clean_name, clean_phone = " ".join(name.split())[:60], normalize_phone(phone)
         if not clean_name or not clean_phone:
@@ -222,12 +223,13 @@ def book_submit(request: Request, background: BackgroundTasks, slug: str, slot: 
             if done.reason in ("contact", "party"):
                 return _form(request, s, b, lang, the_slot, member, done.reason, 422, values)
             return RedirectResponse(to_list % "taken", status_code=303)
-        if _staff_view(request, b):  # staff booking a caller, or the owner trying the page: real, as the page says,
+        if staff:  # staff booking a caller, or the owner trying the page: real, as the page says,
             done.booking.by_staff = True  # only not a customer who found the page by themselves
             s.add(done.booking)
         s.commit()
         s.refresh(done.booking)
-        _by_address[key] = (today, used + 1)
+        if not staff:
+            _by_address[key] = (today, used + 1)
         background.add_task(notify_admins, _rt(request), b, [pb.staff_note(done.booking)])
         done_url = f"/m/{b.slug}/book/{pb.done_token(_settings(request).session_secret, done.booking)}"
     return RedirectResponse(done_url + ("?lang=ky" if lang == "ky" else ""), status_code=303)

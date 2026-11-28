@@ -41,7 +41,7 @@ def test_the_patterns_keep_names_and_numbers():
     assert errors_ky.kyrgyz("«Большой зал» вмещает до 300 гостей.") == "«Большой зал» 300 конокко чейин батат."
     assert errors_ky.kyrgyz("Квитанция №10423 уже есть.") == "№10423 квитанция бар."
     assert errors_ky.kyrgyz("Пароль должен быть не короче 8 символов.") == "Сырсөз кеминде 8 белгиден турушу керек."
-    assert errors_ky.kyrgyz("WhatsApp не подключён в разделе «Каналы».") == "WhatsApp «Каналы» бөлүмүндө туташтырылган эмес."
+    assert errors_ky.kyrgyz("WhatsApp не подключён в разделе «Каналы».") == "WhatsApp «Каналдар» бөлүмүндө туташтырылган эмес."
     assert errors_ky.kyrgyz("Что-то новое.") == "Что-то новое."  # unknown: stays Russian
 
 

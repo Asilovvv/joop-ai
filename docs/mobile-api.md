@@ -73,7 +73,8 @@ Every call after sign-in sends `Authorization: Bearer <token>`.
 - **Language**: the app sends `Accept-Language: ky` or `ru`, its own language. The server writes in it what it words
   itself: the launch steps of `GET /api/mobile/setup` (joop/checklist_ky.py; the panel's are Russian) and every
   refusal's `error` (joop/errors_ky.py; a sentence it does not know stays Russian), the summary's `period` line
-  (joop/period_ky.py) and the people screen's word (`people_label`, `label`).
+  (joop/period_ky.py) and the people screen's word (`people_label`, `label`). The app asks `/api/mobile/me` again when
+  its language changes, so the menu's people word follows it.
 - **Sections**: `login` and `me` return `sections` (`bookings`, `orders`, `leads`, `cash`, `stays`, `jobs`) and `stay_kind` from
   the niche, so the app shows the tabs the panel's menu would: a cafe gets orders, a shop has no bookings, a hotel has
   «Брони», a repair shop «В работе».
@@ -86,7 +87,7 @@ There is no list of all businesses: a business joined Joop for its AI administra
 
 | Method and path | What it does |
 | --- | --- |
-| `GET /api/mobile/places/{slug}` | the public card: name, address, phone, hours, whether it books, the price list (with Kyrgyz names), `book_url` (the booking page while customers can book there themselves) and `page_url` with `page_label` (the public page while it is open) |
+| `GET /api/mobile/places/{slug}` | the public card: name, address, phone, hours, whether it books, the price list (with Kyrgyz names), `book_url` (the booking page while customers can book there themselves) and `page_url` with `page_label` (the public page while it is open); with `Accept-Language: ky` both links open the pages in Kyrgyz and `page_label` is Kyrgyz |
 | `POST /c/{slug}/chat` | the web chat's own API: the same AI as in WhatsApp; `{"text", "visitor"}` → `{"reply"}` |
 | `GET /c/{slug}/updates?visitor=…&after=…` | replies staff wrote from the panel to this customer |
 

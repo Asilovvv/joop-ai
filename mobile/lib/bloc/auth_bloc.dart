@@ -48,6 +48,11 @@ final class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
 }
 
+/// The app's language changed: the account's own words (the people screen's name) come again in it.
+final class AuthRefreshed extends AuthEvent {
+  const AuthRefreshed();
+}
+
 // ---------------------------------------------------------------- states
 
 sealed class AuthState extends Equatable {
@@ -91,6 +96,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthLoginRequested>(_onLogin);
     on<AuthLogoutRequested>(_onLogout);
     on<AuthSignedUp>((event, emit) => emit(AuthSignedIn(event.account)));
+    on<AuthRefreshed>(_onRefreshed);
   }
 
   final JoopRepository _repository;
@@ -111,6 +117,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           user: event.user.trim(), server: event.server)));
     } on ApiException catch (e) {
       emit(AuthSignedOut(error: e.message));
+    }
+  }
+
+  Future<void> _onRefreshed(AuthRefreshed event, Emitter<AuthState> emit) async {
+    if (state is! AuthSignedIn) return;
+    try {
+      final account = await _repository.restore();
+      emit(account == null ? const AuthSignedOut() : AuthSignedIn(account));
+    } on ApiException {
+      // No connection: the words stay in the previous language until the next start.
     }
   }
 
