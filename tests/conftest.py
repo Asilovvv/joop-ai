@@ -189,9 +189,9 @@ def no_send_inside_a_write_transaction():
         pytest.fail(f"Sent while the database was write-locked (commit first: db.free): {found}")
 
 
-@pytest.fixture(autouse=True)
-def fresh_counters():
-    """In-memory daily counters (signature clicks per address, comment openings, lead cooldown) start empty for every test."""
+def reset_counters() -> None:
+    """What the server keeps in memory between requests: daily counters (signature clicks per address, comment openings,
+    lead cooldown), sign-up limits, the model's health."""
     from joop.agent import engine as agent_engine
     from joop.web import app as web_app, audit as web_audit
 
@@ -204,11 +204,18 @@ def fresh_counters():
 
     web_mobile._signups.clear()
     agent_engine._admin_misses.clear()
-    from joop import altegio, health
+    from joop import altegio, api, health
 
+    api._calls.clear()  # the public API's calls a minute, per key
     altegio._on_the_way.clear()  # slot ids repeat from test to test (a fresh database each)
     health.use_provider("Anthropic API")  # the last Runtime made names the provider: not the previous test's
     health.reset()  # what the server remembers of the model's failures: no test inherits another's outage
+
+
+@pytest.fixture(autouse=True)
+def fresh_counters():
+    """The server's in-memory counters start empty for every test."""
+    reset_counters()
     yield
 
 
