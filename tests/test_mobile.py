@@ -147,7 +147,7 @@ def test_services_list(client, business):
 def test_a_customer_opens_a_business_card_by_its_code(client, business):
     card = client.get("/api/mobile/places/AkTish").json()  # the code as a customer may type it
     assert card["name"] == "Ак-Тиш Дент" and card["booking"] is True
-    assert card["services"] and all(set(x) == {"id", "name", "price", "category"} for x in card["services"])
+    assert card["services"] and all(set(x) == {"id", "name", "name_ky", "price", "category"} for x in card["services"])
     assert client.get("/api/mobile/places/nobody").status_code == 404
     with db.new_session() as s:
         b = s.get(Business, business.id)

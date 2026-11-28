@@ -103,6 +103,9 @@ class S {
     required this.goToPay,
     required this.tellOwner,
     required this.payLinkCopied,
+    required this.bookYourself,
+    required this.linkCopied,
+    required this.openPublicPage,
     required this.onlineHint,
     required this.onlineTablesHint,
     required this.tryTitle,
@@ -477,6 +480,11 @@ class S {
   final String goToPay;
   final String tellOwner;
   final String payLinkCopied;
+
+  // the customer's card of a business: its booking page and public page
+  final String bookYourself;
+  final String linkCopied;
+  final String Function(String label) openPublicPage;
   final String onlineHint;
   final String onlineTablesHint;
   final String tryTitle;
@@ -884,6 +892,9 @@ class S {
     goToPay: 'Перейти к оплате',
     tellOwner: 'Оплачивает владелец — скажите ему.',
     payLinkCopied: 'Ссылка на оплату скопирована — откройте её в браузере.',
+    bookYourself: 'Записаться самому — 24/7',
+    linkCopied: 'Ссылка скопирована — откройте её в браузере.',
+    openPublicPage: _ruOpenPublicPage,
     onlineHint: 'Страница с ценами, адресом и кнопками в ваши чаты. Ссылку — в шапку Instagram и в 2ГИС:',
     onlineTablesHint: 'Гости открывают меню по QR-коду и заказывают в чат. QR-коды для каждого стола (с номером) печатаются в панели: «QR-меню» → «Печать QR-кодов».',
     tryTitle: 'Тестовый чат',
@@ -1264,6 +1275,9 @@ class S {
     goToPay: 'Төлөмгө өтүү', // check with a native speaker
     tellOwner: 'Ээси төлөйт — ага айтып коюңуз.', // check with a native speaker
     payLinkCopied: 'Төлөм шилтемеси көчүрүлдү — аны браузерде ачыңыз.', // check with a native speaker
+    bookYourself: 'Өзүңүз жазылыңыз — 24/7', // check with a native speaker
+    linkCopied: 'Шилтеме көчүрүлдү — аны браузерде ачыңыз.', // check with a native speaker
+    openPublicPage: _kyOpenPublicPage,
     onlineHint: "Бааларыңыз, дарегиңиз жана чаттарыңызга баскычтар бар барак. Шилтемени Instagram'дын башына жана 2ГИСке коюңуз:", // check with a native speaker
     onlineTablesHint: "Коноктор менюну QR-код аркылуу ачып, чатка буйрутма беришет. Ар бир үстөлдүн QR-коддору (номери менен) панелде басылат: «QR-меню» → «QR-коддорду басуу».", // check with a native speaker
     tryTitle: 'Сынак чат', // check with a native speaker
@@ -1799,3 +1813,7 @@ String _ruAccountCreated(String login, String company) =>
     'Вход «$login» создан. Скажите сотруднику: логин компании «$company», логин «$login» и пароль, который вы задали.';
 String _kyAccountCreated(String login, String company) =>
     '«$login» кирүүсү түзүлдү. Кызматкерге айтыңыз: компаниянын логини «$company», логини «$login» жана сиз койгон сырсөз.';
+
+// The customer's card: the business's public page under its own name (ru), a plain one in Kyrgyz (check with a native speaker).
+String _ruOpenPublicPage(String label) => label.isEmpty ? 'Страница онлайн' : label;
+String _kyOpenPublicPage(String label) => 'Онлайн баракча';

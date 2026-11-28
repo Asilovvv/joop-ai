@@ -324,6 +324,9 @@ class Place extends Equatable {
     required this.hours,
     required this.booking,
     required this.services,
+    this.bookUrl = '',
+    this.pageUrl = '',
+    this.pageLabel = '',
   });
 
   factory Place.fromJson(Map<String, dynamic> json) => Place(
@@ -335,6 +338,9 @@ class Place extends Equatable {
         phone: (json['phone'] as String?) ?? '',
         hours: (json['hours'] as String?) ?? '',
         booking: (json['booking'] as bool?) ?? false,
+        bookUrl: (json['book_url'] as String?) ?? '',
+        pageUrl: (json['page_url'] as String?) ?? '',
+        pageLabel: (json['page_label'] as String?) ?? '',
         services: [
           for (final row in (json['services'] as List? ?? const []))
             Service.fromJson({...(row as Map<String, dynamic>), 'available': true}),
@@ -353,8 +359,16 @@ class Place extends Equatable {
   final bool booking;
   final List<Service> services;
 
+  /// The booking page while customers can book there themselves, else ''.
+  final String bookUrl;
+
+  /// The public page (QR menu, catalogue, prices) while it is open, else '', and its name («Прайс онлайн»).
+  final String pageUrl;
+  final String pageLabel;
+
   @override
-  List<Object?> get props => [slug, name, niche, description, address, phone, hours, booking, services];
+  List<Object?> get props =>
+      [slug, name, niche, description, address, phone, hours, booking, services, bookUrl, pageUrl, pageLabel];
 }
 
 /// A business the customer opened before, kept on the device.
