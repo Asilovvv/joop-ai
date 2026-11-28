@@ -48,7 +48,7 @@ two sides: the business's owner and staff (sign-in, bookings) and customers (a b
 | --- | --- |
 | `GET /api/mobile/niches` | what a business can be, as the site's /signup lists it, and the trial days; 404 while sign-up is closed |
 | `POST /api/mobile/signup` | `{name, niche, phone, password, contact_name}` → the business with its trial (`joop/signup.py`) and a token; a few per address an hour (429) |
-| `GET /api/mobile/setup` | the panel's launch list (`saas.checklist`): `steps` with `done`, plus the Telegram bot, booking by link and the public page (`online`: label, on, url, QR rows) |
+| `GET /api/mobile/setup` | the panel's launch list (`saas.checklist`, in Kyrgyz for `Accept-Language: ky`): `steps` with `done`, plus the Telegram bot, booking by link and the public page (`online`: label, on, url, QR rows) |
 | `POST /api/mobile/setup/telegram` | `{token}` → the bot connected once Telegram accepts the token (`joop/telegram_setup.py`); owner only |
 | `POST /api/mobile/setup/page-booking` | `{on}` → booking by link (turning it on opens the public page too); owner only |
 | `POST /api/mobile/setup/online` | `{on}` → the public page (price list, catalogue, QR menu); off also stops booking by link; owner only |
@@ -70,6 +70,8 @@ Every call after sign-in sends `Authorization: Bearer <token>`.
   the password hash, so a new password, or switching a staff login off, ends it at once.
 - **Rights** follow the panel: a master's login sees and cancels only her own bookings and has no orders or requests
   (403). Settings, channels and payment stay in the panel.
+- **Language**: the app sends `Accept-Language: ky` or `ru`, its own language. The server writes in it what it words
+  itself: so far the launch steps of `GET /api/mobile/setup` (joop/checklist_ky.py; the panel's are Russian).
 - **Sections**: `login` and `me` return `sections` (`bookings`, `orders`, `leads`, `cash`, `stays`, `jobs`) and `stay_kind` from
   the niche, so the app shows the tabs the panel's menu would: a cafe gets orders, a shop has no bookings, a hotel has
   «Брони», a repair shop «В работе».
