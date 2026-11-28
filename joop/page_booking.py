@@ -185,11 +185,13 @@ def refused(session: Session, business: Business, phone: str, now_local: datetim
 
 
 def staff_note(booking: Booking) -> str:
-    """For the staff's alerts chat: nobody chatted with this customer, so the phone is how to reach them."""
+    """For the staff's alerts chat: nobody chatted with this customer, so the phone is how to reach them. A booking
+    staff made from the panel's browser says so: the customer did not book by themselves."""
     return (f"Новая запись со страницы: {booking.customer_name}, {display_phone(booking.customer_phone)}"
             + (f", {booking.service}" if booking.service else "")
             + (f", гостей: {booking.party_size}" if booking.party_size > 1 else "")
-            + f" — {fmt_slot(booking.start)}, {booking.staff_name}. Клиент записался сам, без переписки.")
+            + f" — {fmt_slot(booking.start)}, {booking.staff_name}. "
+            + ("Записал сотрудник на странице записи." if booking.by_staff else "Клиент записался сам, без переписки."))
 
 
 # --- calendar file -------------------------------------------------------------------------------------
