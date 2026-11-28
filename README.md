@@ -14,7 +14,7 @@ requests and CI runs document its progress.
 | Channels | Telegram (a bot, or the owner's personal account through Telegram Business), WhatsApp Cloud API, Instagram Direct, web chat, a booking page with a QR sign; Altegio for salons that book there; amoCRM / Kommo for deals. All are built and tested against fake APIs; none has served a real customer yet, and [docs/channels.md](docs/channels.md) says what each needs before it can (Instagram: Meta's App Review, 2–5 weeks) |
 | Size | about 25,500 lines of Python in `joop/` (without migrations), 75 templates, 69 database migrations, 35 niche packs and a generic one; about 10,600 lines of Dart in the app |
 | Tests | more than 1,200 automated server tests (about 23,400 lines) and more than 90 tests of the app, run by GitHub Actions ([tests.yml](.github/workflows/tests.yml), [mobile.yml](.github/workflows/mobile.yml)) for every pull request |
-| Evaluation | 565 scripted dialogues, 196 of them in Kyrgyz, for the real model ([eval.yml](.github/workflows/eval.yml)). The last full run, 31 October 2026 on `claude-haiku-5-5` (run 33: 19 niche packs and the base set): 276 of 277 passed; over the six runs of that day Kyrgyz dialogues passed 97.8% (681 of 696) and the others 99.8% (1,221 of 1,224). The model balance has been empty since: the code has changed, and 269 of today's 565 dialogues, every dialogue of the 16 packs added later among them, have never run on the real model (counted against the result files in the `eval-results` branch) |
+| Evaluation | 565 scripted dialogues, 196 of them in Kyrgyz, for the real model ([eval.yml](.github/workflows/eval.yml)). The last full run, 31 October 2026 on `claude-haiku-5-5` (run 33: 19 niche packs and the base set): 276 of 277 passed; over the six runs of that day Kyrgyz dialogues passed 97.8% (681 of 696) and the others 99.8% (1,221 of 1,224). The model balance has been empty since: the code has changed, and 255 of today's 565 dialogues, every dialogue of the 16 packs added later among them, have never run on the real model (`python -m eval.coverage`, counted against the result files in the `eval-results` branch) |
 | History | more than 300 merged pull requests since 29 October 2026 (Bishkek time); every change goes through a pull request, CI has run the tests on each one from the fifth on, and a separate AI agent reviews every five |
 
 | Public site with the live demo | Owner's panel: when customers write |
@@ -506,7 +506,7 @@ All settings are environment variables; see [.env.example](.env.example).
 ## Development
 
 ```bash
-python -m pytest          # 1273 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
+python -m pytest          # 1279 tests: engine, niches, orders, migrations, channels, panel, webhooks, evaluation
 ```
 
 The tests use a fake model and fake channels, so they need no keys or network.
@@ -547,6 +547,14 @@ in total, in Markdown or LaTeX:
 ```bash
 python -m eval.summary --thesis eval/results*.json
 python -m eval.summary --thesis --latex eval/results*.json
+```
+
+Which of today's dialogues the real model has ever answered, and how stored runs went by language (the numbers the
+table at the top and the project's slides quote):
+
+```bash
+git fetch origin eval-results && git worktree add ../eval-results origin/eval-results
+python -m eval.coverage ../eval-results/runs --runs 30-35
 ```
 
 Without a key, `python -m eval.run_eval all --dry-run` runs all cases with one scripted reply and no
