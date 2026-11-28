@@ -16,7 +16,6 @@ from fastapi.responses import RedirectResponse, Response
 from sqlmodel import select
 
 from .. import page_booking as pb, samples
-from ..stats import TEST_CHANNEL
 from ..api import book
 from ..confirm import WEEKDAYS_KY
 from ..db import new_session
@@ -223,8 +222,8 @@ def book_submit(request: Request, background: BackgroundTasks, slug: str, slot: 
             if done.reason in ("contact", "party"):
                 return _form(request, s, b, lang, the_slot, member, done.reason, 422, values)
             return RedirectResponse(to_list % "taken", status_code=303)
-        if _staff_view(request, b):  # the owner or staff trying their own page: a check, as their web chat is a test chat
-            done.booking.channel = TEST_CHANNEL
+        if _staff_view(request, b):  # staff booking a caller, or the owner trying the page: real, as the page says,
+            done.booking.by_staff = True  # only not a customer who found the page by themselves
             s.add(done.booking)
         s.commit()
         s.refresh(done.booking)
