@@ -15,7 +15,7 @@ from typing import Any
 
 from sqlmodel import Session, select
 
-from . import autofill, billing, health
+from . import autofill, billing, health, stock
 from .agent.engine import handle_incoming
 from .catalog import parse_price
 from .channels.base import IncomingMessage
@@ -65,7 +65,7 @@ def build(session: Session, llm: Any, prospect: Prospect, source: str, trial_day
         billing.start_trial(session, b, trial_days, now_utc, "pitch", prospect.contact_name, prospect.phone)
         prospect.demo_business_id = b.id
     for row in session.exec(select(Service).where(Service.business_id == b.id)).all():
-        session.delete(row)
+        stock.delete_item(session, row)  # a refill: somebody may have ordered in the demo since
     for row in session.exec(select(Faq).where(Faq.business_id == b.id)).all():
         session.delete(row)
     for i, item in enumerate(priced):

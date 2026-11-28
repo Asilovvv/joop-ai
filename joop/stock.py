@@ -15,7 +15,7 @@ from datetime import datetime
 from sqlalchemy import update
 from sqlmodel import Session, select
 
-from .models import OrderLine, Service, StockMove
+from .models import OrderLine, Service, StockMove, StockWatch
 
 
 def tracked(item: Service) -> bool:
@@ -110,6 +110,22 @@ def recount(session: Session, item: Service, counted: int | None, minimum: int, 
         _move(session, item, counted - item.stock, "recount", who, now_utc)
     else:
         session.add(item)
+
+
+def delete_item(session: Session, item: Service) -> None:
+    """Remove a price-list row with what hangs on it. Its stock history goes with it, and so do the customers waiting
+    for it to come back (joop/restock.py): there is nothing left to tell them about. An order keeps its line (name,
+    price). There are no ORM relationships to order the deletes, and the database refuses to delete a row another row
+    points to: an item somebody was waiting for could not be deleted at all (error 500)."""
+    for row in session.exec(select(StockMove).where(StockMove.service_id == item.id)).all():
+        session.delete(row)
+    for row in session.exec(select(StockWatch).where(StockWatch.service_id == item.id)).all():
+        session.delete(row)
+    for line in session.exec(select(OrderLine).where(OrderLine.item_id == item.id)).all():
+        line.item_id = None
+        session.add(line)
+    session.flush()  # these leave before the item
+    session.delete(item)
 
 
 def low(session: Session, business_id: int) -> list[Service]:

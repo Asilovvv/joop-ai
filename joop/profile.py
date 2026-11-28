@@ -19,6 +19,7 @@ from .catalog import parse_price
 from .models import Business, Faq, Service, Staff
 from .niches import all_packs
 from .slots import generate_slots
+from .stock import delete_item
 from .timeutil import local_now, parse_hhmm
 
 
@@ -65,7 +66,7 @@ def apply_profile(
 
     if replace:
         for row in session.exec(select(Service).where(Service.business_id == business.id)).all():
-            session.delete(row)
+            delete_item(session, row)
         for row in session.exec(select(Faq).where(Faq.business_id == business.id)).all():
             session.delete(row)
     for i, item in enumerate(data.get("services") or []):

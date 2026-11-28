@@ -177,7 +177,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/channels/` | Telegram, WhatsApp and Instagram parsing and send clients; Telegram polling |
 | `joop/lang.py`, `joop/kyrgyz.py` | Kyrgyz/Russian heuristics; Kyrgyz drafts of service names and FAQ |
 | `joop/ky_phrases.py` | Every fixed Kyrgyz phrase in the code with its Russian twin, for a native speaker: `python -m joop ky-phrases --csv`, `/owner/kyrgyz` |
-| `joop/slots.py`, `joop/stays.py` | Time slots with an atomic claim; hotel nights booked atomically |
+| `joop/slots.py`, `joop/stays.py` | Time slots with an atomic claim; a time is deleted only after its cancelled bookings let go of it (`drop_slots`); hotel nights booked atomically |
 | **Niches and modules** | |
 | `joop/niches/<name>/` | Niche packs: labels, outcomes, rules, demo data, evaluation dialogues |
 | `joop/placement.py`, `joop/memberships.py`, `joop/jobs.py`, `joop/waitlist.py`, `joop/intake.py`, `joop/area_price.py`, `joop/repeat_order.py`, `joop/routes.py`, `joop/prescription.py`, `joop/holds.py`, `joop/reorders.py`, `joop/restock.py` | Level tests, passes, order status, waiting list, questions before a visit, estimates for prices per m², the last order ready to repeat, prices by route, prescription medicines for pickup only, reservations that expire, reminders to repeat an order, «напишем, когда появится» |
@@ -221,7 +221,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/stats.py` | Numbers for the dashboard, reports and the pilot; test chats are left out of all of them and of amoCRM and the API: the panel test chat (`TEST_CHANNEL`) and Telegram chats where the owner or staff try their own bot (`Conversation.staff_test`: the alerts chat, `/start test_<Business.test_link_code>` from «Каналы» (secret, so customers cannot mark their own chat), or the web chat in a browser logged in to the panel). No test reaches Altegio or broadcasts; a Telegram or web test still gets reminders and holds a real slot (prepayment deadlines release it), so the owner sees the flow work. «Считать клиентом» in the dialogue undoes the mark. Use `not_test()`, `real_conversation()` and `real_messages()` for any new number |
 | **Operations** | |
 | `joop/scheduler.py` | Reminders, summaries, weekly, monthly and day-7 reports, broadcast batches, prepayment deadlines, request reminders, amoCRM deals, Altegio sync, daily backup |
-| `joop/stock.py` | Stock for goods sold in the chat: the order checks the count, takes it, returns it on cancel, takes the item off sale at zero, warns at the minimum; recount = inventory with history |
+| `joop/stock.py` | Stock for goods sold in the chat: the order checks the count, takes it, returns it on cancel, takes the item off sale at zero, warns at the minimum; recount = inventory with history; an item is deleted with its history and its waiting customers (`delete_item`) |
 | `joop/cash.py` | Visit payments (amount pre-filled from the price list, method) and the day's/month's cash by method, master and service; a line in the morning summary |
 | `joop/funnel.py` | Sales funnel for requests (new → contacted → booked → visited / lost) moved from bookings, orders and staff replies; 30-day conversions |
 | `joop/customers.py` | Customer cards assembled from bookings, orders and dialogues by phone; notes and tags; CSV export |
@@ -237,7 +237,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 1351 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 1363 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `scripts/record_demo.py` | The demo walk-through recorded as a captioned MP4 on a server of its own and the real model; refuses to film a broken flow or a stand-in as the AI (workflow `demo-video.yml`, by hand) |
 | `eval/coverage.py` | Which of today's dialogues the real model has ever answered (from the result files of the `eval-results` branch), and stored runs by language: the numbers the README and the slides quote |
