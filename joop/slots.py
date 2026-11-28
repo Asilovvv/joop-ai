@@ -8,7 +8,7 @@ from datetime import date, datetime, time, timedelta
 from sqlalchemy import case, update
 from sqlmodel import Session, select
 
-from .models import Business, Slot, Staff
+from .models import Booking, Business, Slot, Staff
 from .timeutil import parse_days_off, parse_hhmm
 
 MAX_GENERATE_DAYS = 62
@@ -173,6 +173,18 @@ def release_slot(session: Session, slot_id: int | None, count: int = 1) -> None:
     session.exec(update(Slot).where(Slot.id == slot_id)
                  .values(taken=case((Slot.taken > count, Slot.taken - count), else_=0),
                          status=case((Slot.status == CLOSED, CLOSED), else_="free")))
+
+
+def drop_slots(session: Session, slots: list[Slot]) -> None:
+    """Delete times nobody is booked into. A cancelled booking keeps its day, hour and specialist in its own columns,
+    yet it still points to the time it had, and the database refuses to delete a row another row points to (FOREIGN
+    KEY). So the cancelled bookings let go first. Without that, one cancellation was enough to stop the owner from
+    removing that specialist (error 500) and to fail Altegio's sync for good once the time was taken there."""
+    ids = [slot.id for slot in slots]
+    if ids:
+        session.exec(update(Booking).where(Booking.slot_id.in_(ids), Booking.status != "booked").values(slot_id=None))
+    for slot in slots:
+        session.delete(slot)
 
 
 def seats_needed(slot: Slot, party_size: int) -> int:

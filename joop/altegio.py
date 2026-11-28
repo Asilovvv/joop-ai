@@ -37,6 +37,7 @@ from sqlmodel import Session, select
 
 from .db import new_session
 from .models import Booking, Business, Service, Slot, Staff
+from .slots import drop_slots
 from .timeutil import get_tz, utc_to_local
 
 log = logging.getLogger(__name__)
@@ -344,11 +345,9 @@ def _reconcile(session: Session, business: Business, member: Staff, wanted: dict
         Slot.business_id == business.id, Slot.staff_id == member.id, Slot.start > now_local,
         Slot.start < datetime.combine(last_day + timedelta(days=1), datetime.min.time()))).all()
     have = {r.start: r for r in rows}
-    removed = 0
-    for start, row in have.items():
-        if start not in wanted and row.status == "free" and row.taken == 0:
-            session.delete(row)
-            removed += 1
+    gone = [row for start, row in have.items() if start not in wanted and row.status == "free" and row.taken == 0]
+    drop_slots(session, gone)  # a time whose visit was cancelled and which is taken in Altegio now is one of these
+    removed = len(gone)
     added = released = 0
     for start, minutes in wanted.items():
         if start not in have:

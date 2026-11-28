@@ -41,7 +41,7 @@ from ..reschedule import blocked as move_blocked, cancel as cancel_core, resched
 from ..runtime import Runtime
 from ..scheduler import Scheduler
 from ..security import hash_password, new_link_code, new_secret, new_test_code, same_secret, verify_password
-from ..slots import CLOSED, add_slots, free_on_day, generate_slots, parse_times, release_slot, resize_group, seats_left, seats_needed
+from ..slots import CLOSED, add_slots, drop_slots, free_on_day, generate_slots, parse_times, release_slot, resize_group, seats_left, seats_needed
 from ..stats import TEST_CHANNEL, activity, by_hour, hour_bars
 from ..timeutil import WEEKDAYS_SHORT, fmt_date_long, fmt_dt, fmt_slot, local_now, parse_days_off, parse_hhmm, utc_to_local, utcnow
 
@@ -696,13 +696,7 @@ def services_page(request: Request):
 
 
 def _delete_service(s: Session, item: Service) -> None:
-    for move in s.exec(select(StockMove).where(StockMove.service_id == item.id)).all():
-        s.delete(move)  # the stock history of a deleted item goes with it
-    for line in s.exec(select(OrderLine).where(OrderLine.item_id == item.id)).all():
-        line.item_id = None  # an order keeps its line (name, price) when the item leaves the menu
-        s.add(line)
-    s.flush()  # these leave before the item: there are no ORM relationships to order the deletes
-    s.delete(item)
+    stock.delete_item(s, item)
 
 
 @router.post("/panel/services/example/delete")
@@ -815,8 +809,7 @@ def _retire_staff(s: Session, business_id: int, row: Staff) -> None:
     for user in s.exec(select(PanelUser).where(PanelUser.business_id == business_id, PanelUser.staff_id == row.id)).all():
         user.active = False  # her own login goes with her
         s.add(user)
-    for slot in s.exec(select(Slot).where(Slot.staff_id == row.id, Slot.status.in_(["free", CLOSED]), Slot.taken == 0)).all():
-        s.delete(slot)
+    drop_slots(s, list(s.exec(select(Slot).where(Slot.staff_id == row.id, Slot.status.in_(["free", CLOSED]), Slot.taken == 0)).all()))
 
 
 @router.post("/panel/staff/example/delete")
@@ -1149,10 +1142,10 @@ def slot_delete(request: Request, item_id: int, csrf: str = Form("")):
     with new_session() as s:
         b = _business(s, request)
         slot = _own(s, Slot, item_id, b.id)
-        if s.exec(select(Booking).where(Booking.slot_id == slot.id)).first():
+        if s.exec(select(Booking).where(Booking.slot_id == slot.id, Booking.status == "booked")).first():
             _flash(request, "Окно с записью удалить нельзя, сначала отмените запись.", "error")
-        else:
-            s.delete(slot)
+        else:  # a cancelled booking does not hold the time
+            drop_slots(s, [slot])
             s.commit()
     return _back("/panel/slots")
 
