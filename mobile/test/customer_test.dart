@@ -1,8 +1,10 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:joop_mobile/bloc/chat_bloc.dart';
 import 'package:joop_mobile/bloc/places_cubit.dart';
+import 'package:joop_mobile/core/strings.dart';
 import 'package:joop_mobile/data/customer_repository.dart';
 import 'package:joop_mobile/data/models.dart';
 import 'package:joop_mobile/main.dart';
@@ -94,5 +96,66 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('Мои компании'), findsOneWidget);
+  });
+
+  Future<void> openCard(WidgetTester tester, {bool kyrgyz = false}) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(JoopApp(repository: server.repository(), customers: server.customers(), today: DateTime(2026, 11, 13)));
+    await tester.pumpAndSettle();
+    if (kyrgyz) {
+      await tester.tap(find.byKey(const Key('language')).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Кыргызча').last);
+      await tester.pumpAndSettle();
+    }
+    await tester.ensureVisible(find.byKey(const Key('customer')));
+    await tester.tap(find.byKey(const Key('customer')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('place-code')), 'aktish');
+    await tester.tap(find.byKey(const Key('place-open')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(kyrgyz ? 'Баалар жана байланыш' : 'Цены и контакты'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('the card offers to book yourself on the page and opens the public page', (tester) async {
+    const browser = MethodChannel('kg.joop/browser');
+    final opened = <String>[];
+    var hasBrowser = true;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(browser, (call) async {
+      opened.add(call.arguments as String);
+      return hasBrowser;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(browser, null));
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') copied = (call.arguments as Map)['text'] as String;
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null));
+
+    await openCard(tester);
+    expect(find.text('+996 700 000 000'), findsOneWidget); // the phone as people write it
+    await tester.tap(find.byKey(const Key('place-book')));
+    await tester.pumpAndSettle();
+    expect(opened, ['https://joop.test/m/aktish/book']);
+    expect(find.text('Прайс онлайн'), findsOneWidget);
+
+    hasBrowser = false; // no browser to hand the address to: it is copied
+    await tester.tap(find.byKey(const Key('place-page')));
+    await tester.pumpAndSettle();
+    expect(copied, 'https://joop.test/m/aktish');
+    expect(find.text('Ссылка скопирована — откройте её в браузере.'), findsOneWidget);
+  });
+
+  testWidgets('no booking page while it takes no bookings; Kyrgyz names for a Kyrgyz customer', (tester) async {
+    server.placeBookUrl = '';
+    await openCard(tester, kyrgyz: true);
+    addTearDown(() => S.current = S.ru);
+    expect(find.byKey(const Key('place-book')), findsNothing);
+    expect(find.text('Кеңеш берүү'), findsOneWidget);
+    expect(find.text('Онлайн баракча'), findsOneWidget);
   });
 }

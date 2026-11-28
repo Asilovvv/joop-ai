@@ -82,7 +82,7 @@ There is no list of all businesses: a business joined Joop for its AI administra
 
 | Method and path | What it does |
 | --- | --- |
-| `GET /api/mobile/places/{slug}` | the public card: name, address, phone, hours, whether it books, the price list |
+| `GET /api/mobile/places/{slug}` | the public card: name, address, phone, hours, whether it books, the price list (with Kyrgyz names), `book_url` (the booking page while customers can book there themselves) and `page_url` with `page_label` (the public page while it is open) |
 | `POST /c/{slug}/chat` | the web chat's own API: the same AI as in WhatsApp; `{"text", "visitor"}` → `{"reply"}` |
 | `GET /c/{slug}/updates?visitor=…&after=…` | replies staff wrote from the panel to this customer |
 

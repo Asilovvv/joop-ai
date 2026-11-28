@@ -39,6 +39,9 @@ class FakeJoop {
     },
   ];
 
+  /// The place card's booking page: '' while customers cannot book there themselves.
+  String placeBookUrl = 'https://joop.test/m/aktish/book';
+
   /// Staff logins (/api/mobile/accounts), and the bodies sent to change them.
   final logins = <Map<String, dynamic>>[];
   final loginCalls = <Map>[];
@@ -313,8 +316,9 @@ class FakeJoop {
       return json({
         'slug': 'aktish', 'name': 'Ак-Тиш Дент', 'niche': 'dental', 'description': 'Семейная стоматология',
         'address': 'ул. Киевская, 95', 'phone': '+996700000000', 'hours': 'Пн–Сб 9:00–19:00', 'booking': true,
+        'book_url': placeBookUrl, 'page_url': 'https://joop.test/m/aktish', 'page_label': 'Прайс онлайн',
         'services': [
-          {'id': 1, 'name': 'Консультация', 'price': '500', 'category': ''},
+          {'id': 1, 'name': 'Консультация', 'name_ky': 'Кеңеш берүү', 'price': '500', 'category': ''},
         ],
       });
     }

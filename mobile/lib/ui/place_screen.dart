@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../bloc/chat_bloc.dart';
+import '../core/browser.dart';
 import '../core/format.dart';
 import '../core/strings.dart';
 import '../data/customer_repository.dart';
@@ -176,12 +178,23 @@ class _About extends StatelessWidget {
 
   final Place place;
 
+  /// The phone's browser; with none to hand the address to, the address is copied for the customer to paste.
+  Future<void> _open(BuildContext context, String url) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (await const Browser().open(url)) return;
+    await Clipboard.setData(ClipboardData(text: url));
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(S.current.linkCopied)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final ky = S.current.code == 'ky';
     final rows = [
       if (place.address.isNotEmpty) (Icons.place_outlined, place.address),
-      if (place.phone.isNotEmpty) (Icons.phone_outlined, place.phone),
+      if (place.phone.isNotEmpty) (Icons.phone_outlined, formatPhone(place.phone)),
       if (place.hours.isNotEmpty) (Icons.schedule_outlined, place.hours),
     ];
     return ListView(
@@ -190,6 +203,26 @@ class _About extends StatelessWidget {
         if (place.description.isNotEmpty)
           Padding(padding: const EdgeInsets.fromLTRB(4, 0, 4, 12), child: Text(place.description)),
         for (final (icon, text) in rows) ListTile(leading: Icon(icon), title: Text(text), dense: true),
+        if (place.bookUrl.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+            child: FilledButton.icon(
+              key: const Key('place-book'),
+              onPressed: () => _open(context, place.bookUrl),
+              icon: const Icon(Icons.event_available_outlined),
+              label: Text(S.current.bookYourself),
+            ),
+          ),
+        if (place.pageUrl.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+            child: OutlinedButton.icon(
+              key: const Key('place-page'),
+              onPressed: () => _open(context, place.pageUrl),
+              icon: const Icon(Icons.open_in_new),
+              label: Text(S.current.openPublicPage(place.pageLabel)),
+            ),
+          ),
         const SizedBox(height: 8),
         if (place.services.isEmpty)
           Padding(padding: const EdgeInsets.all(16), child: Text(S.current.askPricesInChat))
@@ -200,7 +233,7 @@ class _About extends StatelessWidget {
               color: cardColor(theme.colorScheme),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               child: ListTile(
-                title: Text(s.name),
+                title: Text(ky && s.nameKy.isNotEmpty ? s.nameKy : s.name),
                 subtitle: s.category.isEmpty ? null : Text(s.category),
                 trailing: Text(s.price.isEmpty ? '—' : priceWithSom(s.price),
                     style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),

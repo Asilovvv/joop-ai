@@ -1853,9 +1853,12 @@ def mobile_jobs_example_delete(request: Request, q: str = ""):
 
 
 @router.get("/api/mobile/places/{slug}")
-def mobile_place(slug: str):
-    """The public card of a business whose web chat is open: what its chat page and price page already show."""
-    from .. import samples
+def mobile_place(request: Request, slug: str):
+    """The public card of a business whose web chat is open: what its chat page and price page already show, with
+    the Kyrgyz names of its services, and the addresses of its booking page (`book_url`, only while customers can
+    book there: page_booking.unavailable) and its public page (`page_url` under `page_label`, while it is open), the
+    same the counter card and the QR show."""
+    from .. import page_booking, samples
     from .webchat import _business as chat_business
 
     with new_session() as s:
@@ -1869,7 +1872,11 @@ def mobile_place(slug: str):
                     if x.id not in hidden.services and not x.sold_out]
         pack = get_pack(b.niche)
         shown = {f: "" if f in hidden.contacts else getattr(b, f) for f in samples.CONTACTS}
+        base = _base_url(request).rstrip("/")
         return {"slug": b.slug, "name": b.name, "niche": b.niche, "description": shown["description"],
                 "address": shown["address"], "phone": shown["phone"], "hours": "" if hidden.hours else b.hours_text,
                 "booking": pack.has("booking"),
-                "services": [{"id": x.id, "name": x.name, "price": x.price, "category": x.category} for x in services]}
+                "book_url": f"{base}/m/{b.slug}/book" if page_booking.unavailable(s, b, utcnow()) == "" else "",
+                "page_url": f"{base}/m/{b.slug}" if b.menu_enabled else "", "page_label": pack.online_label,
+                "services": [{"id": x.id, "name": x.name, "name_ky": x.name_ky, "price": x.price, "category": x.category}
+                             for x in services]}
