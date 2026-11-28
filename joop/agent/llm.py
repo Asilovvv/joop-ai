@@ -92,6 +92,11 @@ class LLMError(Exception):
     """The model could not produce a usable answer."""
 
 
+class BadOutput(LLMError):
+    """The call went through, and this one answer cannot be used (empty, not JSON). It says nothing of the next
+    customer's answer, unlike a failed call (balance, key, limits, the provider's servers): joop/health.py."""
+
+
 TRANSLATE_TO_KYRGYZ = """You rewrite one customer-service message into Kyrgyz.
 The customer wrote in Kyrgyz, but the draft you receive is in Russian. Translate the
 whole draft into natural, polite Kyrgyz in Cyrillic script. Keep every number, price,
@@ -129,7 +134,7 @@ class LLMClient(Protocol):
 def _extract_json(text: str) -> Any:
     text = (text or "").strip()
     if not text:
-        raise LLMError("empty model output")
+        raise BadOutput("empty model output")
     try:
         return json.loads(text)
     except json.JSONDecodeError:
@@ -146,12 +151,12 @@ def _extract_json(text: str) -> Any:
             return json.loads(text[start : end + 1])
         except json.JSONDecodeError:
             pass
-    raise LLMError("model output is not JSON")
+    raise BadOutput("model output is not JSON")
 
 
 def coerce_reply(data: Any) -> AgentReply:
     if not isinstance(data, dict):
-        raise LLMError("model output is not a JSON object")
+        raise BadOutput("model output is not a JSON object")
     reply = str(data.get("reply") or "").strip()
 
     booking = data.get("booking")
@@ -209,7 +214,7 @@ def coerce_reply(data: Any) -> AgentReply:
     handoff = str(handoff).strip() if isinstance(handoff, (str, int, float)) and str(handoff).strip() else None
 
     if not reply:
-        raise LLMError("model returned an empty reply")
+        raise BadOutput("model returned an empty reply")
     return AgentReply(reply=reply, booking=booking, handoff=handoff, order=order, lead=lead, stay=stay, change=change)
 
 

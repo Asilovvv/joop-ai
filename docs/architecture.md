@@ -229,7 +229,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/annual.py` | The year offer at the end of the second paid month: who is due, the text in their numbers, the console reminder |
 | `joop/founder_digest.py` | The founder's Monday line: the week in numbers, stored as a journal and sent to Telegram |
 | `joop/founder_calls.py` | «Позвонить сегодня»: whom the founder should call and why, on /owner and in Telegram every morning |
-| `joop/health.py` | Alerts for the founder when model calls keep failing; `tell_founder` for other notes (a cancelled subscription) |
+| `joop/health.py` | Is the AI answering? The model is down after three of the provider's failures in a row (an unreadable answer is one chat's, not the provider's) or three customers unanswered in 30 minutes; while the last call failed, the scheduler asks the model itself, at most once in 5 minutes. Alerts for the founder, «Сводка»'s chip, the site's live chat; `tell_founder` for other notes (a cancelled subscription) |
 | `joop/recovery.py` | Answers the customers an outage left waiting, once the model works again |
 | `joop/ops.py` | Pre-launch check (`python -m joop check`) and database backups |
 | `joop/offsite.py` | The daily backup, encrypted, to the founder's Telegram; `python -m joop restore-copy` |
@@ -237,7 +237,7 @@ Every table carries `business_id`, so one deployment serves many businesses (mul
 | `joop/crypto.py`, `joop/security.py` | Channel tokens encrypted at rest; password hashing |
 | `joop/migrations/` | Alembic migrations, run on start |
 | **Quality** | |
-| `tests/` | 1321 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
+| `tests/` | 1329 tests with a frozen clock (`timeutil.clock`), with a fake model, fake channels and a fake Altegio API |
 | `eval/` | Scripted dialogues on the real model; results on the `eval-results` branch |
 | `scripts/record_demo.py` | The demo walk-through recorded as a captioned MP4 on a server of its own and the real model; refuses to film a broken flow or a stand-in as the AI (workflow `demo-video.yml`, by hand) |
 | `eval/coverage.py` | Which of today's dialogues the real model has ever answered (from the result files of the `eval-results` branch), and stored runs by language: the numbers the README and the slides quote |

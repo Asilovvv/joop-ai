@@ -408,7 +408,8 @@ def landing(request: Request):
     s = _settings(request)
     packs = {k: p for k, p in picker_packs().items() if k != "other"}
     return _site(request, "site_home.html", packs=packs, price=s.price_som, trial_days=s.trial_days, signup=s.signup_enabled,
-                 live_demo=s.site_demo_daily_limit > 0 and bool(s.model_key), csrf=_csrf(request))
+                 live_demo=s.site_demo_daily_limit > 0 and bool(s.model_key) and not model_health.failing(utcnow()),
+                 csrf=_csrf(request))
 
 
 # What the features page lists: each item is something the code does today (module in brackets for the next reader).
