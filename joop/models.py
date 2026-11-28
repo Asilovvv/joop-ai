@@ -241,6 +241,9 @@ class Booking(SQLModel, table=True):
     chat_id: str = ""
     status: str = "booked"  # booked | cancelled
     source: str = "ai"
+    # booked on the public page from a browser logged in to the panel (a caller booked by staff, the owner's try): a real
+    # booking everywhere, only not a customer booking by themselves for «Первый настоящий клиент» (joop/web/saas.py)
+    by_staff: bool = False
     external_id: str = ""  # record id in the salon's booking system (Altegio), when the booking went there too
     created_at: NaiveDatetime = Field(default_factory=utcnow)
     created_off_hours: bool = False
