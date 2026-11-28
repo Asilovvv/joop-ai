@@ -8,14 +8,14 @@ Diploma project (category: Full-Stack Project) of Bektur Asilov, COMSE-23, Ala-T
 University, 2026; supervisor Erustan Erkebulanov. Individual work: the repository's history, pull
 requests and CI runs document its progress.
 
-| At a glance (27 November 2026) | |
+| At a glance (28 November 2026) | |
 | --- | --- |
 | Stack | Python 3.11/3.12, FastAPI, Jinja2, SQLModel + Alembic, SQLite or PostgreSQL, Claude API (`claude-haiku-5-5`) or any OpenAI-compatible model API, Docker + Caddy; the owner's app in Flutter (`mobile/`) |
-| Channels | Telegram (a bot, or the owner's personal account through Telegram Business), WhatsApp Cloud API, Instagram Direct, web chat, a booking page with a QR sign; Altegio for salons that book there; amoCRM / Kommo for deals |
+| Channels | Telegram (a bot, or the owner's personal account through Telegram Business), WhatsApp Cloud API, Instagram Direct, web chat, a booking page with a QR sign; Altegio for salons that book there; amoCRM / Kommo for deals. All are built and tested against fake APIs; none has served a real customer yet, and [docs/channels.md](docs/channels.md) says what each needs before it can (Instagram: Meta's App Review, 2–5 weeks) |
 | Size | about 25,500 lines of Python in `joop/` (without migrations), 75 templates, 69 database migrations, 35 niche packs and a generic one; about 10,600 lines of Dart in the app |
 | Tests | more than 1,200 automated server tests (about 23,400 lines) and more than 90 tests of the app, run by GitHub Actions ([tests.yml](.github/workflows/tests.yml), [mobile.yml](.github/workflows/mobile.yml)) for every pull request |
-| Evaluation | 565 scripted dialogues, 196 of them in Kyrgyz, for the real model ([eval.yml](.github/workflows/eval.yml)). The last full runs, 31 October 2026 on `claude-haiku-5-5`: 276 of 277 passed in run 33 (19 niche packs and the base set), 404 of 406 in run 35 (14 packs, each twice). The 16 packs added since then are not measured yet |
-| History | more than 300 merged pull requests since 28 October 2026; every change goes through a pull request checked by CI, with an independent review every five |
+| Evaluation | 565 scripted dialogues, 196 of them in Kyrgyz, for the real model ([eval.yml](.github/workflows/eval.yml)). The last full run, 31 October 2026 on `claude-haiku-5-5` (run 33: 19 niche packs and the base set): 276 of 277 passed; over the six runs of that day Kyrgyz dialogues passed 97.8% (681 of 696) and the others 99.8% (1,221 of 1,224). The model balance has been empty since: the code has changed, and 269 of today's 565 dialogues, every dialogue of the 16 packs added later among them, have never run on the real model (counted against the result files in the `eval-results` branch) |
+| History | more than 300 merged pull requests since 29 October 2026 (Bishkek time); every change goes through a pull request, CI has run the tests on each one from the fifth on, and a separate AI agent reviews every five |
 
 | Public site with the live demo | Owner's panel: when customers write |
 | --- | --- |
