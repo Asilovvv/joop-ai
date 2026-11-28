@@ -543,6 +543,13 @@ class Scheduler(threading.Thread):
                 except Exception:
                     session.rollback()
                     log.exception("Scheduled jobs failed for business %s", business_id)
+        try:  # after the businesses' jobs: a late answer tried just now already asked the model
+            now = now_utc or utcnow()
+            with new_session() as session:
+                down = health.status(session, now).down
+            health.probe(self.rt, now, down)  # no database is held while the model is asked
+        except Exception:
+            log.exception("Could not ask the model whether it answers")
         with new_session() as session:
             try:
                 health.maybe_alert(session, self.rt, now_utc or utcnow())

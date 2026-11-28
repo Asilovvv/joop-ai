@@ -7,6 +7,16 @@ this module adds the reason (kept in memory, the API's text never goes to a busi
 founder: a banner in the founder console, and a Telegram message when FOUNDER_BOT_TOKEN and
 FOUNDER_CHAT_ID are set. When the model answers again after such an alert, the founder gets one more message:
 how many customers were left without an answer and how many of them the AI answered later (joop/recovery.py).
+
+The model is down (Status.down: the founder's alert, the dashboard's chip, the site's live chat) when
+- ALERT_AFTER customers within WINDOW got the fallback and no call has succeeded since, or
+- the last ALERT_AFTER calls that the provider itself failed all failed, one after another.
+A server that only waited for customers never saw the second: on a quiet night three failed calls do not fall into
+one half hour, nobody was alerted and «Сводка» said «ИИ отвечает» while every customer got the fallback (review of
+#321–#327). So while the last call failed, the scheduler asks the model itself, once a tick (probe): the outage is
+known within a few ticks of its first customer, and its end within one tick, whether or not anybody writes.
+An answer that could not be used (BadOutput: the model's text was not JSON) is that chat's failure, not an outage:
+it does not count, it only makes the server ask, and the model's answer to the server's own question settles it.
 """
 
 from __future__ import annotations
@@ -25,11 +35,17 @@ from .models import Lead
 log = logging.getLogger(__name__)
 
 WINDOW = timedelta(minutes=30)
-ALERT_AFTER = 3  # failed calls within WINDOW
+ALERT_AFTER = 3  # failed calls: customers' within WINDOW, or the provider's own one after another
 ALERT_EVERY = timedelta(hours=2)  # do not repeat the Telegram alert more often while it lasts
+PROBE_EVERY = timedelta(minutes=5)  # while the last call failed: the server's own small call, at most this often
+PROBE_QUIET = timedelta(minutes=1)  # no probe right after a call: a late answer tried in this tick was the probe
+PING = 'Reply with the JSON {"reply": "ok"}.'
 
 _lock = threading.Lock()
-_recent: deque[tuple[datetime, str]] = deque(maxlen=50)
+_recent: deque[tuple[datetime, str, bool]] = deque(maxlen=50)  # when, the reason, the provider's own failure
+_unsure = False  # the last call failed, whatever the cause, and none has succeeded since
+_in_a_row = 0  # calls the provider itself failed since the model last answered
+_next_probe: datetime | None = None
 _last_alert: datetime | None = None
 _last_success: datetime | None = None  # the model answered (in memory, like the reasons)
 _alert_open: datetime | None = None  # a "down" alert went out and its "back" message has not
@@ -48,49 +64,104 @@ def check_hint(sentence: bool = False) -> str:
     return f"{'Проверьте' if sentence else 'проверьте'} баланс и ключ {_api}"
 
 
-def reason_of(exc: BaseException) -> str:
-    """A short Russian reason for the founder, from the exception and its cause."""
-    api = _api
+def kind_of(exc: BaseException) -> str:
+    """What failed. "output": the call went through and this one answer could not be used (BadOutput: not JSON,
+    empty), which says nothing of the next customer's. Anything else is the provider's failure: its balance, key,
+    limits, load, servers, the link to it, or a cause not named here."""
+    from .agent.llm import BadOutput
+
+    if isinstance(exc, BadOutput) or isinstance(exc.__cause__, BadOutput):
+        return "output"
     cause = exc.__cause__ or exc
     text = f"{type(exc).__name__} {exc} {type(cause).__name__} {cause}".lower()
     if "credit balance" in text or "billing" in text:
+        return "balance"
+    if "authentication" in text or "invalid x-api-key" in text or "401" in text or ("api_key" in text and "not set" in text):
+        return "key"
+    if "ratelimit" in text or "rate_limit" in text or "429" in text:
+        return "limit"
+    if "overloaded" in text or "529" in text:
+        return "overloaded"
+    if "timeout" in text or "connect" in text:
+        return "link"
+    return "unknown"
+
+
+def reason_of(exc: BaseException) -> str:
+    """A short Russian reason for the founder, from the exception and its cause."""
+    api = _api
+    kind = kind_of(exc)
+    if kind == "balance":
         return (f"закончился баланс {api} — пополните его в Plans & Billing" if api == "Anthropic API"
                 else f"закончился баланс {api} — пополните его или включите оплату у поставщика")
-    if "authentication" in text or "invalid x-api-key" in text or "401" in text or ("api_key" in text and "not set" in text):
-        return f"ключ {api} неверный или не задан"
-    if "ratelimit" in text or "rate_limit" in text or "429" in text:
-        return f"превышен лимит запросов {api}"
-    if "overloaded" in text or "529" in text:
-        return f"{api} перегружен"
-    if "timeout" in text or "connect" in text:
-        return f"нет связи с {api}"
-    return f"ошибка вызова модели ({type(cause).__name__})"
+    known = {"key": f"ключ {api} неверный или не задан", "limit": f"превышен лимит запросов {api}",
+             "overloaded": f"{api} перегружен", "link": f"нет связи с {api}",
+             "output": "ответ модели не удалось разобрать"}
+    return known.get(kind) or f"ошибка вызова модели ({type(exc.__cause__ or exc).__name__})"
 
 
-def record_failure(exc: BaseException, now: datetime) -> None:
+def record_failure(exc: BaseException, now: datetime, probe: bool = False) -> None:
+    """A model call failed. `probe`: the server's own small call, which fails only when the model fails for all."""
+    global _unsure, _in_a_row
+    theirs = probe or kind_of(exc) != "output"
     with _lock:
-        _recent.append((now, reason_of(exc)))
+        _recent.append((now, reason_of(exc), theirs))
+        _unsure = True
+        _in_a_row += theirs
 
 
 def record_success(now: datetime) -> None:
-    global _last_success
+    global _last_success, _unsure, _in_a_row
     with _lock:
+        _unsure, _in_a_row = False, 0
         if _last_success is None or now > _last_success:
             _last_success = now
 
 
 def last_reason(now: datetime) -> str:
     with _lock:
-        recent = [r for t, r in _recent if now - t <= WINDOW]
+        recent = [r for t, r, _theirs in _recent if now - t <= WINDOW]
     return recent[-1] if recent else ""
+
+
+def failing(now: datetime) -> bool:
+    """The last ALERT_AFTER calls that the provider itself failed all failed, the latest within WINDOW, and no call
+    has succeeded since. Kept in memory: after a restart the server knows of the customers' requests only."""
+    with _lock:
+        return _in_a_row >= ALERT_AFTER and bool(_recent) and now - _recent[-1][0] <= WINDOW
+
+
+def probe(rt, now: datetime, down: bool = False) -> bool | None:
+    """While the last call failed (or the customers' requests say the model is down): the server's own small call,
+    at most once per PROBE_EVERY and never right after another call. True: the model answered; False: it did not;
+    None: nothing to ask. The scheduler asks every tick, after the businesses' jobs."""
+    global _next_probe
+    with _lock:  # an unusable answer (BadOutput) tells nothing of the provider: only its own failures make a probe wait
+        asked = next((t for t, _reason, theirs in reversed(_recent) if theirs), None)
+        due = ((_unsure or down) and (asked is None or now - asked >= PROBE_QUIET)
+               and (_next_probe is None or now >= _next_probe))
+        if due:
+            _next_probe = now + PROBE_EVERY
+    if not due:
+        return None
+    try:
+        rt.get_llm().respond(PING, [{"role": "user", "content": "ping"}])
+    except Exception as exc:
+        log.info("The model does not answer the server's own call: %s", type(exc).__name__)
+        record_failure(exc, now, probe=True)
+        return False
+    record_success(now)
+    return True
 
 
 @dataclass
 class Status:
-    failures: int  # failed model calls in the window, all businesses
+    failures: int  # customers left with the fallback in the window, all businesses (their requests of kind "error")
     reason: str  # the latest known reason ("" after a restart)
     last_at: datetime | None
     last_success: datetime | None = None
+    in_a_row: bool = False  # failing(): the provider's own failures, one after another
+    output_only: bool = False  # every failure of the window is known, and each was one unusable answer (BadOutput)
 
     @property
     def recovered(self) -> bool:
@@ -99,7 +170,18 @@ class Status:
 
     @property
     def down(self) -> bool:
-        return self.failures >= ALERT_AFTER and not self.recovered
+        return self.in_a_row or (self.failures >= ALERT_AFTER and not self.recovered and not self.output_only)
+
+    @property
+    def seen(self) -> str:
+        """What the server saw, for the founder: customers left without an answer, or, at a quiet hour, only the
+        server's own call (probe) failing."""
+        from .lang import plural
+
+        minutes = int(WINDOW.total_seconds() // 60)
+        if self.failures:
+            return f"За последние {minutes} минут не удалось ответить {self.failures} {plural(self.failures, 'раз', 'раза', 'раз')}"
+        return f"За последние {minutes} минут клиенты не писали, но на проверочный вызов сервера модель не отвечает"
 
 
 def status(session: Session, now: datetime) -> Status:
@@ -108,13 +190,16 @@ def status(session: Session, now: datetime) -> Status:
     last_at = session.exec(select(func.max(Lead.created_at)).where(Lead.kind == "error", Lead.created_at >= since)).one()
     with _lock:
         success = _last_success
-    return Status(failures=failures, reason=last_reason(now), last_at=last_at, last_success=success)
+        known = [theirs for t, _reason, theirs in _recent if t >= since]
+    # after a restart the requests outnumber what the server remembers: then their cause is unknown, and they count
+    output_only = bool(failures) and len(known) >= failures and not any(known)
+    return Status(failures=failures, reason=last_reason(now), last_at=last_at, last_success=success,
+                  in_a_row=failing(now), output_only=output_only)
 
 
 def alert_text(st: Status) -> str:
     why = st.reason or f"причина неизвестна (сервер перезапускался) — {check_hint()}"
-    return (f"Joop AI: ИИ не отвечает клиентам. За последние {int(WINDOW.total_seconds() // 60)} минут "
-            f"не удалось ответить {st.failures} раз. Причина: {why}. Пока это не исправлено, клиенты получают "
+    return (f"Joop AI: ИИ не отвечает клиентам. {st.seen}. Причина: {why}. Пока это не исправлено, клиенты получают "
             "ответ «Извините, сейчас не получается ответить», а заявки уходят администраторам.")
 
 
@@ -181,9 +266,10 @@ def maybe_alert(session: Session, rt, now: datetime) -> bool:
 
 def reset() -> None:
     """For tests."""
-    global _last_alert, _last_success, _alert_open
+    global _last_alert, _last_success, _alert_open, _unsure, _in_a_row, _next_probe
     with _lock:
         _recent.clear()
         _last_alert = None
         _last_success = None
         _alert_open = None
+        _unsure, _in_a_row, _next_probe = False, 0, None

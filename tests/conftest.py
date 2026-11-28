@@ -208,6 +208,7 @@ def fresh_counters():
 
     altegio._on_the_way.clear()  # slot ids repeat from test to test (a fresh database each)
     health.use_provider("Anthropic API")  # the last Runtime made names the provider: not the previous test's
+    health.reset()  # what the server remembers of the model's failures: no test inherits another's outage
     yield
 
 

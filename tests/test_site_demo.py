@@ -1,5 +1,6 @@
 import dataclasses
 import re
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,6 +12,8 @@ from joop.models import Business, Conversation, Message
 from joop.web import demo
 from joop.web.app import create_app
 from joop.web.saas import unique_slug
+
+from .conftest import NOW_UTC
 
 
 @pytest.fixture
@@ -155,3 +158,23 @@ def test_demo_questions_block_is_hidden_until_someone_writes(site):
     token = re.search(r'name="csrf" value="([^"]+)"', site.get("/owner/login").text).group(1)
     site.post("/owner/login", data={"password": "owner-pass-123", "csrf": token})
     assert "Что спрашивают в демо" not in site.get("/owner").text
+
+
+def test_a_failing_model_is_not_offered_to_visitors(site, llm, rt):
+    """Review of #321–#327: with the model failing, the site still offered «Напишите сами — ответит настоящий ИИ», and
+    a visitor's message got «Я передал ваше сообщение администратору» from a demo business that nobody reads."""
+    from joop import health
+    from joop.agent.llm import LLMError
+
+    llm.replies = [LLMError("Your credit balance is too low")] * health.ALERT_AFTER
+    for n in range(health.ALERT_AFTER):
+        r = say(site, f"Сколько стоит маникюр? {n}")
+        assert r.status_code == 503 and r.json() == {"error": demo.UNAVAILABLE}
+    assert 'class="composer" data-composer' not in site.get("/").text  # the model fails one call after another
+
+    assert health.probe(rt, NOW_UTC + timedelta(minutes=5)) is True  # the server's own call: the model answers again
+    assert 'class="composer" data-composer' in site.get("/").text
+    llm.replies = [AgentReply("Маникюр с покрытием — 1 200 сом.")]
+    r = say(site, "Сколько стоит маникюр?")
+    assert r.json()["reply"] == "Маникюр с покрытием — 1 200 сом." and r.json()["left"] == demo.PER_SESSION - 1  # failures were not counted
+

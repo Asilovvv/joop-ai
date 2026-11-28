@@ -14,7 +14,7 @@ import pytest
 from sqlmodel import select
 
 from joop import db, health, timeutil
-from joop.agent.llm import AgentReply, LLMError
+from joop.agent.llm import AgentReply, BadOutput, LLMError
 from joop.models import Business, Subscription
 
 from .conftest import NOW_UTC
@@ -96,7 +96,9 @@ def test_old_failures_do_not_last(app_client, llm, monkeypatch):
         ask(app_client, f"Вопрос {n}")
     assert chip(app_client)[1] == "ИИ сейчас не отвечает"
     monkeypatch.setattr(timeutil, "clock", lambda: NOW_UTC + health.WINDOW + timedelta(minutes=1))
-    assert chip(app_client) == ("ok", "ИИ отвечает")  # nobody wrote for half an hour: nothing says the model is still down
+    # nobody wrote and nothing asked the model for half an hour (no scheduler here; on a server it asks every tick
+    # while the last call failed: tests/test_health.py): nothing says the model is still down
+    assert chip(app_client) == ("ok", "ИИ отвечает")
 
 
 def test_a_server_without_its_model_key_is_not_called_answering(app_client, rt):
@@ -109,3 +111,24 @@ def test_a_server_without_its_model_key_is_not_called_answering(app_client, rt):
     assert 'id="ai-down"' in app_client.get("/panel").text
     ask(app_client)  # and the line under the chips is true of it: the customer gets the polite reply
     assert "Извините, сейчас не получается ответить" in app_client.get("/panel/try").text
+
+
+def test_customers_half_an_hour_apart_are_an_outage_too(app_client, llm, monkeypatch):
+    """Review of #321–#327: customers 31 minutes apart all got the fallback, and the chip said «ИИ отвечает»."""
+    signup(app_client)
+    llm.replies += [LLMError("Your credit balance is too low")] * health.ALERT_AFTER
+    for n in range(health.ALERT_AFTER):
+        monkeypatch.setattr(timeutil, "clock", lambda n=n: NOW_UTC + timedelta(minutes=31 * n))
+        ask(app_client, f"Вопрос {n}")
+    assert chip(app_client) == ("warn", "ИИ сейчас не отвечает")
+
+
+def test_another_chats_unreadable_answers_do_not_stop_this_one(app_client, llm):
+    """Review of #321–#327: three unreadable answers (not JSON) in one chat showed «ИИ сейчас не отвечает» to every
+    business. Such an answer is that chat's failure, not the model's."""
+    signup(app_client)
+    llm.replies += [BadOutput("model output is not JSON")] * health.ALERT_AFTER
+    for n in range(health.ALERT_AFTER):
+        ask(app_client, f"Вопрос {n}")
+    assert chip(app_client) == ("ok", "ИИ отвечает")
+

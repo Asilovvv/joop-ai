@@ -22,7 +22,7 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from .. import workers
-from ..agent.engine import handle_incoming
+from ..agent.engine import ERROR_REPLY, handle_incoming
 from ..channels.base import IncomingMessage
 from ..db import new_session
 from ..models import Booking, Business, Conversation, Lead, Message, Order, SignatureClick, Staff, Subscription
@@ -47,6 +47,7 @@ DEMOS = {  # key on the page -> (niche pack, shown name)
 PER_SESSION = 16  # visitor messages per browser session per day
 PER_ADDRESS = 40  # per IP address per day: several people behind one office router
 MAX_TEXT = 500
+UNAVAILABLE = "ИИ сейчас недоступен. Попробуйте через минуту."
 _by_address: dict[str, tuple[int, float]] = {}
 _refreshed: dict[int, float] = {}
 _answering = 0  # demo answers being written now, not yet counted by the database
@@ -141,10 +142,14 @@ def _answer(get_llm, key: str, token: str, text: str, limit: int):
             incoming = IncomingMessage("console", chat_id, "text", text, "Гость", f"console:{chat_id}:{secrets.token_hex(6)}")
             outcome = handle_incoming(s, business, incoming, get_llm)
             s.commit()
+            if outcome.reply == ERROR_REPLY:
+                # The model failed. A customer of a real business is told «передал ваше сообщение администратору» and
+                # staff get the request; a visitor of the site has no administrator to wait for, and is told the truth.
+                return JSONResponse({"error": UNAVAILABLE}, status_code=503)
         except Exception:
             s.rollback()
             log.exception("Site demo failed for %s", key)
-            return JSONResponse({"error": "ИИ сейчас недоступен. Попробуйте через минуту."}, status_code=503)
+            return JSONResponse({"error": UNAVAILABLE}, status_code=503)
         finally:
             with _lock:
                 _answering -= 1
