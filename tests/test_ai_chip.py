@@ -3,7 +3,8 @@
 Found on 28 November while checking the screens for the project's show: the first chip of the dashboard said «ИИ
 отвечает» whenever the owner's switch was on. It said so after the trial had ended and the AI had stopped (beside
 the banner that said it had), and while the model was failing for every business and customers were getting
-«Извините, сейчас не получается ответить».
+«Извините, сейчас не получается ответить». A server that had no model key at all said «ИИ отвечает» too, until three
+customers had gone unanswered.
 """
 
 import re
@@ -96,3 +97,15 @@ def test_old_failures_do_not_last(app_client, llm, monkeypatch):
     assert chip(app_client)[1] == "ИИ сейчас не отвечает"
     monkeypatch.setattr(timeutil, "clock", lambda: NOW_UTC + health.WINDOW + timedelta(minutes=1))
     assert chip(app_client) == ("ok", "ИИ отвечает")  # nobody wrote for half an hour: nothing says the model is still down
+
+
+def test_a_server_without_its_model_key_is_not_called_answering(app_client, rt):
+    """Nobody has to go unanswered first: a server that cannot call a model at all says so from the start."""
+    signup(app_client)
+    assert chip(app_client) == ("ok", "ИИ отвечает")  # the tests' own model stands in for a key
+    rt._llm = None  # a real server has only the model its key opens, and this one has no key
+    assert rt.settings.model_key == ""
+    assert chip(app_client) == ("warn", "ИИ сейчас не отвечает")
+    assert 'id="ai-down"' in app_client.get("/panel").text
+    ask(app_client)  # and the line under the chips is true of it: the customer gets the polite reply
+    assert "Извините, сейчас не получается ответить" in app_client.get("/panel/try").text

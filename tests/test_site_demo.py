@@ -37,6 +37,19 @@ def test_landing_offers_the_live_chat_only_with_a_key(site, settings, rt, engine
         assert 'class="composer" data-composer' not in c.get("/").text
 
 
+def test_landing_offers_the_live_chat_on_the_second_provider_too(settings, rt, engine):
+    """deploy/setup.sh can start a server on Gemini (LLM_PROVIDER=openai): it has no Anthropic key, and the page asked
+    for that one by name, so the site of such a server never showed «Напишите сами — ответит настоящий ИИ»."""
+    gemini = dataclasses.replace(settings, anthropic_api_key="", llm_provider="openai", llm_api_key="k", site_demo_daily_limit=300,
+                                 llm_base_url="https://generativelanguage.googleapis.com/v1beta/openai")
+    with TestClient(create_app(gemini, rt, init=False)) as c:
+        assert 'class="composer" data-composer' in c.get("/").text
+    for unusable in (dataclasses.replace(gemini, llm_api_key=""), dataclasses.replace(gemini, llm_base_url=""),
+                     dataclasses.replace(gemini, llm_api_key="", anthropic_api_key="a-key-this-server-does-not-use")):
+        with TestClient(create_app(unusable, rt, init=False)) as c:
+            assert 'class="composer" data-composer' not in c.get("/").text
+
+
 def test_visitor_talks_to_the_real_engine_of_a_hidden_demo_business(site, llm):
     llm.replies = [AgentReply("Маникюр с покрытием — 1 200 сом."), AgentReply("Записать вас?")]
     r = say(site, "Сколько стоит маникюр?")

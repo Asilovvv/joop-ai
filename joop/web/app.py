@@ -408,7 +408,7 @@ def landing(request: Request):
     s = _settings(request)
     packs = {k: p for k, p in picker_packs().items() if k != "other"}
     return _site(request, "site_home.html", packs=packs, price=s.price_som, trial_days=s.trial_days, signup=s.signup_enabled,
-                 live_demo=s.site_demo_daily_limit > 0 and bool(s.anthropic_api_key), csrf=_csrf(request))
+                 live_demo=s.site_demo_daily_limit > 0 and bool(s.model_key), csrf=_csrf(request))
 
 
 # What the features page lists: each item is something the code does today (module in brackets for the next reader).
@@ -600,16 +600,17 @@ def example_ok(request: Request, csrf: str = Form("")):
     return _back("/panel")
 
 
-def ai_chip(s: Session, b: Business, now: datetime) -> tuple[str, str, str]:
+def ai_chip(s: Session, b: Business, now: datetime, can_answer: bool) -> tuple[str, str, str]:
     """The dashboard's first chip: do customers get the AI's answers right now? (class, words, a line for under the
     chips). Three things stop them, and the chip names the one that does: the owner's switch, the subscription (the
-    banner on top of the page says why and how to pay), and the model itself when it keeps failing for everyone
+    banner on top of the page says why and how to pay), and the model itself: when the server cannot call it at all
+    (`can_answer`: Runtime.can_answer, a server without its model key) or when it keeps failing for everyone
     (joop/health.py; the provider's own words go to the founder only)."""
     if not b.bot_enabled:
         return "warn", "ИИ выключен", ""
     if not billing.access_ok(s, b.id, now):
         return "warn", "ИИ остановлен", ""
-    if model_health.status(s, now).down:
+    if not can_answer or model_health.status(s, now).down:
         return "warn", "ИИ сейчас не отвечает", (
             "Сбой на стороне сервиса: клиенты получают ответ «Извините, сейчас не получается ответить», а их сообщения "
             "приходят вам как заявки. Ответьте на них сами, пока ИИ не вернётся.")
@@ -670,7 +671,7 @@ def dashboard(request: Request):
             leads=leads,
             counts=counts,
             example=example,
-            ai=ai_chip(s, b, now),
+            ai=ai_chip(s, b, now, _rt(request).can_answer),
             admins=len(alert_chats(b)),
             channels=[
                 ("Telegram", bool(b.telegram_bot_token)),
