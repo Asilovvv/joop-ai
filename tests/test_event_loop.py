@@ -36,6 +36,26 @@ class Slow(FakeLLM):
         return AgentReply("Здравствуйте! Чем помочь?")
 
 
+PATIENCE = 20  # seconds a held answer waits before it gives up: only a server that is stuck gets that far
+
+
+class Held(FakeLLM):
+    """A model that answers only when `visitors` calls wait in it at one moment and somebody has let them go. No
+    clock in it: a machine ten times slower gives the same result, only later."""
+
+    def __init__(self, visitors: int) -> None:
+        super().__init__()
+        self.inside = threading.Event()  # every visitor is with the model now
+        self.together = threading.Barrier(visitors, action=self.inside.set)
+        self.go = threading.Event()
+
+    def respond(self, system, messages, schema=None):
+        self.together.wait(PATIENCE)  # one after another they would never meet here: BrokenBarrierError
+        if not self.go.wait(PATIENCE):
+            raise AssertionError("nobody else was answered while the model was thinking")
+        return AgentReply("Здравствуйте! Чем помочь?")
+
+
 def slow_calls(source: str, where: str) -> list[str]:
     found = []
     for fn in ast.walk(ast.parse(source)):
@@ -87,18 +107,26 @@ def at_once(jobs):
     return ended
 
 
-def health_after(client, delay=MODEL_SECONDS / 3):
-    def check():
-        time.sleep(delay)  # while the visitors wait for the model
-        assert client.get("/health").status_code == 200
-    return check
+def somebody_else(client, model: Held, health: list):
+    """A job for at_once: once the model holds its visitors, ask the server for /health, then let the model answer."""
+    def job():
+        try:
+            assert model.inside.wait(PATIENCE), "the visitors never were with the model at one moment"
+            health.append(client.get("/health").status_code)  # the model has not answered anyone yet
+        finally:
+            model.go.set()
+    return job
 
 
 def test_site_chat_visitors_are_answered_side_by_side(settings, rt, business):
-    rt.get_llm = lambda: Slow()
+    """Three visitors write at once. Side by side means: all three are with the model at one moment, and while they
+    wait there the server answers somebody else. Measured by who met whom, not by seconds: on 26 November the same
+    check by the clock («under 1.5 s») failed on a slow build server with nothing wrong in the code."""
+    model = Held(visitors=3)
+    rt.get_llm = lambda: model
     webchat.reset_limits()
     with TestClient(create_app(settings, rt, init=False)) as c:
-        replies = []
+        replies, health = [], []
 
         def visitor(n):
             def job():
@@ -106,11 +134,10 @@ def test_site_chat_visitors_are_answered_side_by_side(settings, rt, business):
                 replies.append(r.json().get("reply"))
             return job
 
-        ended = at_once([visitor(n) for n in range(3)] + [health_after(c)])
+        at_once([visitor(n) for n in range(3)] + [somebody_else(c, model, health)])
     webchat.reset_limits()
+    assert health == [200]
     assert replies == ["Здравствуйте! Чем помочь?"] * 3
-    assert max(ended[:3]) < MODEL_SECONDS * 2.5  # one after another it would be three model times
-    assert ended[3] < min(ended[:3])  # the server answered others while the visitors waited
 
 
 @pytest.fixture
@@ -124,14 +151,16 @@ def site(settings, rt, engine):
     demo._by_address.clear()
 
 
-def test_the_site_demo_does_not_stop_the_server(site):
+def test_the_site_demo_does_not_stop_the_server(site, rt):
+    model = Held(visitors=1)
+    rt.get_llm = lambda: model
     csrf = re.search(r'<meta name="csrf" content="([^"]+)"', site.get("/").text).group(1)
-    replies = []
+    replies, health = [], []
 
     def talk():
         r = site.post("/demo/chat", json={"key": "salon", "text": "Сколько стоит стрижка?", "csrf": csrf})
         replies.append(r.status_code)
 
-    ended = at_once([talk, health_after(site)])
+    at_once([talk, somebody_else(site, model, health)])
+    assert health == [200]  # answered while the demo's question was still with the model
     assert replies == [200]
-    assert ended[1] < ended[0]
