@@ -62,17 +62,32 @@ class Held(FakeLLM):
         return AgentReply("Здравствуйте! Чем помочь?")
 
 
+def _name(func: ast.expr) -> str:
+    return func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
+
+
 def slow_calls(source: str, where: str) -> list[str]:
+    """Calls an `async def` makes itself to something that waits on the model or a messenger: a name in SLOW, or a
+    plain function of the same module that makes such a call, however deep (review of #321–#327: a route that called
+    its own helper directly, instead of handing it to run_in_threadpool, was not seen). A helper handed over to a
+    thread is an argument, not a call."""
+    tree = ast.parse(source)
+    inside = {fn.name: {_name(node.func) for node in ast.walk(fn) if isinstance(node, ast.Call)}
+              for fn in tree.body if isinstance(fn, ast.FunctionDef)}
+    slow, grew = set(SLOW), True
+    while grew:
+        grew = False
+        for name, calls in inside.items():
+            if name not in slow and calls & slow:
+                slow.add(name)
+                grew = True
     found = []
-    for fn in ast.walk(ast.parse(source)):
+    for fn in ast.walk(tree):
         if not isinstance(fn, ast.AsyncFunctionDef):
             continue
         for node in ast.walk(fn):
-            if isinstance(node, ast.Call):
-                f = node.func
-                name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", "")
-                if name in SLOW:
-                    found.append(f"{where}:{node.lineno} {fn.name} calls {name}")
+            if isinstance(node, ast.Call) and _name(node.func) in slow:
+                found.append(f"{where}:{node.lineno} {fn.name} calls {_name(node.func)}")
     return found
 
 
@@ -85,6 +100,10 @@ def test_the_check_finds_such_a_call():
              "async def fine(request):\n    return await run_in_threadpool(_answer, request)\n\n"
              "def _answer(request):\n    return handle_incoming(s, b, 1, rt.get_llm)\n")
     assert slow_calls(route, "x.py") == ["x.py:3 chat calls handle_incoming"]
+    helper = ("async def chat(request):\n    return _answer(request)\n\n"
+              "def _answer(request):\n    return _reply(request)\n\n"
+              "def _reply(request):\n    return handle_incoming(s, b, 1, rt.get_llm)\n")
+    assert slow_calls(helper, "x.py") == ["x.py:2 chat calls _answer"]  # two helpers deep
 
 
 def at_once(jobs):
