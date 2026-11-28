@@ -28,6 +28,13 @@ class Runtime:
 
         health.use_provider(settings.model_api_name)
 
+    @property
+    def can_answer(self) -> bool:
+        """A model can be called at all: the provider in use has its key (or a test, the evaluation or a recording
+        handed this runtime a model of its own). It says nothing of whether the call will succeed: the balance and
+        the provider's own failures are joop/health.py."""
+        return self._llm is not None or bool(self.settings.model_key)
+
     def get_llm(self) -> LLMClient:
         if self._llm is None:
             if not self.settings.model_key:

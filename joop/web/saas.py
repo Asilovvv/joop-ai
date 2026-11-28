@@ -918,7 +918,7 @@ def prospect_action(request: Request, pid: int, action: str = Form(""), status: 
                     pitch.run_dialogue(s, b, rt.get_llm, p.language, now, settings.public_base_url)
             except Exception:
                 log.exception("Pitch demo failed")
-                b, problem = None, "ИИ сейчас недоступен. Проверьте ANTHROPIC_API_KEY и баланс."
+                b, problem = None, f"ИИ сейчас недоступен. {health.check_hint(sentence=True)}."
             if b is None:
                 s.rollback()
                 _flash(request, problem, "error")
@@ -942,7 +942,7 @@ def prospect_action(request: Request, pid: int, action: str = Form(""), status: 
                 p.message = text.strip()
                 _flash(request, "Черновик готов. Проверьте, поправьте и отправьте сами.")
             else:
-                _flash(request, "ИИ не смог написать черновик. Проверьте ANTHROPIC_API_KEY.", "error")
+                _flash(request, f"ИИ не смог написать черновик. {health.check_hint(sentence=True)}.", "error")
         elif action == "delete":
             s.delete(p)
             s.commit()

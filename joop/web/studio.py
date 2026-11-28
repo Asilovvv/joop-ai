@@ -12,7 +12,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from sqlmodel import select
 
-from .. import studio
+from .. import health, studio
 from ..db import new_session
 from ..models import StudioRequest
 from ..niches import all_packs, get_pack, picker_packs
@@ -107,7 +107,7 @@ def _owner_studio_action(request: Request, rid: int, form):
                 log.exception("Studio draft failed")
                 site = None
             if site is None:
-                _flash(request, "ИИ не смог сделать черновик. Проверьте ANTHROPIC_API_KEY или дополните описание.", "error")
+                _flash(request, f"ИИ не смог сделать черновик. {health.check_hint(sentence=True)} или дополните описание.", "error")
             else:
                 r.content_json = json.dumps(site, ensure_ascii=False)
                 r.status = "draft" if r.status == "new" else r.status
