@@ -233,22 +233,34 @@ def _owner_only(s: Session, request: Request) -> tuple[Who | None, JSONResponse 
     return who, None
 
 
+def _lang(request: Request) -> str:
+    """The app's language, from its Accept-Language header: ky or ru."""
+    return "ky" if request.headers.get("accept-language", "").strip().lower().startswith("ky") else "ru"
+
+
 def _setup(s: Session, request: Request, b: Business) -> dict:
+    from .. import checklist_ky
+
     now = utcnow()
     pack = get_pack(b.niche)
     base = (_settings(request).public_base_url or str(request.base_url)).rstrip("/")
     why = page_booking.unavailable(s, b, now) if pack.has("booking") else "niche"
+    ky = _lang(request) == "ky"
+    steps = checklist(s, b, now)
+    if ky:  # the panel's steps are Russian; an owner who chose Kyrgyz reads them in Kyrgyz
+        steps = checklist_ky.kyrgyz(steps, b, pack)
     return {
         "steps": [{"key": i["key"], "done": bool(i["done"]), "title": i["title"], "hint": i["hint"],
                    "panel": f"{base}{i['href']}" if str(i.get("href", "")).startswith("/") else ""}
-                  for i in checklist(s, b, now)],
+                  for i in steps],
         "telegram": {"connected": bool(b.telegram_bot_token), "username": b.telegram_bot_username},
         "page_booking": {"available": pack.has("booking") and why != "altegio", "on": bool(b.page_booking and b.menu_enabled),
                          "works": why == "", "why": why, "url": f"{base}/m/{b.slug}/book",
                          "qr": qr_rows(f"{base}/m/{b.slug}/book")},
         # the public page (the panel's «Прайс онлайн» / «Каталог онлайн» / «QR-меню»): prices, contacts and the buttons
         # into the chats; a cafe's guests order from it by table
-        "online": {"label": pack.online_label, "on": b.menu_enabled, "tables": pack.serves_tables,
+        "online": {"label": checklist_ky.online_label(pack) if ky else pack.online_label, "on": b.menu_enabled,
+                   "tables": pack.serves_tables,
                    "url": f"{base}/m/{b.slug}", "qr": qr_rows(f"{base}/m/{b.slug}")},
     }
 

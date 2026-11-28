@@ -90,4 +90,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(server.chat.single['lang'], 'ky'); // Joop's web chat answers its own messages in Kyrgyz
   });
+
+  testWidgets('the app tells the server its language, so the launch steps come in it', (tester) async {
+    final server = FakeJoop();
+    await _open(tester, server);
+    await tester.enterText(find.byKey(const Key('company')), 'aktish');
+    await tester.enterText(find.byKey(const Key('password')), 'secret-pass');
+    await tester.tap(find.byKey(const Key('login')));
+    await tester.pumpAndSettle();
+    expect(server.languages['/api/mobile/me'] ?? server.languages['/api/mobile/summary'], 'ru');
+
+    await _choose(tester, 'Кыргызча');
+    await tester.tap(find.byKey(const Key('app-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('menu-setup')));
+    await tester.pumpAndSettle();
+    expect(server.languages['/api/mobile/setup'], 'ky');
+  });
 }

@@ -178,11 +178,17 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
         missing.append(f"условия заказа (сейчас из примера: {', '.join(terms)})")
     bot = f"https://t.me/{b.telegram_bot_username}" if b.telegram_bot_token and b.telegram_bot_username else ""
     people = _people_steps(s, b, pack, now)
+    # the same facts as fields, for the owner's app to say them in Kyrgyz (joop/checklist_ky.py)
+    empty = [field for field, value in (("address", b.address), ("phone", b.phone), ("hours", b.hours_text)) if not value]
+    from_example = ((["hours"] if samples.hours_are_example(b) else [])
+                    + [field for field in ("address", "phone") if field in example_contacts]
+                    + (["policy"] if "booking_policy" in example_terms else []) + (["order"] if "order" in example_terms else []))
     return [
         {"done": not missing, "title": "Контакты и часы работы", "href": "/panel/settings", "key": "contacts",
+         "empty": empty, "from_example": from_example,
          "hint": ("Осталось указать: " + ", ".join(missing) + ". " if missing else "")
                  + "ИИ отвечает только тем, что здесь написано."},
-        {"done": services > 0 and not example,
+        {"done": services > 0 and not example, "count": services, "example_count": len(example),
          "title": f"{label}: {services}" + (f", из них пример: {len(example)}" if example else ""), "href": "/panel/services", "key": "prices",
          "hint": "Мы добавили пример, чтобы тестовый чат отвечал сразу. Настоящим клиентам ИИ его не называет: замените"
                  " цены и названия на свои — кыргызские по желанию."},
@@ -199,7 +205,7 @@ def checklist(s: Session, b: Business, now) -> list[dict[str, Any]]:
          "hint": (f"Ссылка на бота: {bot.removeprefix('https://')} — поставьте её в шапку Instagram и в 2ГИС. " if bot else "")
                  + ("Наклейка с QR-кодом на машине и визитке — самый быстрый первый клиент." if pack.comes_to_client
                     else "Табличка с QR-кодом у кассы — самый быстрый первый клиент.")},
-        {"done": paid or free, "title": "Бесплатный тариф: один мастер, без срока" if free else "Оплата", "href": "/panel/billing", "key": "pay",
+        {"done": paid or free, "free": free, "title": "Бесплатный тариф: один мастер, без срока" if free else "Оплата", "href": "/panel/billing", "key": "pay",
          "hint": "Второй мастер и ответы без подписи Joop — на платном тарифе." if free else "После пробного периода ИИ работает по подписке."},
     ]
 
@@ -216,7 +222,8 @@ def _people_steps(s: Session, b: Business, pack, now) -> list[dict[str, Any]]:
     own = [x for x in active if x not in example]
     label, booking = pack.resource_label, pack.has("booking")
     if pack.has("stay"):  # rooms, halls, cars: the example ones are not offered to guests either (stays.book)
-        return [{"done": bool(own) and not example, "key": "rooms", "href": "/panel/staff",
+        return [{"done": bool(own) and not example, "key": "rooms", "href": "/panel/staff", "count": len(active),
+                 "example_count": len(example),
                  "title": f"{label}: {len(active)}" + (f", из них пример: {len(example)}" if example else ""),
                  "hint": "Это пример из вашей сферы: настоящим клиентам ИИ его не предлагает и не бронирует. "
                          "Впишите свои — название, вместимость и сколько таких." if example
@@ -224,7 +231,7 @@ def _people_steps(s: Session, b: Business, pack, now) -> list[dict[str, Any]]:
     # Without bookings (a flower shop, a repair shop taking requests) customers come to no one's time: own people are
     # optional there, only the example must go. With bookings there is nobody to book without them.
     done = (bool(own) if booking else True) and not example
-    steps = [{"done": done, "key": "staff", "href": "/panel/staff",
+    steps = [{"done": done, "key": "staff", "href": "/panel/staff", "count": len(active), "example_count": len(example),
               "title": f"{label}: {len(active)}" + (f", из них пример: {len(example)}" if example else ""),
               "hint": "Это пример из вашей сферы: настоящим клиентам ИИ этих людей не называет и к ним не записывает. "
                       "Впишите своих — имя и чем занимается" + ("." if booking else " — или просто уберите пример.")
@@ -235,7 +242,7 @@ def _people_steps(s: Session, b: Business, pack, now) -> list[dict[str, Any]]:
         free = s.exec(select(func.count()).select_from(Slot).where(
             Slot.business_id == b.id, Slot.status == "free", Slot.start > now_local,
             Slot.staff_id.in_(own or [0]))).one()
-        steps.append({"done": free > 0, "key": "slots", "href": "/panel/slots", "title": "Свободные окна для записи",
+        steps.append({"done": free > 0, "key": "slots", "href": "/panel/slots", "count": free, "title": "Свободные окна для записи",
                       "hint": "ИИ записывает клиентов только в свободные окна ваших людей: откройте их время на ближайшие дни "
                               "в разделе «Окна для записи»." if not free else f"Свободных окон впереди: {free}."})
     return steps

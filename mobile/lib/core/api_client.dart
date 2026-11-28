@@ -69,6 +69,8 @@ class ApiClient {
 
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
+        // the app's language: the server says in it what it writes itself (the launch steps)
+        'Accept-Language': S.current.code,
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
