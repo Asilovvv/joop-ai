@@ -34,6 +34,7 @@ from ..models import (TAKEOVER_CHOICES, Booking, Business, Conversation, Convers
 from ..niches import all_packs, get_pack, picker_packs
 from ..lang import plural
 from ..phone import display_phone, normalize_phone
+from .. import health as model_health  # `health` here is the /health route
 from .. import billing, cash, confirm, customers, deposits, free_plan, funnel, gaps, ig_comments, ig_login, order_status, period_end, quick_replies, samples, schedule, staff_reply, stock, waitlist
 from ..faq_gaps import open_gaps
 from ..reschedule import blocked as move_blocked, cancel as cancel_core, reschedule
@@ -599,6 +600,22 @@ def example_ok(request: Request, csrf: str = Form("")):
     return _back("/panel")
 
 
+def ai_chip(s: Session, b: Business, now: datetime) -> tuple[str, str, str]:
+    """The dashboard's first chip: do customers get the AI's answers right now? (class, words, a line for under the
+    chips). Three things stop them, and the chip names the one that does: the owner's switch, the subscription (the
+    banner on top of the page says why and how to pay), and the model itself when it keeps failing for everyone
+    (joop/health.py; the provider's own words go to the founder only)."""
+    if not b.bot_enabled:
+        return "warn", "ИИ выключен", ""
+    if not billing.access_ok(s, b.id, now):
+        return "warn", "ИИ остановлен", ""
+    if model_health.status(s, now).down:
+        return "warn", "ИИ сейчас не отвечает", (
+            "Сбой на стороне сервиса: клиенты получают ответ «Извините, сейчас не получается ответить», а их сообщения "
+            "приходят вам как заявки. Ответьте на них сами, пока ИИ не вернётся.")
+    return "ok", "ИИ отвечает", ""
+
+
 @router.get("/panel")
 def dashboard(request: Request):
     with new_session() as s:
@@ -653,6 +670,7 @@ def dashboard(request: Request):
             leads=leads,
             counts=counts,
             example=example,
+            ai=ai_chip(s, b, now),
             admins=len(alert_chats(b)),
             channels=[
                 ("Telegram", bool(b.telegram_bot_token)),
