@@ -314,7 +314,7 @@ class FakeJoop {
             'who': role == 'master' ? 'Айгерим' : 'Владелец',
             'role': role,
             'sections': {'bookings': true, 'orders': false, 'leads': role != 'master', 'cash': true},
-            'people_label': role == 'master' || altegio ? '' : 'Врачи',
+            'people_label': role == 'master' || altegio ? '' : languages[path] == 'ky' ? 'Дарыгерлер' : 'Врачи',
           };
     if (path == '/api/mobile/places/aktish') {
       return json({

@@ -107,4 +107,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(server.languages['/api/mobile/setup'], 'ky');
   });
+
+  testWidgets('the people screen keeps its name in the menu after the language changes', (tester) async {
+    final server = FakeJoop();
+    await _open(tester, server);
+    await tester.enterText(find.byKey(const Key('company')), 'aktish');
+    await tester.enterText(find.byKey(const Key('password')), 'secret-pass');
+    await tester.tap(find.byKey(const Key('login')));
+    await tester.pumpAndSettle();
+
+    await _choose(tester, 'Кыргызча');
+    await tester.tap(find.byKey(const Key('app-menu')));
+    await tester.pumpAndSettle();
+    expect(find.descendant(of: find.byKey(const Key('menu-people')), matching: find.text('Дарыгерлер')), findsOneWidget);
+    expect(find.text('Врачи'), findsNothing);
+  });
 }

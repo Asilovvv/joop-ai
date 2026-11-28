@@ -16,7 +16,7 @@ from .test_period_banner import at, trial  # noqa: F401 - the clock fixture
 
 KY = {"Accept-Language": "ky"}
 RUSSIAN = re.compile(r"\b(клиентам|отвечает|закончился|заканчивается|осталось|оплаты|остановится|подписка|Заявка|"
-                     r"перевода|Напишите|бесплатный|мастера|приходят|отвечайте)\b")
+                     r"перевода|Напишите|бесплатный|мастера|приходят|отвечайте|Диалоги|Оплата|Расписание)\b")
 
 
 def _line(settings, rt, lang: dict | None = None) -> dict | None:

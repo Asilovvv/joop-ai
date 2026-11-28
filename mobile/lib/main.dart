@@ -34,7 +34,9 @@ class JoopApp extends StatelessWidget {
           BlocProvider(create: (_) => LanguageCubit()..restore()),
           BlocProvider(create: (_) => AuthBloc(repository)..add(const AuthStarted())),
         ],
-        child: BlocBuilder<LanguageCubit, S>(
+        child: BlocConsumer<LanguageCubit, S>(
+          listenWhen: (a, b) => a.code != b.code,
+          listener: (context, _) => context.read<AuthBloc>().add(const AuthRefreshed()),
           builder: (context, language) => MaterialApp(
             title: 'Joop AI',
             debugShowCheckedModeBanner: false,
