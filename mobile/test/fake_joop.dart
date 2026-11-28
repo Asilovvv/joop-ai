@@ -276,9 +276,13 @@ class FakeJoop {
 
   static const token = 'good-token';
 
+  /// The language each request was sent in (Accept-Language), by path.
+  final languages = <String, String>{};
+
   late final client = MockClient((request) async {
     final path = request.url.path;
     calls.add('${request.method} $path');
+    languages[path] = request.headers['Accept-Language'] ?? '';
     http.Response json(Object body, [int status = 200]) =>
         http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json; charset=utf-8'});
     final account = repair
